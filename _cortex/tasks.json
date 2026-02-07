@@ -1,0 +1,75 @@
+{
+  "project": "adt-framework",
+  "tasks": [
+    {
+      "id": "task_001",
+      "title": "Build ADS Engine (adt_core/ads/)",
+      "description": "Extract and generalize Safe Logger from OceanPulse _cortex/ops/log.py. Implement logger.py, integrity.py, schema.py, query.py. Must work independently of any specific project.",
+      "spec_ref": "SPEC-017",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_002",
+      "title": "Build SDD Engine (adt_core/sdd/)",
+      "description": "Implement spec lifecycle management: registry.py (DRAFT→APPROVED→COMPLETED), validator.py (spec-action authorization), tasks.py (task tracking). Read specs from configurable project path.",
+      "spec_ref": "SPEC-017",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_003",
+      "title": "Build DTTP Gateway (adt_core/dttp/)",
+      "description": "Implement privilege-separated enforcement gateway per SPEC-014. gateway.py (request validation), jurisdictions.py (role-path mapping), actions.py (local/SSH/FTP handlers), policy.py (fail-closed engine).",
+      "spec_ref": "SPEC-014",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": ["task_001", "task_002"]
+    },
+    {
+      "id": "task_004",
+      "title": "Build Operational Center Flask App (adt_center/)",
+      "description": "Implement Flask application per SPEC-015. Dashboard, ADS Timeline, Spec Registry (with approve buttons), Task Board, DTTP Monitor. Human web UI + agent API endpoints.",
+      "spec_ref": "SPEC-015",
+      "assigned_to": "Backend_Engineer + Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": ["task_001", "task_002"]
+    },
+    {
+      "id": "task_005",
+      "title": "Build Help & Principles Page (adt_center/templates/about.html)",
+      "description": "Implement the ADT Help page per SPEC-016. All 12 sections: What is ADT, Four Pillars, ADS, Integrity Chain, SDD, DTTP, Operational Center, Roles, Narrative Workflows, Real Incidents, Glossary, Roadmap.",
+      "spec_ref": "SPEC-016",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": ["task_004"]
+    },
+    {
+      "id": "task_006",
+      "title": "Build Agent SDK (adt_sdk/)",
+      "description": "Implement client library for AI agents. ADTClient class, decorators (@adt.authorized, @adt.logged), hook templates for Claude and Gemini CLI.",
+      "spec_ref": "SPEC-017",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": ["task_003"]
+    },
+    {
+      "id": "task_007",
+      "title": "Write tests for all core modules",
+      "description": "Unit tests for ADS, SDD, DTTP engines. Integration test for full request flow: agent SDK → DTTP gateway → action + ADS log.",
+      "spec_ref": "SPEC-017",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": ["task_001", "task_002", "task_003"]
+    }
+  ]
+}
