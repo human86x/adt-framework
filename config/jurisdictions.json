@@ -1,0 +1,9 @@
+{
+  "jurisdictions": {
+    "Systems_Architect": ["_cortex/", "docs/"],
+    "Backend_Engineer": ["adt_core/", "adt_center/api/", "adt_center/app.py", "adt_sdk/", "tests/", "config/"],
+    "Frontend_Engineer": ["adt_center/templates/", "adt_center/static/"],
+    "DevOps_Engineer": ["ops/"],
+    "Overseer": ["_cortex/ads/"]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "specs": {
+    "SPEC-014": {
+      "title": "DTTP Implementation (Level 3)",
+      "status": "approved",
+      "roles": ["Backend_Engineer", "DevOps_Engineer"],
+      "action_types": ["edit", "create", "delete"],
+      "paths": ["adt_core/dttp/", "config/"]
+    },
+    "SPEC-015": {
+      "title": "ADT Operational Center",
+      "status": "approved",
+      "roles": ["Backend_Engineer", "Frontend_Engineer"],
+      "action_types": ["edit", "create", "delete"],
+      "paths": ["adt_center/"]
+    },
+    "SPEC-016": {
+      "title": "ADT Help & Principles Page",
+      "status": "approved",
+      "roles": ["Frontend_Engineer"],
+      "action_types": ["edit", "create"],
+      "paths": ["adt_center/templates/", "adt_center/static/"]
+    },
+    "SPEC-017": {
+      "title": "ADT Framework Repository",
+      "status": "approved",
+      "roles": ["Backend_Engineer", "Systems_Architect", "DevOps_Engineer"],
+      "action_types": ["edit", "create", "delete"],
+      "paths": ["adt_core/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+    },
+    "SPEC-018": {
+      "title": "Phase 1 Hardening",
+      "status": "approved",
+      "roles": ["Backend_Engineer"],
+      "action_types": ["edit", "create", "delete"],
+      "paths": ["adt_core/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+    },
+    "SPEC-019": {
+      "title": "DTTP Standalone Service",
+      "status": "approved",
+      "roles": ["Backend_Engineer"],
+      "action_types": ["edit", "create", "delete"],
+      "paths": ["adt_core/dttp/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+    }
+  }
+}
