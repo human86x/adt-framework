@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% set active_page = "tasks" %}
+
+{% block title %}Task Board - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Task Board</h5>
+    <span class="text-adt-muted" style="font-size:0.8rem;">
+        {{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}/{{ tasks|length }} completed
+    </span>
+</div>
+
+<div class="row g-3">
+    <!-- Pending Column -->
+    <div class="col-md-4">
+        <div class="card card-adt">
+            <div class="card-header" style="border-bottom-color:var(--adt-amber);">
+                <span class="text-adt-amber">Pending</span>
+                <span class="badge-adt badge-pending ms-2">{{ tasks|selectattr('status', 'equalto', 'pending')|list|length }}</span>
+            </div>
+            <div class="card-body p-2">
+                {% for task in tasks if task.status == 'pending' %}
+                <div class="task-column">
+                    <div class="task-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="task-id">{{ task.id }}</div>
+                            {% if task.spec_ref %}
+                            <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="task-title mt-1">{{ task.title }}</div>
+                        <div class="task-role mt-1">{{ task.assigned_to }}</div>
+                        {% if task.depends_on %}
+                        <div style="font-size:0.65rem; color:var(--adt-text-muted); margin-top:0.3rem;">
+                            Depends: {{ task.depends_on|join(', ') }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-adt-muted text-center py-3" style="font-size:0.8rem;">No pending tasks</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- In Progress Column -->
+    <div class="col-md-4">
+        <div class="card card-adt">
+            <div class="card-header" style="border-bottom-color:var(--adt-purple);">
+                <span class="text-adt-purple" style="color:var(--adt-purple);">In Progress</span>
+                <span class="badge-adt badge-in-progress ms-2">{{ tasks|selectattr('status', 'equalto', 'in_progress')|list|length }}</span>
+            </div>
+            <div class="card-body p-2">
+                {% for task in tasks if task.status == 'in_progress' %}
+                <div class="task-column">
+                    <div class="task-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="task-id">{{ task.id }}</div>
+                            {% if task.spec_ref %}
+                            <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="task-title mt-1">{{ task.title }}</div>
+                        <div class="task-role mt-1">{{ task.assigned_to }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-adt-muted text-center py-3" style="font-size:0.8rem;">No tasks in progress</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Completed Column -->
+    <div class="col-md-4">
+        <div class="card card-adt">
+            <div class="card-header" style="border-bottom-color:var(--adt-green);">
+                <span class="text-adt-green">Completed</span>
+                <span class="badge-adt badge-completed ms-2">{{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}</span>
+            </div>
+            <div class="card-body p-2">
+                {% for task in tasks if task.status == 'completed' %}
+                <div class="task-column">
+                    <div class="task-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="task-id">{{ task.id }}</div>
+                            {% if task.spec_ref %}
+                            <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="task-title mt-1">{{ task.title }}</div>
+                        <div class="task-role mt-1">{{ task.assigned_to }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-adt-muted text-center py-3" style="font-size:0.8rem;">No completed tasks</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Details Table -->
+<div class="card card-adt mt-4">
+    <div class="card-header">All Tasks (Detail View)</div>
+    <div class="card-body p-0">
+        <table class="table table-adt mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Spec</th>
+                    <th>Assigned To</th>
+                    <th>Status</th>
+                    <th>Dependencies</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td class="text-adt-accent">{{ task.id }}</td>
+                    <td>{{ task.title }}</td>
+                    <td><span class="badge-adt badge-spec">{{ task.spec_ref }}</span></td>
+                    <td>{{ task.assigned_to }}</td>
+                    <td>
+                        <span class="badge-adt
+                            {% if task.status == 'completed' %}badge-completed
+                            {% elif task.status == 'in_progress' %}badge-in-progress
+                            {% else %}badge-pending{% endif %}">
+                            {{ task.status }}
+                        </span>
+                    </td>
+                    <td class="text-adt-muted">{{ task.depends_on|join(', ') if task.depends_on else 'None' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
