@@ -1,0 +1,15 @@
+[Unit]
+Description=ADT Operational Center
+After=network.target adt-dttp.service
+
+[Service]
+User=dttp
+Group=dttp
+WorkingDirectory=/home/human/Projects/adt-framework
+Environment=PYTHONPATH=/home/human/Projects/adt-framework
+Environment=DTTP_URL=http://localhost:5002
+ExecStart=/home/human/Projects/adt-framework/venv/bin/python3 -m adt_center.app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

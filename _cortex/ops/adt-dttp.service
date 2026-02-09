@@ -1,0 +1,14 @@
+[Unit]
+Description=ADT DTTP Enforcement Service
+After=network.target
+
+[Service]
+User=dttp
+Group=dttp
+WorkingDirectory=/home/human/Projects/adt-framework
+Environment=PYTHONPATH=/home/human/Projects/adt-framework
+ExecStart=/home/human/Projects/adt-framework/venv/bin/python3 -m adt_core.dttp.service --mode production
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
