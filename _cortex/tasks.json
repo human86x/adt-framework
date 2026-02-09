@@ -7,17 +7,17 @@
       "description": "Extract and generalize Safe Logger from OceanPulse _cortex/ops/log.py. Implement logger.py, integrity.py, schema.py, query.py. Must work independently of any specific project.",
       "spec_ref": "SPEC-017",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": []
     },
     {
       "id": "task_002",
       "title": "Build SDD Engine (adt_core/sdd/)",
-      "description": "Implement spec lifecycle management: registry.py (DRAFT→APPROVED→COMPLETED), validator.py (spec-action authorization), tasks.py (task tracking). Read specs from configurable project path.",
+      "description": "Implement spec lifecycle management: registry.py (DRAFT\u2192APPROVED\u2192COMPLETED), validator.py (spec-action authorization), tasks.py (task tracking). Read specs from configurable project path.",
       "spec_ref": "SPEC-017",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": []
     },
@@ -27,9 +27,12 @@
       "description": "Implement privilege-separated enforcement gateway per SPEC-014. gateway.py (request validation), jurisdictions.py (role-path mapping), actions.py (local/SSH/FTP handlers), policy.py (fail-closed engine).",
       "spec_ref": "SPEC-014",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "depends_on": ["task_001", "task_002"]
+      "depends_on": [
+        "task_001",
+        "task_002"
+      ]
     },
     {
       "id": "task_004",
@@ -37,9 +40,12 @@
       "description": "Implement Flask application per SPEC-015. Dashboard, ADS Timeline, Spec Registry (with approve buttons), Task Board, DTTP Monitor. Human web UI + agent API endpoints.",
       "spec_ref": "SPEC-015",
       "assigned_to": "Backend_Engineer + Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "depends_on": ["task_001", "task_002"]
+      "depends_on": [
+        "task_001",
+        "task_002"
+      ]
     },
     {
       "id": "task_005",
@@ -49,7 +55,9 @@
       "assigned_to": "Frontend_Engineer",
       "status": "pending",
       "priority": "medium",
-      "depends_on": ["task_004"]
+      "depends_on": [
+        "task_004"
+      ]
     },
     {
       "id": "task_006",
@@ -57,19 +65,135 @@
       "description": "Implement client library for AI agents. ADTClient class, decorators (@adt.authorized, @adt.logged), hook templates for Claude and Gemini CLI.",
       "spec_ref": "SPEC-017",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
-      "depends_on": ["task_003"]
+      "depends_on": [
+        "task_003"
+      ]
     },
     {
       "id": "task_007",
       "title": "Write tests for all core modules",
-      "description": "Unit tests for ADS, SDD, DTTP engines. Integration test for full request flow: agent SDK → DTTP gateway → action + ADS log.",
+      "description": "Unit tests for ADS, SDD, DTTP engines. Integration test for full request flow: agent SDK \u2192 DTTP gateway \u2192 action + ADS log.",
       "spec_ref": "SPEC-017",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
-      "depends_on": ["task_001", "task_002", "task_003"]
+      "depends_on": [
+        "task_001",
+        "task_002",
+        "task_003"
+      ]
+    },
+    {
+      "id": "task_008",
+      "title": "SPEC-018 Phase A: Security fixes (path traversal, path matching)",
+      "description": "Fix path traversal in actions.py, fix path matching bypass in jurisdictions.py and policy.py.",
+      "spec_ref": "SPEC-018",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_009",
+      "title": "SPEC-018 Phase B: Shared hash, hardcoded names, config population",
+      "description": "Extract hash to crypto.py, remove hardcoded project names, populate specs.json and jurisdictions.json, add stale cache fix to validator.",
+      "spec_ref": "SPEC-018",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": ["task_008"]
+    },
+    {
+      "id": "task_010",
+      "title": "SPEC-019: Create standalone DTTP service (service.py + config.py)",
+      "description": "Create adt_core/dttp/service.py (Flask app on :5002) and adt_core/dttp/config.py. Three endpoints: POST /request, GET /status, GET /policy.",
+      "spec_ref": "SPEC-019",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": ["task_008"]
+    },
+    {
+      "id": "task_011",
+      "title": "SPEC-019: Refactor Operational Center to use DTTP over HTTP",
+      "description": "Remove in-process DTTP imports from adt_center/app.py. Update dttp_routes.py to proxy to DTTP service. Dashboard reads DTTP status via GET /status.",
+      "spec_ref": "SPEC-019",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": ["task_010"]
+    },
+    {
+      "id": "task_012",
+      "title": "SPEC-019: Update Agent SDK to point at DTTP service",
+      "description": "Change ADTClient default URL from Operational Center to DTTP service (localhost:5002). Add get_policy() method.",
+      "spec_ref": "SPEC-019",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": ["task_010"]
+    },
+    {
+      "id": "task_013",
+      "title": "SPEC-019: Integration tests for DTTP service",
+      "description": "26 tests covering: approved/denied requests, all 3 endpoints, path traversal, jurisdiction boundary, ADS logging verification, input validation.",
+      "spec_ref": "SPEC-019",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": ["task_010"]
+    },
+    {
+      "id": "task_014",
+      "title": "SPEC-020: Add sovereign path check to gateway.py",
+      "description": "Hardcode SOVEREIGN_PATHS list in gateway.py (config/specs.json, config/jurisdictions.json, config/dttp.json, _cortex/AI_PROTOCOL.md, _cortex/MASTER_PLAN.md). Check resolved paths against this list BEFORE any spec/jurisdiction validation. Reject with reason 'sovereign_path_violation'. Log with tier: 1, escalation: true.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": ["task_008"]
+    },
+    {
+      "id": "task_015",
+      "title": "SPEC-020: Add constitutional path check to gateway.py",
+      "description": "Hardcode CONSTITUTIONAL_PATHS list in gateway.py (gateway.py, policy.py, service.py, logger.py, integrity.py, crypto.py). For Tier 2 paths: require authorizing spec explicitly lists the file (not directory wildcard), require tier2_justification in request. Deny with reason 'tier2_authorization_required' if missing. Log with tier: 2.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": ["task_014"]
+    },
+    {
+      "id": "task_016",
+      "title": "SPEC-020: Extend ADS event schema with tier field and new action types",
+      "description": "Add optional 'tier' field (1/2/3) to ADS event schema. Add new action types: sovereign_path_violation, tier2_authorized, tier2_denied, break_glass, break_glass_audit. Update schema.py validation to accept these.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": ["task_014"]
+    },
+    {
+      "id": "task_017",
+      "title": "SPEC-020: Write self-governance tests",
+      "description": "Tests: sovereign path rejection (all 5 paths, any role/spec), Tier 2 elevation (require explicit file + justification), Tier 2 denial (missing justification), break-glass event logging with agent HUMAN, path list immutability (modifying gateway.py requires Tier 2 auth). Minimum 8 test functions.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": ["task_014", "task_015", "task_016"]
+    },
+    {
+      "id": "task_018",
+      "title": "SPEC-020: Document Overseer audit procedure for break-glass and Tier 2 events",
+      "description": "Write documentation for the Overseer role describing: how to identify break-glass events in ADS, how to review Tier 2 changes, checklist for break-glass audit (event logged, hash chain valid, fix minimal, no unauthorized changes). Store in _cortex/docs/overseer_audit.md.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": ["task_016"]
     }
   ]
 }
