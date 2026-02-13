@@ -552,7 +552,7 @@
       "description": "Add command to adt_sdk/cli.py to download/run cloudflared and expose local ports via HTTPS tunnel.",
       "spec_ref": "SPEC-024",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": []
     },
