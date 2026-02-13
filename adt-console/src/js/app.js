@@ -99,11 +99,44 @@ const TrayBridge = (() => {
 const GovernanceManager = (() => {
   function toggle() {
     if (DashboardManager.isActive()) DashboardManager.toggle();
+    if (PanelManager.isActive()) PanelManager.toggle();
     GovernancePanel.toggle();
   }
   function isActive() { return GovernancePanel.isActive(); }
   function deactivate() { if (isActive()) toggle(); }
   return { toggle, isActive, deactivate };
+})();
+
+// --- ADT Panel (iframe) Manager ---
+const PanelManager = (() => {
+  let active = false;
+  const getUrl = () => localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+
+  function toggle() {
+    active = !active;
+    const view = document.getElementById('adt-panel-view');
+    const iframe = document.getElementById('adt-panel-iframe');
+    const termArea = document.getElementById('terminal-area');
+
+    if (active) {
+      if (DashboardManager.isActive()) DashboardManager.toggle();
+      if (GovernanceManager.isActive()) GovernanceManager.toggle();
+      
+      termArea.classList.add('panel-active');
+      view.style.display = '';
+      if (iframe.src === 'about:blank' || iframe.src === '') {
+        iframe.src = getUrl();
+      }
+    } else {
+      termArea.classList.remove('panel-active');
+      view.style.display = 'none';
+    }
+
+    const btn = document.getElementById('btn-adt-panel');
+    if (btn) btn.classList.toggle('active', active);
+  }
+
+  return { toggle, isActive: () => active, deactivate: () => { if (active) toggle(); } };
 })();
 
 // --- Remote Access Manager (SPEC-024) ---
@@ -262,6 +295,10 @@ const RemoteManager = (() => {
 
   document.getElementById('btn-governance').addEventListener('click', () => {
     GovernanceManager.toggle();
+  });
+
+  document.getElementById('btn-adt-panel').addEventListener('click', () => {
+    PanelManager.toggle();
   });
 
   const remoteBtn = document.getElementById('status-remote');
@@ -428,6 +465,13 @@ const RemoteManager = (() => {
       return;
     }
 
+    // Ctrl+P: Panel toggle
+    if (e.ctrlKey && e.key === 'p') {
+      e.preventDefault();
+      PanelManager.toggle();
+      return;
+    }
+
     // Ctrl+D: Dashboard toggle
     if (e.ctrlKey && e.key === 'd') {
       e.preventDefault();
@@ -463,6 +507,7 @@ const RemoteManager = (() => {
     if (idx < all.length) {
       if (DashboardManager.isActive()) DashboardManager.toggle();
       if (GovernanceManager.isActive()) GovernanceManager.toggle();
+      if (PanelManager.isActive()) PanelManager.toggle();
       SessionManager.switchTo(all[idx].id);
     }
   }
@@ -472,7 +517,8 @@ const RemoteManager = (() => {
     if (all.length === 0) return;
 
     if (DashboardManager.isActive()) DashboardManager.toggle();
-      if (GovernanceManager.isActive()) GovernanceManager.toggle();
+    if (GovernanceManager.isActive()) GovernanceManager.toggle();
+    if (PanelManager.isActive()) PanelManager.toggle();
 
     const active = SessionManager.getActive();
     const currentIdx = active ? all.findIndex(s => s.id === active.id) : -1;
