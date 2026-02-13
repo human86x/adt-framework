@@ -264,6 +264,13 @@ const RemoteManager = (() => {
     GovernanceManager.toggle();
   });
 
+  const remoteBtn = document.getElementById('status-remote');
+  if (remoteBtn) {
+    remoteBtn.addEventListener('click', () => {
+      RemoteManager.toggle();
+    });
+  }
+
   // --- Split view button ---
   const splitBtn = document.getElementById('btn-split');
   if (splitBtn) {
