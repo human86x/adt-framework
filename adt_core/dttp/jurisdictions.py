@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict, List
+from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -11,33 +11,51 @@ class JurisdictionManager:
 
     def __init__(self, config_path: str):
         self.config_path = config_path
-        self._jurisdictions = self._load_jurisdictions()
+        self._jurisdictions = {}
+        self._last_mtime = 0.0
+        self._reload()
 
-    def _load_jurisdictions(self) -> Dict[str, List[str]]:
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r") as f:
-                try:
+    def _reload(self):
+        """Load jurisdictions from config file, tracking mtime to detect changes."""
+        if not os.path.exists(self.config_path):
+            self._jurisdictions = {}
+            return
+        try:
+            mtime = os.path.getmtime(self.config_path)
+            if mtime != self._last_mtime:
+                with open(self.config_path, "r") as f:
                     data = json.load(f)
-                    return data.get("jurisdictions", {})
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse jurisdictions config: %s", self.config_path)
-                    return {}
-        return {}
+                    self._jurisdictions = data.get("jurisdictions", {})
+                self._last_mtime = mtime
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load jurisdictions config %s: %s", self.config_path, e)
+            self._jurisdictions = {}
 
     def reload(self):
-        """Reload jurisdictions from config file."""
-        self._jurisdictions = self._load_jurisdictions()
+        """Manually force reload jurisdictions."""
+        self._last_mtime = 0.0
+        self._reload()
 
     def is_in_jurisdiction(self, role: str, path: str) -> bool:
         """Checks if a path is within a role's jurisdiction."""
+        self._reload()
         normalized = os.path.normpath(path)
-        allowed_paths = self._jurisdictions.get(role, [])
+        config = self._jurisdictions.get(role, [])
+        
+        # Support both simple list format and SPEC-026 object format
+        allowed_paths = []
+        if isinstance(config, list):
+            allowed_paths = config
+        elif isinstance(config, dict):
+            allowed_paths = config.get("paths", [])
+            
         for allowed_path in allowed_paths:
             allowed_norm = os.path.normpath(allowed_path)
             if normalized == allowed_norm or normalized.startswith(allowed_norm + os.sep):
                 return True
         return False
 
-    def get_jurisdictions(self) -> Dict[str, List[str]]:
+    def get_jurisdictions(self) -> Dict[str, Any]:
         """Returns the full jurisdiction map (read-only)."""
+        self._reload()
         return dict(self._jurisdictions)
