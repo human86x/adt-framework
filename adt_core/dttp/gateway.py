@@ -1,8 +1,28 @@
+import os
 from typing import Dict, Any, Optional
 from adt_core.ads.logger import ADSLogger
 from adt_core.ads.schema import ADSEventSchema
 from .policy import PolicyEngine
 from .actions import ActionHandler
+
+# SPEC-020: HARDCODED Protected Paths (Sovereign/Constitutional)
+# These are compiled into the gateway logic and cannot be configured away.
+SOVEREIGN_PATHS = [
+    "config/specs.json",
+    "config/jurisdictions.json",
+    "config/dttp.json",
+    "_cortex/AI_PROTOCOL.md",
+    "_cortex/MASTER_PLAN.md",
+]
+
+CONSTITUTIONAL_PATHS = [
+    "adt_core/dttp/gateway.py",
+    "adt_core/dttp/policy.py",
+    "adt_core/dttp/service.py",
+    "adt_core/ads/logger.py",
+    "adt_core/ads/integrity.py",
+    "adt_core/ads/crypto.py",
+]
 
 class DTTPGateway:
     """The main validation and execution gateway for DTTP requests."""
@@ -15,19 +35,95 @@ class DTTPGateway:
         self.action_handler = action_handler
         self.logger = logger
 
-    def request(self, 
+    def request(self,
                 agent: str,
                 role: str,
                 spec_id: str,
                 action: str,
                 params: Dict[str, Any],
-                rationale: str) -> Dict[str, Any]:
+                rationale: str,
+                dry_run: bool = False) -> Dict[str, Any]:
         """
         Processes a DTTP request: validates, logs pre-action, executes, logs post-action.
+        If dry_run=True, runs all validation but skips execution.
         """
         path = params.get("file") or params.get("path")
+        normalized_path = os.path.normpath(path) if path else None
+
+        # 1. Sovereign Path Check (Tier 1) - SPEC-020 Section 2.1
+        if normalized_path in SOVEREIGN_PATHS:
+            event_id = ADSEventSchema.generate_id("sovereign_violation")
+            self.logger.log(ADSEventSchema.create_event(
+                event_id=event_id,
+                agent=agent,
+                role=role,
+                action_type="sovereign_path_violation",
+                description=f"DENIED: Attempt to modify sovereign path {normalized_path}. Rationale: {rationale}",
+                spec_ref=spec_id,
+                authorized=False,
+                tier=1,
+                escalation=True
+            ))
+            return {"status": "denied", "reason": "sovereign_path_violation"}
+
+        # 2. Constitutional Path Check (Tier 2) - SPEC-020 Section 2.2
+        tier = 3
+        is_tier2 = False
+        tier2_reason = None
+
+        if normalized_path in CONSTITUTIONAL_PATHS:
+            is_tier2 = True
+            tier2_reason = f"Tier 2 path {normalized_path}"
         
-        # 1. Validate
+        # 2b. Action-based Tier Elevation (SPEC-023)
+        if action == "git_tag":
+            is_tier2 = True
+            tier2_reason = "git_tag is a Tier 2 action"
+        elif action == "git_push" and params.get("branch") == "main":
+            is_tier2 = True
+            tier2_reason = "Pushing to main is a Tier 2 action"
+
+        if is_tier2:
+            tier = 2
+            tier2_justification = params.get("tier2_justification")
+            
+            # For paths, require explicit file match in spec (no directory wildcards for Tier 2)
+            if normalized_path in CONSTITUTIONAL_PATHS:
+                authorized_paths = self.policy_engine.validator.get_authorized_paths(spec_id)
+                explicit_match = any(normalized_path == os.path.normpath(ap) for ap in authorized_paths)
+                if not explicit_match:
+                    reason = "tier2_authorization_required"
+                    event_id = ADSEventSchema.generate_id("tier2_denied")
+                    self.logger.log(ADSEventSchema.create_event(
+                        event_id=event_id,
+                        agent=agent,
+                        role=role,
+                        action_type="tier2_denied",
+                        description=f"DENIED: {tier2_reason} requires explicit spec listing. Rationale: {rationale}",
+                        spec_ref=spec_id,
+                        authorized=False,
+                        tier=2,
+                        escalation=True
+                    ))
+                    return {"status": "denied", "reason": reason}
+
+            if not tier2_justification:
+                reason = "tier2_justification_required"
+                event_id = ADSEventSchema.generate_id("tier2_denied")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id,
+                    agent=agent,
+                    role=role,
+                    action_type="tier2_denied",
+                    description=f"DENIED: {tier2_reason} requires tier2_justification. Rationale: {rationale}",
+                    spec_ref=spec_id,
+                    authorized=False,
+                    tier=2,
+                    escalation=True
+                ))
+                return {"status": "denied", "reason": reason}
+
+        # 3. Standard Policy Validation
         allowed, reason = self.policy_engine.validate_request(role, spec_id, action, path)
         
         if not allowed:
@@ -41,27 +137,44 @@ class DTTPGateway:
                 description=f"DENIED: {reason}. Rationale provided: {rationale}",
                 spec_ref=spec_id,
                 authorized=False,
+                tier=tier,
                 escalation=True
             ))
             return {"status": "denied", "reason": reason}
 
-        # 2. Log Pre-action
+        # 4. Dry-run: validation passed, skip execution
+        if dry_run:
+            dry_event_id = ADSEventSchema.generate_id(f"dry_run_{action}")
+            self.logger.log(ADSEventSchema.create_event(
+                event_id=dry_event_id,
+                agent=agent,
+                role=role,
+                action_type=f"dry_run_validated_{action}",
+                description=f"Dry-run validated {action} on {path}. Rationale: {rationale}",
+                spec_ref=spec_id,
+                authorized=True,
+                tier=tier,
+            ))
+            return {"status": "allowed", "dry_run": True}
+
+        # 5. Log Pre-action
         pre_event_id = ADSEventSchema.generate_id(f"pending_{action}")
         self.logger.log(ADSEventSchema.create_event(
             event_id=pre_event_id,
             agent=agent,
             role=role,
-            action_type=f"pending_{action}",
+            action_type=f"pending_{action}" if tier == 3 else "tier2_authorized",
             description=f"Requesting {action} on {path}. Rationale: {rationale}",
             spec_ref=spec_id,
             authorized=True,
+            tier=tier,
             status="pending"
         ))
 
-        # 3. Execute
+        # 6. Execute
         result = self.action_handler.execute(action, params)
-        
-        # 4. Log Post-action
+
+        # 7. Log Post-action
         post_event_id = ADSEventSchema.generate_id(f"completed_{action}")
         self.logger.log(ADSEventSchema.create_event(
             event_id=post_event_id,
@@ -71,6 +184,7 @@ class DTTPGateway:
             description=f"Completed {action} on {path}. Result: {result.get('status')}",
             spec_ref=spec_id,
             authorized=True,
+            tier=tier,
             execution_result=result
         ))
 
