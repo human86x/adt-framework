@@ -93,13 +93,14 @@ const ContextPanel = (() => {
 
       if (activeTask) {
         document.getElementById('ctx-task').innerHTML = `
-          <strong>${activeTask.id}</strong>
+          <strong class="ctx-task-id">${activeTask.id}</strong>
           <span class="ctx-value-decoded">${activeTask.title}</span>
         `;
         
-        const specTitle = allSpecs[activeTask.spec_ref]?.title || '';
+        const spec = allSpecs[activeTask.spec_ref];
+        const specTitle = spec?.title || 'Unknown Spec';
         document.getElementById('ctx-spec').innerHTML = `
-          <strong>${activeTask.spec_ref}</strong>
+          <strong class="ctx-spec-ref">${activeTask.spec_ref}</strong>
           <span class="ctx-value-decoded">${specTitle}</span>
         `;
 
@@ -110,7 +111,7 @@ const ContextPanel = (() => {
         }
 
         renderDelegation(activeTask, session);
-        updatePreflight(session, activeTask);
+        updatePreflight(session, activeTask, specTitle);
       } else {
         document.getElementById('ctx-task').textContent = '--';
         document.getElementById('ctx-spec').textContent = '--';
