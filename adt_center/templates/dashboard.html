@@ -153,7 +153,12 @@
         <div class="card card-adt">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Spec Registry</span>
-                <a href="/specs" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-warning" onclick="openFeedback()" style="font-size:0.7rem; padding:2px 8px;" title="Submit a request or feedback">
+                        + Request
+                    </button>
+                    <a href="/specs" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
+                </div>
             </div>
             <div class="card-body p-0">
                 <table class="table table-adt mb-0">
@@ -185,4 +190,96 @@
         </div>
     </div>
 </div>
+
+<!-- Submit Feedback Modal (SPEC-025) -->
+<div class="modal fade modal-adt" id="feedbackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Submit Request / Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="feedback-error" class="alert alert-danger d-none" role="alert"></div>
+                <div id="feedback-success" class="alert alert-success d-none" role="alert"></div>
+                <form id="feedback-form">
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Your Name</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" 
+                               id="feedback-author" placeholder="Paul" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Type</label>
+                        <select class="form-select bg-dark text-light border-secondary" id="feedback-type">
+                            <option value="feature">Feature Request</option>
+                            <option value="improvement" selected>Improvement</option>
+                            <option value="bug">Bug Report</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Description</label>
+                        <textarea class="form-control bg-dark text-light border-secondary" 
+                                  id="feedback-desc" rows="6" required
+                                  placeholder="Describe your request, feature idea, or bug..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-adt">
+                <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-adt-primary" onclick="submitFeedback()">Submit Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openFeedback() {
+    document.getElementById('feedback-error').classList.add('d-none');
+    document.getElementById('feedback-success').classList.add('d-none');
+    document.getElementById('feedback-form').reset();
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+}
+
+async function submitFeedback() {
+    const author = document.getElementById('feedback-author').value.trim();
+    const type = document.getElementById('feedback-type').value;
+    const description = document.getElementById('feedback-desc').value.trim();
+    const errEl = document.getElementById('feedback-error');
+    const successEl = document.getElementById('feedback-success');
+    
+    errEl.classList.add('d-none');
+    successEl.classList.add('d-none');
+    
+    if (!author || !description) {
+        errEl.textContent = 'Name and description are required.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/requests', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ author, type, description })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            successEl.textContent = data.request_id + ' submitted successfully! Thank you.';
+            successEl.classList.remove('d-none');
+            document.getElementById('feedback-form').reset();
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                if (modal) modal.hide();
+            }, 2000);
+        } else {
+            errEl.textContent = data.error || 'Failed to submit request.';
+            errEl.classList.remove('d-none');
+        }
+    } catch (e) {
+        errEl.textContent = 'Network error: ' + e.message;
+        errEl.classList.remove('d-none');
+    }
+}
+</script>
 {% endblock %}
