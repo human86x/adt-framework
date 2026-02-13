@@ -293,11 +293,13 @@ const ContextPanel = (() => {
       return;
     }
 
+    const specTitle = allSpecs[task.spec_ref]?.title || '';
+
     // Build delegation chain: Spec -> Role -> Task
     const items = [
-      { label: 'Spec', value: task.spec_ref || '--', color: 'var(--accent-purple)' },
+      { label: 'Spec', value: task.spec_ref || '--', extra: specTitle, color: 'var(--accent-purple)' },
       { label: 'Role', value: session.role, color: session.color || 'var(--accent-blue)' },
-      { label: 'Task', value: task.id, color: 'var(--text-primary)' },
+      { label: 'Task', value: task.id, extra: task.title, color: 'var(--text-primary)' },
     ];
 
     // If task has delegation metadata, show delegator
@@ -313,12 +315,18 @@ const ContextPanel = (() => {
     items.forEach((item, i) => {
       const el = document.createElement('div');
       el.className = 'delegation-item';
-      el.innerHTML = `<strong style="color:var(--text-muted); min-width:35px; font-size:10px;">${item.label}</strong> <span style="color:${item.color}">${item.value}</span>`;
+      el.innerHTML = `
+        <div style="display:flex; align-items:center; gap:6px;">
+          <strong style="color:var(--text-muted); min-width:35px; font-size:10px;">${item.label}</strong> 
+          <span style="color:${item.color}">${item.value}</span>
+        </div>
+        ${item.extra ? `<div class="ctx-meta" style="margin-left:41px">${item.extra}</div>` : ''}
+      `;
       container.appendChild(el);
 
       if (i < items.length - 1) {
         const arrow = document.createElement('div');
-        arrow.style.cssText = 'color:var(--text-muted); font-size:10px; margin-left:12px;';
+        arrow.style.cssText = 'color:var(--text-muted); font-size:10px; margin-left:12px; margin-top:-2px; margin-bottom:2px;';
         arrow.textContent = '\u2193';
         container.appendChild(arrow);
       }
