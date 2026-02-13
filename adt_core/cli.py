@@ -8,7 +8,7 @@ import requests
 import json
 import time
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from adt_sdk.client import ADTClient
 
 def get_cloudflared_url():
@@ -109,7 +109,7 @@ def share_command(args):
                                role=os.environ.get('ADT_ROLE', 'user'))
             client.log_event({
                 'event_id': f'evt_{int(time.time())}_connect_share',
-                'ts': datetime.utcnow().isoformat() + 'Z',
+                'ts': datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 'agent': os.environ.get('ADT_AGENT', 'CLI'),
                 'role': os.environ.get('ADT_ROLE', 'user'),
                 'action_type': 'connect_share',
