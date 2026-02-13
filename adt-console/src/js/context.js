@@ -270,7 +270,7 @@ const ContextPanel = (() => {
     if (roleMatch && specMatch) {
       statusEl.className = 'preflight-status nominal';
       labelEl.textContent = 'Alignment: Nominal';
-      detailsEl.textContent = `Ready for ${task.spec_ref}`;
+      detailsEl.textContent = specTitle ? `Active on ${task.spec_ref}: ${specTitle}` : `Ready for ${task.spec_ref}`;
     } else {
       statusEl.className = 'preflight-status error';
       labelEl.textContent = 'Alignment: Mismatch';
