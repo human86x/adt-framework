@@ -98,3 +98,36 @@ class ActionHandler:
 
     def _handle_ftp_sync(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "success", "result": "ftp_sync_simulated", "target": params.get("target")}
+
+    def _handle_git_commit(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        message = params.get("message", "automated commit")
+        full_message = f"[ADT] {message}"
+        if self.current_agent and self.current_role:
+            full_message += f" - {self.current_agent} ({self.current_role})"
+        
+        # Add all changed files (or specific ones if params['files'] exists)
+        files = params.get("files", ["."])
+        for f in files:
+            if not self.git_sync._run_git(["add", f]):
+                return {"status": "error", "message": f"Failed to add {f}"}
+        
+        if self.git_sync._run_git(["commit", "-m", full_message]):
+            return {"status": "success", "result": "committed"}
+        return {"status": "error", "message": "Commit failed (maybe nothing to commit?)"}
+
+    def _handle_git_push(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        remote = params.get("remote", "origin")
+        branch = params.get("branch", "main")
+        if self.git_sync._run_git(["push", remote, branch]):
+            return {"status": "success", "result": f"pushed to {remote}/{branch}"}
+        return {"status": "error", "message": "Push failed"}
+
+    def _handle_git_tag(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        tag_name = params.get("tag")
+        message = params.get("message", f"Release {tag_name}")
+        if not tag_name:
+            return {"status": "error", "message": "Tag name required"}
+        
+        if self.git_sync._run_git(["tag", "-a", tag_name, "-m", message]):
+            return {"status": "success", "result": f"tag {tag_name} created"}
+        return {"status": "error", "message": "Tag creation failed"}

@@ -30,7 +30,8 @@ const ContextPanel = (() => {
     await fetchSpecs();
     await fetchTaskData(session);
     await fetchADSEvents(session);
-    await fetchRoleRequests(session);
+    await fetchRequests();
+    await fetchDelegations();
     await fetchDTTPStatus();
 
     // If Tauri, try reading local files as fallback
@@ -48,7 +49,82 @@ const ContextPanel = (() => {
       hours > 0 ? `${hours}h ${m}m` : `${m}m`;
   }
 
-  
+  async function fetchRequests() {
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/requests`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const requests = data.requests || [];
+      
+      const countEl = document.getElementById('count-requests');
+      if (countEl) countEl.textContent = requests.length;
+      
+      const container = document.getElementById('ctx-requests-list');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      if (requests.length === 0) {
+        container.innerHTML = '<li class="ctx-empty">No requests</li>';
+        return;
+      }
+      
+      requests.reverse().slice(0, 10).forEach(req => {
+        const li = document.createElement('li');
+        li.className = 'tracker-item';
+        const statusClass = req.status.toLowerCase().includes('complete') ? 'badge-completed' : 'badge-pending';
+        li.innerHTML = `
+          <div class="tracker-header">
+            <strong>${req.id}</strong>
+            <span class="badge-adt ${statusClass}">${req.status}</span>
+          </div>
+          <div class="tracker-body" style="font-size: 10px;">${truncate(req.summary, 100)}</div>
+          <div class="ctx-meta">From: ${req.author}</div>
+        `;
+        container.appendChild(li);
+      });
+    } catch {}
+  }
+
+  async function fetchDelegations() {
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/delegations`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const delegations = data.delegations || [];
+      
+      // Filter for delegations sent BY current role or targeting current role
+      const sent = delegations.filter(d => d.from === currentSession?.role);
+      
+      const countEl = document.getElementById('count-sent');
+      if (countEl) countEl.textContent = sent.length;
+      
+      const container = document.getElementById('ctx-tasks-sent');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      if (sent.length === 0) {
+        container.innerHTML = '<li class="ctx-empty">No delegations sent</li>';
+        return;
+      }
+      
+      // Show latest activity first
+      sent.reverse().slice(0, 10).forEach(d => {
+        const li = document.createElement('li');
+        li.className = 'tracker-item';
+        const actionLabel = d.action.replace('task_', '').replace('_', ' ');
+        li.innerHTML = `
+          <div class="tracker-header">
+            <strong>${d.task_id}</strong>
+            <span class="text-adt-accent" style="font-size: 9px;">\u2192 ${d.to.replace('_', ' ')}</span>
+          </div>
+          <div class="ctx-meta">${actionLabel.toUpperCase()}</div>
+          <div class="ctx-meta" style="opacity: 0.6;">${d.ts ? new Date(d.ts).toLocaleTimeString() : ''}</div>
+        `;
+        container.appendChild(li);
+      });
+    } catch {}
+  }
+
   async function fetchSpecs() {
     try {
       const res = await fetch(`${getCenterUrl()}/api/specs`);
@@ -104,57 +180,85 @@ const ContextPanel = (() => {
           <span class="ctx-value-decoded">${specTitle}</span>
         `;
 
-        const priorityEl = document.getElementById('ctx-task-priority');
-        if (activeTask.priority) {
-          priorityEl.textContent = activeTask.priority.toUpperCase();
-          priorityEl.className = `ctx-priority ${activeTask.priority}`;
+        // Update To-Do list (Pending or In Progress for this role)
+        const todoTasks = tasks.filter(t => 
+          (t.status === 'in_progress' || t.status === 'pending') && 
+          t.assigned_to?.includes(session.role)
+        );
+        document.getElementById('count-todo').textContent = todoTasks.length;
+        const todoContainer = document.getElementById('ctx-tasks-todo');
+        if (todoContainer) {
+          todoContainer.innerHTML = '';
+          if (todoTasks.length === 0) {
+            todoContainer.innerHTML = '<li class="ctx-empty">All tasks done</li>';
+          } else {
+            todoTasks.slice(0, 10).forEach(t => {
+              const li = document.createElement('li');
+              li.className = 'tracker-item';
+              li.innerHTML = `
+                <div class="tracker-header">
+                  <strong>${t.id}</strong>
+                  <span class="badge-adt badge-${t.status.replace('_', '-')}">${t.status.replace('_', ' ')}</span>
+                </div>
+                <div class="tracker-body">${t.title}</div>
+              `;
+              todoContainer.appendChild(li);
+            });
+          }
         }
 
-        renderDelegation(activeTask, session);
         updatePreflight(session, activeTask, specTitle);
+        renderDelegation(activeTask, session);
       } else {
         document.getElementById('ctx-task').textContent = '--';
         document.getElementById('ctx-spec').textContent = '--';
-        renderDelegation(null, session);
+        document.getElementById('count-todo').textContent = '0';
         updatePreflight(session, null);
+        renderDelegation(null, session);
       }
 
-      // Render completed tasks — up to 10 for better history
+      // Render completed tasks — for this role
       const completedTasks = tasks.filter(t => 
         t.status === 'completed' && 
         t.assigned_to?.includes(session.role)
-      ).reverse().slice(0, 10);
+      ).reverse();
+
+      const countCompletedEl = document.getElementById('count-completed');
+      if (countCompletedEl) countCompletedEl.textContent = completedTasks.length;
 
       const completedContainer = document.getElementById('ctx-tasks-completed');
       if (completedContainer) {
         completedContainer.innerHTML = '';
         if (completedTasks.length === 0) {
-          completedContainer.innerHTML = '<li class="ctx-empty">No completed tasks</li>';
+          completedContainer.innerHTML = '<li class="ctx-empty">No completions</li>';
         } else {
-          completedTasks.forEach(t => {
+          completedTasks.slice(0, 10).forEach(t => {
             const li = document.createElement('li');
+            li.className = 'tracker-item';
             li.innerHTML = `
-              <div class="completed-task-info">
-                <span class="completed-task-id">${t.id}</span>
-                <span class="completed-task-title">${t.title}</span>
+              <div class="tracker-header">
+                <strong>${t.id}</strong>
+                <span class="badge-adt badge-completed">DONE</span>
               </div>
+              <div class="tracker-body">${t.title}</div>
+              ${t.evidence ? `<div class="ctx-meta" style="font-size:9px; opacity:0.7;">Ev: ${truncate(t.evidence, 40)}</div>` : ''}
             `;
-            li.title = `Spec: ${t.spec_ref} | Status: Completed`;
             completedContainer.appendChild(li);
           });
         }
       }
 
       // Update dashboard stats
-      const completed = tasks.filter(t => t.status === 'completed').length;
-      updateDashboardStats(completed, tasks.length);
+      const totalCompleted = tasks.filter(t => t.status === 'completed').length;
+      updateDashboardStats(totalCompleted, tasks.length);
       
       const remoteDot = document.getElementById("ctx-remote-status");
       if (remoteDot) {
         remoteDot.className = "status-dot dot-green";
         remoteDot.title = "ADT Center: Online";
       }
-    } catch {
+    } catch (e) {
+      console.error("fetchTaskData error:", e);
       // ADT Center not running -- show offline state
       const remoteDot = document.getElementById("ctx-remote-status");
       if (remoteDot) {
@@ -515,11 +619,16 @@ const ContextPanel = (() => {
         if (currentSession) {
           fetchADSEvents(currentSession);
           fetchRoleRequests(currentSession);
+          fetchDelegations();
         }
       });
 
       window.__TAURI__.event.listen('tasks-updated', () => {
         if (currentSession) fetchTaskData(currentSession);
+      });
+
+      window.__TAURI__.event.listen('requests-updated', () => {
+        fetchRequests();
       });
     }
 
@@ -529,6 +638,8 @@ const ContextPanel = (() => {
         fetchADSEvents(currentSession);
         fetchTaskData(currentSession);
         fetchRoleRequests(currentSession);
+        fetchDelegations();
+        fetchRequests();
         fetchDTTPStatus();
       }
     }, 10000);

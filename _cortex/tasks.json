@@ -925,7 +925,7 @@
       "description": "Update session_end logic to check for uncommitted changes. Prevent session closure if uncommitted changes exist.",
       "spec_ref": "SPEC-023",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_078"
