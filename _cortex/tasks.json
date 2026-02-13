@@ -506,7 +506,7 @@
       "description": "UI control for managing background service lifecycle.",
       "spec_ref": "SPEC-022",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "depends_on": [
         "task_022"
@@ -652,7 +652,7 @@
       "description": "Add a 'Create Spec' button and modal/form to adt_center/templates/specs.html. Form fields: Spec ID (auto-suggest next number), Title, Content (markdown textarea with preview). Submits to POST /api/specs. Shows success/error feedback. Consistent with existing ADT Panel dark theme.",
       "spec_ref": "SPEC-025",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_053"
@@ -664,7 +664,7 @@
       "description": "Add a 'Submit Feedback' button and form to adt_center/templates/dashboard.html. Form fields: Author name, Type dropdown (feature/bug/improvement), Description textarea. Submits to POST /api/requests. Inline or modal form, consistent with ADT Panel theme.",
       "spec_ref": "SPEC-025",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_054"
@@ -742,7 +742,7 @@
       "description": "Create adt_center/templates/governance.html. Role cards showing paths, actions, specs, lock state. Edit modal with path add/remove, action checkboxes, spec multi-select. Preview diff before save.",
       "spec_ref": "SPEC-026",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_058",
@@ -755,7 +755,7 @@
       "description": "Display enforcement mode, sovereign/constitutional path lists (read-only), and recent DTTP denials table on the Governance page.",
       "spec_ref": "SPEC-026",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_061"
@@ -767,7 +767,7 @@
       "description": "Lock/unlock toggle on role cards. Locked roles show padlock icon and disable Edit button. Unlock requires confirmation dialog. Lock state persisted in jurisdictions.json.",
       "spec_ref": "SPEC-026",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_063"
@@ -779,7 +779,7 @@
       "description": "Add 'Governance' nav link to the ADT Panel base template. Route /governance in app.py.",
       "spec_ref": "SPEC-026",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": []
     },
@@ -811,9 +811,10 @@
       "description": "Production setup script. Creates agent and dttp OS users. Sets Tier 1 files to human:human 644, Tier 2 files to dttp:dttp 644, Tier 3 files to dttp:dttp 664 with agent in dttp group. Configures sudo rules. Validates WSL/Linux/macOS. Logs production_mode_activated to ADS.",
       "spec_ref": "SPEC-027",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "evidence": "Script created at scripts/setup_shatterglass.sh"
     },
     {
       "id": "task_070",
@@ -831,7 +832,7 @@
       "description": "Add Shatterglass activation button to SPEC-026 Governance page. Red warning styling. Confirmation dialog requiring text input SHATTERGLASS. Shows countdown timer during active window. Deactivate button.",
       "spec_ref": "SPEC-027",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_066",
@@ -861,6 +862,127 @@
       "depends_on": [
         "task_067",
         "task_069"
+      ]
+    },
+    {
+      "id": "task_074",
+      "title": "SPEC-026: PUT /api/tasks/<id>/status -- agent self-service task update",
+      "description": "Agent can mark their own assigned tasks as completed or in_progress via API. Validates assigned_to matches requesting agent's role. Cannot update other roles' tasks. Cannot set pending (human-only). Logs task_status_updated to ADS with agent, role, evidence fields.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_075",
+      "title": "SPEC-026: PUT /api/tasks/<id>/override -- human reject/reassign/reopen/approve",
+      "description": "Human-only endpoint. Actions: reject (mandatory reason, sets in_progress), reassign (change assigned_to role), reopen (completed -> pending), approve (explicit human sign-off). All logged to ADS with agent: HUMAN. Rejection reason stored on task for agent visibility.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_074"
+      ]
+    },
+    {
+      "id": "task_076",
+      "title": "SPEC-026: Tasks page UI -- Mark Complete, Review column, Human action buttons",
+      "description": "Enhance /tasks page: Mark Complete button per task (agent self-service). Review column (pending review / approved / rejected). Human action buttons: Reject (with reason modal), Reassign (role dropdown), Reopen, Approve. Completion evidence display. Expandable status history per task.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_074",
+        "task_075"
+      ]
+    },
+    {
+      "id": "task_077",
+      "title": "SPEC-026: ADS event types for task lifecycle",
+      "description": "Add to ADS schema: task_status_updated (agent self-service), task_approved (human), task_rejected (human, with reason), task_reassigned (human, with new role). Include task_id and evidence fields.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_078",
+      "title": "SPEC-023: Implement git action handlers in DTTP",
+      "description": "Add _handle_git_commit, _handle_git_push, _handle_git_tag to adt_core/dttp/actions.py. Enforce branch protection for main (Tier 2).",
+      "spec_ref": "SPEC-023",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_079",
+      "title": "SPEC-023: Mandatory commit enforcement in agent wrappers",
+      "description": "Update session_end logic to check for uncommitted changes. Prevent session closure if uncommitted changes exist.",
+      "spec_ref": "SPEC-023",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_078"
+      ]
+    },
+    {
+      "id": "task_080",
+      "title": "SPEC-023: Git status in Console status bar",
+      "description": "Show current branch and uncommitted change count in the ADT Console bottom bar.",
+      "spec_ref": "SPEC-023",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_078"
+      ]
+    },
+    {
+      "id": "task_081",
+      "title": "SPEC-028: Implement Hive Tracker Panel UI",
+      "description": "Build the right sidebar tracker in the Console with sections for Requests, To-Do, Completed, and Delegations.",
+      "spec_ref": "SPEC-028",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_082",
+      "title": "SPEC-028: GET /api/requests endpoint",
+      "description": "Implement markdown parser for requests.md and expose via ADT Center API.",
+      "spec_ref": "SPEC-028",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_083",
+      "title": "SPEC-028: GET /api/delegations endpoint",
+      "description": "Expose delegation history and assignment mapping via ADT Center API.",
+      "spec_ref": "SPEC-028",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_084",
+      "title": "SPEC-028: Wire file watchers to Tracker Panel",
+      "description": "Ensure requests.md and tasks.json changes trigger real-time UI updates in the Console.",
+      "spec_ref": "SPEC-028",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_081"
       ]
     }
   ]
