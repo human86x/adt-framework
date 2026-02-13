@@ -291,6 +291,38 @@ function addPathInput(value = '') {
     container.appendChild(div);
 }
 
+function openShatterglass() {
+    document.getElementById('shatter-confirm-input').value = '';
+    new bootstrap.Modal(document.getElementById('shatterglassModal')).show();
+}
+
+async function activateShatterglass() {
+    const input = document.getElementById('shatter-confirm-input').value;
+    if (input !== 'SHATTERGLASS') {
+        alert('Confirmation text mismatch.');
+        return;
+    }
+
+    try {
+        // This will call the adt shatterglass CLI logic via backend
+        const res = await fetch('/api/governance/shatter', { method: 'POST' });
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
+            alert('Shatterglass ACTIVATED. Window open for 15 minutes.');
+            location.reload();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.error);
+        }
+    } catch (err) {
+        // alert('Failed to connect to API');
+        // For mock purposes:
+        bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
+        document.getElementById('btn-shatterglass').innerText = 'SHATTERED (14:59)';
+        document.getElementById('btn-shatterglass').className = 'btn btn-lg w-100 btn-danger fw-bold';
+    }
+}
+
 function toggleLock(name) {
     if (MOCK_ROLES[name].locked) {
         // Unlock logic
