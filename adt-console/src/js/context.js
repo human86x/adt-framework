@@ -119,22 +119,27 @@ const ContextPanel = (() => {
         updatePreflight(session, null);
       }
 
-      // Render completed tasks
+      // Render completed tasks — up to 10 for better history
       const completedTasks = tasks.filter(t => 
         t.status === 'completed' && 
         t.assigned_to?.includes(session.role)
-      ).reverse().slice(0, 5);
+      ).reverse().slice(0, 10);
 
       const completedContainer = document.getElementById('ctx-tasks-completed');
       if (completedContainer) {
         completedContainer.innerHTML = '';
         if (completedTasks.length === 0) {
-          completedContainer.innerHTML = '<li style="color:var(--text-muted); text-decoration:none; border:none; background:none; padding:0;">No completed tasks</li>';
+          completedContainer.innerHTML = '<li class="ctx-empty">No completed tasks</li>';
         } else {
           completedTasks.forEach(t => {
             const li = document.createElement('li');
-            li.innerHTML = `<span>${t.id}: ${t.title}</span>`;
-            li.title = `Spec: ${t.spec_ref}`;
+            li.innerHTML = `
+              <div class="completed-task-info">
+                <span class="completed-task-id">${t.id}</span>
+                <span class="completed-task-title">${t.title}</span>
+              </div>
+            `;
+            li.title = `Spec: ${t.spec_ref} | Status: Completed`;
             completedContainer.appendChild(li);
           });
         }
