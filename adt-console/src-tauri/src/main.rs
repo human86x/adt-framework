@@ -18,6 +18,10 @@ fn main() {
 
             // Initialize PTY manager
             let pty_manager = pty::PtyManager::new();
+            
+            // Restore previous sessions
+            pty_manager.restore_sessions(handle.clone());
+            
             app.manage(pty_manager);
 
             // Setup system tray
@@ -36,9 +40,6 @@ fn main() {
             if let Err(e) = watcher::start_watchers(watcher_handle) {
                 log::error!("File watcher failed: {}", e);
             }
-
-            // Restore previous sessions
-            pty_manager.restore_sessions(handle.clone());
 
             log::info!("ADT Console initialized");
             Ok(())
