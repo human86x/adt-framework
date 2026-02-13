@@ -22,8 +22,10 @@ class ActionHandler:
             raise PermissionError(f"Path escapes project root: {relative_path}")
         return resolved
 
-    def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, action: str, params: Dict[str, Any], agent: str = None, role: str = None) -> Dict[str, Any]:
         """Dispatches action to the appropriate handler."""
+        self.current_agent = agent
+        self.current_role = role
         handler_name = f"_handle_{action}"
         if hasattr(self, handler_name):
             handler = getattr(self, handler_name)
