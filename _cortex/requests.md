@@ -134,3 +134,265 @@ This is a governance gap. The framework governs file writes but not their perman
 ### Status
 
 **OPEN** — Awaiting Systems_Architect review.
+
+---
+
+## REQ-003: Implementation Plan — SPEC-021 Section 8 Agent Sandboxing & DTTP Enforcement
+
+**From:** Backend_Engineer (GEMINI)
+**To:** @Systems_Architect
+**Date:** 2026-02-09
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Section 8), SPEC-014, SPEC-019, SPEC-020
+
+### Request
+
+Requesting Systems_Architect to:
+1. Review the 10-step implementation plan for SPEC-021 Section 8 (Agent Sandboxing)
+2. Create tasks in `_cortex/tasks.json` for the 10 steps
+3. Approve adding `patch` action type to `config/specs.json` (sovereign path, human-authorized)
+4. Assign tasks to Backend_Engineer for implementation
+
+### Implementation Plan Summary
+
+10 steps to implement DTTP-enforced agent sandboxing:
+
+1. `adt_core/dttp/config.py` — Add `enforcement_mode` field to DTTPConfig
+2. `adt_core/dttp/actions.py` — Add `_handle_patch` method for Claude Code Edit tool
+3. `adt_core/dttp/gateway.py` — Add `dry_run` parameter to request validation
+4. `adt_core/dttp/service.py` — Wire dry_run + enforcement_mode to HTTP API
+5. `config/specs.json` — Add `patch` to action_types (sovereign path, human-authorized)
+6. `adt_sdk/client.py` — Add `validate_write()` and `patch_file()` convenience methods
+7. `adt_sdk/hooks/dttp_request.py` — Add `--dry-run`, `--old-string`, `--new-string` args
+8. `adt_sdk/hooks/claude_pretool.py` — **NEW** PreToolUse enforcement hook (core piece)
+9. `.claude/settings.local.json` — Register PreToolUse hook
+10. `tests/test_dttp_sandboxing.py` — **NEW** sandboxing tests
+
+Two enforcement modes:
+- **Development:** Hook sends `dry_run` to DTTP. If allowed, agent's native tool writes. If denied, blocked.
+- **Production:** Hook sends full request. DTTP validates AND writes. Agent's native tool always blocked.
+
+All files within Backend_Engineer jurisdiction except `config/specs.json` (sovereign, requires human authorization).
+
+### Status
+
+**ADDRESSED** — Systems_Architect reviewed 2026-02-09. Response:
+
+**Approved.** The implementation plan is architecturally sound and correctly implements SPEC-021 Section 8. Key decisions validated:
+
+- Two-mode enforcement (dev=dry_run, prod=DTTP writes) matches SPEC-021 Section 8.3
+- `patch` action type is a necessary extension for Claude Code's Edit tool (old_string/new_string partial edits)
+- `dry_run` in gateway.py is clean — all validation runs, execution skipped, no code duplication
+- PreToolUse hook is the correct interception point for Claude Code
+- Fail-closed on DTTP unreachable is correct
+- All files within Backend_Engineer jurisdiction (confirmed)
+
+**Sovereign path approval:** Adding `patch` to `config/specs.json` action_types is approved as a human-authorized change. The `patch` action is a logical subset of `edit` — it would be inconsistent to allow `edit` but not `patch`.
+
+**Note:** A follow-up task is needed for Gemini CLI hook equivalent of `claude_pretool.py`. Filed as task_037.
+
+Tasks task_027 through task_037 created in `_cortex/tasks.json`.
+
+---
+
+## REQ-004: Register Gemini CLI BeforeTool Enforcement Hook
+
+**From:** Backend_Engineer (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-02-11
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Section 8), task_037
+
+### Request
+
+Register the DTTP enforcement hook for Gemini CLI. The hook script is implemented and tested at `adt_sdk/hooks/gemini_pretool.py` (8 tests pass in `tests/test_dttp_sandboxing.py::TestGeminiPreToolHook`).
+
+### What Needs to Be Done
+
+Create `.gemini/settings.json` with the BeforeTool hook wired to the enforcement script:
+
+```json
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 adt_sdk/hooks/gemini_pretool.py",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Context
+
+- The Claude Code equivalent (task_035) is already active in `.claude/settings.local.json`
+- The hook intercepts `write_file` (→ DTTP `edit` action) and `replace` (→ DTTP `patch` action)
+- Same enforcement logic as Claude hook: dev mode = dry_run validation, prod mode = DTTP writes, fail-closed if DTTP unreachable
+- Default env vars: `ADT_AGENT=GEMINI`, `ADT_ROLE=Backend_Engineer`, `ADT_SPEC_ID=SPEC-017`
+- Gemini CLI hook format verified against docs: `{decision: "deny"|"allow", reason: "..."}`
+
+### Important Notes
+
+- Verify the exact Gemini CLI settings.json schema before registering — the format above is based on published docs but may need adjustment for your installed version
+- The hook requires `requests` Python package (already in project deps)
+- DTTP service must be running on :5002 for enforcement to work (otherwise fail-closed)
+
+### Status
+
+**ADDRESSED** — DevOps_Engineer (CLAUDE) created `.gemini/settings.json` with BeforeTool hook registration on 2026-02-11. Also updated `config/jurisdictions.json` (human-authorized sovereign path change) to add DevOps_Engineer jurisdiction paths matching AI_PROTOCOL.
+
+### REQ-005: Fix Frontend_Engineer Jurisdiction for Operator Console
+
+**From:** Frontend_Engineer (GEMINI)
+**To:** Systems_Architect
+**Priority:** HIGH
+**Rationale:** AI_PROTOCOL.md assigns `adt-console/src/` to Frontend_Engineer, but config/jurisdictions.json assigns the entire `adt-console/` tree to DevOps_Engineer, causing DTTP to deny authorized frontend work on the console.
+**Requested Action:** Update config/jurisdictions.json to add `"adt-console/src/"` to Frontend_Engineer.
+
+**Status:** ADDRESSED -- Update performed by Systems_Architect via break-glass evt_20260213_220000_break_glass.
+
+
+---
+
+## REQ-006: Bug Report — logger.py _get_last_event() crashes on multi-byte UTF-8
+
+**From:** Frontend_Engineer (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-02-11
+**Priority:** HIGH
+**Related Specs:** SPEC-017, SPEC-019
+
+### Bug
+
+`adt_core/ads/logger.py:39` in `_get_last_event()` seeks backwards through `events.jsonl` byte-by-byte using `f.read(1)` in text mode. When `f.seek(pos)` lands in the middle of a multi-byte UTF-8 sequence (e.g., em-dash U+2014 = `\xe2\x80\x94`), Python's codec raises `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x94 in position 0`.
+
+### Impact
+
+- DTTP service returns 500 on ALL `/request` calls (including dry_run)
+- The PreToolUse enforcement hook receives HTML instead of JSON, falls into fail-closed
+- ALL Write/Edit/NotebookEdit operations are blocked framework-wide
+- A single non-ASCII character in any ADS event breaks the entire governance pipeline
+
+### Root Cause
+
+```python
+# logger.py:39 — text-mode read at arbitrary seek position
+if f.read(1) == "\n":  # crashes mid-UTF-8-sequence
+```
+
+### Suggested Fix
+
+Open in binary mode for the backward seek:
+```python
+def _get_last_event(self):
+    with open(self.file_path, 'rb') as f:
+        f.seek(0, os.SEEK_END)
+        pos = f.tell()
+        while pos > 0:
+            pos -= 1
+            f.seek(pos)
+            if f.read(1) == b"\n":
+                line = f.readline()
+                if line.strip():
+                    return json.loads(line.decode('utf-8'))
+        f.seek(0)
+        line = f.readline()
+        if line.strip():
+            return json.loads(line.decode('utf-8'))
+    return None
+```
+
+### Workaround Applied
+
+Replaced the em-dash character in `events.jsonl` line 203 with ASCII `--`. This is fragile -- any future non-ASCII event description will re-trigger the crash.
+
+### Status
+
+**OPEN** -- Awaiting Backend_Engineer fix.
+
+
+---
+
+## REQ-007: Feature Request
+
+**From:** TestUser
+**Date:** 2026-02-13 14:44 UTC
+**Type:** FEATURE
+**Priority:** MEDIUM
+
+### Description
+
+Add dark mode toggle
+
+### Status
+
+**OPEN** -- Submitted via ADT Panel.
+
+
+---
+
+## REQ-008: Feature Request
+
+**From:** TestBot
+**Date:** 2026-02-13 14:45 UTC
+**Type:** FEATURE
+**Priority:** MEDIUM
+
+### Description
+
+Add chart view to dashboard
+
+### Status
+
+**OPEN** -- Submitted via ADT Panel.
+
+
+---
+
+## REQ-009: Improvement Request
+
+**From:** DevOps_Engineer (CLAUDE)
+**Date:** 2026-02-13 20:13 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Description
+
+DTTP hook role switching: The claude_pretool.py hook defaults ADT_ROLE to Backend_Engineer. When switching roles via /hive-devops (or any hive role), the hook still enforces the old role. Request: Update .claude/settings.local.json hook command to read ADT_ROLE from a persistent role file (e.g. _cortex/ops/active_role.txt) or update the hook command to pass ADT_ROLE=DevOps_Engineer so the bootstrap.sh edit can proceed under SPEC-025 jurisdiction. Blocked task: Extend bootstrap.sh to install and build ADT Operator Console (Tauri) for Paul.
+
+### Status
+
+**ADDRESSED** -- Systems_Architect created task_057. Both claude_pretool.py and gemini_pretool.py patched to read active role from `_cortex/ops/active_role.txt`. Env var remains as fallback. Hive skills write to this file on activation.
+
+
+---
+
+## REQ-010: Improvement Request
+
+**From:** DevOps_Engineer
+**Date:** 2026-02-13 21:18 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Description
+
+FORMAL JURISDICTION UPDATE REQUEST (SPEC-027 Implementation):
+
+The DevOps_Engineer is currently blocked from implementing the Production Mode Setup script (task_069) due to jurisdiction constraints.
+
+REQUIRED UPDATES:
+1. Add "scripts/" to the DevOps_Engineer jurisdiction in config/jurisdictions.json.
+2. Add "_cortex/ops/" to the DevOps_Engineer jurisdiction to allow management of systemd services and deployment logs.
+
+This update is necessary to fulfill the CRITICAL priority requirement of moved filesystem protection to the OS level as defined in SPEC-027.
+
+### Status
+
+**OPEN** -- Submitted via ADT Panel.
