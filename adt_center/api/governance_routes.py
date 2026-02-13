@@ -2,7 +2,7 @@ import os
 import re
 import json
 import requests as http_client
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, jsonify, current_app, request
 from adt_core.ads.schema import ADSEventSchema
 
@@ -101,7 +101,7 @@ def create_spec():
             return jsonify({"error": f"Spec {spec_id} already exists"}), 409
 
     if not body:
-        body = f"# {spec_id}: {title}\n\n**Status:** {status}\n**Created:** {datetime.utcnow().strftime('%Y-%m-%d')}\n\n---\n\n## 1. Purpose\n\n(Describe the purpose here)\n"
+        body = f"# {spec_id}: {title}\n\n**Status:** {status}\n**Created:** {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n\n---\n\n## 1. Purpose\n\n(Describe the purpose here)\n"
 
     os.makedirs(os.path.dirname(spec_path), exist_ok=True)
     with open(spec_path, "w") as f:
@@ -155,7 +155,7 @@ def submit_request():
                 next_num = max(int(n) for n in nums) + 1
 
     req_id = f"REQ-{next_num:03d}"
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     entry = f"\n\n---\n\n## {req_id}: {req_type.title()} Request\n\n**From:** {author}\n**Date:** {timestamp}\n**Type:** {req_type.upper()}\n**Priority:** MEDIUM\n\n### Description\n\n{description}\n\n### Status\n\n**OPEN** -- Submitted via ADT Panel.\n"
 
@@ -207,6 +207,120 @@ def get_governance_roles():
                     roles[role]["action_types"].append(action)
                     
     return jsonify({"roles": roles})
+
+
+@governance_bp.route("/tasks/<task_id>/status", methods=["PUT"])
+def update_task_status(task_id):
+    """SPEC-026: Agent self-service task status update."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    new_status = data.get("status")
+    agent = data.get("agent", "unknown")
+    role = data.get("role", "unknown")
+    evidence = data.get("evidence", "")
+
+    if new_status not in ["completed", "in_progress"]:
+        return jsonify({"error": "Agents can only set status to completed or in_progress"}), 400
+
+    task = current_app.task_manager.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    # Authorization check: must be assigned to this role
+    if task.get("assigned_to") != role:
+        return jsonify({"error": f"Task {task_id} is assigned to {task.get('assigned_to')}, not {role}"}), 403
+
+    updates = {
+        "status": new_status,
+        "evidence": evidence,
+        "last_updated_by": f"{agent} ({role})",
+        "last_updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    }
+    
+    if new_status == "completed":
+        updates["review_status"] = "pending"
+
+    if current_app.task_manager.update_task(task_id, updates):
+        event_id = ADSEventSchema.generate_id("task_upd")
+        event = ADSEventSchema.create_event(
+            event_id=event_id, agent=agent, role=role, action_type="task_status_updated",
+            description=f"Task {task_id} marked as {new_status} by {role}.",
+            spec_ref=task.get("spec_ref", "SPEC-026"),
+            authorized=True, tier=3,
+            action_data={"task_id": task_id, "status": new_status, "evidence": evidence}
+        )
+        current_app.ads_logger.log(event)
+        return jsonify({"status": "success", "task_id": task_id, "event_id": event_id})
+    
+    return jsonify({"error": "Failed to update task"}), 500
+
+
+@governance_bp.route("/tasks/<task_id>/override", methods=["PUT"])
+def override_task_status(task_id):
+    """SPEC-026: Human override of task status (reject/approve/reassign/reopen)."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    # Human-only check (simple localhost/agent header check)
+    if request.headers.get("X-Agent"):
+        return jsonify({"error": "Override endpoint is human-only"}), 403
+
+    action = data.get("action")
+    reason = data.get("reason", "")
+    reassign_to = data.get("reassign_to")
+    
+    task = current_app.task_manager.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    updates = {
+        "last_updated_by": "HUMAN",
+        "last_updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    }
+    event_type = "task_override"
+
+    if action == "approve":
+        updates["status"] = "completed"
+        updates["review_status"] = "approved"
+        event_type = "task_approved"
+        desc = f"Human approved completion of {task_id}."
+    elif action == "reject":
+        if not reason:
+            return jsonify({"error": "Reason is required for rejection"}), 400
+        updates["status"] = "in_progress"
+        updates["review_status"] = "rejected"
+        updates["rejection_reason"] = reason
+        event_type = "task_rejected"
+        desc = f"Human rejected completion of {task_id}: {reason}"
+    elif action == "reassign":
+        if not reassign_to:
+            return jsonify({"error": "reassign_to is required"}), 400
+        updates["assigned_to"] = reassign_to
+        event_type = "task_reassigned"
+        desc = f"Human reassigned {task_id} to {reassign_to}."
+    elif action == "reopen":
+        updates["status"] = "pending"
+        updates.pop("review_status", None)
+        event_type = "task_reopened"
+        desc = f"Human reopened {task_id}."
+    else:
+        return jsonify({"error": f"Unknown action: {action}"}), 400
+
+    if current_app.task_manager.update_task(task_id, updates):
+        event_id = ADSEventSchema.generate_id("task_ovr")
+        event = ADSEventSchema.create_event(
+            event_id=event_id, agent="HUMAN", role="Collaborator", action_type=event_type,
+            description=desc, spec_ref=task.get("spec_ref", "SPEC-026"),
+            authorized=True, tier=1,
+            action_data={"task_id": task_id, "action": action, "reason": reason}
+        )
+        current_app.ads_logger.log(event)
+        return jsonify({"status": "success", "task_id": task_id, "event_id": event_id})
+    
+    return jsonify({"error": "Failed to update task"}), 500
 
 
 @governance_bp.route("/governance/enforcement", methods=["GET"])
