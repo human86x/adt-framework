@@ -72,6 +72,6 @@ async function runTests() {
   // Mocking DOM elements again to verify states would be complex here, 
   // but we can at least ensure the logic runs without crashing.
   
-  console.log(\"All Hive View tests passed!\");
+  console.log("All Hive View tests passed!");
 }
 runTests();
