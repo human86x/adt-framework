@@ -30,7 +30,7 @@
         <div class="card card-adt mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>DTTP Status</span>
-                <span id="enforcement-mode-badge" class="badge-adt badge-pending">--</span>
+                <span id="enforcement-mode-badge" class="badge-adt">--</span>
             </div>
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
@@ -41,10 +41,8 @@
                 <div class="mb-2">
                     <label class="form-label-adt">Protected Paths (Read-Only)</label>
                     <div id="protected-paths-list" class="adt-spec-content" style="max-height: 200px; overflow-y: auto;">
-                        <ul class="list-unstyled small text-adt-muted mb-0">
-                            <li><span class="text-adt-red fw-bold">Sovereign (Tier 1):</span> config/specs.json, config/jurisdictions.json, _cortex/AI_PROTOCOL.md...</li>
-                            <li><span class="text-adt-amber fw-bold">Constitutional (Tier 2):</span> adt_core/dttp/gateway.py, adt_core/ads/logger.py...</li>
-                        </ul>
+                        <!-- Paths injected by JS -->
+                        <p class="text-adt-muted small">Loading protected paths...</p>
                     </div>
                 </div>
 
@@ -68,7 +66,7 @@
                 <div id="recent-denials-container" class="timeline-container" style="max-height: 300px;">
                     <!-- Denials injected by JS -->
                     <div class="p-3 text-center text-adt-muted" style="font-size:0.8rem;">
-                        No recent denials recorded.
+                        Checking for denials...
                     </div>
                 </div>
             </div>
@@ -153,11 +151,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-adt">
-                    <div id="diff-preview" class="me-auto text-adt-amber small" style="font-family:monospace; display:none;">
-                        Changes detected.
-                    </div>
                     <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-adt-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-sm btn-adt-primary" disabled title="PUT endpoints pending">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -172,7 +167,7 @@
                 <div class="mb-3 text-adt-amber" style="font-size:2rem;">&#9888;</div>
                 <h6 class="mb-3">Confirm Governance Lock</h6>
                 <p class="text-adt-muted small mb-4">
-                    Locking <strong id="lock-role-display"></strong> will prevent all accidental человеческий edits to its jurisdiction via this UI.
+                    Locking <strong id="lock-role-display"></strong> will prevent all accidental human edits to its jurisdiction via this UI.
                 </p>
                 <div class="d-flex gap-2 justify-content-center">
                     <button class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -187,27 +182,76 @@
 
 {% block scripts %}
 <script>
-// Mock data for initial UI development (Task 063)
-const MOCK_ROLES = {
-    "Systems_Architect": {
-        "paths": ["_cortex/", "docs/"],
-        "action_types": ["create"],
-        "specs": ["SPEC-017", "SPEC-020"],
-        "locked": true
-    },
-    "Backend_Engineer": {
-        "paths": ["adt_core/", "adt_center/api/", "adt_sdk/", "tests/", "config/"],
-        "action_types": ["edit", "patch", "create", "delete"],
-        "specs": ["SPEC-014", "SPEC-015", "SPEC-017", "SPEC-018", "SPEC-019", "SPEC-021"],
-        "locked": false
-    },
-    "Frontend_Engineer": {
-        "paths": ["adt_center/templates/", "adt_center/static/", "adt-console/src/"],
-        "action_types": ["edit", "patch", "create"],
-        "specs": ["SPEC-015", "SPEC-016", "SPEC-021"],
-        "locked": false
+let currentRoles = {};
+
+async function loadGovernance() {
+    try {
+        const res = await fetch('/api/governance/roles');
+        const data = await res.json();
+        currentRoles = data.roles;
+        renderRoleCards(currentRoles);
+    } catch (err) {
+        console.error('Failed to load roles:', err);
     }
-};
+}
+
+async function loadEnforcement() {
+    try {
+        const res = await fetch('/api/governance/enforcement');
+        const data = await res.json();
+        
+        const badge = document.getElementById('enforcement-mode-badge');
+        badge.innerText = (data.mode || '--').toUpperCase();
+        badge.className = 'badge-adt ' + (data.mode === 'production' ? 'badge-completed' : 'badge-pending');
+        
+        const indicator = document.getElementById('dttp-indicator');
+        indicator.className = 'status-dot ' + (data.status === 'active' ? 'dot-green' : 'dot-red');
+        
+        document.getElementById('dttp-status-text').innerText = data.status === 'active' ? 
+            'DTTP Service Active on :5002' : 'DTTP Service OFFLINE';
+            
+        // Protected paths
+        const pathsList = document.getElementById('protected-paths-list');
+        pathsList.innerHTML = '';
+        if (data.protected_paths) {
+            const ul = document.createElement('ul');
+            ul.className = 'list-unstyled small text-adt-muted mb-0';
+            
+            if (data.protected_paths.sovereign) {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="text-adt-red fw-bold">Sovereign (Tier 1):</span> ${data.protected_paths.sovereign.join(', ')}`;
+                ul.appendChild(li);
+            }
+            if (data.protected_paths.constitutional) {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="text-adt-amber fw-bold">Constitutional (Tier 2):</span> ${data.protected_paths.constitutional.join(', ')}`;
+                ul.appendChild(li);
+            }
+            pathsList.appendChild(ul);
+        }
+        
+        // Recent Denials
+        const denialsContainer = document.getElementById('recent-denials-container');
+        denialsContainer.innerHTML = '';
+        if (data.recent_denials && data.recent_denials.length > 0) {
+            data.recent_denials.reverse().forEach(event => {
+                const item = document.createElement('div');
+                item.className = 'event-item event-denied p-2 border-bottom border-adt';
+                item.style.backgroundColor = 'transparent';
+                item.innerHTML = `
+                    <div class="event-meta" style="font-size:0.65rem;">${event.ts.substring(11, 19)} &middot; ${event.role}</div>
+                    <div class="event-body" style="font-size:0.75rem;">${event.description}</div>
+                `;
+                denialsContainer.appendChild(item);
+            });
+        } else {
+            denialsContainer.innerHTML = '<div class="p-3 text-center text-adt-muted" style="font-size:0.8rem;">No recent denials.</div>';
+        }
+        
+    } catch (err) {
+        console.error('Failed to load enforcement status:', err);
+    }
+}
 
 function renderRoleCards(roles) {
     const container = document.getElementById('role-cards-container');
@@ -231,7 +275,7 @@ function renderRoleCards(roles) {
                     </div>
                     <div>
                         <button class="btn btn-sm btn-outline-secondary me-2" onclick="editRole('${name}')" ${config.locked ? 'disabled' : ''}>Edit</button>
-                        <button class="btn btn-sm ${config.locked ? 'btn-adt-primary' : 'btn-adt-secondary'}" onclick="toggleLock('${name}')">
+                        <button class="btn btn-sm ${config.locked ? 'btn-adt-primary' : 'btn-adt-secondary'}" onclick="toggleLock('${name}')" disabled title="Toggle lock API pending">
                             ${config.locked ? 'Unlock' : 'Lock'}
                         </button>
                     </div>
@@ -240,7 +284,7 @@ function renderRoleCards(roles) {
                     <div class="row">
                         <div class="col-md-6 mb-3 mb-md-0">
                             <div class="form-label-adt">Jurisdiction</div>
-                            <div class="text-adt-muted small">
+                            <div class="text-adt-muted small" style="word-break: break-all;">
                                 ${config.paths.join(', ')}
                             </div>
                         </div>
@@ -265,7 +309,7 @@ function renderRoleCards(roles) {
 }
 
 function editRole(name) {
-    const config = MOCK_ROLES[name];
+    const config = currentRoles[name];
     document.getElementById('edit-role-name').innerText = name.replace('_', ' ');
     
     const pathsContainer = document.getElementById('paths-input-container');
@@ -304,7 +348,6 @@ async function activateShatterglass() {
     }
 
     try {
-        // This will call the adt shatterglass CLI logic via backend
         const res = await fetch('/api/governance/shatter', { method: 'POST' });
         if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
@@ -312,42 +355,23 @@ async function activateShatterglass() {
             location.reload();
         } else {
             const data = await res.json();
-            alert('Error: ' + data.error);
+            alert('Error: ' + data.error || 'Failed to activate shatterglass');
         }
     } catch (err) {
-        // alert('Failed to connect to API');
-        // For mock purposes:
-        bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
-        document.getElementById('btn-shatterglass').innerText = 'SHATTERED (14:59)';
-        document.getElementById('btn-shatterglass').className = 'btn btn-lg w-100 btn-danger fw-bold';
+        alert('Failed to connect to API');
     }
 }
 
 function toggleLock(name) {
-    if (MOCK_ROLES[name].locked) {
-        // Unlock logic
-        MOCK_ROLES[name].locked = false;
-        renderRoleCards(MOCK_ROLES);
-    } else {
-        document.getElementById('lock-role-display').innerText = name.replace('_', ' ');
-        const modal = new bootstrap.Modal(document.getElementById('lockConfirmModal'));
-        document.getElementById('btn-confirm-lock').onclick = () => {
-            MOCK_ROLES[name].locked = true;
-            modal.hide();
-            renderRoleCards(MOCK_ROLES);
-        };
-        modal.show();
-    }
+    // API Pending
 }
 
 // Initial render
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        renderRoleCards(MOCK_ROLES);
-        document.getElementById('enforcement-mode-badge').innerText = 'DEVELOPMENT';
-        document.getElementById('dttp-indicator').className = 'status-dot dot-green';
-        document.getElementById('dttp-status-text').innerText = 'DTTP Service Active on :5002';
-    }, 500);
+    loadGovernance();
+    loadEnforcement();
+    // Refresh enforcement every 10s
+    setInterval(loadEnforcement, 10000);
 });
 </script>
 {% endblock %}
