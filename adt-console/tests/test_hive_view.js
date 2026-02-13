@@ -67,7 +67,7 @@ async function runTests() {
   const task = { id: 'task_001', spec_ref: 'SPEC-017', assigned_to: ['Backend_Engineer'] };
   
   context.ContextPanel.update(session);
-  console.log(\"✓ ContextPanel: update called\");
+  console.log("✓ ContextPanel: update called");
 
   // Mocking DOM elements again to verify states would be complex here, 
   // but we can at least ensure the logic runs without crashing.
