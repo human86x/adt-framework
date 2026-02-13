@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% set active_page = "governance" %}
+
+{% block title %}Governance - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Role Manager -->
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Role Jurisdiction Manager</h5>
+            <span class="badge-adt badge-completed">HUMAN-ONLY ACCESS</span>
+        </div>
+
+        <div id="role-cards-container" class="row g-3">
+            <!-- Role cards will be injected by JS -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-accent" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-adt-muted">Fetching governance configuration...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Enforcement Dashboard -->
+    <div class="col-lg-4">
+        <div class="section-title">Enforcement Dashboard</div>
+        
+        <div class="card card-adt mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>DTTP Status</span>
+                <span id="enforcement-mode-badge" class="badge-adt badge-pending">--</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div id="dttp-indicator" class="status-dot me-2"></div>
+                    <span id="dttp-status-text">Checking DTTP service...</span>
+                </div>
+                
+                <div class="mb-2">
+                    <label class="form-label-adt">Protected Paths (Read-Only)</label>
+                    <div id="protected-paths-list" class="adt-spec-content" style="max-height: 200px; overflow-y: auto;">
+                        <ul class="list-unstyled small text-adt-muted mb-0">
+                            <li><span class="text-adt-red fw-bold">Sovereign (Tier 1):</span> config/specs.json, config/jurisdictions.json, _cortex/AI_PROTOCOL.md...</li>
+                            <li><span class="text-adt-amber fw-bold">Constitutional (Tier 2):</span> adt_core/dttp/gateway.py, adt_core/ads/logger.py...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Recent Denials</div>
+        <div class="card card-adt">
+            <div class="card-body p-0">
+                <div id="recent-denials-container" class="timeline-container" style="max-height: 300px;">
+                    <!-- Denials injected by JS -->
+                    <div class="p-3 text-center text-adt-muted" style="font-size:0.8rem;">
+                        No recent denials recorded.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Jurisdiction Modal -->
+<div class="modal fade modal-adt" id="editRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Jurisdiction: <span id="edit-role-name" class="text-adt-accent"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editRoleForm">
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label class="form-label-adt">Jurisdiction Paths</label>
+                        <div id="paths-input-container" class="mb-2">
+                            <!-- Path inputs injected by JS -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-adt-secondary" onclick="addPathInput()">+ Add Path</button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label-adt">Allowed Actions</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="action-edit" value="edit">
+                                <label class="form-check-label" for="action-edit">edit</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="action-patch" value="patch">
+                                <label class="form-check-label" for="action-patch">patch</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="action-create" value="create">
+                                <label class="form-check-label" for="action-create">create</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="action-delete" value="delete">
+                                <label class="form-check-label" for="action-delete">delete</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label-adt">Active Spec Bindings</label>
+                        <div id="specs-select-container">
+                            <!-- Multi-select or list injected by JS -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-adt">
+                    <div id="diff-preview" class="me-auto text-adt-amber small" style="font-family:monospace; display:none;">
+                        Changes detected.
+                    </div>
+                    <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-adt-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Lock Confirmation Modal -->
+<div class="modal fade modal-adt" id="lockConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="mb-3 text-adt-amber" style="font-size:2rem;">&#9888;</div>
+                <h6 class="mb-3">Confirm Governance Lock</h6>
+                <p class="text-adt-muted small mb-4">
+                    Locking <strong id="lock-role-display"></strong> will prevent all accidental человеческий edits to its jurisdiction via this UI.
+                </p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-sm btn-adt-primary" id="btn-confirm-lock">Lock Role</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Mock data for initial UI development (Task 063)
+const MOCK_ROLES = {
+    "Systems_Architect": {
+        "paths": ["_cortex/", "docs/"],
+        "action_types": ["create"],
+        "specs": ["SPEC-017", "SPEC-020"],
+        "locked": true
+    },
+    "Backend_Engineer": {
+        "paths": ["adt_core/", "adt_center/api/", "adt_sdk/", "tests/", "config/"],
+        "action_types": ["edit", "patch", "create", "delete"],
+        "specs": ["SPEC-014", "SPEC-015", "SPEC-017", "SPEC-018", "SPEC-019", "SPEC-021"],
+        "locked": false
+    },
+    "Frontend_Engineer": {
+        "paths": ["adt_center/templates/", "adt_center/static/", "adt-console/src/"],
+        "action_types": ["edit", "patch", "create"],
+        "specs": ["SPEC-015", "SPEC-016", "SPEC-021"],
+        "locked": false
+    }
+};
+
+function renderRoleCards(roles) {
+    const container = document.getElementById('role-cards-container');
+    container.innerHTML = '';
+    
+    Object.entries(roles).forEach(([name, config]) => {
+        const col = document.createElement('div');
+        col.className = 'col-12';
+        
+        const roleDisplayName = name.replace('_', ' ').toUpperCase();
+        const statusBadge = config.locked ? 
+            '<span class="badge-adt badge-denied">LOCKED</span>' : 
+            '<span class="badge-adt badge-completed">ACTIVE</span>';
+            
+        col.innerHTML = `
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-adt-accent">${roleDisplayName}</span>
+                        <span class="ms-3">${statusBadge}</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="editRole('${name}')" ${config.locked ? 'disabled' : ''}>Edit</button>
+                        <button class="btn btn-sm ${config.locked ? 'btn-adt-primary' : 'btn-adt-secondary'}" onclick="toggleLock('${name}')">
+                            ${config.locked ? 'Unlock' : 'Lock'}
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="form-label-adt">Jurisdiction</div>
+                            <div class="text-adt-muted small">
+                                ${config.paths.join(', ')}
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <div class="form-label-adt">Allowed Actions</div>
+                            <div class="text-adt-muted small">
+                                ${config.action_types.join(', ')}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-label-adt">Specs</div>
+                            <div class="text-adt-muted small">
+                                ${config.specs.join(', ')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+function editRole(name) {
+    const config = MOCK_ROLES[name];
+    document.getElementById('edit-role-name').innerText = name.replace('_', ' ');
+    
+    const pathsContainer = document.getElementById('paths-input-container');
+    pathsContainer.innerHTML = '';
+    config.paths.forEach(path => addPathInput(path));
+    
+    ['edit', 'patch', 'create', 'delete'].forEach(action => {
+        document.getElementById('action-' + action).checked = config.action_types.includes(action);
+    });
+    
+    const myModal = new bootstrap.Modal(document.getElementById('editRoleModal'));
+    myModal.show();
+}
+
+function addPathInput(value = '') {
+    const container = document.getElementById('paths-input-container');
+    const div = document.createElement('div');
+    div.className = 'd-flex gap-2 mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control-adt" value="${value}" placeholder="path/to/dir/">
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    container.appendChild(div);
+}
+
+function toggleLock(name) {
+    if (MOCK_ROLES[name].locked) {
+        // Unlock logic
+        MOCK_ROLES[name].locked = false;
+        renderRoleCards(MOCK_ROLES);
+    } else {
+        document.getElementById('lock-role-display').innerText = name.replace('_', ' ');
+        const modal = new bootstrap.Modal(document.getElementById('lockConfirmModal'));
+        document.getElementById('btn-confirm-lock').onclick = () => {
+            MOCK_ROLES[name].locked = true;
+            modal.hide();
+            renderRoleCards(MOCK_ROLES);
+        };
+        modal.show();
+    }
+}
+
+// Initial render
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        renderRoleCards(MOCK_ROLES);
+        document.getElementById('enforcement-mode-badge').innerText = 'DEVELOPMENT';
+        document.getElementById('dttp-indicator').className = 'status-dot dot-green';
+        document.getElementById('dttp-status-text').innerText = 'DTTP Service Active on :5002';
+    }, 500);
+});
+</script>
+{% endblock %}
