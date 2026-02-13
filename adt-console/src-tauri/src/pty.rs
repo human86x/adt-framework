@@ -330,3 +330,47 @@ impl PtyManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_persistent_session_serde() {
+        let session = PersistentSession {
+            id: "test_id".to_string(),
+            agent: "claude".to_string(),
+            role: "Backend_Engineer".to_string(),
+            command: "bash".to_string(),
+            args: vec!["-c".to_string(), "ls".to_string()],
+            cwd: Some("/tmp".to_string()),
+        };
+
+        let json = serde_json::to_string(&session).unwrap();
+        let decoded: PersistentSession = serde_json::from_str(&json).unwrap();
+        assert_eq!(session.id, decoded.id);
+        assert_eq!(session.args, decoded.args);
+    }
+
+    #[test]
+    fn test_session_info_serde() {
+        let info = SessionInfo {
+            id: "test_id".to_string(),
+            agent: "claude".to_string(),
+            role: "Backend_Engineer".to_string(),
+            command: "bash".to_string(),
+            alive: true,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let decoded: SessionInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(info.id, decoded.id);
+        assert_eq!(info.alive, decoded.alive);
+    }
+
+    #[test]
+    fn test_pty_manager_new_empty() {
+        let manager = PtyManager::new();
+        assert_eq!(manager.list_sessions().len(), 0);
+    }
+}
