@@ -190,33 +190,18 @@ def get_governance_roles():
     specs = _load_json(specs_path).get("specs", {})
     
     roles = {}
-    # Base roles from jurisdictions
     for name, config in jurisdictions.items():
         if isinstance(config, list):
-            # Backward compatibility for simple list format
-            roles[name] = {
-                "paths": config,
-                "action_types": [],
-                "specs": [],
-                "locked": False
-            }
+            roles[name] = {"paths": config, "action_types": [], "specs": [], "locked": False}
         else:
-            roles[name] = {
-                "paths": config.get("paths", []),
-                "action_types": config.get("action_types", []),
-                "specs": [],
-                "locked": config.get("locked", False)
-            }
+            roles[name] = {"paths": config.get("paths", []), "action_types": config.get("action_types", []), "specs": [], "locked": config.get("locked", False)}
             
-    # Enrich with action types and spec bindings from specs.json
     for spec_id, spec in specs.items():
         for role in spec.get("roles", []):
             if role not in roles:
                 roles[role] = {"paths": [], "action_types": [], "specs": [], "locked": False}
-            
             if spec_id not in roles[role]["specs"]:
                 roles[role]["specs"].append(spec_id)
-            
             for action in spec.get("action_types", []):
                 if action not in roles[role]["action_types"]:
                     roles[role]["action_types"].append(action)
@@ -228,7 +213,6 @@ def get_governance_roles():
 def get_enforcement_status():
     """SPEC-026: DTTP state and recent denials."""
     dttp_url = current_app.config.get("DTTP_URL", "http://localhost:5002")
-    
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
         resp = http_client.get(f"{dttp_url}/status", timeout=2)
@@ -246,9 +230,111 @@ def get_enforcement_status():
     except:
         pass
         
-    # Last 10 denials from ADS
     events = current_app.ads_query.get_all_events()
     denials = [e for e in events if not e.get("authorized", True)][-10:]
     status["recent_denials"] = denials
-    
     return jsonify(status)
+
+@governance_bp.route("/governance/roles/<role_name>", methods=["PUT"])
+def update_role_jurisdiction(role_name):
+    """SPEC-026: Update a role's jurisdiction, action types, or lock state."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    jur_path = os.path.join(root, "config", "jurisdictions.json")
+    jurisdictions_data = _load_json(jur_path)
+    jurisdictions = jurisdictions_data.get("jurisdictions", {})
+    
+    if role_name not in jurisdictions:
+        return jsonify({"error": f"Role {role_name} not found"}), 404
+    
+    old_config = jurisdictions[role_name]
+    if isinstance(old_config, list):
+        old_config = {"paths": old_config, "action_types": [], "locked": False}
+
+    if old_config.get("locked", False) and not data.get("unlock", False):
+        return jsonify({"error": f"Role {role_name} is locked. Unlock first."}), 403
+
+    new_paths = data.get("paths", old_config.get("paths", []))
+    new_actions = data.get("action_types", old_config.get("action_types", []))
+    new_locked = data.get("locked", old_config.get("locked", False))
+
+    if not new_paths:
+        return jsonify({"error": "Role must have at least one jurisdiction path"}), 400
+
+    sovereign_paths = ["config/specs.json", "config/jurisdictions.json", "config/dttp.json", "_cortex/AI_PROTOCOL.md", "_cortex/MASTER_PLAN.md"]
+    for path in new_paths:
+        if path in sovereign_paths:
+             return jsonify({"error": f"Path {path} is a sovereign path and cannot be assigned to an agent role."}), 400
+
+    jurisdictions[role_name] = {"paths": new_paths, "action_types": new_actions, "locked": new_locked}
+    with open(jur_path, "w") as f:
+        json.dump({"jurisdictions": jurisdictions}, f, indent=2)
+
+    event_id = ADSEventSchema.generate_id("governance_upd")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent="HUMAN", role="Collaborator", action_type="governance_config_updated",
+        description=f"Updated jurisdiction for {role_name}.", spec_ref="SPEC-026",
+        authorized=True, tier=1, action_data={"before": old_config, "after": jurisdictions[role_name]}
+    )
+    current_app.ads_logger.log(event)
+    return jsonify({"status": "success", "role": role_name, "event_id": event_id})
+
+@governance_bp.route("/governance/specs/<spec_id>/roles", methods=["PUT"])
+def update_spec_roles(spec_id):
+    """SPEC-026: Update which roles are authorized under a spec."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    specs_path = os.path.join(root, "config", "specs.json")
+    specs_config = _load_json(specs_path)
+    specs = specs_config.get("specs", {})
+    
+    if spec_id not in specs:
+        return jsonify({"error": f"Spec {spec_id} not found"}), 404
+    
+    old_spec = specs[spec_id].copy()
+    if "roles" in data:
+        specs[spec_id]["roles"] = data["roles"]
+    if "action_types" in data:
+        specs[spec_id]["action_types"] = data["action_types"]
+
+    with open(specs_path, "w") as f:
+        json.dump(specs_config, f, indent=2)
+
+    event_id = ADSEventSchema.generate_id("governance_upd")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent="HUMAN", role="Collaborator", action_type="governance_config_updated",
+        description=f"Updated role bindings for {spec_id}.", spec_ref="SPEC-026",
+        authorized=True, tier=1, action_data={"before": old_spec, "after": specs[spec_id]}
+    )
+    current_app.ads_logger.log(event)
+    return jsonify({"status": "success", "spec_id": spec_id, "event_id": event_id})
+
+@governance_bp.route("/governance/conflicts", methods=["GET"])
+def get_governance_conflicts():
+    """SPEC-026: Detect and return jurisdiction conflicts."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    jur_path = os.path.join(root, "config", "jurisdictions.json")
+    specs_path = os.path.join(root, "config", "specs.json")
+    jurisdictions = _load_json(jur_path).get("jurisdictions", {})
+    specs = _load_json(specs_path).get("specs", {})
+    
+    conflicts = []
+    sovereign_paths = ["config/specs.json", "config/jurisdictions.json", "config/dttp.json", "_cortex/AI_PROTOCOL.md", "_cortex/MASTER_PLAN.md"]
+    
+    for role, config in jurisdictions.items():
+        paths = config if isinstance(config, list) else config.get("paths", [])
+        for p in paths:
+            if p in sovereign_paths:
+                conflicts.append({"type": "sovereign_conflict", "role": role, "path": p, "message": f"Role {role} has access to sovereign path {p}"})
+                
+    for spec_id, spec in specs.items():
+        for role in spec.get("roles", []):
+            if role not in jurisdictions:
+                conflicts.append({"type": "missing_jurisdiction", "role": role, "spec_id": spec_id, "message": f"Role {role} is authorized in {spec_id} but has no jurisdiction in jurisdictions.json"})
+    return jsonify({"conflicts": conflicts})
