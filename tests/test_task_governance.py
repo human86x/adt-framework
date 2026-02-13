@@ -5,11 +5,37 @@ from datetime import datetime
 from adt_center.app import create_app
 
 @pytest.fixture
-def app():
+def app(tmp_path):
+    # Setup temporary tasks file
+    tasks_file = tmp_path / "tasks.json"
+    tasks_data = {
+        "project": "test-project",
+        "tasks": [
+            {
+                "id": "task_test_001",
+                "title": "Test Task 1",
+                "assigned_to": "Backend_Engineer",
+                "status": "in_progress"
+            },
+            {
+                "id": "task_test_002",
+                "title": "Test Task 2",
+                "assigned_to": "Frontend_Engineer",
+                "status": "pending"
+            }
+        ]
+    }
+    with open(tasks_file, "w") as f:
+        json.dump(tasks_data, f)
+
     app = create_app()
     app.config.update({
         "TESTING": True,
     })
+    # Override the task manager with the temporary file
+    from adt_core.sdd.tasks import TaskManager
+    app.task_manager = TaskManager(str(tasks_file), project_name="test-project")
+    
     yield app
 
 @pytest.fixture
