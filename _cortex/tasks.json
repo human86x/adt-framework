@@ -540,7 +540,7 @@
       "description": "Wire pty::restore_sessions into main.rs and update SessionManager.js to sync with backend on startup. Prevents data loss on restart.",
       "spec_ref": "SPEC-021",
       "assigned_to": "DevOps_Engineer + Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_020"
