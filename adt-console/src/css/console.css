@@ -462,6 +462,16 @@ kbd {
 .ads-feed .event-type.session { color: var(--accent-blue); }
 
 /* Status Bar */
+.status-item.clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s;
+}
+
+.status-item.clickable:hover {
+  color: var(--text-primary);
+}
+
 #statusbar {
   height: var(--statusbar-height);
   background: var(--bg-secondary);
