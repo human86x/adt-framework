@@ -89,7 +89,7 @@ class ActionHandler:
             f.write(new_content)
             
         # Auto-Sync
-        self.git_sync.commit_and_push(file_path, f"patch {params["file"]}")
+        self.git_sync.commit_and_push(file_path, f"patch {params["file"]}", agent=self.current_agent, role=self.current_role)
 
         return {"status": "success", "result": "file_patched", "bytes": len(new_content)}
 
