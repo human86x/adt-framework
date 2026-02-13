@@ -437,11 +437,14 @@ const ContextPanel = (() => {
     events.forEach(event => {
       const li = document.createElement('li');
       const typeClass = getEventTypeClass(event.action_type);
-      const time = event.ts ? new Date(event.ts).toLocaleTimeString('en-US', { hour12: false }) : '';
+      const time = event.ts ? new Date(event.ts).toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' }) : '';
       li.innerHTML = `
-        <span class="event-type ${typeClass}">${event.action_type}</span>
-        ${time ? `<span style="color:var(--text-muted); font-size:10px; float:right;">${time}</span>` : ''}
-        <div style="margin-top:2px;">${truncate(event.description, 80)}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="event-type ${typeClass}" style="font-size:9px; font-weight:800;">${event.action_type.toUpperCase()}</span>
+          <span style="color:var(--text-muted); font-size:10px;">${time}</span>
+        </div>
+        <div style="margin-top:2px; line-height:1.2;">${truncate(event.description, 100)}</div>
+        <div class="ctx-meta" style="font-size:9px; opacity:0.7;">${event.spec_ref || ''}</div>
       `;
       li.title = event.description || '';
       feed.appendChild(li);
