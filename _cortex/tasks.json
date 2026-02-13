@@ -844,7 +844,7 @@
       "description": "Update _cortex/docs/overseer_audit.md with shatterglass audit procedure: duration check, files modified during window, minimal fix verification, hash chain integrity after deactivation.",
       "spec_ref": "SPEC-027",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_070"
