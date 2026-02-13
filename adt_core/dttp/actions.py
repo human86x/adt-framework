@@ -62,7 +62,7 @@ class ActionHandler:
             os.remove(file_path)
             
         # Auto-Sync
-        self.git_sync.commit_and_push(params["file"], f"delete {params["file"]}")
+        self.git_sync.commit_and_push(params["file"], f"delete {params["file"]}", agent=self.current_agent, role=self.current_role)
         
         return {"status": "success", "result": "file_deleted"}
 
