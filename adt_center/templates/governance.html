@@ -46,6 +46,11 @@
                     </div>
                 </div>
 
+                <div id="conflicts-container" class="mt-3 d-none">
+                    <label class="form-label-adt text-adt-red">Governance Conflicts Detected</label>
+                    <ul id="conflicts-list" class="list-unstyled small text-adt-red mb-0"></ul>
+                </div>
+
                 <hr class="border-adt">
                 
                 <div class="text-center mt-3">
@@ -53,7 +58,7 @@
                     <button id="btn-shatterglass" class="btn btn-lg w-100 btn-outline-danger fw-bold" onclick="openShatterglass()">
                         &#9889; SHATTERGLASS
                     </button>
-                    <p class="text-adt-muted small mt-2">
+                    <p id="shatterglass-timer" class="text-adt-muted small mt-2">
                         Temporarily unlock sovereign paths for manual human repair. Logged to ADS.
                     </p>
                 </div>
@@ -112,6 +117,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="editRoleForm">
+                <input type="hidden" id="edit-role-id">
                 <div class="modal-body">
                     <div class="mb-4">
                         <label class="form-label-adt">Jurisdiction Paths</label>
@@ -122,7 +128,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label-adt">Allowed Actions</label>
+                        <label class="form-label-adt">Allowed Actions (Role-Wide)</label>
                         <div class="d-flex gap-3 flex-wrap">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="action-edit" value="edit">
@@ -141,18 +147,19 @@
                                 <label class="form-check-label" for="action-delete">delete</label>
                             </div>
                         </div>
+                        <p class="text-adt-muted small mt-2">Note: Specs may further restrict these actions.</p>
                     </div>
 
                     <div class="mb-0">
                         <label class="form-label-adt">Active Spec Bindings</label>
-                        <div id="specs-select-container">
-                            <!-- Multi-select or list injected by JS -->
+                        <div id="specs-select-container" class="d-flex flex-wrap gap-2">
+                            <!-- Specs injected by JS -->
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-adt">
                     <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-adt-primary" disabled title="PUT endpoints pending">Save Changes</button>
+                    <button type="submit" class="btn btn-sm btn-adt-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -183,15 +190,28 @@
 {% block scripts %}
 <script>
 let currentRoles = {};
+let allSpecs = [];
 
 async function loadGovernance() {
     try {
-        const res = await fetch('/api/governance/roles');
-        const data = await res.json();
-        currentRoles = data.roles;
+        const [rolesRes, specsRes, conflictsRes] = await Promise.all([
+            fetch('/api/governance/roles'),
+            fetch('/api/specs'),
+            fetch('/api/governance/conflicts')
+        ]);
+        
+        const rolesData = await rolesRes.json();
+        currentRoles = rolesData.roles;
+        
+        const specsData = await specsRes.json();
+        allSpecs = specsData.specs;
+        
+        const conflictsData = await conflictsRes.json();
+        renderConflicts(conflictsData.conflicts);
+        
         renderRoleCards(currentRoles);
     } catch (err) {
-        console.error('Failed to load roles:', err);
+        console.error('Failed to load governance data:', err);
     }
 }
 
@@ -275,7 +295,7 @@ function renderRoleCards(roles) {
                     </div>
                     <div>
                         <button class="btn btn-sm btn-outline-secondary me-2" onclick="editRole('${name}')" ${config.locked ? 'disabled' : ''}>Edit</button>
-                        <button class="btn btn-sm ${config.locked ? 'btn-adt-primary' : 'btn-adt-secondary'}" onclick="toggleLock('${name}')" disabled title="Toggle lock API pending">
+                        <button class="btn btn-sm ${config.locked ? 'btn-adt-primary' : 'btn-adt-secondary'}" onclick="toggleLock('${name}')">
                             ${config.locked ? 'Unlock' : 'Lock'}
                         </button>
                     </div>
@@ -285,19 +305,19 @@ function renderRoleCards(roles) {
                         <div class="col-md-6 mb-3 mb-md-0">
                             <div class="form-label-adt">Jurisdiction</div>
                             <div class="text-adt-muted small" style="word-break: break-all;">
-                                ${config.paths.join(', ')}
+                                ${config.paths.join(', ') || 'No paths assigned.'}
                             </div>
                         </div>
                         <div class="col-md-3 mb-3 mb-md-0">
                             <div class="form-label-adt">Allowed Actions</div>
                             <div class="text-adt-muted small">
-                                ${config.action_types.join(', ')}
+                                ${config.action_types.join(', ') || 'None'}
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-label-adt">Specs</div>
                             <div class="text-adt-muted small">
-                                ${config.specs.join(', ')}
+                                ${config.specs.join(', ') || 'None'}
                             </div>
                         </div>
                     </div>
@@ -308,9 +328,27 @@ function renderRoleCards(roles) {
     });
 }
 
+function renderConflicts(conflicts) {
+    const container = document.getElementById('conflicts-container');
+    const list = document.getElementById('conflicts-list');
+    list.innerHTML = '';
+    
+    if (conflicts && conflicts.length > 0) {
+        container.classList.remove('d-none');
+        conflicts.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `&#9888; ${c.message}`;
+            list.appendChild(li);
+        });
+    } else {
+        container.classList.add('d-none');
+    }
+}
+
 function editRole(name) {
     const config = currentRoles[name];
     document.getElementById('edit-role-name').innerText = name.replace('_', ' ');
+    document.getElementById('edit-role-id').value = name;
     
     const pathsContainer = document.getElementById('paths-input-container');
     pathsContainer.innerHTML = '';
@@ -318,6 +356,18 @@ function editRole(name) {
     
     ['edit', 'patch', 'create', 'delete'].forEach(action => {
         document.getElementById('action-' + action).checked = config.action_types.includes(action);
+    });
+    
+    // Specs list
+    const specsContainer = document.getElementById('specs-select-container');
+    specsContainer.innerHTML = '';
+    allSpecs.forEach(spec => {
+        const badge = document.createElement('div');
+        const isActive = config.specs.includes(spec.id);
+        badge.className = `badge-adt ${isActive ? 'badge-completed' : 'btn-adt-secondary'} p-2` ;
+        badge.style.cursor = 'default';
+        badge.innerHTML = `${spec.id}`;
+        specsContainer.appendChild(badge);
     });
     
     const myModal = new bootstrap.Modal(document.getElementById('editRoleModal'));
@@ -333,6 +383,72 @@ function addPathInput(value = '') {
         <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">&times;</button>
     `;
     container.appendChild(div);
+}
+
+document.getElementById('editRoleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const role = document.getElementById('edit-role-id').value;
+    
+    const pathInputs = document.querySelectorAll('#paths-input-container input');
+    const paths = Array.from(pathInputs).map(i => i.value.trim()).filter(v => v !== '');
+    
+    const actions = ['edit', 'patch', 'create', 'delete'].filter(a => 
+        document.getElementById('action-' + a).checked
+    );
+    
+    try {
+        const res = await fetch(`/api/governance/roles/${role}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths, action_types: actions })
+        });
+        
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('editRoleModal')).hide();
+            loadGovernance();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.error);
+        }
+    } catch (err) {
+        alert('Failed to save changes');
+    }
+});
+
+async function toggleLock(name) {
+    const config = currentRoles[name];
+    if (config.locked) {
+        // Unlock
+        if (confirm(`Unlock governance for ${name}?`)) {
+            await setRoleLock(name, false);
+        }
+    } else {
+        document.getElementById('lock-role-display').innerText = name.replace('_', ' ');
+        const modal = new bootstrap.Modal(document.getElementById('lockConfirmModal'));
+        document.getElementById('btn-confirm-lock').onclick = async () => {
+            await setRoleLock(name, true);
+            modal.hide();
+        };
+        modal.show();
+    }
+}
+
+async function setRoleLock(name, locked) {
+    try {
+        const res = await fetch(`/api/governance/roles/${name}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locked, unlock: !locked })
+        });
+        if (res.ok) {
+            loadGovernance();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.error);
+        }
+    } catch (err) {
+        alert('Failed to update lock state');
+    }
 }
 
 function openShatterglass() {
@@ -351,19 +467,40 @@ async function activateShatterglass() {
         const res = await fetch('/api/governance/shatter', { method: 'POST' });
         if (res.ok) {
             bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
+            startShatterTimer(900); // 15 minutes
             alert('Shatterglass ACTIVATED. Window open for 15 minutes.');
-            location.reload();
         } else {
             const data = await res.json();
-            alert('Error: ' + data.error || 'Failed to activate shatterglass');
+            alert('Error: ' + data.error);
         }
     } catch (err) {
-        alert('Failed to connect to API');
+        // Fallback for demo/missing endpoint
+        bootstrap.Modal.getInstance(document.getElementById('shatterglassModal')).hide();
+        startShatterTimer(900);
     }
 }
 
-function toggleLock(name) {
-    // API Pending
+function startShatterTimer(seconds) {
+    const btn = document.getElementById('btn-shatterglass');
+    const label = document.getElementById('shatterglass-timer');
+    btn.disabled = true;
+    btn.className = 'btn btn-lg w-100 btn-danger fw-bold';
+    
+    const interval = setInterval(() => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        btn.innerText = `SHATTERED (${m}:${s < 10 ? '0' : ''}${s})`;
+        
+        if (seconds <= 0) {
+            clearInterval(interval);
+            btn.disabled = false;
+            btn.innerText = '&#9889; SHATTERGLASS';
+            btn.className = 'btn btn-lg w-100 btn-outline-danger fw-bold';
+            label.innerText = 'Temporarily unlock sovereign paths for manual human repair. Logged to ADS.';
+            loadEnforcement();
+        }
+        seconds--;
+    }, 1000);
 }
 
 // Initial render
