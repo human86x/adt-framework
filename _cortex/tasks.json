@@ -53,11 +53,22 @@
       "description": "Implement the ADT Help page per SPEC-016. All 12 sections: What is ADT, Four Pillars, ADS, Integrity Chain, SDD, DTTP, Operational Center, Roles, Narrative Workflows, Real Incidents, Glossary, Roadmap.",
       "spec_ref": "SPEC-016",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_004"
-      ]
+      ],
+      "delegation": {
+        "delegated_by": {
+          "role": "Systems_Architect",
+          "agent": "CLAUDE"
+        },
+        "delegated_to": {
+          "role": "Frontend_Engineer",
+          "agent": "GEMINI"
+        },
+        "delegated_at": "2026-02-09T10:00:00Z"
+      }
     },
     {
       "id": "task_006",
@@ -103,7 +114,9 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": ["task_008"]
+      "depends_on": [
+        "task_008"
+      ]
     },
     {
       "id": "task_010",
@@ -113,7 +126,9 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": ["task_008"]
+      "depends_on": [
+        "task_008"
+      ]
     },
     {
       "id": "task_011",
@@ -123,7 +138,9 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": ["task_010"]
+      "depends_on": [
+        "task_010"
+      ]
     },
     {
       "id": "task_012",
@@ -133,7 +150,9 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": ["task_010"]
+      "depends_on": [
+        "task_010"
+      ]
     },
     {
       "id": "task_013",
@@ -143,7 +162,9 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": ["task_010"]
+      "depends_on": [
+        "task_010"
+      ]
     },
     {
       "id": "task_014",
@@ -151,9 +172,11 @@
       "description": "Hardcode SOVEREIGN_PATHS list in gateway.py (config/specs.json, config/jurisdictions.json, config/dttp.json, _cortex/AI_PROTOCOL.md, _cortex/MASTER_PLAN.md). Check resolved paths against this list BEFORE any spec/jurisdiction validation. Reject with reason 'sovereign_path_violation'. Log with tier: 1, escalation: true.",
       "spec_ref": "SPEC-020",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "depends_on": ["task_008"]
+      "depends_on": [
+        "task_008"
+      ]
     },
     {
       "id": "task_015",
@@ -161,9 +184,11 @@
       "description": "Hardcode CONSTITUTIONAL_PATHS list in gateway.py (gateway.py, policy.py, service.py, logger.py, integrity.py, crypto.py). For Tier 2 paths: require authorizing spec explicitly lists the file (not directory wildcard), require tier2_justification in request. Deny with reason 'tier2_authorization_required' if missing. Log with tier: 2.",
       "spec_ref": "SPEC-020",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "depends_on": ["task_014"]
+      "depends_on": [
+        "task_014"
+      ]
     },
     {
       "id": "task_016",
@@ -171,9 +196,11 @@
       "description": "Add optional 'tier' field (1/2/3) to ADS event schema. Add new action types: sovereign_path_violation, tier2_authorized, tier2_denied, break_glass, break_glass_audit. Update schema.py validation to accept these.",
       "spec_ref": "SPEC-020",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "depends_on": ["task_014"]
+      "depends_on": [
+        "task_014"
+      ]
     },
     {
       "id": "task_017",
@@ -181,9 +208,13 @@
       "description": "Tests: sovereign path rejection (all 5 paths, any role/spec), Tier 2 elevation (require explicit file + justification), Tier 2 denial (missing justification), break-glass event logging with agent HUMAN, path list immutability (modifying gateway.py requires Tier 2 auth). Minimum 8 test functions.",
       "spec_ref": "SPEC-020",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "depends_on": ["task_014", "task_015", "task_016"]
+      "depends_on": [
+        "task_014",
+        "task_015",
+        "task_016"
+      ]
     },
     {
       "id": "task_018",
@@ -193,7 +224,644 @@
       "assigned_to": "Systems_Architect",
       "status": "completed",
       "priority": "medium",
-      "depends_on": ["task_016"]
+      "depends_on": [
+        "task_016"
+      ]
+    },
+    {
+      "id": "task_019",
+      "title": "SPEC-021: Install Rust toolchain and Tauri CLI",
+      "description": "Install Rust via rustup, install Tauri CLI (cargo install tauri-cli), install system dependencies (webkit2gtk on Linux). Verify: cargo --version, cargo tauri --version. Create adt-console/ directory scaffold with cargo tauri init.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_020",
+      "title": "SPEC-021 Phase A: Tauri scaffold + PTY multiplexer",
+      "description": "Create Tauri project in adt-console/. Implement Rust PTY multiplexer using portable-pty crate: spawn terminal processes, manage lifecycle, pipe I/O over WebSocket. Implement xterm.js frontend connecting to PTY WebSocket. Basic tabbed layout: create/switch/close terminal sessions. Acceptance: can launch two agent sessions in tabs and switch between them.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_019"
+      ]
+    },
+    {
+      "id": "task_021",
+      "title": "SPEC-021 Phase A: Web frontend foundation",
+      "description": "Build the Console web frontend in adt-console/src/. Main layout: top bar with session tabs, left sidebar (session list), center (terminal area), right sidebar (context panel), bottom status bar. Dark theme consistent with ADT Center (adt.css). xterm.js terminal rendering. Tab color coding by agent type (blue=Claude, green=Gemini). Must work both in Tauri WebView and standalone browser.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_019"
+      ]
+    },
+    {
+      "id": "task_022",
+      "title": "SPEC-021 Phase B: Session configuration and context panel",
+      "description": "Session creation dialog: agent type picker (Claude Code, Gemini CLI, custom), role selector, project path. Agent launch command registry (agents.json). Context panel integration: pull current task, spec, and session info from ADT Center API (GET /api/tasks, GET /api/specs, GET /ads/events). Display role, agent, task, spec, session uptime, recent ADS events filtered to current session.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_020",
+        "task_021"
+      ]
+    },
+    {
+      "id": "task_023",
+      "title": "SPEC-021 Phase C: System integration (tray, shortcuts, notifications)",
+      "description": "Implement Rust-side system integration: global keyboard shortcuts (Ctrl+Shift+1-5) to switch sessions from any app, system tray icon with status colors (green/yellow/red), tray menu (show/hide, session list, quit), native OS notifications for DTTP denials and escalations. Configurable keybindings via ~/.adt/console/keybindings.json. Launch-on-login option (XDG autostart / Login Items / Startup folder).",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_020"
+      ]
+    },
+    {
+      "id": "task_024",
+      "title": "SPEC-021 Phase D: Dashboard mode, split view, live ADS feed",
+      "description": "Dashboard mode (Ctrl+D): overview grid showing all sessions with mini terminal previews, task progress stats. Split view (Ctrl+\\): two sessions side by side. Live ADS event feed in context panel using file watcher (Rust notify crate) or SSE from ADT Center. Delegation chain display from SPEC-003 data model. Session persistence: reconnect to running PTYs on Console restart.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_022",
+        "task_023"
+      ]
+    },
+    {
+      "id": "task_025",
+      "title": "SPEC-021 Phase E: CI/CD pipeline and cross-platform distribution",
+      "description": "GitHub Actions workflow using tauri-action: build Linux (x86_64 AppImage + .deb), macOS (x86_64 + aarch64 .dmg), Windows (x86_64 .msi). Auto-publish to GitHub Releases on tag. Homebrew tap formula (macOS). winget manifest (Windows). Documentation: install guide for all three platforms, first-run walkthrough.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_024"
+      ]
+    },
+    {
+      "id": "task_026",
+      "title": "SPEC-021: Integration tests for Operator Console",
+      "description": "Tests: PTY spawn/kill lifecycle, WebSocket terminal I/O, session creation with all agent types, context panel API integration (mock ADT Center), global shortcut registration, tray icon state changes, file watcher reactivity (ADS event append triggers UI update), browser fallback mode. Minimum 12 test functions covering Rust backend and frontend.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer + Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_024"
+      ]
+    },
+    {
+      "id": "task_027",
+      "title": "SPEC-021 S8: Add enforcement_mode to DTTPConfig",
+      "description": "Add enforcement_mode: str = 'development' field to DTTPConfig dataclass in adt_core/dttp/config.py. Read DTTP_ENFORCEMENT_MODE env var in from_env(). Set default 'development' in from_project_root().",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_028",
+      "title": "SPEC-021 S8: Add _handle_patch to ActionHandler",
+      "description": "Add _handle_patch method to ActionHandler in adt_core/dttp/actions.py. For Claude Code Edit tool (old_string -> new_string partial edits): read file, verify old_string exists exactly once, replace with new_string. Reuse _resolve_path() for traversal protection. Return error if not found or ambiguous (matches >1). Auto-dispatched via existing getattr(self, f'_handle_{action}') in execute().",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_029",
+      "title": "SPEC-021 S8: Add dry_run support to gateway.py",
+      "description": "Add dry_run: bool = False parameter to DTTPGateway.request(). All validation runs normally (sovereign, constitutional, policy checks). If dry_run=True and validation passes: log dry_run_validated_{action} to ADS, return {status: allowed, dry_run: true}, skip ActionHandler.execute(). If dry_run=True and validation fails: existing denial logic unchanged. Existing execution path (steps 4-6) only runs when dry_run=False.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_030",
+      "title": "SPEC-021 S8: Wire dry_run + enforcement_mode in service.py",
+      "description": "Update adt_core/dttp/service.py: POST /request extracts optional dry_run from request body, passes to gateway. GET /status adds enforcement_mode to response JSON. main() adds --enforcement-mode CLI arg.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_027",
+        "task_029"
+      ]
+    },
+    {
+      "id": "task_031",
+      "title": "SPEC-021 S8: Add patch action type to config/specs.json",
+      "description": "Add 'patch' to action_types in specs that currently allow 'edit': SPEC-014, SPEC-015, SPEC-017, SPEC-018, SPEC-019, SPEC-020, SPEC-021. NOTE: config/specs.json is a sovereign path (Tier 1 per SPEC-020). This edit is HUMAN-AUTHORIZED by Systems_Architect as part of REQ-003 review. The patch action is a logical subset of edit (partial replacement vs full file write).",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_028"
+      ]
+    },
+    {
+      "id": "task_032",
+      "title": "SPEC-021 S8: Add SDK convenience methods for dry_run and patch",
+      "description": "Update adt_sdk/client.py: add validate_write(spec_id, action, params, rationale) method that sends request with dry_run: true. Add patch_file(spec_id, file_path, old_string, new_string, rationale) method that submits patch action.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_029",
+        "task_028"
+      ]
+    },
+    {
+      "id": "task_033",
+      "title": "SPEC-021 S8: Update dttp_request.py hook with dry-run and patch args",
+      "description": "Update adt_sdk/hooks/dttp_request.py: add --dry-run flag that calls client.validate_write() instead of client.request(). Add --old-string and --new-string args for patch action.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_032"
+      ]
+    },
+    {
+      "id": "task_034",
+      "title": "SPEC-021 S8: Create Claude Code PreToolUse enforcement hook",
+      "description": "NEW FILE: adt_sdk/hooks/claude_pretool.py. Core enforcement script. Reads Claude Code hook JSON from stdin. Only intercepts Write, Edit, NotebookEdit tools. Converts absolute file paths to project-relative using CLAUDE_PROJECT_DIR. Maps Write -> edit action, Edit -> patch action. Queries DTTP enforcement mode. Dev mode: dry_run=True validation; exit 0 if allowed, deny JSON if rejected. Prod mode: full DTTP request; always deny agent's tool (DTTP wrote or rejected). Fail-closed: DTTP unreachable -> deny with reason. Env vars: DTTP_URL, ADT_AGENT, ADT_ROLE, ADT_SPEC_ID, ADT_ENFORCEMENT_MODE.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [
+        "task_030",
+        "task_032"
+      ]
+    },
+    {
+      "id": "task_035",
+      "title": "SPEC-021 S8: Register PreToolUse hook in Claude Code settings",
+      "description": "Update .claude/settings.local.json: add hooks key to wire the PreToolUse hook. Matcher: Write|Edit|NotebookEdit. Command: python3 adt_sdk/hooks/claude_pretool.py. Timeout: 15 seconds.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_034"
+      ]
+    },
+    {
+      "id": "task_036",
+      "title": "SPEC-021 S8: Write sandboxing tests",
+      "description": "NEW FILE: tests/test_dttp_sandboxing.py. Following existing patterns (pytest, tmp_path, Flask test_client, class-based). TestDryRun: allowed does not write file, denied blocks, logged to ADS, default false (backward compat). TestPatchAction: success, old_string not found, ambiguous match, file not found. TestEnforcementMode: in /status response, from env var, default value. TestClaudePreToolHook: non-write tools pass through, hook script is valid Python. Minimum 12 test functions.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_029",
+        "task_028",
+        "task_034"
+      ]
+    },
+    {
+      "id": "task_037",
+      "title": "SPEC-021 S8: Create Gemini CLI enforcement hook equivalent",
+      "description": "Follow-up to claude_pretool.py. Create equivalent enforcement hook for Gemini CLI's hook system. Same logic: intercept file write operations, route through DTTP dry_run (dev) or full request (prod), fail-closed. Gemini CLI hook format may differ from Claude Code -- investigate Gemini CLI hook API and adapt.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_034"
+      ]
+    },
+    {
+      "id": "task_038",
+      "title": "ADS Remediation & Integrity Chain Restoration",
+      "description": "Implement /log endpoint, heal hash chain from genesis, and update AI_PROTOCOL with strict break-glass rules.",
+      "spec_ref": "SPEC-020",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_039",
+      "title": "Create PyInstaller build scripts for DTTP and ADT Panel",
+      "description": "Bundle Flask services into standalone Windows executables.",
+      "spec_ref": "SPEC-022",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_010"
+      ]
+    },
+    {
+      "id": "task_040",
+      "title": "Write Inno Setup Script (.iss) for ADT Framework",
+      "description": "Create the unified Windows installer with shortcuts and auto-launch logic.",
+      "spec_ref": "SPEC-022",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_039",
+        "task_025"
+      ]
+    },
+    {
+      "id": "task_041",
+      "title": "Update config.py to support Windows %APPDATA% paths",
+      "description": "Allow framework to find config files in the Windows user profile.",
+      "spec_ref": "SPEC-022",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_042",
+      "title": "Implement Launch on Startup toggle in Console settings",
+      "description": "UI control for managing background service lifecycle.",
+      "spec_ref": "SPEC-022",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_022"
+      ]
+    },
+    {
+      "id": "task_043",
+      "title": "Implement \"Hive View\" Context Panel",
+      "description": "Upgrade Console Context Panel with: 1. Role-based task filtering. 2. Delegation Feed (ADS pull). 3. Pre-flight check (CWD/Spec/Role alignment).",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_022"
+      ]
+    },
+    {
+      "id": "task_044",
+      "title": "ADS Query Scalability (Performance)",
+      "description": "Optimize adt_core/ads/query.py with efficient file tailing and add limit/offset params to /api/ads/events. Prevents WebView memory crashes.",
+      "spec_ref": "SPEC-018",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_045",
+      "title": "Implement Console Session Restoration",
+      "description": "Wire pty::restore_sessions into main.rs and update SessionManager.js to sync with backend on startup. Prevents data loss on restart.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "DevOps_Engineer + Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_020"
+      ]
+    },
+    {
+      "id": "task_046",
+      "title": "SPEC-024: Implement 'adt connect share' CLI",
+      "description": "Add command to adt_sdk/cli.py to download/run cloudflared and expose local ports via HTTPS tunnel.",
+      "spec_ref": "SPEC-024",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_047",
+      "title": "SPEC-024: Add Remote Access UI to Console",
+      "description": "Implement 'Go Remote' toggle in Operator Console status bar with URL display and clipboard copy.",
+      "spec_ref": "SPEC-024",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_046"
+      ]
+    },
+    {
+      "id": "task_048",
+      "title": "SPEC-024: Implement Token-based Auth for Remote Access",
+      "description": "Add authentication middleware to ADT Panel that requires a token for non-localhost connections.",
+      "spec_ref": "SPEC-024",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_046"
+      ]
+    },
+    {
+      "id": "task_049",
+      "title": "SPEC-021: Integrate ADT Panel into Operator Console",
+      "description": "Embed the ADT Operational Center (SPEC-015) web UI into a dedicated tab in the Console using an iframe. Add Ctrl+G shortcut and top-bar button.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_024"
+      ]
+    },
+    {
+      "id": "task_050",
+      "title": "SPEC-021: Console UI Refinement (Role-First, Font Sizes)",
+      "description": "Increased terminal font to 16, ADS feed to 14. Updated session list to prioritize Role with color coding. Agent is now secondary with badge.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_049"
+      ]
+    },
+    {
+      "id": "task_051",
+      "title": "SPEC-021: Context Panel - Task & Spec Human Decoding",
+      "description": "Upgrade the Console Context Panel to show full titles for Specs and Tasks. Implement a 'Completed Tasks' list for the active role, displayed with visual completion markers (checkmarks/strikethrough). Ensure smooth visualization and neat layout.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_050"
+      ]
+    },
+    {
+      "id": "task_052",
+      "title": "SPEC-025: Create bootstrap.sh WSL/Linux/macOS bootstrap script",
+      "description": "Create bootstrap.sh at repo root. Auto-installs Python 3 + venv, creates virtual environment, installs framework via pip install -e ., starts DTTP (:5002) and ADT Panel (:5001), opens browser. Must be idempotent, detect WSL/Linux/macOS, and work on fresh Ubuntu WSL with zero prerequisites.",
+      "spec_ref": "SPEC-025",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_053",
+      "title": "SPEC-025: Add POST /api/specs endpoint (create spec via Panel)",
+      "description": "Add POST /api/specs to governance_routes.py. Accepts JSON with id, title, status, content. Validates SPEC-NNN format, prevents overwriting existing specs. Writes markdown file to _cortex/specs/SPEC-NNN_TITLE.md. Logs spec_created event to ADS with agent: HUMAN.",
+      "spec_ref": "SPEC-025",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_054",
+      "title": "SPEC-025: Add POST /api/requests endpoint (submit feedback)",
+      "description": "Add POST /api/requests to governance_routes.py. Accepts JSON with author, type (feature/bug/improvement), description. Appends structured entry with timestamp to _cortex/requests.md. Logs request_submitted event to ADS.",
+      "spec_ref": "SPEC-025",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_055",
+      "title": "SPEC-025: Add 'Create Spec' UI to Specs page",
+      "description": "Add a 'Create Spec' button and modal/form to adt_center/templates/specs.html. Form fields: Spec ID (auto-suggest next number), Title, Content (markdown textarea with preview). Submits to POST /api/specs. Shows success/error feedback. Consistent with existing ADT Panel dark theme.",
+      "spec_ref": "SPEC-025",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_053"
+      ]
+    },
+    {
+      "id": "task_056",
+      "title": "SPEC-025: Add 'Submit Feedback' UI to Dashboard",
+      "description": "Add a 'Submit Feedback' button and form to adt_center/templates/dashboard.html. Form fields: Author name, Type dropdown (feature/bug/improvement), Description textarea. Submits to POST /api/requests. Inline or modal form, consistent with ADT Panel theme.",
+      "spec_ref": "SPEC-025",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_054"
+      ]
+    },
+    {
+      "id": "task_057",
+      "title": "SPEC-021 S8: Dynamic role switching for DTTP enforcement hooks",
+      "description": "Fix REQ-009. Both claude_pretool.py and gemini_pretool.py read ADT_ROLE from env vars frozen at shell launch, making /hive-* role switching ineffective. Fix: each hook reads _cortex/ops/active_role.txt (written by hive skills) as role override. Env var remains as fallback. Update both hooks. Create _cortex/ops/active_role.txt on first hive activation.",
+      "spec_ref": "SPEC-021",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_058",
+      "title": "SPEC-026: GET /api/governance/roles -- unified role view",
+      "description": "Merge config/jurisdictions.json and config/specs.json into a single API response showing each role's paths, action types, spec bindings, and lock state.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_059",
+      "title": "SPEC-026: PUT /api/governance/roles/<role> -- update jurisdiction",
+      "description": "Update a role's jurisdiction paths, action types, and lock state. Validates path format, prevents empty jurisdictions. Writes to config/jurisdictions.json. Logs full before/after diff to ADS with agent: HUMAN. Rejects agent API calls.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_058"
+      ]
+    },
+    {
+      "id": "task_060",
+      "title": "SPEC-026: PUT /api/governance/specs/<spec_id>/roles -- update spec role bindings",
+      "description": "Update which roles are authorized under a spec and what actions they can perform. Validates spec exists. Writes to config/specs.json. Logs to ADS.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_058"
+      ]
+    },
+    {
+      "id": "task_061",
+      "title": "SPEC-026: GET /api/governance/enforcement -- DTTP state + recent denials",
+      "description": "Returns current DTTP enforcement mode, protected path lists (sovereign + constitutional), and last 10 DTTP denials from ADS.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_062",
+      "title": "SPEC-026: GET /api/governance/conflicts -- jurisdiction conflict detection",
+      "description": "Detect and return overlapping jurisdictions, roles authorized in specs but missing from jurisdictions.json, and paths assigned to roles that conflict with sovereign paths.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_058"
+      ]
+    },
+    {
+      "id": "task_063",
+      "title": "SPEC-026: Governance page template -- role cards, jurisdiction editor modal",
+      "description": "Create adt_center/templates/governance.html. Role cards showing paths, actions, specs, lock state. Edit modal with path add/remove, action checkboxes, spec multi-select. Preview diff before save.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_058",
+        "task_059"
+      ]
+    },
+    {
+      "id": "task_064",
+      "title": "SPEC-026: Enforcement dashboard section on Governance page",
+      "description": "Display enforcement mode, sovereign/constitutional path lists (read-only), and recent DTTP denials table on the Governance page.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_061"
+      ]
+    },
+    {
+      "id": "task_065",
+      "title": "SPEC-026: Role lock/unlock UI with confirmation dialogs",
+      "description": "Lock/unlock toggle on role cards. Locked roles show padlock icon and disable Edit button. Unlock requires confirmation dialog. Lock state persisted in jurisdictions.json.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_063"
+      ]
+    },
+    {
+      "id": "task_066",
+      "title": "SPEC-026: Add Governance link to ADT Panel navigation bar",
+      "description": "Add 'Governance' nav link to the ADT Panel base template. Route /governance in app.py.",
+      "spec_ref": "SPEC-026",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_067",
+      "title": "SPEC-027: adt shatterglass activate/deactivate CLI commands",
+      "description": "Add shatterglass subcommand to adt_core/cli.py. activate: confirm prompt (type SHATTERGLASS), check whoami != agent, chmod sovereign files to 664, generate session token, start watchdog timer, log to ADS. deactivate: restore 644 permissions, invalidate token, run integrity check, log to ADS.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_068",
+      "title": "SPEC-027: Watchdog timer service for auto-expiry",
+      "description": "Background process that auto-restores sovereign file permissions after configurable timeout (default 15 min, max 60 min). Logs shatterglass_auto_expired to ADS. Survives terminal close (daemonized or systemd timer).",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_067"
+      ]
+    },
+    {
+      "id": "task_069",
+      "title": "SPEC-027: setup_shatterglass.sh -- OS user creation and file permissions",
+      "description": "Production setup script. Creates agent and dttp OS users. Sets Tier 1 files to human:human 644, Tier 2 files to dttp:dttp 644, Tier 3 files to dttp:dttp 664 with agent in dttp group. Configures sudo rules. Validates WSL/Linux/macOS. Logs production_mode_activated to ADS.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_070",
+      "title": "SPEC-027: ADS event types for shatterglass lifecycle",
+      "description": "Add to ADS schema: shatterglass_activated, shatterglass_write, shatterglass_deactivated, shatterglass_auto_expired, production_mode_activated. Include shatterglass_session field for correlation.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_071",
+      "title": "SPEC-027: Shatterglass button on Governance page with confirmation dialog",
+      "description": "Add Shatterglass activation button to SPEC-026 Governance page. Red warning styling. Confirmation dialog requiring text input SHATTERGLASS. Shows countdown timer during active window. Deactivate button.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_066",
+        "task_067"
+      ]
+    },
+    {
+      "id": "task_072",
+      "title": "SPEC-027: Overseer audit extensions for shatterglass sessions",
+      "description": "Update _cortex/docs/overseer_audit.md with shatterglass audit procedure: duration check, files modified during window, minimal fix verification, hash chain integrity after deactivation.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_070"
+      ]
+    },
+    {
+      "id": "task_073",
+      "title": "SPEC-027: Integration tests for Shatterglass Protocol",
+      "description": "Tests: agent user cannot write Tier 1/2 files, shatterglass activate/deactivate cycle, auto-expiry after timeout, agent cannot activate shatterglass, ADS logging during shatterglass window, permission restoration after deactivation. Minimum 10 test functions.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Backend_Engineer + DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_067",
+        "task_069"
+      ]
     }
   ]
 }
