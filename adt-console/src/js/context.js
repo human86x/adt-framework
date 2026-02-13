@@ -241,7 +241,7 @@ const ContextPanel = (() => {
     }
   }
 
-  function updatePreflight(session, task) {
+  function updatePreflight(session, task, specTitle = null) {
     const statusEl = document.querySelector('#ctx-preflight .preflight-status');
     const labelEl = document.querySelector('#ctx-preflight .preflight-label');
     const detailsEl = document.getElementById('ctx-alignment-details');
