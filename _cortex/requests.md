@@ -395,4 +395,4 @@ This update is necessary to fulfill the CRITICAL priority requirement of moved f
 
 ### Status
 
-**OPEN** -- Submitted via ADT Panel.
+**ADDRESSED** -- Update performed by Systems_Architect via break-glass evt_20260213_220000_break_glass.
