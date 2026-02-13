@@ -315,7 +315,7 @@ Replaced the em-dash character in `events.jsonl` line 203 with ASCII `--`. This 
 
 ### Status
 
-**OPEN** -- Awaiting Backend_Engineer fix.
+**ADDRESSED** -- Fixed by Backend_Engineer in adt_core/ads/logger.py. Verified by Overseer.
 
 
 ---
