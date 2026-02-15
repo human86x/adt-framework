@@ -252,7 +252,45 @@ const RemoteManager = (() => {
   const agentSelect = document.getElementById('input-agent');
   const customGroup = document.getElementById('custom-command-group');
 
+  async function loadSpecs() {
+    const specSelect = document.getElementById('input-spec');
+    if (!specSelect) return;
+    
+    try {
+      const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+      const res = await fetch(`${centerUrl}/api/specs`);
+      if (!res.ok) throw new Error('Failed to fetch specs');
+      const data = await res.json();
+      const specs = data.specs || [];
+      
+      specSelect.innerHTML = '';
+      specs.forEach(spec => {
+        const opt = document.createElement('option');
+        opt.value = spec.id;
+        // Clean title: SPEC-017: ...
+        const title = spec.filename.replace('.md', '').replace(/_/g, ' ');
+        opt.textContent = title;
+        specSelect.appendChild(opt);
+      });
+      
+      // Try to match active spec from context if available
+      const activeSpecText = document.getElementById('ctx-spec')?.textContent;
+      if (activeSpecText && activeSpecText !== '—') {
+        const match = activeSpecText.match(/SPEC-\d{3}/);
+        if (match) specSelect.value = match[0];
+      }
+
+    } catch (err) {
+      console.error('Error loading specs:', err);
+      // Minimal fallback
+      if (specSelect.innerHTML === '') {
+        specSelect.innerHTML = '<option value="SPEC-017">SPEC-017: ADT Framework Repository</option>';
+      }
+    }
+  }
+
   function openNewSessionDialog() {
+    loadSpecs();
     dialog.showModal();
   }
 
@@ -278,11 +316,12 @@ const RemoteManager = (() => {
     const selectedOption = agentSelect.options[agentSelect.selectedIndex];
     const command = selectedOption.dataset.command;
     const role = document.getElementById('input-role').value;
+    const specId = document.getElementById('input-spec').value;
     const project = document.getElementById('input-project').value;
     const customCmd = document.getElementById('input-custom-command').value;
 
     dialog.close();
-    const session = await SessionManager.create(agent, role, agent === 'custom' ? customCmd : command, project);
+    const session = await SessionManager.create(agent, role, specId, agent === 'custom' ? customCmd : command, project);
 
     // Update tray after session creation
     if (session) TrayBridge.refresh();

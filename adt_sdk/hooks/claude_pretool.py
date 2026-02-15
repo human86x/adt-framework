@@ -131,8 +131,8 @@ def main():
     # Configuration from environment
     dttp_url = os.environ.get("DTTP_URL", "http://localhost:5002")
     agent = os.environ.get("ADT_AGENT", "CLAUDE")
-    role = os.environ.get("ADT_ROLE", "Backend_Engineer")
-    spec_id = os.environ.get("ADT_SPEC_ID", "SPEC-017")
+    role = os.environ.get("ADT_ROLE")
+    spec_id = os.environ.get("ADT_SPEC_ID")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR",
                                  hook_input.get("cwd", os.getcwd()))
@@ -157,6 +157,13 @@ def main():
                     spec_id = file_spec
         except OSError:
             pass  # Fall back to env var
+
+    if not role or not spec_id:
+        print(json.dumps(make_deny(
+            "DTTP hook: ADT_ROLE and ADT_SPEC_ID environment variables must be set. "
+            "Please initialize your session correctly."
+        )))
+        sys.exit(0)
 
 
     # Extract and convert file path

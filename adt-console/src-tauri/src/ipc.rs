@@ -13,6 +13,7 @@ use tauri_plugin_notification::NotificationExt;
 pub struct CreateSessionRequest {
     pub agent: String,
     pub role: String,
+    pub spec_id: String,
     pub command: String,
     pub args: Vec<String>,
     pub cwd: Option<String>,
@@ -71,6 +72,7 @@ pub fn create_session<R: Runtime>(
         None,
         &request.agent,
         &request.role,
+        &request.spec_id,
         &request.command,
         &request.args,
         request.cwd,

@@ -16,6 +16,7 @@ pub struct SessionInfo {
     pub id: String,
     pub agent: String,
     pub role: String,
+    pub spec_id: String,
     pub command: String,
     pub alive: bool,
 }
@@ -25,6 +26,7 @@ pub struct PersistentSession {
     pub id: String,
     pub agent: String,
     pub role: String,
+    pub spec_id: String,
     pub command: String,
     pub args: Vec<String>,
     pub cwd: Option<String>,
@@ -101,6 +103,7 @@ impl PtyManager {
         reserved_id: Option<String>,
         agent: &str,
         role: &str,
+        spec_id: &str,
         command: &str,
         args: &[String],
         cwd: Option<String>,
@@ -131,6 +134,7 @@ impl PtyManager {
         // Set environment variables for ADT context
         cmd.env("ADT_AGENT", agent);
         cmd.env("ADT_ROLE", role);
+        cmd.env("ADT_SPEC_ID", spec_id);
         cmd.env("DTTP_URL", "http://localhost:5002");
         cmd.env("TERM", "xterm-256color");
 
@@ -158,6 +162,7 @@ impl PtyManager {
             id: session_id.clone(),
             agent: agent.to_string(),
             role: role.to_string(),
+            spec_id: spec_id.to_string(),
             command: command.to_string(),
             alive: true,
         };
@@ -166,6 +171,7 @@ impl PtyManager {
             id: session_id.clone(),
             agent: agent.to_string(),
             role: role.to_string(),
+            spec_id: spec_id.to_string(),
             command: command.to_string(),
             args: args.to_vec(),
             cwd: cwd.clone(),
@@ -320,6 +326,7 @@ impl PtyManager {
                 Some(s.id),
                 &s.agent,
                 &s.role,
+                &s.spec_id,
                 &s.command,
                 &s.args,
                 s.cwd,

@@ -86,59 +86,78 @@
     <!-- Right Sidebar: Context Panel -->
     <aside id="sidebar-right" class="sidebar">
       <div class="sidebar-header">
-        <span>Context</span>
+        <span>Hive Tracker</span>
         <div id="ctx-remote-status" class="status-dot dot-grey" title="ADT Center Connection"></div>
         <button class="sidebar-collapse-btn" id="btn-collapse-right" title="Collapse (Ctrl+I)">&rsaquo;</button>
       </div>
       <div id="context-panel">
         <section class="context-section">
-          <h3>Pre-flight Check</h3>
-          <div id="ctx-preflight" class="preflight-check">
+          <h3>Active Session</h3>
+          <div class="session-info-grid" style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div><strong style="color:var(--text-muted)">Role:</strong> <span id="ctx-role">—</span></div>
+            <div><strong style="color:var(--text-muted)">Agent:</strong> <span id="ctx-agent">—</span></div>
+            <div><strong style="color:var(--text-muted)">Spec:</strong> <span id="ctx-spec" class="ctx-truncate">—</span></div>
+            <div><strong style="color:var(--text-muted)">Time:</strong> <span id="ctx-uptime">—</span></div>
+          </div>
+          
+          <div id="ctx-task-container" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Current Task</div>
+            <div id="ctx-task" class="ctx-value" style="font-size: 0.85rem; margin-top: 2px;">—</div>
+            <div id="ctx-task-priority" class="ctx-priority"></div>
+          </div>
+
+          <div id="ctx-preflight" class="preflight-check" style="margin-top: 8px;">
             <span class="preflight-status"></span>
             <span class="preflight-label">Alignment: Offline</span>
           </div>
-          <div id="ctx-alignment-details" class="ctx-meta"></div>
-        </section>
-        <section class="context-section">
-          <h3>Role</h3>
-          <span id="ctx-role" class="ctx-value">—</span>
-        </section>
-        <section class="context-section">
-          <h3>Agent</h3>
-          <span id="ctx-agent" class="ctx-value">—</span>
-        </section>
-        <section class="context-section">
-          <h3>Active Task</h3>
-          <div id="ctx-task" class="ctx-value">—</div>
-          <div id="ctx-task-priority" class="ctx-priority"></div>
-        </section>
-        <section class="context-section">
-          <h3>Completed Tasks</h3>
-          <ul id="ctx-tasks-completed" class="tasks-completed">
-            <!-- Completed tasks injected by JS -->
-          </ul>
-        </section>
-        <section class="context-section">
-          <h3>Requests for Role</h3>
-          <ul id="ctx-role-requests" class="role-requests">
-            <!-- Role requests injected by JS -->
-          </ul>
-        </section>
-        <section class="context-section">
-          <h3>Spec</h3>
-          <span id="ctx-spec" class="ctx-value">—</span>
-        </section>
-        <section class="context-section">
-          <h3>Session</h3>
-          <span id="ctx-uptime" class="ctx-value">—</span>
-          <span id="ctx-event-count" class="ctx-meta"></span>
-        </section>
-        <section class="context-section">
-          <h3>Delegation Chain</h3>
-          <div id="ctx-delegation" class="delegation-chain">
-            <!-- Delegation chain injected by JS -->
+          <div id="ctx-alignment-details" class="ctx-meta" style="margin-top: 4px; font-size: 10px;"></div>
+
+          <div id="ctx-delegation-container" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Delegation Chain</div>
+            <div id="ctx-delegation" class="delegation-chain"></div>
           </div>
         </section>
+
+        <section class="context-section">
+          <div class="section-header-row">
+            <h3>Requests Received</h3>
+            <span id="count-requests" class="ctx-badge">0</span>
+          </div>
+          <ul id="ctx-requests-list" class="tracker-list">
+            <li class="ctx-empty">Loading requests...</li>
+          </ul>
+        </section>
+
+        <section class="context-section">
+          <div class="section-header-row">
+            <h3>Tasks To-Do</h3>
+            <span id="count-todo" class="ctx-badge">0</span>
+          </div>
+          <ul id="ctx-tasks-todo" class="tracker-list">
+            <li class="ctx-empty">Awaiting tasks...</li>
+          </ul>
+        </section>
+
+        <section class="context-section">
+          <div class="section-header-row">
+            <h3>Completed Tasks</h3>
+            <span id="count-completed" class="ctx-badge">0</span>
+          </div>
+          <ul id="ctx-tasks-completed" class="tracker-list">
+            <li class="ctx-empty">No completions</li>
+          </ul>
+        </section>
+
+        <section class="context-section">
+          <div class="section-header-row">
+            <h3>Sent Tasks (Delegation)</h3>
+            <span id="count-sent" class="ctx-badge">0</span>
+          </div>
+          <ul id="ctx-tasks-sent" class="tracker-list">
+            <li class="ctx-empty">No delegations</li>
+          </ul>
+        </section>
+
         <hr>
         <section class="context-section">
           <div class="ads-feed-header">
@@ -195,6 +214,13 @@
           <option value="Frontend_Engineer">Frontend Engineer</option>
           <option value="DevOps_Engineer">DevOps Engineer</option>
           <option value="Overseer">Overseer</option>
+        </select>
+      </label>
+      <label>
+        Active Spec
+        <select id="input-spec">
+          <!-- Populated by JS -->
+          <option value="SPEC-017">SPEC-017: ADT Framework Repository</option>
         </select>
       </label>
       <label>
