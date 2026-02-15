@@ -19,6 +19,7 @@
                     <a class="nav-link py-1 text-adt-muted" href="#dttp" style="text-decoration:none;">DTTP Enforcement</a>
                     <a class="nav-link py-1 text-adt-muted" href="#op-center" style="text-decoration:none;">Operational Center</a>
                     <a class="nav-link py-1 text-adt-muted" href="#roles" style="text-decoration:none;">Roles & Jurisdiction</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#workflows" style="text-decoration:none;">Narrative Workflows</a>
                     <a class="nav-link py-1 text-adt-muted" href="#incidents" style="text-decoration:none;">Real Incidents</a>
                     <a class="nav-link py-1 text-adt-muted" href="#glossary" style="text-decoration:none;">Glossary</a>
                     <a class="nav-link py-1 text-adt-muted" href="#roadmap" style="text-decoration:none;">Roadmap</a>
@@ -79,14 +80,14 @@
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarDTTP"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
-                                    <span class="badge-adt badge-pending me-2">IN DEV</span>
+                                    <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
                                     DTTP &mdash; Digital Transformation Transfer Protocol
                                 </button>
                             </h2>
                             <div id="pillarDTTP" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
                                     <p>Structural enforcement of spec-authorised actions. Agents request actions via API; DTTP validates against specs, jurisdictions, and locks before executing.</p>
-                                    <p class="text-adt-muted">Implementation: SPEC-014 + SPEC-015 &mdash; privilege-separated Flask gateway</p>
+                                    <p class="text-adt-muted">Implementation: SPEC-014 + SPEC-019 &mdash; privilege-separated standalone service</p>
                                 </div>
                             </div>
                         </div>
@@ -214,7 +215,7 @@
             <div class="card card-adt">
                 <div class="card-header d-flex justify-content-between">
                     <span>The ADT Operational Center</span>
-                    <span class="badge-adt badge-pending">IN DEV</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
                 </div>
                 <div class="card-body" style="font-size:0.85rem;">
                     <p>The ADT Framework incarnated as software. This application.</p>
@@ -250,6 +251,41 @@
                             <tr><td>Overseer</td><td><code>_cortex/ads/</code>, compliance, audit</td><td>CLAUDE / GEMINI</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Narrative Workflows -->
+        <section id="workflows" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Narrative Workflows</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>ADT events are not just isolated logs; they are links in a <strong>causal chain</strong> that forms a narrative of development.</p>
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1">Intent</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Task/Spec</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1" style="background:var(--adt-purple);">Action</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Execution</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1" style="background:var(--adt-red);">Obstacle</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Error/Denial</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1">Resolution</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Fix/Verification</div>
+                        </div>
+                    </div>
+                    <p>By grouping events into storylines, the framework provides context to every change. For example, a "File Written" event is linked to the "Task Assigned" event that preceded it and the "Test Passed" event that followed it.</p>
                 </div>
             </div>
         </section>
@@ -350,19 +386,19 @@
                             <ul class="list-unstyled text-adt-muted">
                                 <li>&#10003; ADS Ledger</li>
                                 <li>&#10003; SHA-256 Chain</li>
-                                <li>&#10003; Safe Logger v3.0</li>
                                 <li>&#10003; SDD Enforcement</li>
-                                <li>&#10003; Enforcement Hooks</li>
-                                <li>&#10003; Narrative Workflows</li>
+                                <li>&#10003; DTTP Engine</li>
+                                <li>&#10003; Operational Center</li>
+                                <li>&#10003; Phase 1 Hardening</li>
                             </ul>
                         </div>
                         <div class="col-md-4">
                             <h6 style="color:var(--adt-amber); font-size:0.8rem;">In Progress</h6>
                             <ul class="list-unstyled text-adt-muted">
-                                <li>&#9679; DTTP Engine</li>
+                                <li>&#9679; Operator Console</li>
                                 <li>&#9679; Privilege Separation</li>
-                                <li>&#9679; ADT Operational Center</li>
-                                <li>&#9679; Credential Isolation</li>
+                                <li>&#9679; Self-Governance (SPEC-020)</li>
+                                <li>&#9679; CI/CD Pipelines</li>
                             </ul>
                         </div>
                         <div class="col-md-4">

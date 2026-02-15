@@ -12,6 +12,9 @@ setup(
     python_requires=">=3.9",
     install_requires=[
         "flask>=3.0",
+        "flask-cors>=6.0",
+        "requests>=2.31.0",
+        "markdown>=3.5",
     ],
     extras_require={
         "dev": ["pytest", "pytest-cov"],

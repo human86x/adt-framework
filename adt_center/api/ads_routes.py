@@ -5,6 +5,8 @@ ads_bp = Blueprint("ads", __name__)
 @ads_bp.route("/events", methods=["GET"])
 def get_events():
     agent = request.args.get("agent")
+    limit = request.args.get("limit", type=int)
+    offset = request.args.get("offset", type=int)
     role = request.args.get("role")
     action_type = request.args.get("action_type")
     spec_ref = request.args.get("spec_ref")
@@ -13,7 +15,9 @@ def get_events():
         agent=agent,
         role=role,
         action_type=action_type,
-        spec_ref=spec_ref
+        spec_ref=spec_ref,
+        limit=limit,
+        offset=offset
     )
     
     return jsonify(events)

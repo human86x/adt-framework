@@ -1,76 +1,86 @@
-import fcntl
 import json
-import logging
 import os
+import logging
 from typing import List, Dict, Any, Optional
+
+# Cross-platform file locking
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 logger = logging.getLogger(__name__)
 
-
 class TaskManager:
-    """Manages the project task board."""
+    def __init__(self, file_path: str, project_name: str = 'unknown'):
+        self.file_path = file_path
+        self.project_name = project_name
+        self._ensure_file_exists()
 
-    def __init__(self, tasks_path: str, project_name: str = ""):
-        self.tasks_path = tasks_path
-        self.project_name = project_name or self._detect_project_name()
+    def _ensure_file_exists(self):
+        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
+        if not os.path.exists(self.file_path):
+            with open(self.file_path, 'w') as f:
+                json.dump({'project': self.project_name, 'tasks': []}, f, indent=2)
 
-    def _detect_project_name(self) -> str:
-        """Read project name from existing tasks file if present."""
-        if os.path.exists(self.tasks_path):
+    def list_tasks(self, status: Optional[str] = None, assigned_to: Optional[str] = None) -> List[Dict[str, Any]]:
+        with open(self.file_path, 'r') as f:
+            self._lock(f)
             try:
-                with open(self.tasks_path, "r") as f:
-                    data = json.load(f)
-                    return data.get("project", "unknown")
+                data = json.load(f)
+                tasks = data.get('tasks', [])
+                if status:
+                    tasks = [t for t in tasks if t.get('status') == status]
+                if assigned_to:
+                    tasks = [t for t in tasks if assigned_to in (t.get('assigned_to') or '')]
+                return tasks
             except (json.JSONDecodeError, OSError):
-                pass
-        return "unknown"
-
-    def _load_tasks(self) -> List[Dict[str, Any]]:
-        if os.path.exists(self.tasks_path):
-            with open(self.tasks_path, "r") as f:
-                try:
-                    data = json.load(f)
-                    return data.get("tasks", [])
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse tasks file: %s", self.tasks_path)
-                    return []
-        return []
-
-    def _save_tasks(self, tasks: List[Dict[str, Any]]):
-        with open(self.tasks_path, "w") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            try:
-                json.dump({"project": self.project_name, "tasks": tasks}, f, indent=2)
-                f.flush()
-                os.fsync(f.fileno())
+                return []
             finally:
-                fcntl.flock(f, fcntl.LOCK_UN)
+                self._unlock(f)
 
-    def list_tasks(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Lists all tasks, optionally filtered by status."""
-        tasks = self._load_tasks()
-        if status:
-            return [t for t in tasks if t.get("status") == status]
-        return tasks
-
-    def update_task_status(self, task_id: str, new_status: str) -> bool:
-        """Updates the status of a specific task."""
-        tasks = self._load_tasks()
-        updated = False
-        for task in tasks:
-            if task.get("id") == task_id:
-                task["status"] = new_status
-                updated = True
-                break
-        
-        if updated:
-            self._save_tasks(tasks)
-        return updated
+    def update_task(self, task_id: str, updates: Dict[str, Any]) -> bool:
+        with open(self.file_path, 'r+') as f:
+            self._lock(f)
+            try:
+                data = json.load(f)
+                tasks = data.get('tasks', [])
+                found = False
+                for task in tasks:
+                    if task['id'] == task_id:
+                        task.update(updates)
+                        found = True
+                        break
+                if found:
+                    f.seek(0)
+                    json.dump(data, f, indent=2)
+                    f.truncate()
+                return found
+            except (json.JSONDecodeError, OSError):
+                return False
+            finally:
+                self._unlock(f)
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Returns details for a specific task."""
-        tasks = self._load_tasks()
+        tasks = self.list_tasks()
         for task in tasks:
-            if task.get("id") == task_id:
+            if task['id'] == task_id:
                 return task
         return None
+
+    def _lock(self, f):
+        if fcntl:
+            fcntl.flock(f, fcntl.LOCK_EX)
+        elif msvcrt:
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+
+    def _unlock(self, f):
+        if fcntl:
+            fcntl.flock(f, fcntl.LOCK_UN)
+        elif msvcrt:
+            msvcrt.locking(f.fileno(), msvcrt.LK_ULOCK, 1)

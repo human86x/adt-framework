@@ -18,11 +18,11 @@ from flask import Flask, request, jsonify
 
 from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.validator import SpecValidator
-from .config import DTTPConfig
-from .jurisdictions import JurisdictionManager
-from .policy import PolicyEngine
-from .actions import ActionHandler
-from .gateway import DTTPGateway
+from adt_core.dttp.config import DTTPConfig
+from adt_core.dttp.jurisdictions import JurisdictionManager
+from adt_core.dttp.policy import PolicyEngine
+from adt_core.dttp.actions import ActionHandler
+from adt_core.dttp.gateway import DTTPGateway
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,8 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
 
         app.dttp_stats["total_requests"] += 1
 
+        dry_run = bool(data.get("dry_run", False))
+
         result = app.dttp_gateway.request(
             agent=data["agent"],
             role=data["role"],
@@ -74,6 +76,7 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
             action=data["action"],
             params=data["params"],
             rationale=data["rationale"],
+            dry_run=dry_run,
         )
 
         if result["status"] == "denied":
@@ -82,12 +85,26 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
 
         return jsonify(result), 200
 
+    @app.route("/log", methods=["POST"])
+    def dttp_log():
+        """Log an arbitrary event to the ADS."""
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "code": "INVALID_BODY", "message": "Request body must be JSON"}), 400
+
+        try:
+            event_id = app.dttp_gateway.logger.log(data)
+            return jsonify({"status": "success", "event_id": event_id}), 200
+        except ValueError as e:
+            return jsonify({"status": "error", "code": "INVALID_EVENT", "message": str(e)}), 400
+
     @app.route("/status", methods=["GET"])
     def dttp_status():
         return jsonify({
             "service": "dttp",
             "version": "0.1.0",
             "mode": config.mode,
+            "enforcement_mode": config.enforcement_mode,
             "project": config.project_name,
             "uptime_seconds": int(time.time() - app.dttp_start_time),
             "policy_loaded": bool(app.dttp_validator.get_all_specs()),
@@ -113,6 +130,7 @@ def main():
     parser.add_argument("--port", type=int, default=None, help="Port to listen on (default: 5002)")
     parser.add_argument("--project-root", type=str, default=None, help="Project root directory")
     parser.add_argument("--mode", type=str, default=None, choices=["development", "production"], help="Operating mode")
+    parser.add_argument("--enforcement-mode", type=str, default=None, choices=["development", "production"], help="Enforcement mode")
     args = parser.parse_args()
 
     # Build config: env vars first, then CLI args override
@@ -125,19 +143,23 @@ def main():
         config.port = env_config.port
     if env_config.mode != "development":
         config.mode = env_config.mode
+    if env_config.enforcement_mode != "development":
+        config.enforcement_mode = env_config.enforcement_mode
 
     # CLI args take highest priority
     if args.port is not None:
         config.port = args.port
     if args.mode is not None:
         config.mode = args.mode
+    if args.enforcement_mode is not None:
+        config.enforcement_mode = args.enforcement_mode
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [DTTP] %(levelname)s %(name)s: %(message)s",
     )
 
-    logger.info("Starting DTTP service on :%d (mode=%s, project=%s)", config.port, config.mode, config.project_name)
+    logger.info("Starting DTTP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
     app = create_dttp_app(config)
     app.run(host="0.0.0.0", port=config.port, debug=(config.mode == "development"))
 

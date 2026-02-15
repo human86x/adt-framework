@@ -63,3 +63,22 @@
 
 ## Verification
 - pytest tests/test_shatterglass.py: 4/4 PASSED.
+
+---
+## Session End Summary (Gemini-BE)
+- Status: Completed SPEC-028 API refinements and SPEC-023 session enforcement.
+
+## Accomplishments (Gemini-BE)
+
+### 1. Hive Tracker API Refinement (SPEC-028)
+- Improved `_parse_requests` in `governance_routes.py` to robustly handle various request formats and titles.
+- Implemented enhanced `get_delegations` endpoint merging ADS events and `tasks.json` delegation metadata.
+- Registered `/api/requests` and `/api/delegations` routes for spec compliance (kept aliases for backward compatibility).
+
+### 2. Mandatory Git Enforcement (SPEC-023)
+- Updated `session_end` route in `governance_routes.py` to block session closure if uncommitted changes exist in the repository.
+- Added commit hash capture to `session_end` ADS events for traceability.
+- Verified enforcement with live API tests.
+
+### 3. Task Management
+- Updated `_cortex/tasks.json`. Marked task_079 as COMPLETED.

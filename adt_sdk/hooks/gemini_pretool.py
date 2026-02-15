@@ -165,6 +165,12 @@ def main():
 
     # Build DTTP action and params
     action, params = build_dttp_params(tool_name, tool_input, rel_path)
+    
+    # Add tier2_justification if provided in environment
+    tier2_justification = os.environ.get("ADT_TIER2_JUSTIFICATION")
+    if tier2_justification:
+        params["tier2_justification"] = tier2_justification
+        
     rationale = f"Gemini CLI {tool_name} tool: {rel_path}"
 
     try:

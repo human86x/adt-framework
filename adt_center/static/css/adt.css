@@ -195,6 +195,14 @@ body {
     background-color: rgba(248, 81, 73, 0.15);
     color: var(--adt-red);
 }
+.badge-rejected {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: var(--adt-red);
+}
+.badge-approved {
+    background-color: rgba(63, 185, 80, 0.15);
+    color: var(--adt-green);
+}
 .badge-agent-claude {
     background-color: rgba(188, 140, 255, 0.15);
     color: var(--adt-purple);

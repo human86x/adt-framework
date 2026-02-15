@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import subprocess
 import requests as http_client
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, current_app, request
@@ -13,6 +14,69 @@ def _load_json(path):
         return {}
     with open(path, "r") as f:
         return json.load(f)
+
+def _parse_requests(file_path):
+    if not os.path.exists(file_path):
+        return []
+    with open(file_path, "r") as f:
+        content = f.read()
+    
+    requests_list = []
+    # Split by horizontal rule (three or more dashes)
+    sections = re.split(r"\n-+\n", content)
+    for section in sections:
+        # Match ID and Title
+        id_match = re.search(r"## (REQ-\d+): (.*)", section)
+        if id_match:
+            req_id = id_match.group(1)
+            title = id_match.group(2).strip()
+            
+            # Extract status - look for **STATUS** inside ### Status
+            status = "UNKNOWN"
+            if "### Status" in section:
+                status_part = section.split("### Status")[1]
+                status_match = re.search(r"\*\*([A-Z _]+)\*\*", status_part)
+                if status_match:
+                    status = status_match.group(1).strip()
+            elif "**Status:**" in section:
+                status_match = re.search(r"\*\*Status:\*\* (.*)", section)
+                if status_match:
+                    status = status_match.group(1).strip()
+            
+            # Extract author
+            author_match = re.search(r"\*\*From:\*\* (.*)", section)
+            author = author_match.group(1).strip() if author_match else "UNKNOWN"
+            
+            # Extract date
+            date_match = re.search(r"\*\*Date:\*\* (.*)", section)
+            date = date_match.group(1).strip() if date_match else "UNKNOWN"
+
+            # Extract summary/description
+            summary = ""
+            if "### Description" in section:
+                desc_part = section.split("### Description")[1]
+                summary = re.split(r"###", desc_part)[0].strip()
+            elif "### Status" in section:
+                # Text between header/metadata and ### Status
+                parts = section.split(id_match.group(0))[1]
+                summary = parts.split("### Status")[0]
+                # Clean up metadata
+                summary = re.sub(r"\*\*From:\*\*.*\n", "", summary)
+                summary = re.sub(r"\*\*Date:\*\*.*\n", "", summary)
+                summary = re.sub(r"\*\*Type:\*\*.*\n", "", summary)
+                summary = re.sub(r"\*\*Priority:\*\*.*\n", "", summary)
+                summary = re.sub(r"\*\*Related Specs:\*\*.*\n", "", summary)
+                summary = summary.strip()
+
+            requests_list.append({
+                "id": req_id,
+                "title": title,
+                "status": status,
+                "author": author,
+                "date": date,
+                "summary": summary[:200]
+            })
+    return requests_list
 
 @governance_bp.route("/tasks", methods=["GET"])
 def get_tasks():
@@ -55,11 +119,36 @@ def session_start():
 
 @governance_bp.route("/sessions/end", methods=["POST"])
 def session_end():
+    print("DEBUG: session_end called")
     data = request.get_json()
     if not data or not all(k in data for k in ["agent", "role", "spec_id"]):
         return jsonify({"error": "Missing agent, role, or spec_id"}), 400
     
     session_id = data.get("session_id", "unknown")
+    
+    # SPEC-023: Mandatory commit enforcement
+    force = data.get("force", False)
+    if not force:
+        try:
+            root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            # Check for unstaged/uncommitted changes
+            status = subprocess.check_output(["git", "status", "--porcelain"], cwd=root).decode().strip()
+            if status:
+                return jsonify({
+                    "error": "Uncommitted changes detected. Session cannot be closed without a commit.",
+                    "git_status": status
+                }), 403
+        except Exception as e:
+            current_app.logger.warning(f"Git status check failed: {e}")
+
+    # Get current commit hash for ADS record
+    commit_hash = "unknown"
+    try:
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root).decode().strip()
+    except:
+        pass
+
     event_id = ADSEventSchema.generate_id("session_end")
     event = ADSEventSchema.create_event(
         event_id=event_id,
@@ -68,10 +157,11 @@ def session_end():
         action_type="session_end",
         description=f"Session ended: {session_id} for agent {data['agent']} as {data['role']}.",
         spec_ref=data["spec_id"],
-        session_id=session_id
+        session_id=session_id,
+        action_data={"commit_hash": commit_hash}
     )
     current_app.ads_logger.log(event)
-    return jsonify({"status": "success", "event_id": event_id})
+    return jsonify({"status": "success", "event_id": event_id, "commit_hash": commit_hash})
 
 
 @governance_bp.route("/specs", methods=["POST"])
@@ -452,3 +542,50 @@ def get_governance_conflicts():
             if role not in jurisdictions:
                 conflicts.append({"type": "missing_jurisdiction", "role": role, "spec_id": spec_id, "message": f"Role {role} is authorized in {spec_id} but has no jurisdiction in jurisdictions.json"})
     return jsonify({"conflicts": conflicts})
+
+@governance_bp.route("/requests", methods=["GET"])
+@governance_bp.route("/governance/requests", methods=["GET"])
+def get_governance_requests():
+    """SPEC-028: Get all requests parsed from requests.md."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    requests_path = os.path.join(root, "_cortex", "requests.md")
+    requests_list = _parse_requests(requests_path)
+    return jsonify({"requests": requests_list})
+
+@governance_bp.route("/delegations", methods=["GET"])
+@governance_bp.route("/governance/delegations", methods=["GET"])
+def get_delegations():
+    """SPEC-028: Get delegation history from ADS + tasks.json."""
+    # 1. Get from ADS
+    events = current_app.ads_query.get_all_events()
+    delegations = []
+    
+    for event in events:
+        if event.get("action_type") in ["task_status_updated", "task_approved", "task_rejected", "task_reassigned", "task_reopened"]:
+            delegations.append({
+                "ts": event.get("ts"),
+                "task_id": event.get("action_data", {}).get("task_id"),
+                "from": event.get("role"),
+                "to": event.get("action_data", {}).get("reassign_to") or event.get("role"),
+                "action": event.get("action_type"),
+                "agent": event.get("agent")
+            })
+            
+    # 2. Get initial delegations from tasks.json
+    tasks = current_app.task_manager.list_tasks()
+    for task in tasks:
+        if task.get("delegation"):
+            d = task["delegation"]
+            delegations.append({
+                "ts": d.get("delegated_at"),
+                "task_id": task["id"],
+                "from": d.get("delegated_by", {}).get("role"),
+                "to": d.get("delegated_to", {}).get("role"),
+                "action": "task_delegated",
+                "agent": d.get("delegated_by", {}).get("agent")
+            })
+            
+    # Sort by timestamp
+    delegations.sort(key=lambda x: x.get("ts", ""), reverse=True)
+    
+    return jsonify({"delegations": delegations})

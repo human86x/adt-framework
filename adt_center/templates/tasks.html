@@ -14,7 +14,7 @@
 <div class="row g-3">
     <!-- Pending Column -->
     <div class="col-md-4">
-        <div class="card card-adt">
+        <div class="card card-adt h-100">
             <div class="card-header" style="border-bottom-color:var(--adt-amber);">
                 <span class="text-adt-amber">Pending</span>
                 <span class="badge-adt badge-pending ms-2">{{ tasks|selectattr('status', 'equalto', 'pending')|list|length }}</span>
@@ -31,11 +31,12 @@
                         </div>
                         <div class="task-title mt-1">{{ task.title }}</div>
                         <div class="task-role mt-1">{{ task.assigned_to }}</div>
-                        {% if task.depends_on %}
-                        <div style="font-size:0.65rem; color:var(--adt-text-muted); margin-top:0.3rem;">
-                            Depends: {{ task.depends_on|join(', ') }}
+                        <div class="mt-2 d-flex gap-1">
+                            <button class="btn btn-adt-secondary btn-sm flex-grow-1" style="font-size:0.65rem; padding:0.2rem 0.4rem;" 
+                                    onclick="updateStatus('{{ task.id }}', 'in_progress')">Start</button>
+                            <button class="btn btn-adt-primary btn-sm" style="font-size:0.65rem; padding:0.2rem 0.4rem;"
+                                    onclick="openMarkComplete('{{ task.id }}', '{{ task.assigned_to }}')">Complete</button>
                         </div>
-                        {% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -47,7 +48,7 @@
 
     <!-- In Progress Column -->
     <div class="col-md-4">
-        <div class="card card-adt">
+        <div class="card card-adt h-100">
             <div class="card-header" style="border-bottom-color:var(--adt-purple);">
                 <span class="text-adt-purple" style="color:var(--adt-purple);">In Progress</span>
                 <span class="badge-adt badge-in-progress ms-2">{{ tasks|selectattr('status', 'equalto', 'in_progress')|list|length }}</span>
@@ -64,6 +65,10 @@
                         </div>
                         <div class="task-title mt-1">{{ task.title }}</div>
                         <div class="task-role mt-1">{{ task.assigned_to }}</div>
+                        <div class="mt-2">
+                            <button class="btn btn-adt-primary btn-sm w-100" style="font-size:0.65rem; padding:0.2rem 0.4rem;"
+                                    onclick="openMarkComplete('{{ task.id }}', '{{ task.assigned_to }}')">Mark Complete</button>
+                        </div>
                     </div>
                 </div>
                 {% else %}
@@ -75,7 +80,7 @@
 
     <!-- Completed Column -->
     <div class="col-md-4">
-        <div class="card card-adt">
+        <div class="card card-adt h-100">
             <div class="card-header" style="border-bottom-color:var(--adt-green);">
                 <span class="text-adt-green">Completed</span>
                 <span class="badge-adt badge-completed ms-2">{{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}</span>
@@ -83,15 +88,28 @@
             <div class="card-body p-2">
                 {% for task in tasks if task.status == 'completed' %}
                 <div class="task-column">
-                    <div class="task-card">
+                    <div class="task-card {% if task.review_status == 'pending' %}border-warning{% elif task.review_status == 'rejected' %}border-danger{% endif %}">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="task-id">{{ task.id }}</div>
-                            {% if task.spec_ref %}
-                            <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
-                            {% endif %}
+                            <div class="d-flex gap-1">
+                                {% if task.review_status %}
+                                <span class="badge-adt {% if task.review_status == 'approved' %}badge-completed{% elif task.review_status == 'pending' %}badge-pending{% else %}badge-denied{% endif %}">
+                                    {{ task.review_status|upper }}
+                                </span>
+                                {% endif %}
+                                <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                            </div>
                         </div>
                         <div class="task-title mt-1">{{ task.title }}</div>
                         <div class="task-role mt-1">{{ task.assigned_to }}</div>
+                        {% if task.review_status == 'pending' %}
+                        <div class="mt-2 d-flex gap-1">
+                            <button class="btn btn-adt-primary btn-sm flex-grow-1" style="font-size:0.65rem; padding:0.2rem 0.4rem;"
+                                    onclick="overrideTask('{{ task.id }}', 'approve')">Approve</button>
+                            <button class="btn btn-adt-secondary btn-sm" style="font-size:0.65rem; padding:0.2rem 0.4rem; color:var(--adt-red);"
+                                    onclick="openReject('{{ task.id }}')">Reject</button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -114,14 +132,27 @@
                     <th>Spec</th>
                     <th>Assigned To</th>
                     <th>Status</th>
-                    <th>Dependencies</th>
+                    <th>Review</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for task in tasks %}
                 <tr>
                     <td class="text-adt-accent">{{ task.id }}</td>
-                    <td>{{ task.title }}</td>
+                    <td>
+                        <div>{{ task.title }}</div>
+                        {% if task.evidence %}
+                        <div class="text-adt-muted" style="font-size:0.65rem; margin-top:0.2rem;">
+                            <strong>Evidence:</strong> {{ task.evidence }}
+                        </div>
+                        {% endif %}
+                        {% if task.rejection_reason %}
+                        <div class="text-adt-red" style="font-size:0.65rem; margin-top:0.2rem;">
+                            <strong>Rejected:</strong> {{ task.rejection_reason }}
+                        </div>
+                        {% endif %}
+                    </td>
                     <td><span class="badge-adt badge-spec">{{ task.spec_ref }}</span></td>
                     <td>{{ task.assigned_to }}</td>
                     <td>
@@ -132,11 +163,212 @@
                             {{ task.status }}
                         </span>
                     </td>
-                    <td class="text-adt-muted">{{ task.depends_on|join(', ') if task.depends_on else 'None' }}</td>
+                    <td>
+                        {% if task.review_status %}
+                        <span class="badge-adt {% if task.review_status == 'approved' %}badge-completed{% elif task.review_status == 'pending' %}badge-pending{% else %}badge-denied{% endif %}">
+                            {{ task.review_status }}
+                        </span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-adt-secondary btn-sm" type="button" data-bs-toggle="dropdown" style="font-size:0.65rem; padding:0.1rem 0.4rem;">
+                                Options
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-adt shadow" style="font-size:0.75rem;">
+                                <li><a class="dropdown-item" href="#" onclick="openMarkComplete('{{ task.id }}', '{{ task.assigned_to }}')">Mark Complete</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-success" href="#" onclick="overrideTask('{{ task.id }}', 'approve')">Human Approve</a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="openReject('{{ task.id }}')">Human Reject</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="openReassign('{{ task.id }}', '{{ task.assigned_to }}')">Human Reassign</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="overrideTask('{{ task.id }}', 'reopen')">Human Reopen</a></li>
+                            </ul>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- Mark Complete Modal -->
+<div class="modal modal-adt fade" id="modalMarkComplete" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mark Task Complete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="markCompleteInfo" class="mb-3 text-adt-muted" style="font-size:0.8rem;"></div>
+                <form id="formMarkComplete">
+                    <input type="hidden" id="markCompleteId">
+                    <input type="hidden" id="markCompleteRole">
+                    <div class="mb-3">
+                        <label class="form-label-adt">Completion Evidence</label>
+                        <textarea id="markCompleteEvidence" class="form-control form-control-adt" rows="3" placeholder="Describe what you did..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-adt">Agent Identity</label>
+                        <select id="markCompleteAgent" class="form-control form-control-adt">
+                            <option value="CLAUDE">CLAUDE</option>
+                            <option value="GEMINI" selected>GEMINI</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-adt-primary w-100">Submit Completion</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal modal-adt fade" id="modalReject" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-adt-red">Reject Task Completion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formReject">
+                    <input type="hidden" id="rejectId">
+                    <div class="mb-3">
+                        <label class="form-label-adt">Reason for Rejection</label>
+                        <textarea id="rejectReason" class="form-control form-control-adt" rows="3" placeholder="Why is this work not accepted?"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">Reject & Reopen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Modal -->
+<div class="modal modal-adt fade" id="modalReassign" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reassign Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formReassign">
+                    <input type="hidden" id="reassignId">
+                    <div class="mb-3">
+                        <label class="form-label-adt">Assign To Role</label>
+                        <select id="reassignRole" class="form-control form-control-adt">
+                            <option value="Systems_Architect">Systems_Architect</option>
+                            <option value="Backend_Engineer">Backend_Engineer</option>
+                            <option value="Frontend_Engineer">Frontend_Engineer</option>
+                            <option value="DevOps_Engineer">DevOps_Engineer</option>
+                            <option value="Overseer">Overseer</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-adt-primary w-100">Confirm Reassignment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const modalMarkComplete = new bootstrap.Modal(document.getElementById('modalMarkComplete'));
+const modalReject = new bootstrap.Modal(document.getElementById('modalReject'));
+const modalReassign = new bootstrap.Modal(document.getElementById('modalReassign'));
+
+function openMarkComplete(id, role) {
+    document.getElementById('markCompleteId').value = id;
+    document.getElementById('markCompleteRole').value = role;
+    document.getElementById('markCompleteInfo').innerText = `Marking ${id} complete as ${role}`;
+    modalMarkComplete.show();
+}
+
+function openReject(id) {
+    document.getElementById('rejectId').value = id;
+    modalReject.show();
+}
+
+function openReassign(id, currentRole) {
+    document.getElementById('reassignId').value = id;
+    document.getElementById('reassignRole').value = currentRole;
+    modalReassign.show();
+}
+
+async function updateStatus(id, status, evidence = '', agent = 'GEMINI', role = '') {
+    try {
+        const response = await fetch(`/api/tasks/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, agent, role, evidence })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (err) {
+        alert(`Failed to update task: ${err}`);
+    }
+}
+
+async function overrideTask(id, action, reason = '', reassign_to = '') {
+    try {
+        const response = await fetch(`/api/tasks/${id}/override`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, reason, reassign_to })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (err) {
+        alert(`Failed to override task: ${err}`);
+    }
+}
+
+document.getElementById('formMarkComplete').onsubmit = (e) => {
+    e.preventDefault();
+    const id = document.getElementById('markCompleteId').value;
+    const role = document.getElementById('markCompleteRole').value;
+    const agent = document.getElementById('markCompleteAgent').value;
+    const evidence = document.getElementById('markCompleteEvidence').value;
+    updateStatus(id, 'completed', evidence, agent, role);
+    modalMarkComplete.hide();
+};
+
+document.getElementById('formReject').onsubmit = (e) => {
+    e.preventDefault();
+    const id = document.getElementById('rejectId').value;
+    const reason = document.getElementById('rejectReason').value;
+    overrideTask(id, 'reject', reason);
+    modalReject.hide();
+};
+
+document.getElementById('formReassign').onsubmit = (e) => {
+    e.preventDefault();
+    const id = document.getElementById('reassignId').value;
+    const role = document.getElementById('reassignRole').value;
+    overrideTask(id, 'reassign', '', role);
+    modalReassign.hide();
+};
+</script>
+<style>
+.dropdown-menu-adt {
+    background-color: var(--adt-bg-card);
+    border: 1px solid var(--adt-border);
+}
+.dropdown-item:hover {
+    background-color: var(--adt-bg-hover);
+}
+</style>
 {% endblock %}

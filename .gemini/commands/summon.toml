@@ -62,5 +62,10 @@ You must now assume the persona, professional standards, and strict jurisdiction
 - EVERY implementation must trace to an approved spec
 - Actions without spec authorization are logged as `authorized: false` and BLOCKED
 
+**DTTP Communication:**
+- You have access to the DTTP service at: `$DTTP_URL` (default: http://localhost:5002)
+- Use the `adt_sdk/hooks/dttp_request.py` tool to submit authorized requests.
+- Example: `python3 adt_sdk/hooks/dttp_request.py --action edit --file path/to/file --spec SPEC-XXX --rationale "your reason" --content "new content"`
+
 **Execute Initialization now.**
 """
