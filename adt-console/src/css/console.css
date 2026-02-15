@@ -2034,3 +2034,64 @@ input:checked + .slider:before {
   width: 100%;
   height: 100%;
 }
+
+/* Hive Tracker Styles */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tracker-list {
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.tracker-item {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  border-left: 2px solid var(--border);
+  font-size: 11px;
+}
+
+.tracker-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.tracker-header strong {
+  color: var(--accent-blue);
+  font-family: monospace;
+}
+
+.tracker-body {
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ctx-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.badge-adt.badge-pending { color: var(--accent-yellow) !important; border-color: var(--accent-yellow) !important; }
+.badge-adt.badge-in-progress { color: var(--accent-blue) !important; border-color: var(--accent-blue) !important; }
+.badge-adt.badge-completed { color: var(--accent-green) !important; border-color: var(--accent-green) !important; }

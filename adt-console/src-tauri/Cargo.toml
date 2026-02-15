@@ -1,0 +1,28 @@
+[package]
+name = "adt-console"
+version = "0.1.0"
+description = "ADT Operator Console — Human command center for multi-agent governance"
+authors = ["ADT Framework Contributors"]
+license = "AGPL-3.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["test", "tray-icon"] }
+tauri-plugin-shell = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+portable-pty = "0.8"
+tokio = { version = "1", features = ["full"] }
+notify = "7"
+log = "0.4"
+env_logger = "0.11"
+dirs = "5"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
