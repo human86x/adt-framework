@@ -991,7 +991,7 @@
       "description": "Create install.sh at repo root per SPEC-029. Single bash script that installs or updates the complete ADT Framework on WSL/Linux/macOS. Must: detect platform, install system deps (Python3, git, curl), clone or git pull repo, create/reuse venv + pip install, detect and stop existing DTTP (:5002) and Panel (:5001) before restarting (no duplicates), download Console AppImage from GitHub Releases or build from source (install Rust + Tauri deps if needed), verify hook configs exist, print full status summary with URLs/PIDs/hook status. Idempotent -- running twice updates instead of duplicating. See SPEC-029 for full architecture and service detection logic.",
       "spec_ref": "SPEC-029",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "depends_on": []
     },
@@ -1001,7 +1001,7 @@
       "description": "Trigger console-build.yml workflow (or build locally) to produce Linux x86_64 AppImage. Create a GitHub Release (v0.3.0-beta or similar) with the AppImage attached so that install.sh can download it instead of building from source. Verify the AppImage runs on a clean WSL Ubuntu.",
       "spec_ref": "SPEC-029",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": []
     }
