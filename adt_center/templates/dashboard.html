@@ -81,7 +81,8 @@
                         </div>
                         <div class="event-body">
                             <span class="event-action">{{ event.action_type }}:</span>
-                            {{ event.description[:120] }}{% if event.description|length > 120 %}...{% endif %}
+                            {% set desc = event.description or event.rationale or "No description provided" %}
+                            {{ desc[:120] }}{% if desc|length > 120 %}...{% endif %}
                             {% if event.spec_ref %}
                                 <span class="badge-adt badge-spec ms-1">{{ event.spec_ref }}</span>
                             {% endif %}
