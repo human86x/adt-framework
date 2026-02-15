@@ -64,7 +64,7 @@
             </div>
             <div class="event-body">
                 <span class="event-action">{{ event.action_type }}:</span>
-                {{ event.description }}
+                {{ event.description or event.rationale or "No description provided" }}
             </div>
             {% if event.hash %}
             <div class="mt-1" style="font-size:0.65rem; color:var(--adt-text-muted); font-family:monospace;">
