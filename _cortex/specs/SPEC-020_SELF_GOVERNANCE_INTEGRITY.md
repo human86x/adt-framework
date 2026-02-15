@@ -1,6 +1,6 @@
 # SPEC-020: Self-Governance Integrity
 
-**Status:** DRAFT
+**Status:** APPROVED
 **Priority:** CRITICAL
 **Owner:** Systems_Architect + Human
 **Created:** 2026-02-07

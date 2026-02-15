@@ -20,7 +20,7 @@ EXPORT_DIR="/tmp/adt-static-export"
 FTP_HOST="ftp.oceanpulse.pt"
 FTP_USER="oceanpul"
 FTP_PATH="/www/adt-framework"
-FLASK_URL="http://localhost:5001"
+FLASK_URL="${FLASK_URL:-http://localhost:5001}"
 CRED_FILE="$HOME/.adt_ftp_credentials"
 
 # Files to watch for changes

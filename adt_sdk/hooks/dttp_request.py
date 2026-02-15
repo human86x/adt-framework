@@ -23,7 +23,11 @@ def main():
     parser.add_argument("--spec", required=True, help="Spec reference ID")
     parser.add_argument("--rationale", required=True, help="Rationale for the action")
     parser.add_argument("--content", help="File content (for edit/create)")
+    parser.add_argument("--old-string", help="Old string to replace (for patch action)")
+    parser.add_argument("--new-string", help="New string to replace with (for patch action)")
+    parser.add_argument("--justification", help="Tier 2 justification (if required)")
     parser.add_argument("--target", help="Remote target (for deploy/ftp_sync)")
+    parser.add_argument("--dry-run", action="store_true", help="Validate only, do not execute")
     parser.add_argument("--agent", default=os.environ.get("ADT_AGENT", "CLI"), help="Agent name")
     parser.add_argument("--role", default=os.environ.get("ADT_ROLE", "unknown"), help="Agent role")
 
@@ -40,18 +44,33 @@ def main():
         params["file"] = args.file
     if args.content:
         params["content"] = args.content
+    if args.old_string:
+        params["old_string"] = args.old_string
+    if args.new_string:
+        params["new_string"] = args.new_string
+    if args.justification:
+        params["tier2_justification"] = args.justification
     if args.target:
         params["target"] = args.target
 
-    print(f"Submitting {args.action} request to DTTP...", file=sys.stderr)
-    
+    mode = "dry-run" if args.dry_run else "live"
+    print(f"Submitting {args.action} request to DTTP ({mode})...", file=sys.stderr)
+
     try:
-        response = client.request(
-            spec_id=args.spec,
-            action=args.action,
-            params=params,
-            rationale=args.rationale
-        )
+        if args.dry_run:
+            response = client.validate_write(
+                spec_id=args.spec,
+                action=args.action,
+                params=params,
+                rationale=args.rationale
+            )
+        else:
+            response = client.request(
+                spec_id=args.spec,
+                action=args.action,
+                params=params,
+                rationale=args.rationale
+            )
         
         print(json.dumps(response, indent=2))
         

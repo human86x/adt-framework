@@ -3,6 +3,8 @@ import os
 import shutil
 from typing import Dict, Any
 
+from adt_core.dttp.sync import GitSync
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,6 +13,7 @@ class ActionHandler:
 
     def __init__(self, project_root: str):
         self.project_root = os.path.realpath(project_root)
+        self.git_sync = GitSync(self.project_root)
 
     def _resolve_path(self, relative_path: str) -> str:
         """Resolves a relative path and ensures it stays within project_root."""
@@ -19,8 +22,10 @@ class ActionHandler:
             raise PermissionError(f"Path escapes project root: {relative_path}")
         return resolved
 
-    def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, action: str, params: Dict[str, Any], agent: str = None, role: str = None) -> Dict[str, Any]:
         """Dispatches action to the appropriate handler."""
+        self.current_agent = agent
+        self.current_role = role
         handler_name = f"_handle_{action}"
         if hasattr(self, handler_name):
             handler = getattr(self, handler_name)
@@ -40,6 +45,10 @@ class ActionHandler:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, "w") as f:
             f.write(content)
+        
+        # Auto-Sync
+        self.git_sync.commit_and_push(file_path, f"edit {params["file"]}", agent=self.current_agent, role=self.current_role)
+        
         return {"status": "success", "result": "file_written", "bytes": len(content)}
 
     def _handle_create(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,10 +60,74 @@ class ActionHandler:
             shutil.rmtree(file_path)
         else:
             os.remove(file_path)
+            
+        # Auto-Sync
+        self.git_sync.commit_and_push(params["file"], f"delete {params["file"]}", agent=self.current_agent, role=self.current_role)
+        
         return {"status": "success", "result": "file_deleted"}
+
+    def _handle_patch(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handles partial file edits (old_string -> new_string replacement)."""
+        file_path = self._resolve_path(params["file"])
+        old_string = params["old_string"]
+        new_string = params["new_string"]
+
+        if not os.path.isfile(file_path):
+            return {"status": "error", "message": f"File not found: {params['file']}"}
+
+        with open(file_path, "r") as f:
+            content = f.read()
+
+        count = content.count(old_string)
+        if count == 0:
+            return {"status": "error", "message": "old_string not found in file"}
+        if count > 1:
+            return {"status": "error", "message": f"old_string is ambiguous ({count} matches)"}
+
+        new_content = content.replace(old_string, new_string, 1)
+        with open(file_path, "w") as f:
+            f.write(new_content)
+            
+        # Auto-Sync
+        self.git_sync.commit_and_push(file_path, f"patch {params["file"]}", agent=self.current_agent, role=self.current_role)
+
+        return {"status": "success", "result": "file_patched", "bytes": len(new_content)}
 
     def _handle_deploy(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "success", "result": "deploy_simulated", "target": params.get("target")}
 
     def _handle_ftp_sync(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "success", "result": "ftp_sync_simulated", "target": params.get("target")}
+
+    def _handle_git_commit(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        message = params.get("message", "automated commit")
+        full_message = f"[ADT] {message}"
+        if self.current_agent and self.current_role:
+            full_message += f" - {self.current_agent} ({self.current_role})"
+        
+        # Add all changed files (or specific ones if params['files'] exists)
+        files = params.get("files", ["."])
+        for f in files:
+            if not self.git_sync._run_git(["add", f]):
+                return {"status": "error", "message": f"Failed to add {f}"}
+        
+        if self.git_sync._run_git(["commit", "-m", full_message]):
+            return {"status": "success", "result": "committed"}
+        return {"status": "error", "message": "Commit failed (maybe nothing to commit?)"}
+
+    def _handle_git_push(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        remote = params.get("remote", "origin")
+        branch = params.get("branch", "main")
+        if self.git_sync._run_git(["push", remote, branch]):
+            return {"status": "success", "result": f"pushed to {remote}/{branch}"}
+        return {"status": "error", "message": "Push failed"}
+
+    def _handle_git_tag(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        tag_name = params.get("tag")
+        message = params.get("message", f"Release {tag_name}")
+        if not tag_name:
+            return {"status": "error", "message": "Tag name required"}
+        
+        if self.git_sync._run_git(["tag", "-a", tag_name, "-m", message]):
+            return {"status": "success", "result": f"tag {tag_name} created"}
+        return {"status": "error", "message": "Tag creation failed"}

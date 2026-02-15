@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 class ADSEventSchema:
@@ -16,10 +16,19 @@ class ADSEventSchema:
         "authorized"
     ]
 
+    # SPEC-026: Task Lifecycle Event Types
+    TASK_EVENTS = [
+        "task_status_updated",  # Agent self-service
+        "task_approved",        # Human approval
+        "task_rejected",        # Human rejection
+        "task_reassigned",      # Human reassignment
+        "task_reopened"         # Human reopen
+    ]
+
     @staticmethod
     def generate_id(action_type: str) -> str:
         """Generates a unique event ID based on type and timestamp."""
-        ts_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+        ts_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")[:-3]
         return f"evt_{ts_str}_{action_type[:10]}"
 
     @staticmethod
@@ -29,6 +38,11 @@ class ADSEventSchema:
             if field not in event_data:
                 return False
         
+        # Validate tier if present
+        if "tier" in event_data:
+            if event_data["tier"] not in [1, 2, 3]:
+                return False
+
         # Validate timestamp format
         try:
             datetime.fromisoformat(event_data["ts"].replace("Z", "+00:00"))
@@ -46,12 +60,13 @@ class ADSEventSchema:
         description: str,
         spec_ref: str,
         authorized: bool = True,
+        tier: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Helper to create a standard event dictionary."""
         event = {
             "event_id": event_id,
-            "ts": datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "agent": agent,
             "role": role,
             "action_type": action_type,
@@ -59,5 +74,7 @@ class ADSEventSchema:
             "spec_ref": spec_ref,
             "authorized": authorized
         }
+        if tier is not None:
+            event["tier"] = tier
         event.update(kwargs)
         return event

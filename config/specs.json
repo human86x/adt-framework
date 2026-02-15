@@ -3,44 +3,303 @@
     "SPEC-014": {
       "title": "DTTP Implementation (Level 3)",
       "status": "approved",
-      "roles": ["Backend_Engineer", "DevOps_Engineer"],
-      "action_types": ["edit", "create", "delete"],
-      "paths": ["adt_core/dttp/", "config/"]
+      "roles": [
+        "Backend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "config/"
+      ]
     },
     "SPEC-015": {
       "title": "ADT Operational Center",
       "status": "approved",
-      "roles": ["Backend_Engineer", "Frontend_Engineer"],
-      "action_types": ["edit", "create", "delete"],
-      "paths": ["adt_center/"]
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/"
+      ]
     },
     "SPEC-016": {
       "title": "ADT Help & Principles Page",
       "status": "approved",
-      "roles": ["Frontend_Engineer"],
-      "action_types": ["edit", "create"],
-      "paths": ["adt_center/templates/", "adt_center/static/"]
+      "roles": [
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "create"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/"
+      ]
     },
     "SPEC-017": {
       "title": "ADT Framework Repository",
       "status": "approved",
-      "roles": ["Backend_Engineer", "Systems_Architect", "DevOps_Engineer"],
-      "action_types": ["edit", "create", "delete"],
-      "paths": ["adt_core/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+      "roles": [
+        "Backend_Engineer",
+        "Systems_Architect",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/",
+        "adt_center/",
+        "adt_sdk/",
+        "config/",
+        "tests/",
+        "_cortex/",
+        "adt_core/dttp/gateway.py",
+        "adt_core/dttp/service.py",
+        "adt_core/dttp/policy.py",
+        "adt_core/ads/logger.py",
+        "adt_core/ads/integrity.py",
+        "adt_core/ads/crypto.py"
+      ]
     },
     "SPEC-018": {
       "title": "Phase 1 Hardening",
       "status": "approved",
-      "roles": ["Backend_Engineer"],
-      "action_types": ["edit", "create", "delete"],
-      "paths": ["adt_core/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+      "roles": [
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/",
+        "adt_center/",
+        "adt_sdk/",
+        "config/",
+        "tests/"
+      ]
     },
     "SPEC-019": {
       "title": "DTTP Standalone Service",
       "status": "approved",
-      "roles": ["Backend_Engineer"],
-      "action_types": ["edit", "create", "delete"],
-      "paths": ["adt_core/dttp/", "adt_center/", "adt_sdk/", "config/", "tests/"]
+      "roles": [
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_center/",
+        "adt_sdk/",
+        "config/",
+        "tests/"
+      ]
+    },
+    "SPEC-020": {
+      "title": "Self-Governance Integrity",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_core/ads/",
+        "tests/",
+        "_cortex/docs/"
+      ]
+    },
+    "SPEC-021": {
+      "title": "ADT Operator Console",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer",
+        "DevOps_Engineer",
+        "Backend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt-console/",
+        "adt_core/dttp/",
+        "adt_core/ads/",
+        "adt_sdk/",
+        "tests/"
+      ]
+    },
+    "SPEC-025": {
+      "title": "ADT Collaborative Bootstrap",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/",
+        "adt_core/",
+        "scripts/"
+      ]
+    },
+    "SPEC-026": {
+      "title": "DTTP Governance Configurator",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/",
+        "config/",
+        "adt_core/sdd/"
+      ]
+    },
+    "SPEC-027": {
+      "title": "Shatterglass Protocol",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_core/ads/",
+        "config/",
+        "scripts/",
+        "adt_core/cli.py",
+        "tests/"
+      ]
+    },
+    "SPEC-028": {
+      "title": "Console Hive Tracker Panel",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer",
+        "Backend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt-console/",
+        "adt_center/api/",
+        "adt_center/templates/",
+        "_cortex/specs/",
+        "tests/"
+      ]
+    },
+    "SPEC-013": {
+      "title": "ADT Panel UI Refinements",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/"
+      ]
+    },
+    "SPEC-023": {
+      "title": "Git Persistence & Push Governance",
+      "status": "approved",
+      "roles": [
+        "DevOps_Engineer",
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge",
+        "edit",
+        "patch"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_sdk/",
+        "adt-console/",
+        "./"
+      ]
+    },
+    "SPEC-029": {
+      "title": "Single-File WSL/Linux Installer",
+      "status": "approved",
+      "roles": [
+        "DevOps_Engineer",
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "create",
+        "edit",
+        "patch",
+        "delete"
+      ],
+      "paths": [
+        "install.sh",
+        "./",
+        "bin/",
+        "_cortex/ops/"
+      ]
     }
   }
 }

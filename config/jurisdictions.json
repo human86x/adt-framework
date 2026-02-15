@@ -1,9 +1,75 @@
 {
   "jurisdictions": {
-    "Systems_Architect": ["_cortex/", "docs/"],
-    "Backend_Engineer": ["adt_core/", "adt_center/api/", "adt_center/app.py", "adt_sdk/", "tests/", "config/"],
-    "Frontend_Engineer": ["adt_center/templates/", "adt_center/static/"],
-    "DevOps_Engineer": ["ops/"],
-    "Overseer": ["_cortex/ads/"]
+    "Systems_Architect": [
+      "_cortex/",
+      "docs/",
+      "adt_core/",
+      "adt_center/",
+      "adt_sdk/",
+      "config/",
+      "tests/",
+      "adt-console/"
+    ],
+    "Backend_Engineer": {
+      "paths": [
+        "adt_core/",
+        "adt_center/api/",
+        "adt_center/app.py",
+        "adt_sdk/",
+        "tests/",
+        "config/",
+        "tests/integration/",
+        "adt_center/api/governance_routes.py"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "locked": false
+    },
+    "Frontend_Engineer": [
+      "adt_center/templates",
+      "adt_center/static",
+      "adt-console",
+      "adt-console/src/"
+    ],
+    "DevOps_Engineer": {
+      "paths": [
+        "ops/",
+        ".github/",
+        ".gemini/",
+        ".claude/",
+        "adt-console/src-tauri/",
+        "setup.py",
+        "start.sh",
+        "console.sh",
+        "adt-console/",
+        "scripts/",
+        "_cortex/ops/",
+        "adt_sdk/",
+        "_cortex/work_logs/",
+        "install.sh",
+        "./"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete",
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge"
+      ],
+      "locked": false
+    },
+    "Overseer": [
+      "_cortex/ads/",
+      "_cortex/docs/",
+      "_cortex/requests.md",
+      "_cortex/work_logs/"
+    ]
   }
 }

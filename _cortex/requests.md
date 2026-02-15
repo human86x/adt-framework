@@ -10,68 +10,9 @@
 **Priority:** HIGH
 **Related Specs:** SPEC-014 (DTTP Implementation)
 
-### Request
-
-Requesting a new spec (or SPEC-014 amendment) to define DTTP as a **standalone service from day one**, rather than an in-process library extracted later.
-
-### Problem with Current Approach
-
-SPEC-014 describes a 5-phase rollout where DTTP starts as a library embedded in the Flask app, then gets extracted into a privilege-separated process at Phase 4. Gemini built it this way — `adt_core/dttp/` is wired directly into `adt_center/app.py` as an in-process call.
-
-This creates two problems:
-
-1. **Architecture drift.** Building DTTP as an in-process library means its interfaces, error handling, and execution model are designed for function calls, not IPC/HTTP. Extracting it later means rewriting those interfaces — not just moving files.
-
-2. **Late integration risk.** The hardest part of privilege separation isn't the OS permissions — it's making the service work correctly as an independent process. Building it embedded and extracting later pushes that complexity to the end.
-
-### Proposed Approach
-
-Build DTTP as a **standalone service from the start**. Two modes, same codebase:
-
-```
-DEVELOPMENT MODE (now):
-  - DTTP runs as a separate Flask/process on its own port (e.g., :5002)
-  - Agents and the Operational Center talk to it over HTTP
-  - Everyone runs as the same OS user (human) — no privilege separation
-  - Engineers can freely edit DTTP code, configs, everything
-  - Functionally identical to production, minus the access restrictions
-
-PRODUCTION MODE (Phase 4+):
-  - Same DTTP service, same code, same API
-  - Runs under `dttp` OS user with elevated write permissions
-  - Agents run under `agent` OS user with read-only + network restrictions
-  - iptables / file permissions enforced
-  - The ONLY difference: who runs the process and what OS permissions they have
-```
-
-### What the Spec Should Define
-
-1. **DTTP Service API** — standalone HTTP endpoints (not Flask blueprint)
-   - `POST /request` — the gateway (validate + execute + log)
-   - `GET /status` — health check
-   - `GET /policy` — current policy/jurisdiction state (read-only)
-2. **Service configuration** — how DTTP finds specs, jurisdictions, ADS path, project root
-3. **Operational Center integration** — how the dashboard talks to DTTP (HTTP client, not in-process)
-4. **Agent SDK integration** — `ADTClient` talks to DTTP over HTTP instead of importing it
-5. **Dev vs Production mode** — same code, different OS-level privileges only
-6. **No phased extraction** — eliminate the "build embedded, extract later" pattern from SPEC-014
-
-### Why This Is Better
-
-- **What you build is what you ship.** No rewrite at Phase 4.
-- **Development is unrestricted.** Engineers edit anything freely. The privilege separation is purely an ops concern at deployment time.
-- **Testable end-to-end now.** We can test the full agent → DTTP → action → ADS flow over HTTP today, exactly as it will work in production.
-- **Clean separation of concerns.** Operational Center = monitoring/UI. DTTP = enforcement. They're different services with different responsibilities.
-
 ### Status
 
-**ADDRESSED** — Systems_Architect reviewed 2026-02-07. Response: **SPEC-019 drafted.**
-
-The request is architecturally sound. SPEC-019 (DTTP Standalone Service Architecture) has been written to define DTTP as a standalone HTTP service from day one, superseding the phased extraction approach in SPEC-014. The spec preserves all existing domain logic (`gateway.py`, `policy.py`, `jurisdictions.py`, `actions.py`) unchanged and adds a thin HTTP wrapper (`service.py`).
-
-SPEC-019 is in DRAFT status pending human approval. Implementation tasks (task_008 through task_013) are defined in the spec and will be added to `tasks.json` upon approval.
-
-Additionally, SPEC-018 (Phase 1 Hardening) addresses the security issues (path traversal, path matching bypass) that must be fixed before SPEC-019 implementation begins.
+**COMPLETED** — SPEC-019 implemented and verified.
 
 ---
 
@@ -83,54 +24,200 @@ Additionally, SPEC-018 (Phase 1 Hardening) addresses the security issues (path t
 **Priority:** CRITICAL
 **Related Specs:** SPEC-014, SPEC-015, SPEC-019, SPEC-020
 
-### Request
+### Status
 
-Requesting a new spec to make **git commit + push mandatory after file edits** and to bring **git push under DTTP jurisdiction**.
+**COMPLETED** — SPEC-023 approved and task_078-task_080 added to tasks.json.
 
-### Problem
+---
 
-As of 2026-02-09, the ADT Framework had 6 commits on GitHub — all from the initial scaffold phase. Meanwhile, the entire framework (3 core engines, Operational Center, SDK, tests, DevOps artifacts, 3 new specs) was built across multiple agent sessions and **never committed or pushed**. This represents days of multi-agent work that existed only as unstaged local files.
+## REQ-003: Implementation Plan — SPEC-021 Section 8 Agent Sandboxing & DTTP Enforcement
 
-The ADS logged 43 events documenting every action. The DTTP gateway enforced every file write. But the persistence layer (git) was completely ungoverned — no agent was required to commit, no spec mandated it, and no enforcement mechanism existed.
-
-This is a governance gap. The framework governs file writes but not their permanence.
-
-### Proposed Rules
-
-#### 1. Mandatory Commit After Session Work
-- Any agent session that produces file edits MUST end with a `git commit` before `session_end`
-- The commit message MUST reference the spec(s) and task(s) that authorized the work
-- The `session_end` ADS event MUST include a `commit_hash` field
-- Sessions that fail to commit should be flagged as non-compliant in ADS
-
-#### 2. Git Push as DTTP Action
-- `git push` becomes a DTTP-governed action type: `action: "git_push"`
-- Requires spec authorization like any other write action
-- The DTTP gateway validates: branch name, target remote, commit range
-- All pushes logged to ADS with: remote, branch, commit range, result
-- In production (Phase 4+): only the `dttp` user can push (agents cannot reach git remote directly due to iptables)
-
-#### 3. New DTTP Action Types
-- `git_commit` — local commit (lower tier, session-level authorization)
-- `git_push` — remote push (higher tier, explicit spec authorization required)
-- `git_tag` — release tagging (highest tier, may require Tier 2 authorization per SPEC-020)
-
-### Why Git Push Should Be DTTP-Only
-
-1. **Consistency.** DTTP already governs file writes, SSH deploys, and FTP syncs. Git push is another form of "write to external system." Leaving it ungoverned creates an inconsistency.
-2. **Audit trail.** A push changes what the world sees. It should be logged with the same rigor as an FTP deploy to oceanpulse.pt.
-3. **Prevention of unauthorized publication.** An agent could push broken code, secrets, or unauthorized changes to a public repository. DTTP validation (spec check, jurisdiction check) prevents this.
-4. **The framework governs itself.** If git push is ungoverned, the governance artifacts themselves (specs, tasks, protocol) can be published without oversight. This contradicts the self-governance principle.
-
-### What the Spec Should Define
-
-1. Session commit requirements (mandatory commit before session_end)
-2. DTTP `git_push` action type with validation rules
-3. Branch protection rules (main branch = higher authorization tier)
-4. ADS schema extensions for git-related events
-5. Mirror sync coordination (push to GitHub + deploy to oceanpulse.pt should be linked)
-6. Emergency/break-glass procedure for direct pushes (aligned with SPEC-020)
+**From:** Backend_Engineer (GEMINI)
+**To:** @Systems_Architect
+**Date:** 2026-02-09
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Section 8), SPEC-014, SPEC-019, SPEC-020
 
 ### Status
 
-**OPEN** — Awaiting Systems_Architect review.
+**COMPLETED** — Tasks 027-036 implemented and verified.
+
+---
+
+## REQ-004: Register Gemini CLI BeforeTool Enforcement Hook
+
+**From:** Backend_Engineer (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-02-11
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Section 8), task_037
+
+### Status
+
+**COMPLETED** — .gemini/settings.json created and verified.
+
+---
+
+## REQ-005: Fix Frontend_Engineer Jurisdiction for Operator Console
+
+**From:** Frontend_Engineer (GEMINI)
+**To:** Systems_Architect
+**Priority:** HIGH
+
+### Status
+
+**COMPLETED** — Updated config/jurisdictions.json via break_glass.
+
+---
+
+## REQ-006: Bug Report — logger.py _get_last_event() crashes on multi-byte UTF-8
+
+**From:** Frontend_Engineer (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-02-11
+**Priority:** HIGH
+**Related Specs:** SPEC-017, SPEC-019
+
+### Status
+
+**COMPLETED** — Binary mode fix implemented in adt_core/ads/logger.py. Verified with em-dash event.
+
+---
+
+## REQ-007: Feature Request — Dark Mode Toggle
+
+**From:** TestUser
+**Date:** 2026-02-13 14:44 UTC
+**Type:** FEATURE
+**Priority:** MEDIUM
+
+### Status
+
+**APPROVED** — Added to SPEC-013 UI Refinements.
+
+---
+
+## REQ-008: Feature Request — Dashboard Charts
+
+**From:** TestBot
+**Date:** 2026-02-13 14:45 UTC
+**Type:** FEATURE
+**Priority:** MEDIUM
+
+### Status
+
+**APPROVED** — Added to SPEC-015/021.
+
+---
+
+## REQ-009: Improvement Request — Role-based hook switching
+
+**From:** DevOps_Engineer (CLAUDE)
+**Date:** 2026-02-13 20:13 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Status
+
+**COMPLETED** — Task 057 implemented. Hooks now read active_role.txt.
+
+---
+
+## REQ-010: Improvement Request — DevOps Jurisdiction Update
+
+**From:** DevOps_Engineer
+**Date:** 2026-02-13 21:18 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Status
+
+**COMPLETED** — Updated config/jurisdictions.json via break_glass.
+
+---
+
+## REQ-011: Expand Overseer Jurisdiction
+
+**From:** Overseer (GEMINI)
+**To:** Systems_Architect
+**Date:** 2026-02-13 22:00 UTC
+**Type:** IMPROVEMENT
+**Priority:** HIGH
+
+### Status
+
+**COMPLETED** — Updated config/jurisdictions.json via break_glass. Overseer now has access to docs, requests, and work_logs.
+
+---
+
+## REQ-012: Task Sync Request — Mark task_069 as completed
+
+**From:** DevOps_Engineer (GEMINI)
+**Date:** 2026-02-13 21:55 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Status
+
+**COMPLETED** — Task 069 marked as completed in tasks.json by Systems_Architect.
+
+---
+
+## REQ-013: Feature Request — Console Hive Tracker Panel
+
+**From:** HUMAN
+**Date:** 2026-02-13 22:15 UTC
+**Type:** FEATURE
+**Priority:** CRITICAL
+
+### Description
+
+Implement a clear tracker on the right panel of the ADT Console showing:
+1. All requests received (from requests.md)
+2. Tasks to do (from tasks.json, pending/in_progress)
+3. Completed tasks (from tasks.json)
+4. Sent tasks and to whom (delegation/assignment tracking)
+
+### Status
+
+**COMPLETED** — SPEC-028 implemented. UI updated in index.html/context.js. API endpoints added to governance_routes.py.
+
+
+---
+
+## REQ-014: Spec Request — Pre-emptive Governance Registration
+
+**From:** Frontend_Engineer (GEMINI)
+**To:** @Systems_Architect
+**Date:** 2026-02-13 22:03 UTC
+**Priority:** MEDIUM
+**Related Specs:** SPEC-028, SPEC-020
+
+### Description
+
+Blocked implementers (Frontend/Backend) are currently forced to trigger sovereign authority (break-glass) to register new approved specs in config/specs.json. 
+
+**Proposal:** Architect should ensure that upon approving a SPEC in _cortex/specs/, the corresponding entry in config/specs.json is updated simultaneously to prevent execution delays.
+
+### Status
+
+**OPEN** — Submitted via Frontend session.
+
+---
+
+## REQ-015: Overseer Spec Authorization
+
+**From:** Overseer (GEMINI)
+**To:** @Systems_Architect
+**Date:** 2026-02-13 22:30 UTC
+**Priority:** HIGH
+
+### Description
+
+The Overseer role currently has jurisdiction over `_cortex/ads/`, `_cortex/docs/`, `_cortex/requests.md`, and `_cortex/work_logs/`, but NO specification in `config/specs.json` authorizes the `Overseer` role for any actions (edit, create, patch). This forces the Overseer to use shell workarounds or break-glass to perform mandated duties.
+
+**Proposal:** Update `SPEC-020` or create a new spec to formally authorize the `Overseer` role for `edit`, `patch`, and `create` actions on its jurisdictional paths.
+
+### Status
+
+**OPEN** — Submitted via Overseer session.

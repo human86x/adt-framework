@@ -156,6 +156,13 @@ body {
     font-size: 0.8rem;
     line-height: 1.4;
 }
+.event-item .event-body pre {
+    background: #000;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-top: 5px;
+}
 .event-item .event-action {
     font-weight: 600;
     color: var(--adt-text);
@@ -187,6 +194,14 @@ body {
 .badge-denied {
     background-color: rgba(248, 81, 73, 0.15);
     color: var(--adt-red);
+}
+.badge-rejected {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: var(--adt-red);
+}
+.badge-approved {
+    background-color: rgba(63, 185, 80, 0.15);
+    color: var(--adt-green);
 }
 .badge-agent-claude {
     background-color: rgba(188, 140, 255, 0.15);
@@ -285,3 +300,174 @@ body {
 .text-adt-amber { color: var(--adt-amber); }
 .text-adt-red { color: var(--adt-red); }
 .border-adt { border-color: var(--adt-border) !important; }
+
+/* Modal Styling */
+.modal-adt .modal-content {
+    background-color: var(--adt-bg-card);
+    border: 1px solid var(--adt-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.modal-adt .modal-header {
+    background-color: var(--adt-bg-secondary);
+    border-bottom: 1px solid var(--adt-border);
+    padding: 1rem 1.5rem;
+    border-radius: 12px 12px 0 0;
+}
+.modal-adt .modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+.modal-adt .modal-body {
+    padding: 2rem;
+    color: var(--adt-text);
+}
+.modal-adt .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Rich Spec Content in Modal */
+.modal-spec-viewer {
+    font-size: 1rem; /* Larger text as requested */
+    line-height: 1.6;
+}
+.modal-spec-viewer h1, .modal-spec-viewer h2, .modal-spec-viewer h3 {
+    color: var(--adt-accent);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+.modal-spec-viewer h1 { font-size: 1.8rem; border-bottom: 2px solid var(--adt-border); padding-bottom: 0.5rem; }
+.modal-spec-viewer h2 { font-size: 1.5rem; border-bottom: 1px solid var(--adt-border); padding-bottom: 0.3rem; }
+.modal-spec-viewer h3 { font-size: 1.2rem; }
+.modal-spec-viewer p { margin-bottom: 1.2rem; }
+.modal-spec-viewer ul, .modal-spec-viewer ol { margin-bottom: 1.2rem; }
+.modal-spec-viewer pre {
+    background-color: #000;
+    border: 1px solid var(--adt-border);
+    padding: 1.25rem;
+    font-size: 0.9rem;
+}
+.modal-spec-viewer table {
+    font-size: 0.9rem;
+    margin: 2rem 0;
+}
+.modal-spec-viewer table th {
+    background-color: #161b22;
+    padding: 0.75rem;
+}
+.modal-spec-viewer table td {
+    padding: 0.75rem;
+}
+
+/* Markdown Rendering (for Specs) */
+.adt-spec-content h1, .adt-spec-content h2, .adt-spec-content h3 {
+    color: var(--adt-accent);
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+.adt-spec-content h1 { font-size: 1.2rem; border-bottom: 1px solid var(--adt-border); padding-bottom: 0.3rem; }
+.adt-spec-content h2 { font-size: 1.05rem; }
+.adt-spec-content h3 { font-size: 0.95rem; }
+.adt-spec-content p { margin-bottom: 0.75rem; line-height: 1.5; }
+.adt-spec-content ul, .adt-spec-content ol { margin-bottom: 0.75rem; padding-left: 1.25rem; }
+.adt-spec-content li { margin-bottom: 0.25rem; }
+.adt-spec-content code {
+    background-color: var(--adt-bg-secondary);
+    color: var(--adt-purple);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+.adt-spec-content pre {
+    background-color: var(--adt-bg-secondary);
+    border: 1px solid var(--adt-border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    overflow-x: auto;
+}
+.adt-spec-content pre code {
+    background-color: transparent;
+    color: var(--adt-text);
+    padding: 0;
+    font-size: 0.75rem;
+}
+.adt-spec-content table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+.adt-spec-content table th, .adt-spec-content table td {
+    border: 1px solid var(--adt-border);
+    padding: 0.4rem 0.6rem;
+}
+.adt-spec-content table th {
+    background-color: var(--adt-bg-secondary);
+    color: var(--adt-text-muted);
+    text-align: left;
+}
+.adt-spec-content blockquote {
+    border-left: 4px solid var(--adt-border);
+    padding-left: 1rem;
+    color: var(--adt-text-muted);
+    font-style: italic;
+    margin-bottom: 1rem;
+}
+
+/* Form Controls */
+.form-control-adt {
+    background-color: var(--adt-bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--adt-text);
+    font-size: 0.875rem;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+}
+.form-control-adt:focus {
+    background-color: var(--adt-bg-hover);
+    border-color: var(--adt-accent);
+    color: var(--adt-text);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+    outline: none;
+}
+.form-label-adt {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--adt-text-muted);
+    margin-bottom: 0.4rem;
+}
+
+.btn-adt-primary {
+    background-color: var(--adt-accent);
+    border: 1px solid var(--adt-accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.1s ease;
+}
+.btn-adt-primary:hover {
+    background-color: #4c96eb;
+    border-color: #4c96eb;
+    color: #fff;
+}
+.btn-adt-secondary {
+    background-color: var(--adt-bg-secondary);
+    border: 1px solid var(--adt-border);
+    color: var(--adt-text);
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+}
+.btn-adt-secondary:hover {
+    background-color: var(--adt-bg-hover);
+    color: var(--adt-text);
+}

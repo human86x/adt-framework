@@ -47,5 +47,7 @@ def test_task_manager(tmp_path):
     tasks = tm.list_tasks(status="pending")
     assert len(tasks) == 1
     
-    tm.update_task_status("t1", "completed")
+    tm.update_task("t1", {"status": "completed"})
     assert tm.get_task("t1")["status"] == "completed"
+    
+    

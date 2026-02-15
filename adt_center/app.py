@@ -1,15 +1,32 @@
 import os
 
 import requests as http_client
-from flask import Flask, render_template
+import markdown
+from flask import Flask, render_template, request, abort
+from flask_cors import CORS
+from markupsafe import Markup
 
 from adt_core.ads.query import ADSQuery
+from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.registry import SpecRegistry
 from adt_core.sdd.tasks import TaskManager
 
 
 def create_app():
     app = Flask(__name__)
+    CORS(app, origins=["tauri://localhost", "http://localhost:*", "http://127.0.0.1:*"])
+    @app.before_request
+    def check_remote_auth():
+        token = os.environ.get('ADT_ACCESS_TOKEN')
+        if not token:
+            return
+        is_remote = request.remote_addr not in ['127.0.0.1', '::1'] or 'Cf-Ray' in request.headers
+        if is_remote:
+            auth_header = request.headers.get('Authorization')
+            query_token = request.args.get('token')
+            if auth_header == f'Bearer {token}' or query_token == token:
+                return
+            abort(401, description='Unauthorized: ADT Remote Access Token Required')
 
     PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -21,16 +38,26 @@ def create_app():
     SPECS_DIR = os.path.join(PROJECT_ROOT, "_cortex", "specs")
     TASKS_PATH = os.path.join(PROJECT_ROOT, "_cortex", "tasks.json")
 
-    # Initialize read-only engines (no DTTP imports — enforcement is a separate service)
+    # Initialize engines
     app.ads_query = ADSQuery(ADS_PATH)
+    app.ads_logger = ADSLogger(ADS_PATH)
     app.spec_registry = SpecRegistry(SPECS_DIR)
     app.task_manager = TaskManager(TASKS_PATH, project_name=app.config["PROJECT_NAME"])
 
+    # Register Jinja2 filter for markdown
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        if not text:
+            return ""
+        return Markup(markdown.markdown(text, extensions=['fenced_code', 'tables']))
+
     # Register Blueprints
-    from .api.dttp_routes import dttp_bp
-    from .api.ads_routes import ads_bp
+    from adt_center.api.dttp_routes import dttp_bp
+    from adt_center.api.ads_routes import ads_bp
+    from adt_center.api.governance_routes import governance_bp
     app.register_blueprint(dttp_bp, url_prefix="/api/dttp")
     app.register_blueprint(ads_bp, url_prefix="/api/ads")
+    app.register_blueprint(governance_bp, url_prefix="/api")
 
     def _enrich_specs(specs):
         for spec in specs:
@@ -93,6 +120,10 @@ def create_app():
                                dttp_denied=dttp_denied,
                                dttp_status=dttp_status)
 
+    @app.route("/governance")
+    def governance_page():
+        return render_template("governance.html")
+
     @app.route("/about")
     def about_page():
         return render_template("about.html")
@@ -102,4 +133,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(port=5001, debug=False)
+    app.run(host="0.0.0.0", port=5001, debug=False)

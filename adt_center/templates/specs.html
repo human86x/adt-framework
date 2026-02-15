@@ -5,11 +5,16 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Specification Registry</h5>
-    <span class="text-adt-muted" style="font-size:0.8rem;">
-        {{ specs|selectattr('status', 'equalto', 'APPROVED')|list|length }} approved &middot;
-        {{ specs|length }} total
-    </span>
+    <div>
+        <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Specification Registry</h5>
+        <span class="text-adt-muted" style="font-size:0.8rem;">
+            {{ specs|selectattr('status', 'equalto', 'APPROVED')|list|length }} approved &middot;
+            {{ specs|length }} total
+        </span>
+    </div>
+    <button class="btn-adt-primary" data-bs-toggle="modal" data-bs-target="#createSpecModal">
+        <span class="me-1">+</span> Create Spec
+    </button>
 </div>
 
 <div class="row g-3">
@@ -18,30 +23,127 @@
         <div class="card card-adt">
             <div class="card-header d-flex justify-content-between align-items-center"
                  style="cursor:pointer;"
-                 data-bs-toggle="collapse"
-                 data-bs-target="#spec-{{ spec.id|replace('-','') }}">
+                 onclick="viewSpec('{{ spec.id }}', '{{ spec.name }}')">
                 <div>
                     <span class="text-adt-accent fw-bold">{{ spec.id }}</span>
                     <span class="ms-2">{{ spec.name }}</span>
                 </div>
-                <span class="badge-adt
-                    {% if spec.status == 'APPROVED' %}badge-completed
-                    {% elif spec.status == 'DRAFT' %}badge-pending
-                    {% else %}badge-in-progress{% endif %}">
-                    {{ spec.status }}
-                </span>
-            </div>
-            <div class="collapse" id="spec-{{ spec.id|replace('-','') }}">
-                <div class="card-body" style="font-size:0.8rem; max-height:500px; overflow-y:auto;">
-                    {% if spec.content %}
-                    <pre style="white-space:pre-wrap; color:var(--adt-text); font-size:0.78rem; font-family:inherit; margin:0;">{{ spec.content }}</pre>
-                    {% else %}
-                    <p class="text-adt-muted">Spec content not loaded. Click to expand.</p>
-                    {% endif %}
+                <div class="d-flex align-items-center">
+                    <span class="badge-adt me-3
+                        {% if spec.status == 'approved' or spec.status == 'APPROVED' %}badge-completed
+                        {% elif spec.status == 'draft' or spec.status == 'DRAFT' %}badge-pending
+                        {% else %}badge-in-progress{% endif %}">
+                        {{ spec.status|upper }}
+                    </span>
+                    <span class="text-adt-muted" style="font-size:0.7rem;">Click to open &#8599;</span>
                 </div>
+            </div>
+            {# Hidden storage for rendered markdown #}
+            <div id="data-{{ spec.id }}" style="display:none;">
+                {% if spec.content %}
+                {{ spec.content|markdown }}
+                {% else %}
+                <p class="text-adt-muted">Spec content not available.</p>
+                {% endif %}
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
-{% endblock %}
+
+<!-- Spec Viewer Modal -->
+<div class="modal fade modal-adt" id="specModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="specModalTitle">
+                    <span id="m-spec-id" class="text-adt-accent"></span>
+                    <span id="m-spec-name" class="ms-2"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="specModalBody" class="modal-spec-viewer">
+                    <!-- Content injected here -->
+                </div>
+            </div>
+            <div class="modal-footer border-adt">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Spec Modal -->
+<div class="modal fade modal-adt" id="createSpecModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Specification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createSpecForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label-adt">Spec ID</label>
+                            <input type="text" id="spec-id" class="form-control-adt" placeholder="SPEC-026" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label-adt">Title</label>
+                            <input type="text" id="spec-title" class="form-control-adt" placeholder="New Feature Idea" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label-adt">Content (Markdown)</label>
+                            <textarea id="spec-content" class="form-control-adt" rows="12" style="font-family:monospace; font-size:0.8rem;" placeholder="# SPEC-XXX: Title\n\n## Purpose\n..." required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-adt">
+                    <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-adt-primary">Create Specification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewSpec(id, name) {
+    const content = document.getElementById('data-' + id).innerHTML;
+    document.getElementById('m-spec-id').innerText = id;
+    document.getElementById('m-spec-name').innerText = name;
+    document.getElementById('specModalBody').innerHTML = content;
+    
+    const myModal = new bootstrap.Modal(document.getElementById('specModal'));
+    myModal.show();
+}
+
+document.getElementById('createSpecForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        id: document.getElementById('spec-id').value,
+        title: document.getElementById('spec-title').value,
+        status: 'DRAFT',
+        content: document.getElementById('spec-content').value
+    };
+
+    try {
+        const res = await fetch('/api/specs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (res.ok) {
+            alert('Spec created successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (err) {
+        alert('Failed to connect to API');
+    }
+});
+</script>
+{% endblock %}"

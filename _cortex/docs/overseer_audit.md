@@ -56,9 +56,10 @@ Identify Break-Glass events by searching for:
 
 When a Break-Glass event is detected, perform the following audit:
 
-1.  **Event Presence:** Is the event logged in the ADS? (If the Human fixed the system but forgot to log, remind them to do so).
+1.  **Sovereign Check:** Is the `agent` field `HUMAN`? If the agent is `CLAUDE` or `GEMINI`, this is a **CRITICAL VIOLATION** unless accompanied by a `delegate_agent` note and explicit human instruction.
+2.  **Event Presence:** Is the event logged in the ADS? (If the Human fixed the system but forgot to log, remind them to do so).
 2.  **Rationale:** Does the `description` or `reason` explain what was broken and why manual intervention was required?
-3.  **Chain Integrity:** Does the hash chain remain valid? If the Human's manual edit broke the chain, the Overseer must use the `adt_core/ads/integrity.py` tools to verify the state and assist the Human in "healing" the chain if necessary.
+3.  **Chain Integrity:** Does the hash chain remain valid? If the Human's manual edit broke the chain, the Overseer must use the healing tools to repair it.
 4.  **Minimal Fix:** Verify that only the necessary files were modified to restore functionality. Check `files_modified` against the actual state of the repo.
 5.  **Collateral Changes:** Ensure no Tier 3 (regular) features were snuck into the break-glass session. Break-glass is for repair, not feature development.
 
@@ -99,10 +100,39 @@ Identify Tier 1 violations by searching for:
 
 ---
 
-## 5. Tools
+## 5. Auditing Shatterglass Sessions
+
+The Shatterglass Protocol (SPEC-027) allows for temporary, time-limited elevated access to Sovereign paths. These sessions must be audited with extreme scrutiny.
+
+### 5.1 Identification
+
+Identify Shatterglass events by searching for:
+- `action_type`: `shatterglass_activated`
+- `action_type`: `shatterglass_deactivated`
+- `action_type`: `shatterglass_auto_expired`
+- `action_type`: `shatterglass_write`
+
+### 5.2 Review Checklist
+
+For every Shatterglass session, verify:
+
+1.  **Duration Check:** Compare `shatterglass_activated` and `shatterglass_deactivated` timestamps. Did the session exceed the requested window or the 60-minute hard limit?
+2.  **Activity Log:** Review all `shatterglass_write` events during the window. Each must contain a `shatterglass_session` token correlating to the activation event.
+3.  **Scope Verification:** Did the Human (or authorized delegate) only modify the files intended? Verify against the `files_modified` in the session report.
+4.  **Integrity Restoration:** After `shatterglass_deactivated`, was an integrity check run? Verify that the hash chain is valid and that file permissions (chmod) have been restored to 644.
+5.  **Auto-Expiry:** If the session was auto-expired by the watchdog, investigate why the Human failed to manually deactivate.
+
+### 5.3 Audit Action
+
+Log the audit result as a `shatterglass_audit` event in the ADS.
+
+---
+
+## 6. Tools
 
 - `adt_core/ads/query.py`: Use this to filter and find elevated events.
 - `adt_core/ads/integrity.py`: Use this to verify the hash chain integrity.
+- `adt_core/ads/healer.py`: Use this to reconstruct the hash chain if it is broken (Historical Integrity Reset).
 - `git diff`: Use this to inspect the actual code changes associated with an event.
 
 ---
