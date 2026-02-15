@@ -108,7 +108,7 @@ class DTTPGateway:
                     return {"status": "denied", "reason": reason}
 
             if not tier2_justification:
-                reason = "tier2_justification_required"
+                reason = "tier2_authorization_required"
                 event_id = ADSEventSchema.generate_id("tier2_denied")
                 self.logger.log(ADSEventSchema.create_event(
                     event_id=event_id,
