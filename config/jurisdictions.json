@@ -48,7 +48,8 @@
         "adt-console/",
         "scripts/",
         "_cortex/ops/",
-        "adt_sdk/"
+        "adt_sdk/",
+        "_cortex/work_logs/"
       ],
       "action_types": [
         "edit",
