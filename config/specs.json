@@ -70,7 +70,13 @@
         "adt_sdk/",
         "config/",
         "tests/",
-        "_cortex/"
+        "_cortex/",
+        "adt_core/dttp/gateway.py",
+        "adt_core/dttp/service.py",
+        "adt_core/dttp/policy.py",
+        "adt_core/ads/logger.py",
+        "adt_core/ads/integrity.py",
+        "adt_core/ads/crypto.py"
       ]
     },
     "SPEC-018": {
@@ -190,7 +196,8 @@
       ],
       "paths": [
         "adt_center/",
-        "config/"
+        "config/",
+        "adt_core/sdd/"
       ]
     },
     "SPEC-027": {
@@ -212,6 +219,86 @@
         "scripts/",
         "adt_core/cli.py",
         "tests/"
+      ]
+    },
+    "SPEC-028": {
+      "title": "Console Hive Tracker Panel",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer",
+        "Backend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt-console/",
+        "adt_center/api/",
+        "adt_center/templates/",
+        "_cortex/specs/",
+        "tests/"
+      ]
+    },
+    "SPEC-013": {
+      "title": "ADT Panel UI Refinements",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/"
+      ]
+    },
+    "SPEC-023": {
+      "title": "Git Persistence & Push Governance",
+      "status": "approved",
+      "roles": [
+        "DevOps_Engineer",
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge",
+        "edit",
+        "patch"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_sdk/",
+        "adt-console/",
+        "./"
+      ]
+    },
+    "SPEC-029": {
+      "title": "Single-File WSL/Linux Installer",
+      "status": "approved",
+      "roles": [
+        "DevOps_Engineer",
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "create",
+        "edit",
+        "patch",
+        "delete"
+      ],
+      "paths": [
+        "install.sh",
+        "./",
+        "bin/",
+        "_cortex/ops/"
       ]
     }
   }

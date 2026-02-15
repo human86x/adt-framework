@@ -49,7 +49,9 @@
         "scripts/",
         "_cortex/ops/",
         "adt_sdk/",
-        "_cortex/work_logs/"
+        "_cortex/work_logs/",
+        "install.sh",
+        "./"
       ],
       "action_types": [
         "edit",
