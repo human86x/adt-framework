@@ -22,15 +22,10 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-echo -e "${BOLD}${CYAN}"
-echo "  ___  ___  _____   ___           _        _ _ "
-echo " / _ \|   \|_   _| |_ _|_ _  ___| |_ __ _| | |"
-echo "| (_| | |) | | |    | || ' \(_-<  _/ _\` | | |"
-echo " \___/|___/  |_|   |___|_||_/__/\__\__,_|_|_|"
-echo ""
-echo -e "  ADT Framework: Specification-Driven Governance${NC}"
-echo "  Version: 0.3.0-beta | SPEC-029 Compliance"
-echo "  --------------------------------------------"
+echo -e "${BOLD}${CYAN}--- ADT Framework Activation ---${NC}"
+echo -e "ADT Framework: Specification-Driven Governance"
+echo "Version: 0.3.0-beta | SPEC-029 Compliance"
+echo "--------------------------------------------"
 
 # 1. Detect Platform
 detect_platform() {
@@ -61,7 +56,7 @@ install_deps() {
         command -v python3 &>/dev/null || NEEDED="$NEEDED python3"
         python3 -c "import venv" 2>/dev/null || NEEDED="$NEEDED python3-venv"
         command -v git &>/dev/null || NEEDED="$NEEDED git"
-        command -v curl &>/dev/null || brew install curl
+        command -v curl &>/dev/null || NEEDED="$NEEDED curl"
         command -v lsof &>/dev/null || NEEDED="$NEEDED lsof"
 
         if [ -n "$NEEDED" ]; then
@@ -78,7 +73,11 @@ setup_repo() {
         cd "$INSTALL_DIR"
         git pull origin main --quiet
     else
-        echo -e "${YELLOW}[*]${NC} Fresh install. Cloning to $INSTALL_DIR..."
+        echo -e "${YELLOW}[*]${NC} Fresh install. Preparing $INSTALL_DIR..."
+        # If directory exists but no .git, remove it to avoid 'directory not empty' error
+        if [ -d "$INSTALL_DIR" ]; then
+            rm -rf "$INSTALL_DIR"
+        fi
         git clone "$REPO_URL" "$INSTALL_DIR" --quiet
         cd "$INSTALL_DIR"
     fi
