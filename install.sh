@@ -25,7 +25,7 @@ NC='\033[0m'
 echo -e "${BOLD}${CYAN}"
 echo "  ___  ___  _____   ___           _        _ _ "
 echo " / _ \|   \|_   _| |_ _|_ _  ___| |_ __ _| | |"
-echo "| (_| | |) | | |    | || ' \(_-<  _/ _` | | |"
+echo "| (_| | |) | | |    | || ' \(_-<  _/ _\` | | |"
 echo " \___/|___/  |_|   |___|_||_/__/\__\__,_|_|_|"
 echo ""
 echo -e "  ADT Framework: Specification-Driven Governance${NC}"
@@ -191,8 +191,8 @@ start_services
 verify_hooks
 
 # Final Summary
-echo -e "
-${BOLD}${GREEN}============================================${NC}"
+echo ""
+echo -e "${BOLD}${GREEN}============================================${NC}"
 echo -e "${BOLD}${GREEN}  ADT Framework installation successful!${NC}"
 echo -e "${BOLD}${GREEN}============================================${NC}"
 echo ""
