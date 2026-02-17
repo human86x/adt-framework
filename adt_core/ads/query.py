@@ -1,6 +1,9 @@
 import json
 import os
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 class ADSQuery:
     def __init__(self, file_path: str):
@@ -19,6 +22,8 @@ class ADSQuery:
                     except json.JSONDecodeError: continue
                     if limit is not None and len(events) >= limit: break
         except FileNotFoundError: pass
+        except Exception as e:
+            logger.error(f"Error reading all events from {self.file_path}: {e}")
         return events
 
     def _tail_events(self, limit: int) -> List[Dict[str, Any]]:
@@ -48,7 +53,9 @@ class ADSQuery:
                     if line.strip():
                         try: events.append(json.loads(line))
                         except json.JSONDecodeError: continue
-        except (FileNotFoundError, OSError): pass
+        except FileNotFoundError: pass
+        except (OSError, Exception) as e:
+            logger.error(f"Error tailing events from {self.file_path}: {e}")
         return events
 
     def filter_events(self, agent=None, role=None, action_type=None, spec_ref=None, limit=None, offset=None) -> List[Dict[str, Any]]:

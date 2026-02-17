@@ -15,6 +15,17 @@ def dttp_request():
     if not data:
         return jsonify({"status": "error", "code": "INVALID_BODY", "message": "No data provided"}), 400
 
+    # SPEC-018 Section 3.5: API Input Validation
+    rationale = data.get("rationale")
+    if not rationale or not isinstance(rationale, str) or len(rationale.strip()) == 0:
+        return jsonify({"status": "error", "code": "INVALID_RATIONALE", "message": "Rationale must be a non-empty string"}), 400
+    if len(rationale) > 500:
+        return jsonify({"status": "error", "code": "RATIONALE_TOO_LONG", "message": "Rationale exceeds 500 characters"}), 400
+    
+    params = data.get("params")
+    if params is not None and not isinstance(params, dict):
+        return jsonify({"status": "error", "code": "INVALID_PARAMS", "message": "Params must be a dictionary"}), 400
+
     dttp_url = current_app.config["DTTP_URL"]
     try:
         resp = http_client.post(f"{dttp_url}/request", json=data, timeout=10)

@@ -39,7 +39,8 @@ class TaskManager:
                 if assigned_to:
                     tasks = [t for t in tasks if assigned_to in (t.get('assigned_to') or '')]
                 return tasks
-            except (json.JSONDecodeError, OSError):
+            except (json.JSONDecodeError, OSError) as e:
+                logger.error(f"Error reading tasks from {self.file_path}: {e}")
                 return []
             finally:
                 self._unlock(f)
@@ -61,7 +62,8 @@ class TaskManager:
                     json.dump(data, f, indent=2)
                     f.truncate()
                 return found
-            except (json.JSONDecodeError, OSError):
+            except (json.JSONDecodeError, OSError) as e:
+                logger.error(f"Error updating task {task_id} in {self.file_path}: {e}")
                 return False
             finally:
                 self._unlock(f)

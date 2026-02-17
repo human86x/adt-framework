@@ -1,6 +1,9 @@
 import os
 import re
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 class SpecRegistry:
     """Manages discovery and lifecycle of specifications."""
@@ -48,8 +51,8 @@ class SpecRegistry:
                 match = re.search(r"\*\*Status:\*\*\s*([A-Z]+)", content)
                 if match:
                     return match.group(1)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.error(f"Error parsing status from {path}: {e}")
         return None
 
     def _parse_title(self, path: str) -> Optional[str]:
@@ -59,8 +62,8 @@ class SpecRegistry:
                 line = f.readline()
                 if line.startswith("# "):
                     return line[2:].strip()
-        except OSError:
-            pass
+        except OSError as e:
+            logger.error(f"Error parsing title from {path}: {e}")
         return None
 
     def _read_content(self, path: str) -> str:
@@ -68,5 +71,6 @@ class SpecRegistry:
         try:
             with open(path, "r") as f:
                 return f.read()
-        except OSError:
+        except OSError as e:
+            logger.error(f"Error reading content from {path}: {e}")
             return ""

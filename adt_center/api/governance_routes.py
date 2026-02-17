@@ -78,6 +78,27 @@ def _parse_requests(file_path):
             })
     return requests_list
 
+@governance_bp.route("/git/status", methods=["GET"])
+def get_git_status():
+    """SPEC-023: Get current git branch and uncommitted changes count."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    try:
+        branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root).decode().strip()
+        status_porcelain = subprocess.check_output(["git", "status", "--porcelain"], cwd=root).decode().strip()
+        
+        # Count lines in porcelain output to get number of changes
+        changes_count = len(status_porcelain.splitlines()) if status_porcelain else 0
+        
+        return jsonify({
+            "branch": branch,
+            "changes": changes_count,
+            "status": "clean" if changes_count == 0 else "dirty"
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to get git status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @governance_bp.route("/tasks", methods=["GET"])
 def get_tasks():
     status = request.args.get("status")
@@ -307,9 +328,16 @@ def update_task_status(task_id):
         return jsonify({"error": "No JSON body"}), 400
 
     new_status = data.get("status")
-    agent = data.get("agent", "unknown")
-    role = data.get("role", "unknown")
+    agent = data.get("agent")
+    role = data.get("role")
     evidence = data.get("evidence", "")
+
+    if not agent or not isinstance(agent, str):
+        return jsonify({"error": "agent name is required"}), 400
+    if not role or not isinstance(role, str):
+        return jsonify({"error": "role is required"}), 400
+    if len(evidence) > 2000:
+        return jsonify({"error": "evidence exceeds 2000 characters"}), 400
 
     if new_status not in ["completed", "in_progress"]:
         return jsonify({"error": "Agents can only set status to completed or in_progress"}), 400
