@@ -67,3 +67,25 @@ class ADSQuery:
     def get_last_event(self) -> Optional[Dict[str, Any]]:
         events = self._tail_events(1)
         return events[0] if events else None
+
+    def get_active_sessions(self) -> int:
+        """
+        Counts active sessions by matching session_start and session_end events.
+        A session is active if there is a session_start with no subsequent session_end
+        for the same agent.
+        """
+        all_events = self.get_all_events()
+        agent_sessions = {}  # agent -> last_event_type
+
+        for event in all_events:
+            agent = event.get('agent')
+            action = event.get('action_type')
+            if not agent or not action:
+                continue
+            
+            if action == 'session_start':
+                agent_sessions[agent] = 'start'
+            elif action == 'session_end':
+                agent_sessions[agent] = 'end'
+        
+        return sum(1 for status in agent_sessions.values() if status == 'start')

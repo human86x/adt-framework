@@ -71,9 +71,7 @@ def create_app():
         tasks = app.task_manager.list_tasks()
         specs = _enrich_specs(app.spec_registry.list_specs())
         # Compute dashboard stats
-        session_starts = {e.get("agent") for e in events if e.get("action_type") == "session_start"}
-        session_ends = {e.get("agent") for e in events if e.get("action_type") == "session_end"}
-        active_sessions = len(session_starts - session_ends)
+        active_sessions = app.ads_query.get_active_sessions()
         denials = sum(1 for e in events if not e.get("authorized", True))
         return render_template("dashboard.html",
                                events=events,
