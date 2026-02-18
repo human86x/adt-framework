@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>TaskFlow</title></head>
+<body>
+    <h1>TaskFlow</h1>
+    <form action="/add" method="post">
+        <input type="text" name="title" placeholder="New task...">
+        <button type="submit">Add</button>
+    </form>
+    <ul>
+        {% for task in tasks %}
+        <li>{{ task.title }} [{{ task.status }}]</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
