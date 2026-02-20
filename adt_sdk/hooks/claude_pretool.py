@@ -70,6 +70,21 @@ def extract_file_path(tool_name: str, tool_input: dict) -> str:
     return tool_input.get("file_path", "")
 
 
+def read_project_dttp_url(project_dir: str) -> str:
+    """Read DTTP port from <project_dir>/config/dttp.json."""
+    dttp_json = os.path.join(project_dir, "config", "dttp.json")
+    if os.path.exists(dttp_json):
+        try:
+            with open(dttp_json) as f:
+                data = json.load(f)
+                port = data.get("port")
+                if port:
+                    return f"http://localhost:{port}"
+        except:
+            pass
+    return "http://localhost:5002"  # fallback
+
+
 def build_dttp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
     """Build DTTP action and params from Claude Code tool input.
 
@@ -111,6 +126,47 @@ def query_dttp(dttp_url: str, agent: str, role: str, spec_id: str,
     return response.json()
 
 
+def submit_scr(dttp_url: str, agent: str, role: str, spec_id: str,
+               target_path: str, action: str, params: dict) -> dict:
+    """Submit a Sovereign Change Request to the ADT Panel."""
+    # Derive Panel URL (usually port 5001 on the same host)
+    from urllib.parse import urlparse
+    parsed = urlparse(dttp_url)
+    panel_url = f"{parsed.scheme}://{parsed.hostname}:5001"
+    
+    # Try to determine project name from dttp_url port if not default
+    project_name = None
+    if parsed.port and parsed.port != 5002:
+        # For external projects, port is usually in registry
+        # We'll let the Panel handle it via IP or let the agent pass it if we can find it
+        pass
+
+    scr_payload = {
+        "agent": agent,
+        "role": role,
+        "spec_ref": spec_id,
+        "target_path": target_path,
+        "description": f"Agent proposed {action} on sovereign path {target_path}",
+    }
+    
+    if action == "edit":
+        scr_payload["change_type"] = "full_replace"
+        scr_payload["content"] = params.get("content", "")
+    elif action == "patch":
+        scr_payload["change_type"] = "patch"
+        scr_payload["patch"] = {
+            "old_string": params.get("old_string", ""),
+            "new_string": params.get("new_string", "")
+        }
+    
+    try:
+        resp = requests.post(f"{panel_url}/api/governance/sovereign-requests", 
+                             json=scr_payload, timeout=5)
+        return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def main():
     # Read hook input from stdin
     try:
@@ -129,13 +185,13 @@ def main():
     tool_input = hook_input.get("tool_input", {})
 
     # Configuration from environment
-    dttp_url = os.environ.get("DTTP_URL", "http://localhost:5002")
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR",
+                                 hook_input.get("cwd", os.getcwd()))
+    dttp_url = os.environ.get("DTTP_URL", read_project_dttp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "CLAUDE")
     role = os.environ.get("ADT_ROLE")
     spec_id = os.environ.get("ADT_SPEC_ID")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
-    project_dir = os.environ.get("CLAUDE_PROJECT_DIR",
-                                 hook_input.get("cwd", os.getcwd()))
 
     # Dynamic role switching: read active role from file (set by /hive-* skills)
     role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
@@ -213,9 +269,24 @@ def main():
             else:
                 # Validation failed -- deny
                 reason = result.get("reason", "unknown")
-                print(json.dumps(make_deny(
-                    f"DTTP denied {action} on {rel_path}: {reason}"
-                )))
+                
+                # SPEC-033: Auto-submit SCR on sovereign path violation
+                if reason == "sovereign_path_violation":
+                    scr_result = submit_scr(dttp_url, agent, role, spec_id, rel_path, action, params)
+                    if "scr_id" in scr_result:
+                        print(json.dumps(make_deny(
+                            f"SOVEREIGN PATH VIOLATION: {rel_path} is protected. "
+                            f"Change request {scr_result['scr_id']} has been submitted for human authorization in the ADT Panel."
+                        )))
+                    else:
+                        print(json.dumps(make_deny(
+                            f"SOVEREIGN PATH VIOLATION: {rel_path} is protected. "
+                            f"Failed to auto-submit change request: {scr_result.get('error', 'unknown error')}"
+                        )))
+                else:
+                    print(json.dumps(make_deny(
+                        f"DTTP denied {action} on {rel_path}: {reason}"
+                    )))
     except requests.ConnectionError:
         # Fail-closed: DTTP unreachable
         print(json.dumps(make_deny(

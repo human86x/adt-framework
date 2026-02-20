@@ -7,7 +7,229 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, current_app, request
 from adt_core.ads.schema import ADSEventSchema
 
+from adt_core.ads.query import ADSQuery
+from adt_core.ads.logger import ADSLogger
+from adt_core.sdd.registry import SpecRegistry
+from adt_core.sdd.tasks import TaskManager
+
+from adt_core.registry import ProjectRegistry
+
 governance_bp = Blueprint("governance", __name__)
+
+def _init_project(path, name=None, detect=True, port=None):
+    """Internal helper for project initialization. Shared with CLI."""
+    from adt_core.cli import detect_project_type, install_hooks
+    
+    path = os.path.abspath(path)
+    name = name or os.path.basename(path)
+    
+    # 1. Project Registry
+    registry = ProjectRegistry()
+    if registry.get_project(name):
+        raise ValueError(f"Project '{name}' already registered.")
+    
+    port = port or registry.next_available_port()
+    
+    # 2. Scaffold directories
+    cortex_dir = os.path.join(path, "_cortex")
+    config_dir = os.path.join(path, "config")
+    
+    os.makedirs(os.path.join(cortex_dir, "ads"), exist_ok=True)
+    os.makedirs(os.path.join(cortex_dir, "specs"), exist_ok=True)
+    os.makedirs(os.path.join(cortex_dir, "ops"), exist_ok=True)
+    os.makedirs(config_dir, exist_ok=True)
+    
+    # 3. Generate files
+    # config/dttp.json
+    dttp_config = {
+        "name": name,
+        "port": port,
+        "mode": "development",
+        "enforcement_mode": "development"
+    }
+    with open(os.path.join(config_dir, "dttp.json"), "w") as f:
+        json.dump(dttp_config, f, indent=2)
+        
+    # config/jurisdictions.json
+    proj_type = detect_project_type(path) if detect else "generic"
+    
+    default_paths = ["src/", "tests/", "docs/", "config/"]
+    if proj_type == "python":
+        default_paths = ["src/", "tests/", "docs/", "config/", "requirements.txt", "setup.py", "pyproject.toml"]
+    elif proj_type == "nodejs":
+        default_paths = ["src/", "tests/", "public/", "config/", "package.json"]
+    elif proj_type == "rust":
+        default_paths = ["src/", "tests/", "benches/", "config/", "Cargo.toml"]
+        
+    jurisdictions = {
+        "jurisdictions": {
+            "Architect": {
+                "paths": ["_cortex/", "config/", "docs/"],
+                "action_types": ["edit", "patch", "create", "delete"],
+                "locked": False
+            },
+            "Developer": {
+                "paths": default_paths,
+                "action_types": ["edit", "patch", "create", "delete"],
+                "locked": False
+            }
+        }
+    }
+    with open(os.path.join(config_dir, "jurisdictions.json"), "w") as f:
+        json.dump(jurisdictions, f, indent=2)
+        
+    # config/specs.json
+    with open(os.path.join(config_dir, "specs.json"), "w") as f:
+        json.dump({"specs": {}}, f, indent=2)
+        
+    # _cortex/AI_PROTOCOL.md
+    with open(os.path.join(cortex_dir, "AI_PROTOCOL.md"), "w") as f:
+        f.write(f"# AI PROTOCOL v1.0 ({name})\n\n**Framework:** Advanced Digital Transformation\n\n(Generated via ADT)\n")
+        
+    # _cortex/MASTER_PLAN.md
+    with open(os.path.join(cortex_dir, "MASTER_PLAN.md"), "w") as f:
+        f.write(f"# {name}: Master Plan\n\n(Generated via ADT)\n")
+        
+    # _cortex/tasks.json
+    with open(os.path.join(cortex_dir, "tasks.json"), "w") as f:
+        json.dump({"project": name, "tasks": []}, f, indent=2)
+        
+    # _cortex/ops/active_role.txt
+    with open(os.path.join(cortex_dir, "ops", "active_role.txt"), "w") as f:
+        f.write("Architect")
+        
+    # 4. ADS Genesis
+    ads_path = os.path.join(cortex_dir, "ads", "events.jsonl")
+    logger = ADSLogger(ads_path)
+    
+    event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("genesis"),
+        agent="HUMAN",
+        role="Architect",
+        action_type="project_init",
+        description=f"Project {name} initialized for ADT governance.",
+        spec_ref="GENESIS",
+        authorized=True,
+        tier=1
+    )
+    logger.log(event)
+    
+    # 5. Register
+    registry.register_project(name, path, port)
+    
+    # 6. Hooks
+    framework_project = registry.get_project("adt-framework")
+    if framework_project:
+        install_hooks(path, framework_project["path"])
+        
+    return {"name": name, "path": path, "port": port}
+
+@governance_bp.route("/projects/init", methods=["POST"])
+def api_init_project():
+    """SPEC-031: Initialize a new project."""
+    data = request.get_json()
+    if not data or "path" not in data:
+        return jsonify({"error": "path is required"}), 400
+    
+    try:
+        result = _init_project(
+            path=data["path"],
+            name=data.get("name"),
+            detect=data.get("detect", True),
+            port=data.get("port")
+        )
+        return jsonify({"status": "success", "project": result}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def _start_project_dttp(name):
+    """Internal helper to start DTTP for a project."""
+    from adt_core.cli import is_port_in_use, get_pid_by_port
+    registry = ProjectRegistry()
+    project = registry.get_project(name)
+    if not project:
+        raise ValueError(f"Project '{name}' not found.")
+    
+    port = project.get("dttp_port")
+    if not port:
+        raise ValueError(f"Project '{name}' has no DTTP port assigned.")
+        
+    if is_port_in_use(port):
+        return {"status": "already_running", "pid": get_pid_by_port(port)}
+        
+    # Use framework's python if available
+    python_exe = sys.executable
+    framework = registry.get_project("adt-framework")
+    if framework:
+        venv_python = os.path.join(framework["path"], "venv", "bin", "python3")
+        if os.path.exists(venv_python):
+            python_exe = venv_python
+            
+    log_dir = os.path.join(project["path"], "_cortex", "ops")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "dttp.log")
+    
+    with open(log_file, "a") as log:
+        subprocess.Popen(
+            [python_exe, "-m", "adt_core.dttp.service", "--port", str(port), "--project-root", project["path"]],
+            stdout=log,
+            stderr=log,
+            start_new_session=True
+        )
+        
+    import time
+    time.sleep(2)
+    if is_port_in_use(port):
+        return {"status": "success", "pid": get_pid_by_port(port)}
+    else:
+        raise RuntimeError(f"Failed to start DTTP service. Check logs: {log_file}")
+
+def _stop_project_dttp(name):
+    """Internal helper to stop DTTP for a project."""
+    from adt_core.cli import get_pid_by_port
+    registry = ProjectRegistry()
+    project = registry.get_project(name)
+    if not project:
+        raise ValueError(f"Project '{name}' not found.")
+        
+    port = project.get("dttp_port")
+    pid = get_pid_by_port(port)
+    if pid:
+        try:
+            import signal
+            os.kill(int(pid), signal.SIGTERM)
+            return {"status": "success"}
+        except Exception as e:
+            raise RuntimeError(f"Failed to stop: {e}")
+    else:
+        return {"status": "not_running"}
+
+@governance_bp.route("/projects/<name>/start", methods=["POST"])
+def api_start_project(name):
+    try:
+        result = _start_project_dttp(name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@governance_bp.route("/projects/<name>/stop", methods=["POST"])
+def api_stop_project(name):
+    try:
+        result = _stop_project_dttp(name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def _get_project_resources(project_name):
+    """Helper to get project-specific managers and paths."""
+    paths = current_app.get_project_paths(project_name)
+    return {
+        "paths": paths,
+        "query": ADSQuery(paths["ads"]),
+        "logger": ADSLogger(paths["ads"]),
+        "spec_registry": SpecRegistry(paths["specs"]),
+        "task_manager": TaskManager(paths["tasks"], project_name=paths["name"])
+    }
 
 def _load_json(path):
     if not os.path.exists(path):
@@ -101,19 +323,25 @@ def get_git_status():
 
 @governance_bp.route("/tasks", methods=["GET"])
 def get_tasks():
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
     status = request.args.get("status")
     assigned_to = request.args.get("assigned_to")
-    tasks = current_app.task_manager.list_tasks(status=status, assigned_to=assigned_to)
+    tasks = res["task_manager"].list_tasks(status=status, assigned_to=assigned_to)
     return jsonify({"tasks": tasks})
 
 @governance_bp.route("/specs", methods=["GET"])
 def get_specs():
-    specs = current_app.spec_registry.list_specs()
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    specs = res["spec_registry"].list_specs()
     return jsonify({"specs": specs})
 
 @governance_bp.route("/specs/<spec_id>", methods=["GET"])
 def get_spec_detail(spec_id):
-    detail = current_app.spec_registry.get_spec_detail(spec_id)
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    detail = res["spec_registry"].get_spec_detail(spec_id)
     if not detail:
         return jsonify({"error": "Spec not found"}), 404
     return jsonify(detail)
@@ -123,6 +351,9 @@ def session_start():
     data = request.get_json()
     if not data or not all(k in data for k in ["agent", "role", "spec_id"]):
         return jsonify({"error": "Missing agent, role, or spec_id"}), 400
+    
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
     
     session_id = data.get("session_id", "unknown")
     event_id = ADSEventSchema.generate_id("session_start")
@@ -135,15 +366,18 @@ def session_start():
         spec_ref=data["spec_id"],
         session_id=session_id
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "event_id": event_id})
 
 @governance_bp.route("/sessions/end", methods=["POST"])
 def session_end():
-    print("DEBUG: session_end called")
     data = request.get_json()
     if not data or not all(k in data for k in ["agent", "role", "spec_id"]):
         return jsonify({"error": "Missing agent, role, or spec_id"}), 400
+    
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
     
     session_id = data.get("session_id", "unknown")
     
@@ -151,7 +385,6 @@ def session_end():
     force = data.get("force", False)
     if not force:
         try:
-            root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
             # Check for unstaged/uncommitted changes
             status = subprocess.check_output(["git", "status", "--porcelain"], cwd=root).decode().strip()
             if status:
@@ -165,7 +398,6 @@ def session_end():
     # Get current commit hash for ADS record
     commit_hash = "unknown"
     try:
-        root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
         commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root).decode().strip()
     except:
         pass
@@ -181,8 +413,66 @@ def session_end():
         session_id=session_id,
         action_data={"commit_hash": commit_hash}
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "event_id": event_id, "commit_hash": commit_hash})
+
+
+@governance_bp.route("/specs/<spec_id>/status", methods=["PUT"])
+def update_spec_status(spec_id):
+    """SPEC-015: Update spec status (Approve/Complete)."""
+    data = request.get_json()
+    if not data or "status" not in data:
+        return jsonify({"error": "status is required"}), 400
+
+    new_status = data["status"].upper()
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
+    # 1. Update config/specs.json
+    root = res["paths"]["root"]
+    specs_path = os.path.join(root, "config", "specs.json")
+    specs_config = _load_json(specs_path)
+    if spec_id in specs_config.get("specs", {}):
+        specs_config["specs"][spec_id]["status"] = new_status.lower()
+        with open(specs_path, "w") as f:
+            json.dump(specs_config, f, indent=2)
+
+    # 2. Update the Markdown file
+    detail = res["spec_registry"].get_spec_detail(spec_id)
+    if not detail or "filename" not in detail:
+        return jsonify({"error": "Spec file not found"}), 404
+    
+    file_path = os.path.join(res["paths"]["specs"], detail["filename"])
+    with open(file_path, "r") as f:
+        content = f.read()
+    
+    # Regex replace **Status:** ... with new status
+    updated_content = re.sub(
+        r"\*\*Status:\*\* .*", 
+        f"**Status:** {new_status}", 
+        content, 
+        flags=re.IGNORECASE
+    )
+    
+    with open(file_path, "w") as f:
+        f.write(updated_content)
+
+    # 3. Log to ADS
+    event_type = "spec_approved" if new_status == "APPROVED" else "spec_completed"
+    event_id = ADSEventSchema.generate_id("spec_stat")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="HUMAN",
+        role="Collaborator",
+        action_type=event_type,
+        description=f"Spec {spec_id} status updated to {new_status} via Panel UI.",
+        spec_ref=spec_id,
+        authorized=True,
+        tier=1
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "spec_id": spec_id, "new_status": new_status, "event_id": event_id})
 
 
 @governance_bp.route("/specs", methods=["POST"])
@@ -191,6 +481,9 @@ def create_spec():
     data = request.get_json()
     if not data:
         return jsonify({"error": "No JSON body"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
 
     spec_id = data.get("id", "").strip()
     title = data.get("title", "").strip()
@@ -205,9 +498,9 @@ def create_spec():
 
     safe_title = re.sub(r"[^a-zA-Z0-9_\- ]", "", title).replace(" ", "_").upper()
     filename = f"{spec_id}_{safe_title}.md"
-    spec_path = os.path.join(current_app.spec_registry.specs_dir, filename)
+    spec_path = os.path.join(res["paths"]["specs"], filename)
 
-    for existing in os.listdir(current_app.spec_registry.specs_dir):
+    for existing in os.listdir(res["paths"]["specs"]):
         if existing.startswith(spec_id):
             return jsonify({"error": f"Spec {spec_id} already exists"}), 409
 
@@ -229,7 +522,7 @@ def create_spec():
         authorized=True,
         tier=3,
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
 
     return jsonify({"status": "success", "spec_id": spec_id, "filename": filename, "event_id": event_id}), 201
 
@@ -240,6 +533,9 @@ def submit_request():
     data = request.get_json()
     if not data:
         return jsonify({"error": "No JSON body"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
 
     author = data.get("author", "Anonymous").strip()
     req_type = data.get("type", "improvement").strip()
@@ -252,10 +548,7 @@ def submit_request():
     if req_type not in valid_types:
         req_type = "improvement"
 
-    requests_path = os.path.join(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")),
-        "_cortex", "requests.md"
-    )
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
 
     next_num = 1
     if os.path.exists(requests_path):
@@ -285,7 +578,7 @@ def submit_request():
         authorized=True,
         tier=3,
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
 
     return jsonify({"status": "success", "request_id": req_id, "event_id": event_id}), 201
 
@@ -293,7 +586,10 @@ def submit_request():
 @governance_bp.route("/governance/roles", methods=["GET"])
 def get_governance_roles():
     """SPEC-026: Unified view of role jurisdictions and spec bindings."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     jur_path = os.path.join(root, "config", "jurisdictions.json")
     specs_path = os.path.join(root, "config", "specs.json")
     
@@ -327,6 +623,9 @@ def update_task_status(task_id):
     if not data:
         return jsonify({"error": "No JSON body"}), 400
 
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
     new_status = data.get("status")
     agent = data.get("agent")
     role = data.get("role")
@@ -342,7 +641,7 @@ def update_task_status(task_id):
     if new_status not in ["completed", "in_progress"]:
         return jsonify({"error": "Agents can only set status to completed or in_progress"}), 400
 
-    task = current_app.task_manager.get_task(task_id)
+    task = res["task_manager"].get_task(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
 
@@ -360,7 +659,7 @@ def update_task_status(task_id):
     if new_status == "completed":
         updates["review_status"] = "pending"
 
-    if current_app.task_manager.update_task(task_id, updates):
+    if res["task_manager"].update_task(task_id, updates):
         event_id = ADSEventSchema.generate_id("task_upd")
         event = ADSEventSchema.create_event(
             event_id=event_id, agent=agent, role=role, action_type="task_status_updated",
@@ -369,7 +668,7 @@ def update_task_status(task_id):
             authorized=True, tier=3,
             action_data={"task_id": task_id, "status": new_status, "evidence": evidence}
         )
-        current_app.ads_logger.log(event)
+        res["logger"].log(event)
         return jsonify({"status": "success", "task_id": task_id, "event_id": event_id})
     
     return jsonify({"error": "Failed to update task"}), 500
@@ -575,8 +874,9 @@ def get_governance_conflicts():
 @governance_bp.route("/governance/requests", methods=["GET"])
 def get_governance_requests():
     """SPEC-028: Get all requests parsed from requests.md."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    requests_path = os.path.join(root, "_cortex", "requests.md")
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
     requests_list = _parse_requests(requests_path)
     return jsonify({"requests": requests_list})
 
@@ -584,8 +884,11 @@ def get_governance_requests():
 @governance_bp.route("/governance/delegations", methods=["GET"])
 def get_delegations():
     """SPEC-028: Get delegation history from ADS + tasks.json."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
     # 1. Get from ADS
-    events = current_app.ads_query.get_all_events()
+    events = res["query"].get_all_events()
     delegations = []
     
     for event in events:
@@ -600,7 +903,7 @@ def get_delegations():
             })
             
     # 2. Get initial delegations from tasks.json
-    tasks = current_app.task_manager.list_tasks()
+    tasks = res["task_manager"].list_tasks()
     for task in tasks:
         if task.get("delegation"):
             d = task["delegation"]
@@ -617,3 +920,246 @@ def get_delegations():
     delegations.sort(key=lambda x: x.get("ts", ""), reverse=True)
     
     return jsonify({"delegations": delegations})
+
+def _get_scr_path(project_root):
+    return os.path.join(project_root, "_cortex", "ops", "sovereign_requests.json")
+
+def _load_scrs(project_root):
+    path = _get_scr_path(project_root)
+    if not os.path.exists(path):
+        return {"requests": []}
+    with open(path, "r") as f:
+        return json.load(f)
+
+def _save_scrs(project_root, data):
+    path = _get_scr_path(project_root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+def _apply_sovereign_change(project_root, request_data):
+    """Mechanically applies a sovereign change to a file."""
+    target_path = os.path.join(project_root, request_data["target_path"])
+    change_type = request_data["change_type"]
+    
+    if change_type == "patch":
+        patch = request_data.get("patch")
+        if not patch or "old_string" not in patch or "new_string" not in patch:
+            raise ValueError("Invalid patch data")
+        
+        with open(target_path, "r") as f:
+            content = f.read()
+            
+        if content.count(patch["old_string"]) != 1:
+            raise ValueError(f"Patch ambiguity: old_string found {content.count(patch['old_string'])} times")
+            
+        new_content = content.replace(patch["old_string"], patch["new_string"])
+        with open(target_path, "w") as f:
+            f.write(new_content)
+            
+    elif change_type == "append":
+        content = request_data.get("content")
+        if not content:
+            raise ValueError("No content to append")
+        with open(target_path, "a") as f:
+            f.write(content)
+            
+    elif change_type == "full_replace":
+        content = request_data.get("content")
+        if content is None:
+            raise ValueError("No content for replacement")
+        with open(target_path, "w") as f:
+            f.write(content)
+            
+    elif change_type == "json_merge":
+        merge_data = request_data.get("merge_data")
+        if not merge_data:
+            raise ValueError("No merge data provided")
+            
+        def deep_merge(base, update):
+            for key, value in update.items():
+                if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                    deep_merge(base[key], value)
+                else:
+                    base[key] = value
+            return base
+
+        with open(target_path, "r") as f:
+            base_data = json.load(f)
+            
+        updated_data = deep_merge(base_data, merge_data)
+        with open(target_path, "w") as f:
+            json.dump(updated_data, f, indent=2)
+    else:
+        raise ValueError(f"Unsupported change type: {change_type}")
+
+@governance_bp.route("/governance/sovereign-requests", methods=["POST"])
+def submit_sovereign_request():
+    """SPEC-033: Submit a new sovereign change request."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["agent", "role", "target_path", "change_type"]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    project_root = res["paths"]["root"]
+    
+    # Validate target path is actually sovereign
+    sovereign_paths = ["config/specs.json", "config/jurisdictions.json", "config/dttp.json", "_cortex/AI_PROTOCOL.md", "_cortex/MASTER_PLAN.md"]
+    if data["target_path"] not in sovereign_paths:
+        return jsonify({"error": f"Path {data['target_path']} is not a sovereign path"}), 400
+        
+    scrs = _load_scrs(project_root)
+    scr_id = f"scr_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{len(scrs['requests']):03d}"
+    
+    new_request = {
+        "id": scr_id,
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "agent": data["agent"],
+        "role": data["role"],
+        "spec_ref": data.get("spec_ref"),
+        "target_path": data["target_path"],
+        "change_type": data["change_type"],
+        "description": data.get("description", ""),
+        "status": "pending",
+        "authorized_by": None,
+        "authorized_at": None
+    }
+    
+    # Copy payload based on type
+    for field in ["patch", "content", "merge_data"]:
+        if field in data:
+            new_request[field] = data[field]
+            
+    scrs["requests"].append(new_request)
+    _save_scrs(project_root, scrs)
+    
+    # Log to ADS
+    event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("scr_prop"),
+        agent=data["agent"],
+        role=data["role"],
+        action_type="sovereign_change_proposed",
+        description=f"SCR {scr_id} proposed for {data['target_path']}: {new_request['description']}",
+        spec_ref=data.get("spec_ref", "SPEC-033"),
+        authorized=True,
+        tier=3,
+        action_data={"scr_id": scr_id, "target_path": data["target_path"]}
+    )
+    res["logger"].log(event)
+    
+    return jsonify({
+        "status": "queued",
+        "scr_id": scr_id,
+        "message": "Change request submitted. Awaiting human authorization in ADT Panel."
+    }), 201
+
+@governance_bp.route("/governance/sovereign-requests", methods=["GET"])
+def list_sovereign_requests():
+    """SPEC-033: List sovereign change requests."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    scrs = _load_scrs(res["paths"]["root"])
+    
+    status_filter = request.args.get("status")
+    if status_filter:
+        filtered = [r for r in scrs["requests"] if r["status"] == status_filter]
+        return jsonify({"requests": filtered})
+        
+    return jsonify(scrs)
+
+@governance_bp.route("/governance/sovereign-requests/<scr_id>", methods=["PUT"])
+def manage_sovereign_request(scr_id):
+    """SPEC-033: Authorize, reject, or edit a sovereign change request."""
+    data = request.get_json()
+    if not data or "action" not in data:
+        return jsonify({"error": "action is required"}), 400
+        
+    # Human-only check
+    if request.headers.get("X-Agent"):
+        return jsonify({"error": "Only humans can manage SCRs"}), 403
+        
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    project_root = res["paths"]["root"]
+    
+    scrs = _load_scrs(project_root)
+    scr = next((r for r in scrs["requests"] if r["id"] == scr_id), None)
+    
+    if not scr:
+        return jsonify({"error": "SCR not found"}), 404
+        
+    if scr["status"] != "pending":
+        return jsonify({"error": f"SCR is already {scr['status']}"}), 400
+        
+    action = data["action"]
+    if action == "reject":
+        scr["status"] = "rejected"
+        scr["authorized_by"] = "HUMAN"
+        scr["authorized_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        scr["rejection_reason"] = data.get("reason", "")
+        
+        event = ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("scr_rej"),
+            agent="HUMAN",
+            role="Collaborator",
+            action_type="sovereign_change_rejected",
+            description=f"SCR {scr_id} rejected by human. Reason: {scr['rejection_reason']}",
+            spec_ref=scr.get("spec_ref", "SPEC-033"),
+            authorized=True,
+            tier=1,
+            action_data={"scr_id": scr_id, "reason": scr["rejection_reason"]}
+        )
+        res["logger"].log(event)
+        
+    elif action == "authorize":
+        # Check for edited payload
+        for field in ["edited_patch", "edited_content", "edited_merge_data"]:
+            if field in data:
+                original_field = field.replace("edited_", "")
+                scr[original_field] = data[field]
+                scr["was_edited"] = True
+        
+        try:
+            # Apply the change
+            _apply_sovereign_change(project_root, scr)
+            
+            scr["status"] = "authorized"
+            scr["authorized_by"] = "HUMAN"
+            scr["authorized_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            
+            # Log Authorization
+            auth_event = ADSEventSchema.create_event(
+                event_id=ADSEventSchema.generate_id("scr_auth"),
+                agent="HUMAN",
+                role="Collaborator",
+                action_type="sovereign_change_authorized",
+                description=f"SCR {scr_id} authorized by human for {scr['target_path']}.",
+                spec_ref=scr.get("spec_ref", "SPEC-033"),
+                authorized=True,
+                tier=1,
+                action_data={"scr_id": scr_id, "target_path": scr["target_path"]}
+            )
+            res["logger"].log(auth_event)
+            
+            # Log Application (as SYSTEM)
+            app_event = ADSEventSchema.create_event(
+                event_id=ADSEventSchema.generate_id("scr_app"),
+                agent="SYSTEM",
+                role="Sentry",
+                action_type="sovereign_change_applied",
+                description=f"File {scr['target_path']} updated via SCR {scr_id}.",
+                spec_ref=scr.get("spec_ref", "SPEC-033"),
+                authorized=True,
+                tier=1,
+                action_data={"scr_id": scr_id, "target_path": scr["target_path"]}
+            )
+            res["logger"].log(app_event)
+            
+        except Exception as e:
+            return jsonify({"error": f"Failed to apply change: {str(e)}"}), 500
+    else:
+        return jsonify({"error": f"Invalid action: {action}"}), 400
+        
+    _save_scrs(project_root, scrs)
+    return jsonify({"status": "success", "scr_id": scr_id, "new_status": scr["status"]})

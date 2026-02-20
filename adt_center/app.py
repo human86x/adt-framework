@@ -2,7 +2,7 @@ import os
 
 import requests as http_client
 import markdown
-from flask import Flask, render_template, request, abort
+from flask import Flask, render_template, request, abort, jsonify
 from flask_cors import CORS
 from markupsafe import Markup
 
@@ -10,11 +10,31 @@ from adt_core.ads.query import ADSQuery
 from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.registry import SpecRegistry
 from adt_core.sdd.tasks import TaskManager
+from adt_core.registry import ProjectRegistry
 
 
 def create_app():
     app = Flask(__name__)
     CORS(app, origins=["tauri://localhost", "http://localhost:*", "http://127.0.0.1:*"])
+    
+    # 1. Project Registry Initialization
+    app.project_registry = ProjectRegistry()
+    app.FRAMEWORK_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def get_project_paths(name=None):
+        """Returns data paths for a project. Defaults to framework root."""
+        project = app.project_registry.get_project(name) if name else None
+        root = project["path"] if project else app.FRAMEWORK_ROOT
+        return {
+            "root": root,
+            "ads": os.path.join(root, "_cortex", "ads", "events.jsonl"),
+            "specs": os.path.join(root, "_cortex", "specs"),
+            "tasks": os.path.join(root, "_cortex", "tasks.json"),
+            "name": name or os.path.basename(root)
+        }
+
+    app.get_project_paths = get_project_paths
+
     @app.before_request
     def check_remote_auth():
         token = os.environ.get('ADT_ACCESS_TOKEN')
@@ -67,37 +87,107 @@ def create_app():
 
     @app.route("/")
     def dashboard():
-        events = app.ads_query.get_all_events()
-        tasks = app.task_manager.list_tasks()
-        specs = _enrich_specs(app.spec_registry.list_specs())
-        # Compute dashboard stats
-        active_sessions = app.ads_query.get_active_sessions()
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        
+        query = ADSQuery(paths["ads"])
+        task_manager = TaskManager(paths["tasks"], project_name=paths["name"])
+        spec_registry = SpecRegistry(paths["specs"])
+        
+        events = query.get_all_events()
+        tasks = task_manager.list_tasks()
+        specs = _enrich_specs(spec_registry.list_specs())
+        
+        active_sessions = query.get_active_sessions()
         denials = sum(1 for e in events if not e.get("authorized", True))
+        
         return render_template("dashboard.html",
                                events=events,
                                tasks=tasks,
                                specs=specs,
                                active_sessions=active_sessions,
-                               denials=denials)
+                               denials=denials,
+                               current_project=project_name)
 
     @app.route("/ads")
     def ads_timeline():
-        events = app.ads_query.get_all_events()
-        return render_template("ads.html", events=events)
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        query = ADSQuery(paths["ads"])
+        events = query.get_all_events()
+        return render_template("ads.html", events=events, current_project=project_name)
 
     @app.route("/specs")
     def specs_page():
-        specs = _enrich_specs(app.spec_registry.list_specs())
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        spec_registry = SpecRegistry(paths["specs"])
+        
+        specs = _enrich_specs(spec_registry.list_specs())
         for spec in specs:
-            detail = app.spec_registry.get_spec_detail(spec["id"])
+            detail = spec_registry.get_spec_detail(spec["id"])
             if detail:
                 spec["content"] = detail.get("content", "")
-        return render_template("specs.html", specs=specs)
+        return render_template("specs.html", specs=specs, current_project=project_name)
 
     @app.route("/tasks")
     def tasks_page():
-        tasks = app.task_manager.list_tasks()
-        return render_template("tasks.html", tasks=tasks)
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        task_manager = TaskManager(paths["tasks"], project_name=paths["name"])
+        tasks = task_manager.list_tasks()
+        return render_template("tasks.html", tasks=tasks, current_project=project_name)
+
+    @app.route("/projects")
+    def projects_page():
+        projects = app.project_registry.list_projects()
+        return render_template("projects.html", projects=projects)
+
+    @app.route("/api/projects")
+    def api_list_projects():
+        from adt_core.cli import is_port_in_use
+        projects = app.project_registry.list_projects()
+        enriched = {}
+        
+        for name, config in projects.items():
+            project_root = config["path"]
+            paths = get_project_paths(name)
+            
+            # 1. DTTP Status
+            port = config.get("dttp_port")
+            dttp_running = is_port_in_use(port) if port else False
+            
+            # 2. Stats
+            stats = {"specs": 0, "tasks": 0, "ads_events": 0}
+            
+            # Specs
+            if os.path.exists(paths["specs"]):
+                stats["specs"] = len([f for f in os.listdir(paths["specs"]) if f.endswith(".md")])
+                
+            # Tasks
+            if os.path.exists(paths["tasks"]):
+                try:
+                    with open(paths["tasks"], "r") as f:
+                        data = json.load(f)
+                        stats["tasks"] = len(data.get("tasks", []))
+                except:
+                    pass
+                    
+            # ADS Events
+            if os.path.exists(paths["ads"]):
+                try:
+                    with open(paths["ads"], "r") as f:
+                        stats["ads_events"] = sum(1 for _ in f)
+                except:
+                    pass
+            
+            enriched[name] = {
+                **config,
+                "dttp_running": dttp_running,
+                "stats": stats
+            }
+            
+        return jsonify(enriched)
 
     @app.route("/dttp")
     def dttp_monitor():
