@@ -347,6 +347,18 @@ def _parse_requests(file_path):
             author_match = re.search(r"\*\*From:\*\* (.*)", section)
             author = author_match.group(1).strip() if author_match else "UNKNOWN"
             
+            # Extract from_role (e.g. Backend_Engineer from Backend_Engineer (CLAUDE))
+            from_role = author
+            role_match = re.search(r"^([a-zA-Z_]+)", author)
+            if role_match:
+                from_role = role_match.group(1).strip()
+            
+            # Extract To
+            to_match = re.search(r"\*\*To:\*\* (.*)", section)
+            to = to_match.group(1).strip() if to_match else "ALL"
+            # Remove leading @ if present
+            to = to.lstrip("@")
+            
             # Extract date
             date_match = re.search(r"\*\*Date:\*\* (.*)", section)
             date = date_match.group(1).strip() if date_match else "UNKNOWN"
@@ -362,6 +374,7 @@ def _parse_requests(file_path):
                 summary = parts.split("### Status")[0]
                 # Clean up metadata
                 summary = re.sub(r"\*\*From:\*\*.*\n", "", summary)
+                summary = re.sub(r"\*\*To:\*\*.*\n", "", summary)
                 summary = re.sub(r"\*\*Date:\*\*.*\n", "", summary)
                 summary = re.sub(r"\*\*Type:\*\*.*\n", "", summary)
                 summary = re.sub(r"\*\*Priority:\*\*.*\n", "", summary)
@@ -373,6 +386,8 @@ def _parse_requests(file_path):
                 "title": title,
                 "status": status,
                 "author": author,
+                "from_role": from_role,
+                "to": to,
                 "date": date,
                 "summary": summary[:200]
             })
@@ -953,9 +968,19 @@ def get_governance_conflicts():
 def get_governance_requests():
     """SPEC-028: Get all requests parsed from requests.md."""
     project_name = request.args.get("project")
+    role_filter = request.args.get("role")
+    
     res = _get_project_resources(project_name)
     requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
     requests_list = _parse_requests(requests_path)
+    
+    if role_filter:
+        role_filter = role_filter.lower()
+        requests_list = [
+            r for r in requests_list 
+            if r["to"].lower() == role_filter or r["from_role"].lower() == role_filter
+        ]
+        
     return jsonify({"requests": requests_list})
 
 @governance_bp.route("/delegations", methods=["GET"])

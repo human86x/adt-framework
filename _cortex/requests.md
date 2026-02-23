@@ -284,3 +284,97 @@ Add `frame-src 'self' http://localhost:*;` to the CSP string in `tauri.conf.json
 ### Status
 
 **OPEN** -- Awaiting DevOps_Engineer action. File is in DevOps jurisdiction (`adt-console/src-tauri/`).
+
+---
+
+## REQ-019: Implement Role-Aware Request Filtering (SPEC-034, task_129)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-02-23
+**Priority:** HIGH
+**Related Specs:** SPEC-034, SPEC-028
+
+### Description
+
+The Context Panel in the Operator Console shows ALL requests to every role. The requests markdown parser in `adt_center/api/governance_routes.py` does not extract the `To:` or `From:` fields, and the `GET /api/governance/requests` endpoint has no role filtering.
+
+**Task:** Parse `**To:**` and `**From:**` fields from each request entry into `to` and `from_role` response fields. Add `?role=` query parameter that filters to requests where either field matches the given role. Without the parameter, return all (backward compatible).
+
+**See:** SPEC-034 Section 2.1, task_129.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-020: Implement Role-Aware Context Panel Frontend (SPEC-034, task_130)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-02-23
+**Priority:** HIGH
+**Related Specs:** SPEC-034, SPEC-028, SPEC-021
+
+### Description
+
+The Console Context Panel fetches all requests and tasks without passing the active session's role. Once the backend supports `?role=` filtering (REQ-019/task_129), the frontend needs to use it.
+
+**Task:** Update `adt-console/src/js/context.js`:
+1. `fetchRequests()` -- append `&role=<session.role>` to the API URL
+2. `fetchTaskData()` -- append `&assigned_to=<session.role>` to the API URL, remove redundant client-side filtering
+3. Add a `[Showing: <role>]` indicator at top of context panel with a clickable toggle to show all
+
+**Blocked by:** task_129 (backend must support `?role=` first)
+**See:** SPEC-034 Section 2.3, task_130.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-021: Fix Session CWD and Add Agent Flag Checkboxes (SPEC-034, task_131 + task_133)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-02-23
+**Priority:** CRITICAL
+**Related Specs:** SPEC-034, SPEC-021
+
+### Description
+
+**Bug (task_131):** New Console sessions open in the wrong directory. `app.js:450` reads the project dropdown's `.value` which is the project NAME (e.g., "adt-framework"), not the filesystem path. The path is stored in `dataset.path` (line 394) but never retrieved on submit. This means `sessions.js:67` passes `cwd: "adt-framework"` to Rust, which is invalid. Fix: read `selectedOption.dataset.path` and pass it as CWD. Keep name for API filtering.
+
+**Feature (task_133):** Add checkboxes to session creation dialog:
+- "YOLO mode" (visible for Gemini) -- appends `--yolo` to launch command
+- "Skip permissions" (visible for Claude) -- appends `--dangerously-skip-permissions`
+
+Show/hide based on agent dropdown. Append flags in `sessions.js` before IPC call.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-022: Fix Hook Paths to Use Absolute Paths (SPEC-034, task_132)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-02-23
+**Priority:** CRITICAL
+**Related Specs:** SPEC-034, SPEC-021
+
+### Description
+
+Both agent hook configs use **relative** paths that fail when session CWD is wrong:
+- `.gemini/settings.json:9` -- `python3 adt_sdk/hooks/gemini_pretool.py`
+- `.claude/settings.local.json:18` -- `python3 adt_sdk/hooks/claude_pretool.py`
+
+Fix: Update both to absolute paths. Also update `adt_core/cli.py` `init_command()` hook installation to write absolute paths based on the framework install location.
+
+### Status
+
+**OPEN**

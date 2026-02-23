@@ -1610,6 +1610,61 @@
       "last_updated_at": "2026-02-20T22:00:00Z",
       "review_status": "pending",
       "evidence": "Created tests/test_shatterglass_enforcement.py with 20 tests across 6 classes. All 20 pass."
+    },
+    {
+      "id": "task_129",
+      "title": "Parse To:/From: fields in requests parser, add ?role= filter to GET /api/governance/requests",
+      "description": "Update the requests markdown parser in adt_center/api/governance_routes.py to extract 'to' (target role from **To:** line) and 'from_role' (originating role from **From:** line). Add ?role= query parameter to GET /api/governance/requests: when provided, return only requests where to or from_role matches the given role. Without the parameter, return all (backward compatible).",
+      "spec_ref": "SPEC-034",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Tested with inline python script. REQ-001 and REQ-006 correctly parsed with from_role and to fields. Role filter Backend_Engineer returned 7 requests.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-23T20:21:00.000000Z"
+    },
+    {
+      "id": "task_130",
+      "title": "Update context.js to pass role to API calls, add filter indicator and toggle",
+      "description": "Update adt-console/src/js/context.js: (1) fetchRequests() -- append &role=<session.role> to the requests API URL. (2) fetchTaskData() -- append &assigned_to=<session.role> to the tasks API URL, remove client-side filter on lines 200-203. (3) Add a visual indicator at top of context panel showing '[Showing: <role>]' with a clickable toggle to 'Show all'. Sessions without a role show all data.",
+      "spec_ref": "SPEC-034",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_129"
+      ]
+    },
+    {
+      "id": "task_131",
+      "title": "Fix session CWD: read project path from dataset.path instead of dropdown value",
+      "description": "In adt-console/src/js/app.js form submit handler (line 450), the project dropdown .value contains the project NAME, not the filesystem path. The path is in dataset.path (line 394) but never read. Fix: on form submit, get the selected option's dataset.path and pass it as cwd to SessionManager.create(). Keep .value (name) for project field (API filtering). Update sessions.js to accept separate project name and projectPath params.",
+      "spec_ref": "SPEC-034",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_132",
+      "title": "Fix hook paths: use absolute paths in .gemini/settings.json and .claude/settings.local.json",
+      "description": "Both hook configs use relative paths (python3 adt_sdk/hooks/gemini_pretool.py and python3 adt_sdk/hooks/claude_pretool.py). When sessions open with wrong CWD, hooks silently fail. Fix: update both to use absolute paths (python3 /home/human/Projects/adt-framework/adt_sdk/hooks/...). Also update adt_core/cli.py init_command() hook installation to write absolute paths based on the framework install location.",
+      "spec_ref": "SPEC-034",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_133",
+      "title": "Add --yolo and --dangerously-skip-permissions checkboxes to session creation dialog",
+      "description": "In adt-console/src/js/app.js session creation dialog: add a checkbox 'YOLO mode' visible only when agent=gemini (appends --yolo to launch command), and a checkbox 'Skip permissions' visible only when agent=claude (appends --dangerously-skip-permissions). Checkboxes hidden by default, shown/hidden via agentSelect change handler. In sessions.js, append the flag to the command string before passing to IPC.",
+      "spec_ref": "SPEC-034",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
     }
   ]
 }

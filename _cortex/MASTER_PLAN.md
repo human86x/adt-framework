@@ -28,6 +28,7 @@ The framework governs its own development -- recursive self-improvement through 
 13. **External Project Governance:** Multi-project support -- govern external codebases with per-project DTTP isolation, project registry, and unified visibility. (Status: APPROVED -- SPEC-031)
 14. **Console Project Launcher:** Startup launcher with Forge Mode, Create/Import wizards, and guided setup. (Status: APPROVED -- SPEC-032)
 15. **Sovereign Change Requests:** Agent-proposed sovereign path changes queued for human review in Panel. (Status: APPROVED -- SPEC-033)
+16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: APPROVED -- SPEC-034)
 
 ## Active Specifications
 
@@ -54,6 +55,7 @@ The framework governs its own development -- recursive self-improvement through 
 | SPEC-031 | External Project Governance | APPROVED | ADT Framework |
 | SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |
 | SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |
+| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |
 
 > Specs SPEC-014 through SPEC-017 originated in OceanPulse `_cortex/specs/`.
 > Specs SPEC-018+ are native to the ADT Framework -- the framework is now generating

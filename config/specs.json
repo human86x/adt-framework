@@ -384,6 +384,31 @@
         "adt_sdk/hooks/",
         "_cortex/ops/"
       ]
+    },
+    "SPEC-034": {
+      "title": "Role-Aware Context Panel",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/api/",
+        "adt-console/src/",
+        ".gemini/",
+        ".claude/",
+        "adt_sdk/hooks/",
+        "adt_core/cli.py",
+        "_cortex/specs/",
+        "_cortex/"
+      ]
     }
   }
 }
