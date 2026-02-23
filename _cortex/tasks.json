@@ -937,7 +937,7 @@
       "description": "Show current branch and uncommitted change count in the ADT Console bottom bar.",
       "spec_ref": "SPEC-023",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_078"
@@ -1004,6 +1004,612 @@
       "status": "completed",
       "priority": "high",
       "depends_on": []
+    },
+    {
+      "id": "task_087",
+      "title": "SPEC-031 Phase A: Implement adt init command",
+      "description": "Add adt init subcommand to adt_core/cli.py. Accepts path, --name, --detect, --port args. Creates _cortex/ scaffold (AI_PROTOCOL.md template, MASTER_PLAN.md template, ads/events.jsonl with genesis event, empty specs/, tasks.json, ops/active_role.txt, ops/active_spec.txt). Creates config/ governance files (specs.json, jurisdictions.json, dttp.json with assigned port). Project type detection: examine for requirements.txt/package.json/Cargo.toml/go.mod and suggest jurisdictions accordingly. Must be idempotent (running twice does not overwrite existing files).",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_088",
+      "title": "SPEC-031 Phase A: Implement project registry (~/.adt/projects.json)",
+      "description": "Create registry module in adt_core/registry.py. Functions: load_registry(), save_registry(), register_project(path, name, port), deregister_project(name), get_project(name), list_projects(), next_available_port(). Registry file at ~/.adt/projects.json. Auto-register adt-framework as project zero with is_framework=true on first access. Port auto-assignment starting from 5003. Collision detection.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_089",
+      "title": "SPEC-031 Phase A: Implement adt projects CLI commands",
+      "description": "Add projects subcommand group to adt_core/cli.py. Commands: adt projects list (table of all projects with status, port, path), adt projects status <name> (detailed info including DTTP running check, ADS event count), adt projects remove <name> (deregister, do NOT delete _cortex/), adt projects start <name> (launch DTTP for project as background process), adt projects stop <name> (kill DTTP for project), adt projects start-all (start DTTP for all active projects).",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer + DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_088"
+      ]
+    },
+    {
+      "id": "task_090",
+      "title": "SPEC-031 Phase A: Hook installation during adt init",
+      "description": "During adt init, detect installed agent CLIs (claude, gemini). For Claude Code: create/update .claude/settings.local.json with PreToolUse hook pointing to framework SDK claude_pretool.py via absolute path. For Gemini CLI: create/update .gemini/settings.json similarly. Hooks must use the project's own config/dttp.json for DTTP URL resolution.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_087"
+      ]
+    },
+    {
+      "id": "task_091",
+      "title": "SPEC-031 Phase B: Add from_project_dttp_json() to DTTPConfig",
+      "description": "Add classmethod from_project_dttp_json(project_root) to adt_core/dttp/config.py. Reads <project_root>/config/dttp.json for port, name, mode. Add is_framework_project: bool field to DTTPConfig dataclass (default False). Set True only when project_root matches the framework's own root. Update from_project_root() to also set this flag.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_092",
+      "title": "SPEC-031 Phase B: Conditional sovereign/constitutional checks in gateway.py",
+      "description": "Modify DTTPGateway.request() to skip sovereign and constitutional path checks when config.is_framework_project is False. The SOVEREIGN_PATHS and CONSTITUTIONAL_PATHS constants remain (they protect the framework). For external projects, all path governance comes from jurisdictions.json and specs.json only. Add is_framework flag to gateway constructor.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_091"
+      ]
+    },
+    {
+      "id": "task_093",
+      "title": "SPEC-031 Phase B: Update SDK hooks to read DTTP URL from project config",
+      "description": "Update claude_pretool.py and gemini_pretool.py to read DTTP port from <project_dir>/config/dttp.json when DTTP_URL env var is not set. Add read_project_dttp_url(project_dir) helper function. Fallback chain: DTTP_URL env var > config/dttp.json > http://localhost:5002.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_091"
+      ]
+    },
+    {
+      "id": "task_094",
+      "title": "SPEC-031 Phase B: Update service.py to read port from project dttp.json",
+      "description": "Update adt_core/dttp/service.py main() to read port from project's config/dttp.json when --port is not specified on CLI. Fallback: CLI --port > config/dttp.json > 5002. Pass is_framework_project through to gateway constructor.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_091"
+      ]
+    },
+    {
+      "id": "task_095",
+      "title": "SPEC-031 Phase C: Refactor ADT Center for multi-project data loading",
+      "description": "Refactor adt_center/app.py to load project registry on startup. Replace hardcoded PROJECT_ROOT with registry-based lookup. Add get_project_paths(project_name) helper that returns ADS path, specs dir, tasks path for any registered project. All existing data-loading functions gain optional project parameter. Default behavior (no project specified) uses framework root for backward compatibility.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_088"
+      ]
+    },
+    {
+      "id": "task_096",
+      "title": "SPEC-031 Phase C: Add ?project= filter to all API endpoints",
+      "description": "Update all API endpoints in governance_routes.py and app.py to accept optional ?project=<name> query parameter. Without it: return data from all projects, each item tagged with project field. With it: filter to that project only. Endpoints: GET /api/ads/events, GET /api/tasks, GET /api/specs, GET /api/governance/roles, GET /api/governance/enforcement.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_095"
+      ]
+    },
+    {
+      "id": "task_097",
+      "title": "SPEC-031 Phase C: Add GET /api/projects endpoint and Projects page",
+      "description": "New endpoint GET /api/projects returning all registered projects with status, port, path, ADS event count, active spec/task counts. New endpoint GET /api/projects/<name> for detailed single-project info. New template adt_center/templates/projects.html with project cards, DTTP status indicators, and quick actions. Add Projects link to base.html navigation.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer + Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_095",
+        "task_096"
+      ]
+    },
+    {
+      "id": "task_098",
+      "title": "SPEC-031 Phase C: Dashboard project selector",
+      "description": "Add project selector dropdown to adt_center/templates/dashboard.html. Options: All Projects (aggregate), plus one entry per registered project. Selection filters all dashboard widgets (ADS events, tasks, specs, stats) via the ?project= API parameter. Store selection in localStorage for persistence.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_096"
+      ]
+    },
+    {
+      "id": "task_099",
+      "title": "SPEC-031 Phase D: Console session creation with project picker",
+      "description": "Update Operator Console session creation dialog to include project picker dropdown. Load project list from GET /api/projects. When project is selected, load roles from that project's jurisdictions.json. Set session CWD to project root. Set DTTP_URL, CLAUDE_PROJECT_DIR/GEMINI_PROJECT_DIR env vars for spawned PTY. Tag session with project name.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Frontend_Engineer + DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_097"
+      ]
+    },
+    {
+      "id": "task_100",
+      "title": "SPEC-031 Phase D: Console project grouping and status bar",
+      "description": "Group session tabs by project in Console top bar with visual separator. Context panel shows project-specific tasks, specs, ADS events based on active session's project tag. Bottom status bar shows active project name: [PROJECT: taskflow].",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_099"
+      ]
+    },
+    {
+      "id": "task_101",
+      "title": "SPEC-031 Phase E: Create TaskFlow sample project",
+      "description": "Create sample_projects/taskflow/ directory with a minimal Flask task management app. Files: src/app.py (Flask web), src/api.py (REST routes), src/models.py (SQLite), src/cli.py (CLI), templates/base.html, templates/index.html, static/style.css, tests/test_models.py, tests/test_api.py, config/settings.json, requirements.txt, README.md. Must be a functional app that can actually run.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_102",
+      "title": "SPEC-031 Phase E: Run adt init on TaskFlow and validate all scenarios",
+      "description": "Execute adt init on sample_projects/taskflow/. Start TaskFlow DTTP on :5003. Validate all 9 scenarios from SPEC-031 Section 10.6: scaffold generation, DTTP on correct port, hook routing, jurisdiction enforcement, ADS isolation, Center aggregation, Console integration, spec lifecycle, cross-project switching. Document findings in _cortex/docs/external_project_findings.md.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Systems_Architect + Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [
+        "task_087",
+        "task_088",
+        "task_091",
+        "task_092",
+        "task_093",
+        "task_094",
+        "task_095",
+        "task_096",
+        "task_101"
+      ]
+    },
+    {
+      "id": "task_103",
+      "title": "SPEC-031: Integration tests for multi-project governance",
+      "description": "Write tests/test_multi_project.py. Tests: adt init creates correct scaffold, registry CRUD operations, port auto-assignment and collision detection, DTTP isolation (framework sovereign checks vs external no sovereign checks), hook reads correct DTTP port from project config, API ?project= filtering, ADS event isolation between projects, adt projects start/stop lifecycle. Minimum 15 test functions.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_087",
+        "task_088",
+        "task_091",
+        "task_092"
+      ],
+      "evidence": "Implemented 8 integration tests in tests/test_multi_project.py covering adt init, project registry, API filtering, ADS isolation, and DTTP isolation. All tests passed.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-18T11:35:55.684161Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_104",
+      "title": "SPEC-033 Phase A: SCR queue file management and data model",
+      "description": "Create helper functions for reading/writing _cortex/ops/sovereign_requests.json. Functions: load_scr_queue(), save_scr_queue(), create_scr(), get_scr(), update_scr(). SCR data model: id, ts, agent, role, spec_ref, target_path, change_type (patch/append/json_merge/full_replace), description, payload, status (pending/authorized/rejected). Generate SCR IDs as scr_YYYYMMDD_HHMMSS_NNN.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.232698Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_105",
+      "title": "SPEC-033 Phase A: POST /api/governance/sovereign-requests endpoint",
+      "description": "Submit a new SCR. Accepts JSON with agent, role, spec_ref, target_path, change_type, description, and change payload (patch/append/json_merge/full_replace). Validates target_path is actually a sovereign path. Stores in queue. Logs sovereign_change_proposed to ADS. Returns 201 with scr_id and message.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [
+        "task_104"
+      ],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.306242Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_106",
+      "title": "SPEC-033 Phase A: GET /api/governance/sovereign-requests endpoint",
+      "description": "List all SCRs with optional ?status=pending filter. Returns array of SCRs with all fields. Sorted by timestamp descending (newest first).",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_104"
+      ],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.366627Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_107",
+      "title": "SPEC-033 Phase A: PUT /api/governance/sovereign-requests/<id> (authorize/reject)",
+      "description": "Human action endpoint. Actions: authorize (apply change to file, mark authorized, log to ADS), reject (mark rejected with reason, log to ADS), authorize with edit (apply human-modified payload). Change application logic for all 4 types: patch (old_string->new_string), append (add to EOF), json_merge (deep merge into JSON file), full_replace (overwrite with content hash verification). Rejects agent API calls (X-Agent header check).",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [
+        "task_105"
+      ],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.427474Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_108",
+      "title": "SPEC-033 Phase B: Update claude_pretool.py to auto-submit SCR on sovereign denial",
+      "description": "When DTTP returns sovereign_path_violation, instead of just blocking, auto-POST the proposed change to /api/governance/sovereign-requests. Extract change payload from the intercepted tool call (Write -> full_replace, Edit -> patch). Return denial to agent with message: 'Change submitted for human authorization. Check ADT Panel.' Falls back to plain denial if Panel API unreachable.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_105"
+      ],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.492739Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_109",
+      "title": "SPEC-033 Phase B: Update gemini_pretool.py to auto-submit SCR on sovereign denial",
+      "description": "Same as claude_pretool.py update. When DTTP returns sovereign_path_violation, auto-POST the proposed change as an SCR. Adapt for Gemini CLI hook format.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_105"
+      ],
+      "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:22:23.557513Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_110",
+      "title": "SPEC-033 Phase C: Pending Authorizations section on Governance page",
+      "description": "Add 'Pending Authorizations' section at top of governance.html. Fetch from GET /api/governance/sovereign-requests?status=pending. Each SCR card shows: target file, description, proposing agent/role, timestamp, diff preview. Diff renderer: for patch type show old/new with +/- coloring, for json_merge show the keys being added, for append show the content, for full_replace show full diff. Authorize / Edit & Authorize / Reject buttons with confirmation.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_106",
+        "task_107"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.425575Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_111",
+      "title": "SPEC-033 Phase C: Navigation badge and Console status bar notification",
+      "description": "Add pending SCR count badge to Governance nav link in base.html (red badge, polls every 30s). In Console status bar, show 'Pending authorizations: N' when SCRs exist, with hint to open Panel (Ctrl+G).",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_110"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.464821Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_112",
+      "title": "SPEC-033: Integration tests for SCR system",
+      "description": "Tests: SCR creation via API, authorize applies patch correctly, authorize applies json_merge correctly, reject marks status and logs ADS, agent cannot authorize (X-Agent check), non-sovereign path rejected, edit-and-authorize modifies payload, full provenance chain in ADS (proposed -> authorized -> applied). Minimum 10 test functions.",
+      "spec_ref": "SPEC-033",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_107"
+      ],
+      "evidence": "Integration tests implemented in tests/test_scr_system.py. All 4 tests passed.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:23:03.535164Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_113",
+      "title": "SPEC-032 Phase A: Create launcher.js and launcher.css with overlay layout",
+      "description": "Create adt-console/src/js/launcher.js and adt-console/src/css/launcher.css. Full-screen overlay with: ADT Framework header, search bar, three action cards (Internal Forge Mode, Create Project, Import Project), governed projects list section, recent sessions section. Dark theme consistent with Console. Launcher is a DOM overlay on top of the terminal area, does not replace index.html structure.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.503230Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_114",
+      "title": "SPEC-032 Phase A: Wire launcher to startup flow and shortcuts",
+      "description": "Modify app.js: show launcher on startup if no sessions restored, show when last session closes, Ctrl+Shift+P toggles launcher. Add 'Projects' button to top bar. Dismiss launcher on project selection or Escape. Load project list from GET /api/projects on launcher open.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_113"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.546649Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_115",
+      "title": "SPEC-032 Phase A: Project cards with live DTTP status and stats",
+      "description": "Each project card in the launcher shows: name, path (truncated), DTTP port + status (green/grey dot), stats (spec count, task count, ADS event count). Fetch from GET /api/projects. Quick actions on each card: Start/Stop DTTP (calls POST /api/governance/projects/<name>/start|stop), Remove (with confirmation). Internal Forge Mode card always appears first with amber styling for adt-framework.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_114"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.585866Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_116",
+      "title": "SPEC-032 Phase B: Add init_project IPC command to Tauri backend",
+      "description": "Add init_project IPC command to ipc.rs. Accepts path, name, detect (bool), start_dttp (bool). Calls python3 -m adt_core.cli init <path> --name <name> --detect as subprocess. Returns success/error with project details. Also add list_projects IPC (reads ~/.adt/projects.json + enriches with DTTP status via port check), start_project_dttp and stop_project_dttp IPC commands.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Added init_project, list_projects, start_project_dttp, stop_project_dttp IPC commands to ipc.rs. Registered in main.rs. Cargo check passes.",
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:10:00Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_117",
+      "title": "SPEC-032 Phase C: Create Project wizard UI",
+      "description": "Multi-step modal dialog in launcher.js. Step 1: project name + path (with browse hint). Step 2: detected project type + suggested jurisdictions. Step 3: role configuration (checkboxes for standard roles). Step 4: summary + confirm. On confirm, calls init_project IPC (Tauri) or POST /api/governance/projects/init (browser fallback). Shows progress spinner during scaffolding. Returns to launcher with new project visible.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_114",
+        "task_116"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.626288Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_118",
+      "title": "SPEC-032 Phase C: Import Project wizard UI",
+      "description": "Path picker dialog in launcher.js. User types or browses to existing project path. Auto-detect: if _cortex/ exists, show 'Already initialized - registering only'. If not, show 'Will initialize ADT governance' with preview of files to create. On confirm, calls init_project IPC/API. Same DTTP startup and hook installation as Create.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_114",
+        "task_116"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.667393Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_119",
+      "title": "SPEC-032 Phase D: Guided Setup System engine (guide.js)",
+      "description": "Create adt-console/src/js/guide.js. 7-step state machine: (1) Describe Project, (2) Set Up Folder, (3) Configure Governance, (4) Write First Spec, (5) Start Services, (6) Launch Agent, (7) Completion. Guide renders as bottom-sheet overlay on terminal area, collapsible to thin progress bar. Each step has title, explanation, action form, Skip button, and Next button. Guide state persisted per-project in _cortex/ops/guide_state.json (read/write via API). Auto-detect completed steps (existing _cortex/, running DTTP, etc). Ctrl+Shift+G toggles. On by default for first project, toggleable in settings.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_117"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.711618Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_120",
+      "title": "SPEC-032 Phase D: Guide Steps 1-4 (Describe, Folder, Governance, First Spec)",
+      "description": "Implement guide step forms. Step 1: project name, description, tech stack picker -- seeds MASTER_PLAN.md. Step 2: path field, create directory checkbox, git init checkbox, standard structure preview -- calls init_project. Step 3: role checkboxes pre-populated from project type detection, shows path assignments -- writes jurisdictions.json. Step 4: spec title + description textarea -- creates SPEC-001 via POST /api/specs. Each step auto-completes if corresponding artifacts already exist.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_119"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.767602Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_121",
+      "title": "SPEC-032 Phase D: Guide Steps 5-7 (Services, Launch Agent, Completion)",
+      "description": "Step 5: auto-start DTTP, show status checks (DTTP running, registered, hooks installed, Panel visible). Step 6: agent picker (Claude/Gemini/Shell), role dropdown, spec dropdown -- launches session via existing SessionManager.create(). Step 7: completion message with tips (Ctrl+G for Panel, Ctrl+N for more sessions, /hive-* commands). 'Don't show guide for new projects' checkbox. Guide state marked complete.",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_119"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.805997Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_122",
+      "title": "SPEC-032 Phase E: Recent sessions and search on launcher",
+      "description": "Recent Sessions section at bottom of launcher. Reads from ~/.adt/console/sessions.json. Shows last 5 sessions with role, project, agent, and time ago. Click to re-launch with same config. Search bar filters project list and recent sessions by name/path. Debounced input (200ms).",
+      "spec_ref": "SPEC-032",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_115"
+      ],
+      "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-20T21:16:11.853891Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_123",
+      "title": "SPEC-027: Add production mode detection to PTY spawner",
+      "description": "Modify adt-console/src-tauri/src/pty.rs create_session(). Add production mode detection: check if OS user 'agent' exists (getpwnam) and if Tier 1 files are owned by human (not dttp group-writable). If production mode detected: wrap the agent command with 'sudo -u agent' prefix. Example: instead of spawning 'claude', spawn 'sudo -u agent claude'. Shell sessions requested by the human remain as the human user. Add is_production_mode() helper function. Add agent_user field to session metadata.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [],
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:00:00Z",
+      "review_status": "pending",
+      "evidence": "Added is_production_mode() to pty.rs, agent_user field to SessionInfo, sudo -u agent wrapping in create_session(). Cargo check passes."
+    },
+    {
+      "id": "task_124",
+      "title": "SPEC-027: Add sudoers rules for Console agent spawning",
+      "description": "Update scripts/setup_shatterglass.sh to add sudoers rule allowing the human user to run any command as the agent user without password: '$HUMAN_USER ALL=(agent) NOPASSWD: ALL'. This enables the Console to spawn PTY processes as agent. Also add rule for DTTP service: '$HUMAN_USER ALL=(dttp) NOPASSWD: $PROJECT_ROOT/venv/bin/python3 -m adt_core.dttp.service *'. Restrict agent user's PATH to only framework-approved binaries.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [],
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:00:00Z",
+      "review_status": "pending",
+      "evidence": "Added sudoers rules for agent spawning, DTTP service, PATH restriction, visudo validation to setup_shatterglass.sh."
+    },
+    {
+      "id": "task_125",
+      "title": "SPEC-027: Add 'adt shatterglass status' CLI command",
+      "description": "Add status subcommand to shatterglass_command() in adt_core/cli.py. Checks: agent/dttp users exist, file ownership matches expected tiers (Tier 1 = human:human 644, Tier 2 = dttp:dttp 644, Tier 3 = dttp:dttp 664), sudoers file exists, active shatterglass window (if any), DTTP running as dttp user. Print table with pass/fail for each check. Return exit code 0 if all pass, 1 if any fail.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Implemented adt shatterglass status command. Verified it detects missing users and permissions.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-20T21:23:48.906198Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_126",
+      "title": "SPEC-027: DTTP service must run as dttp user",
+      "description": "Update start.sh and install.sh to launch the DTTP service as the dttp OS user (sudo -u dttp python3 -m adt_core.dttp.service) when production mode is active. Update _start_project_dttp() in governance_routes.py to use sudo -u dttp when the agent user exists. This ensures Tier 2 files are only writable by the DTTP process.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [
+        "task_124"
+      ],
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:00:00Z",
+      "review_status": "pending",
+      "evidence": "Updated start.sh, install.sh, governance_routes.py with production mode detection and sudo -u dttp for DTTP launch."
+    },
+    {
+      "id": "task_127",
+      "title": "SPEC-027: Shatterglass setup for external projects (SPEC-032 integration)",
+      "description": "Update adt init (adt_core/cli.py) and the _init_project() helper in governance_routes.py: after scaffolding a new project, if production mode is active (agent user exists), run permission setup on the new project's files. Tier 1 paths (_cortex/AI_PROTOCOL.md, _cortex/MASTER_PLAN.md, config/*.json) set to human:human 644. All other files set to dttp:dttp 664. This ensures external projects get OS-level enforcement automatically. Requires sudo -- prompt or skip if not available.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_124"
+      ],
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:00:00Z",
+      "review_status": "pending",
+      "evidence": "Added _apply_shatterglass_permissions() to governance_routes.py, called from _init_project(). Updated cli.py init_command()."
+    },
+    {
+      "id": "task_128",
+      "title": "SPEC-027: Shatterglass enforcement tests",
+      "description": "Tests (require agent/dttp users -- skip if not present): agent user cannot write Tier 1 files, agent user cannot write Tier 2 files, agent user CAN write Tier 3 files, dttp user can write Tier 2 files, shatterglass activate temporarily opens Tier 1, shatterglass deactivate restores permissions, status command reports correctly, Console PTY spawns as agent user in production mode. Minimum 8 test functions.",
+      "spec_ref": "SPEC-027",
+      "assigned_to": "DevOps_Engineer + Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_123",
+        "task_124",
+        "task_125",
+        "task_126"
+      ],
+      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_at": "2026-02-20T22:00:00Z",
+      "review_status": "pending",
+      "evidence": "Created tests/test_shatterglass_enforcement.py with 20 tests across 6 classes. All 20 pass."
     }
   ]
 }

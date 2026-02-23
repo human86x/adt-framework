@@ -300,6 +300,90 @@
         "bin/",
         "_cortex/ops/"
       ]
+    },
+    "SPEC-030": {
+      "title": "Overseer Operational Authorization",
+      "status": "approved",
+      "roles": [
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "_cortex/ads/",
+        "_cortex/docs/",
+        "_cortex/requests.md",
+        "_cortex/work_logs/"
+      ]
+    },
+    "SPEC-031": {
+      "title": "External Project Governance",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/cli.py",
+        "adt_core/dttp/",
+        "adt_center/",
+        "adt_sdk/",
+        "config/",
+        "tests/",
+        "_cortex/specs/",
+        "_cortex/docs/",
+        "sample_projects/",
+        "adt-console/"
+      ]
+    },
+    "SPEC-032": {
+      "title": "Console Project Launcher",
+      "status": "approved",
+      "roles": [
+        "Frontend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt-console/",
+        "adt_center/templates/",
+        "adt_center/api/"
+      ]
+    },
+    "SPEC-033": {
+      "title": "Sovereign Change Requests",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/api/",
+        "adt_center/templates/",
+        "adt_sdk/hooks/",
+        "_cortex/ops/"
+      ]
     }
   }
 }

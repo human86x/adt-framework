@@ -51,7 +51,11 @@ const ContextPanel = (() => {
 
   async function fetchRequests() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/governance/requests`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/governance/requests?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/requests`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       const requests = data.requests || [];
@@ -87,7 +91,11 @@ const ContextPanel = (() => {
 
   async function fetchDelegations() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/governance/delegations`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/governance/delegations?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/delegations`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       const delegations = data.delegations || [];
@@ -127,7 +135,11 @@ const ContextPanel = (() => {
 
   async function fetchSpecs() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/specs`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/specs?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/specs`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       allSpecs = data.specs || {};
@@ -149,7 +161,11 @@ const ContextPanel = (() => {
 
   async function fetchTaskData(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/tasks`);
+      const projectName = session?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/tasks?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/tasks`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
 
@@ -439,7 +455,11 @@ const ContextPanel = (() => {
 
   async function fetchADSEvents(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/ads/events`);
+      const projectName = session?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/ads/events?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/ads/events`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
 
@@ -474,7 +494,11 @@ const ContextPanel = (() => {
 
   async function fetchRoleRequests(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/ads/events`);
+      const projectName = session?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/ads/events?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/ads/events`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const allEvents = await res.json();
       
@@ -487,6 +511,7 @@ const ContextPanel = (() => {
       ).slice(-5).reverse();
       
       const container = document.getElementById('ctx-role-requests');
+      if (!container) return;
       container.innerHTML = '';
       
       if (requests.length === 0) {
@@ -592,7 +617,11 @@ const ContextPanel = (() => {
 
   async function fetchDTTPStatus() {
     try {
-      const res = await fetch(`${getCenterUrl()}/dttp/status`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/dttp/status?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/dttp/status`;
+      const res = await fetch(url);
       if (!res.ok) {
         document.getElementById('status-dttp').innerHTML =
           '<span class="status-dot dot-grey"></span> DTTP: offline';

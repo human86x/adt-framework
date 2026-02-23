@@ -8,22 +8,67 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Runtime};
+
+/// Resolve the user's login shell PATH.
+/// Tauri apps launched from desktop environments often inherit a minimal PATH
+/// that doesn't include user-installed tools (npm global, cargo, etc.).
+/// This runs the user's shell to get the full PATH.
+fn resolve_user_path() -> String {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+    if let Ok(output) = Command::new(&shell)
+        .args(["-l", "-c", "echo $PATH"])
+        .output()
+    {
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path.is_empty() {
+            return path;
+        }
+    }
+    // Fallback: current PATH plus common user binary locations
+    let current = std::env::var("PATH").unwrap_or_default();
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    format!(
+        "{}/.npm-global/bin:{}/.cargo/bin:{}/.local/bin:{}",
+        home, home, home, current
+    )
+}
+
+/// Resolve a command name to its absolute path using the user's full PATH.
+/// Falls back to the original command name if resolution fails.
+fn resolve_command(command: &str, user_path: &str) -> String {
+    if command.starts_with('/') {
+        return command.to_string();
+    }
+    for dir in user_path.split(':') {
+        let candidate = PathBuf::from(dir).join(command);
+        if candidate.exists() {
+            if let Some(path_str) = candidate.to_str() {
+                return path_str.to_string();
+            }
+        }
+    }
+    command.to_string()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub id: String,
+    pub project: String,
     pub agent: String,
     pub role: String,
     pub spec_id: String,
     pub command: String,
     pub alive: bool,
+    pub agent_user: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistentSession {
     pub id: String,
+    pub project: String,
     pub agent: String,
     pub role: String,
     pub spec_id: String,
@@ -42,6 +87,35 @@ struct PtySession {
 pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     next_id: Arc<Mutex<u32>>,
+}
+
+/// Detect if Shatterglass production mode is active.
+/// Production mode is active when:
+/// 1. The OS user 'agent' exists (created by setup_shatterglass.sh)
+/// 2. Tier 1 sovereign files are owned by human (not group-writable)
+fn is_production_mode() -> bool {
+    // Check if 'agent' OS user exists via /etc/passwd lookup
+    let agent_exists = std::fs::read_to_string("/etc/passwd")
+        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
+        .unwrap_or(false);
+
+    if !agent_exists {
+        return false;
+    }
+
+    // Check that at least one Tier 1 file has restricted permissions (644 = not group-writable)
+    // This confirms setup_shatterglass.sh has been run
+    if let Ok(metadata) = std::fs::metadata("config/specs.json") {
+        use std::os::unix::fs::MetadataExt;
+        let mode = metadata.mode() & 0o777;
+        // In production mode, sovereign files are 644 (human rw, others read-only)
+        // In dev mode they'd be 664 or wider
+        if mode == 0o644 {
+            return true;
+        }
+    }
+
+    false
 }
 
 impl PtyManager {
@@ -101,6 +175,7 @@ impl PtyManager {
     pub fn create_session<R: Runtime>(
         &self,
         reserved_id: Option<String>,
+        project: &str,
         agent: &str,
         role: &str,
         spec_id: &str,
@@ -122,21 +197,81 @@ impl PtyManager {
             })
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let mut cmd = CommandBuilder::new(command);
-        for arg in args {
-            cmd.arg(arg);
-        }
+        // Resolve the user's full PATH so we can find agent CLIs (gemini, claude)
+        // that may be installed in non-standard locations (e.g. ~/.npm-global/bin/).
+        // Tauri apps launched from desktop environments inherit a minimal PATH.
+        let user_path = resolve_user_path();
+        let resolved_command = resolve_command(command, &user_path);
+        log::info!("[PTY PATH] Resolved '{}' -> '{}'", command, resolved_command);
+
+        // SPEC-027: In production mode, wrap agent commands with sudo -u agent.
+        // Shell sessions requested by the human remain as the human user.
+        let production_mode = is_production_mode();
+        let is_agent_session = agent != "shell" && agent != "human";
+        let agent_user = if production_mode && is_agent_session {
+            Some("agent".to_string())
+        } else {
+            None
+        };
+
+        let mut cmd = if let Some(ref _agent_user) = agent_user {
+            // Wrap with sudo -u agent: sudo -u agent <command> [args...]
+            let mut c = CommandBuilder::new("sudo");
+            c.arg("-u");
+            c.arg("agent");
+            c.arg(&resolved_command);
+            for arg in args {
+                c.arg(arg);
+            }
+            c
+        } else {
+            let mut c = CommandBuilder::new(&resolved_command);
+            for arg in args {
+                c.arg(arg);
+            }
+            c
+        };
 
         if let Some(path) = &cwd {
             cmd.cwd(path);
         }
 
+        // Determine DTTP_URL from project config if available
+        let dttp_url = if let Some(path) = &cwd {
+            let config_path = PathBuf::from(path).join("config").join("dttp.json");
+            if config_path.exists() {
+                if let Ok(content) = fs::read_to_string(config_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(port) = json.get("port").and_then(|p| p.as_u64()) {
+                            format!("http://localhost:{}", port)
+                        } else {
+                            "http://localhost:5002".to_string()
+                        }
+                    } else {
+                        "http://localhost:5002".to_string()
+                    }
+                } else {
+                    "http://localhost:5002".to_string()
+                }
+            } else {
+                "http://localhost:5002".to_string()
+            }
+        } else {
+            "http://localhost:5002".to_string()
+        };
+
         // Set environment variables for ADT context
         cmd.env("ADT_AGENT", agent);
         cmd.env("ADT_ROLE", role);
         cmd.env("ADT_SPEC_ID", spec_id);
-        cmd.env("DTTP_URL", "http://localhost:5002");
+        cmd.env("DTTP_URL", dttp_url);
         cmd.env("TERM", "xterm-256color");
+        cmd.env("PATH", &user_path);
+
+        if let Some(path) = &cwd {
+            cmd.env("CLAUDE_PROJECT_DIR", path);
+            cmd.env("GEMINI_PROJECT_DIR", path);
+        }
 
         let _child = pair
             .slave
@@ -158,17 +293,24 @@ impl PtyManager {
             .take_writer()
             .map_err(|e| format!("Failed to get PTY writer: {}", e))?;
 
+        if production_mode && is_agent_session {
+            log::info!("[PTY PRODUCTION] Spawning as OS user 'agent' (sudo -u agent {})", command);
+        }
+
         let info = SessionInfo {
             id: session_id.clone(),
+            project: project.to_string(),
             agent: agent.to_string(),
             role: role.to_string(),
             spec_id: spec_id.to_string(),
             command: command.to_string(),
             alive: true,
+            agent_user: agent_user,
         };
 
         let metadata = PersistentSession {
             id: session_id.clone(),
+            project: project.to_string(),
             agent: agent.to_string(),
             role: role.to_string(),
             spec_id: spec_id.to_string(),
@@ -324,6 +466,7 @@ impl PtyManager {
         for s in persistent {
             let _ = self.create_session(
                 Some(s.id),
+                &s.project,
                 &s.agent,
                 &s.role,
                 &s.spec_id,
@@ -346,8 +489,10 @@ mod tests {
     fn test_persistent_session_serde() {
         let session = PersistentSession {
             id: "test_id".to_string(),
+            project: "adt-framework".to_string(),
             agent: "claude".to_string(),
             role: "Backend_Engineer".to_string(),
+            spec_id: "SPEC-021".to_string(),
             command: "bash".to_string(),
             args: vec!["-c".to_string(), "ls".to_string()],
             cwd: Some("/tmp".to_string()),
@@ -363,10 +508,13 @@ mod tests {
     fn test_session_info_serde() {
         let info = SessionInfo {
             id: "test_id".to_string(),
+            project: "adt-framework".to_string(),
             agent: "claude".to_string(),
             role: "Backend_Engineer".to_string(),
+            spec_id: "SPEC-021".to_string(),
             command: "bash".to_string(),
             alive: true,
+            agent_user: Some("agent".to_string()),
         };
 
         let json = serde_json::to_string(&info).unwrap();

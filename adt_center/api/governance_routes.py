@@ -121,7 +121,11 @@ def _init_project(path, name=None, detect=True, port=None):
     framework_project = registry.get_project("adt-framework")
     if framework_project:
         install_hooks(path, framework_project["path"])
-        
+
+    # 7. SPEC-027: Apply Shatterglass permissions if production mode is active
+    if _is_production_mode():
+        _apply_shatterglass_permissions(path)
+
     return {"name": name, "path": path, "port": port}
 
 @governance_bp.route("/projects/init", methods=["POST"])
@@ -142,6 +146,73 @@ def api_init_project():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _is_production_mode():
+    """Check if Shatterglass production mode is active (SPEC-027).
+    Returns True if 'agent' and 'dttp' OS users exist."""
+    import pwd
+    try:
+        pwd.getpwnam('agent')
+        pwd.getpwnam('dttp')
+        return True
+    except KeyError:
+        return False
+
+def _apply_shatterglass_permissions(project_path):
+    """SPEC-027 task_127: Apply OS-level file permissions to a new external project.
+    Tier 1 (sovereign): human:human 644 -- _cortex/AI_PROTOCOL.md, _cortex/MASTER_PLAN.md, config/*.json
+    All other files: dttp:dttp 664 (agent in dttp group can write)
+    Requires sudo -- skips silently if not available."""
+    import pwd, grp, stat
+
+    try:
+        human_user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
+        human_uid = pwd.getpwnam(human_user).pw_uid
+        human_gid = pwd.getpwnam(human_user).pw_gid
+    except (KeyError, TypeError):
+        return  # Can't determine human user, skip
+
+    try:
+        dttp_uid = pwd.getpwnam('dttp').pw_uid
+        dttp_gid = grp.getgrnam('dttp').gr_gid
+    except KeyError:
+        return  # dttp user/group doesn't exist, skip
+
+    # Tier 1 sovereign paths (relative to project)
+    tier1_paths = [
+        os.path.join("_cortex", "AI_PROTOCOL.md"),
+        os.path.join("_cortex", "MASTER_PLAN.md"),
+        os.path.join("config", "specs.json"),
+        os.path.join("config", "jurisdictions.json"),
+        os.path.join("config", "dttp.json"),
+    ]
+
+    # Set base ownership: everything to dttp:dttp 664/775
+    for root, dirs, files in os.walk(project_path):
+        for d in dirs:
+            full = os.path.join(root, d)
+            try:
+                os.chown(full, dttp_uid, dttp_gid)
+                os.chmod(full, 0o775)
+            except OSError:
+                pass
+        for f in files:
+            full = os.path.join(root, f)
+            try:
+                os.chown(full, dttp_uid, dttp_gid)
+                os.chmod(full, 0o664)
+            except OSError:
+                pass
+
+    # Set Tier 1 sovereign paths to human:human 644
+    for rel_path in tier1_paths:
+        full = os.path.join(project_path, rel_path)
+        if os.path.exists(full):
+            try:
+                os.chown(full, human_uid, human_gid)
+                os.chmod(full, 0o644)
+            except OSError:
+                pass
+
 def _start_project_dttp(name):
     """Internal helper to start DTTP for a project."""
     from adt_core.cli import is_port_in_use, get_pid_by_port
@@ -149,14 +220,14 @@ def _start_project_dttp(name):
     project = registry.get_project(name)
     if not project:
         raise ValueError(f"Project '{name}' not found.")
-    
+
     port = project.get("dttp_port")
     if not port:
         raise ValueError(f"Project '{name}' has no DTTP port assigned.")
-        
+
     if is_port_in_use(port):
         return {"status": "already_running", "pid": get_pid_by_port(port)}
-        
+
     # Use framework's python if available
     python_exe = sys.executable
     framework = registry.get_project("adt-framework")
@@ -164,14 +235,21 @@ def _start_project_dttp(name):
         venv_python = os.path.join(framework["path"], "venv", "bin", "python3")
         if os.path.exists(venv_python):
             python_exe = venv_python
-            
+
     log_dir = os.path.join(project["path"], "_cortex", "ops")
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, "dttp.log")
-    
+
+    # SPEC-027: In production mode, run DTTP as the 'dttp' OS user
+    production_mode = _is_production_mode()
+    if production_mode:
+        cmd = ["sudo", "-u", "dttp", python_exe, "-m", "adt_core.dttp.service", "--port", str(port), "--project-root", project["path"]]
+    else:
+        cmd = [python_exe, "-m", "adt_core.dttp.service", "--port", str(port), "--project-root", project["path"]]
+
     with open(log_file, "a") as log:
         subprocess.Popen(
-            [python_exe, "-m", "adt_core.dttp.service", "--port", str(port), "--project-root", project["path"]],
+            cmd,
             stdout=log,
             stderr=log,
             start_new_session=True

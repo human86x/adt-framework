@@ -471,3 +471,14 @@ body {
     background-color: var(--adt-bg-hover);
     color: var(--adt-text);
 }
+
+.btn-purple {
+    background-color: var(--adt-purple);
+    border-color: var(--adt-purple);
+    color: #fff;
+}
+.btn-purple:hover {
+    background-color: #a371f7;
+    border-color: #a371f7;
+    color: #fff;
+}

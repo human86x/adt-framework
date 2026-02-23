@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% set active_page = "about" %}
+
+{% block title %}Help & Principles - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidebar Navigation -->
+    <div class="col-lg-3 mb-3">
+        <div class="card card-adt" style="position:sticky; top:70px;">
+            <div class="card-header">Contents</div>
+            <div class="card-body p-2">
+                <nav class="nav flex-column" style="font-size:0.78rem;">
+                    <a class="nav-link py-1 text-adt-muted" href="#what-is-adt" style="text-decoration:none;">What is ADT?</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#four-pillars" style="text-decoration:none;">The Four Pillars</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#ads" style="text-decoration:none;">Authoritative Data Source</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#integrity" style="text-decoration:none;">Integrity Chain</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#sdd" style="text-decoration:none;">Specification-Driven Dev</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#dttp" style="text-decoration:none;">DTTP Enforcement</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#op-center" style="text-decoration:none;">Operational Center</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#roles" style="text-decoration:none;">Roles & Jurisdiction</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#workflows" style="text-decoration:none;">Narrative Workflows</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#incidents" style="text-decoration:none;">Real Incidents</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#glossary" style="text-decoration:none;">Glossary</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#roadmap" style="text-decoration:none;">Roadmap</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-9">
+
+        <!-- What is ADT -->
+        <section id="what-is-adt" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>What is ADT?</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p><strong>Author:</strong> Paul Sheridan, Director, Advanced Digital Transformation (ADT)</p>
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "Digital transformation initiatives frequently fail not due to lack of technology, but because governance is applied after systems are operational."
+                    </blockquote>
+                    <p>ADT shifts governance upstream, embedding it into process creation so that compliance, accountability and auditability are properties of execution rather than downstream enforcement.</p>
+                    <p>The framework aligns with UN governance principles: <strong>Direction</strong>, <strong>Performance</strong>, <strong>Accountability</strong>, <strong>Transparency</strong>, and <strong>Legitimacy</strong>.</p>
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "Governance is an intrinsic system property, not an external overlay."
+                    </blockquote>
+                </div>
+            </div>
+        </section>
+
+        <!-- Four Pillars -->
+        <section id="four-pillars" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>The Four Pillars</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="accordion" id="pillarAccordion">
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarSDD"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
+                                    SDD &mdash; Specification-Driven Development
+                                </button>
+                            </h2>
+                            <div id="pillarSDD" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p>No spec = no legitimate execution. Every feature, module, and change requires an approved specification before implementation begins.</p>
+                                    <p class="text-adt-muted">Implementation: <code>_cortex/specs/</code>, SPEC-000 through SPEC-017</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarDTTP"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
+                                    DTTP &mdash; Digital Transformation Transfer Protocol
+                                </button>
+                            </h2>
+                            <div id="pillarDTTP" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p>Structural enforcement of spec-authorised actions. Agents request actions via API; DTTP validates against specs, jurisdictions, and locks before executing.</p>
+                                    <p class="text-adt-muted">Implementation: SPEC-014 + SPEC-019 &mdash; privilege-separated standalone service</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarBB"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
+                                    Digital Black Box &mdash; Immutable Audit Record
+                                </button>
+                            </h2>
+                            <div id="pillarBB" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p>Append-only, SHA-256 hash-chained event log. Every action is recorded. If it's not in the ADS, it didn't happen.</p>
+                                    <p class="text-adt-muted">Implementation: <code>events.jsonl</code>, Safe Logger v3.0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none;">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarIoE"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    <span class="badge-adt" style="background:rgba(139,148,158,0.15); color:var(--adt-text-muted);">PARTIAL</span>
+                                    <span class="ms-2">IoE &mdash; Internet of Events</span>
+                                </button>
+                            </h2>
+                            <div id="pillarIoE" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p>Cross-system event capture and response. ADS event logging with narrative workflows.</p>
+                                    <p class="text-adt-muted">Implementation: ADS event logging, narrative workflow support</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADS -->
+        <section id="ads" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>The Authoritative Data Source (ADS)</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The ADS is the single source of truth: <code>events.jsonl</code>. It is append-only &mdash; history is never modified.</p>
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "If an action is not recorded, it is not recognised as having occurred."
+                    </blockquote>
+                    <p>Every agent action, every spec approval, every DTTP request, every escalation is logged here. The ADS drives all dashboards, reports, and compliance checks.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Integrity Chain -->
+        <section id="integrity" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Integrity Chain</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>Every ADS event contains the SHA-256 hash of the previous event, forming an unbroken chain from genesis to present.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li>Genesis block: <code>prev_hash</code> is all zeros</li>
+                        <li>Tamper detection: modifying any event breaks the chain</li>
+                        <li>Safe Logger v3.0: atomic locking (fcntl), schema validation, hash computation</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SDD -->
+        <section id="sdd" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Specification-Driven Development (SDD)</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p><strong>"No Spec, No Code"</strong> &mdash; the fundamental rule.</p>
+                    <p>Spec lifecycle: <span class="text-adt-muted">DRAFT</span> &rarr; <span class="text-adt-amber">Human Approval</span> &rarr; <span class="text-adt-green">APPROVED</span> &rarr; <span style="color:var(--adt-purple);">Active</span> &rarr; <span class="text-adt-green">Completed</span></p>
+                    <p>Only the <strong>human</strong> can approve a spec. The Systems_Architect writes specs but does not implement. Engineers implement only what is approved.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- DTTP -->
+        <section id="dttp" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>DTTP &mdash; Structural Enforcement</span>
+                    <span class="badge-adt badge-pending">IN DEV</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>Three enforcement levels:</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div style="padding:0.75rem; background:var(--adt-bg-secondary); border-radius:6px; border-left:3px solid var(--adt-red);">
+                                <strong>Level 1: Behavioural</strong>
+                                <p class="text-adt-muted mb-0" style="font-size:0.78rem;">Prompt instructions. Proven insufficient.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div style="padding:0.75rem; background:var(--adt-bg-secondary); border-radius:6px; border-left:3px solid var(--adt-amber);">
+                                <strong>Level 2: Hook-Based</strong>
+                                <p class="text-adt-muted mb-0" style="font-size:0.78rem;">Pre-action scripts. Bypassable via Bash.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div style="padding:0.75rem; background:var(--adt-bg-secondary); border-radius:6px; border-left:3px solid var(--adt-green);">
+                                <strong>Level 3: Privilege-Separated</strong>
+                                <p class="text-adt-muted mb-0" style="font-size:0.78rem;">OS permissions + network rules. The target.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p>The three-user model (<strong class="text-adt-green">human</strong> / <strong class="text-adt-amber">agent</strong> / <strong class="text-adt-accent">dttp</strong>) ensures agents can only write through the DTTP gateway.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Operational Center -->
+        <section id="op-center" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>The ADT Operational Center</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The ADT Framework incarnated as software. This application.</p>
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "A court system is not part of the businesses it regulates."
+                    </blockquote>
+                    <p>The Operational Center is separate from the projects it governs. It provides the human web UI, the agent API, and the DTTP enforcement engine in a single Flask application.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roles -->
+        <section id="roles" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Roles & Jurisdiction</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-adt mb-0">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Jurisdiction</th>
+                                <th>Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Systems_Architect</td><td><code>_cortex/</code>, specs, architectural decisions</td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>Backend_Engineer</td><td><code>adt_core/</code>, <code>adt_center/api/</code>, <code>adt_center/app.py</code></td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>Frontend_Engineer</td><td><code>adt_center/templates/</code>, <code>adt_center/static/</code></td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>DevOps_Engineer</td><td><code>ops/</code>, deployment, Linux config</td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>Overseer</td><td><code>_cortex/ads/</code>, compliance, audit</td><td>CLAUDE / GEMINI</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Narrative Workflows -->
+        <section id="workflows" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Narrative Workflows</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>ADT events are not just isolated logs; they are links in a <strong>causal chain</strong> that forms a narrative of development.</p>
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1">Intent</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Task/Spec</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1" style="background:var(--adt-purple);">Action</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Execution</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1" style="background:var(--adt-red);">Obstacle</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Error/Denial</div>
+                        </div>
+                        <div class="px-2 pt-2">&rarr;</div>
+                        <div class="text-center px-2">
+                            <div class="badge-adt badge-completed mb-1">Resolution</div>
+                            <div class="text-adt-muted" style="font-size:0.7rem;">Fix/Verification</div>
+                        </div>
+                    </div>
+                    <p>By grouping events into storylines, the framework provides context to every change. For example, a "File Written" event is linked to the "Task Assigned" event that preceded it and the "Test Passed" event that followed it.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Real Incidents -->
+        <section id="incidents" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Real Incidents (Proving Ground Evidence)</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-adt mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Incident</th>
+                                <th>ADT Response</th>
+                                <th>What It Proved</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-adt-muted">2026-02-01</td>
+                                <td>ADS data loss (accidental overwrite)</td>
+                                <td>Ledger Protocol implemented, Safe Logger v3.0</td>
+                                <td class="text-adt-amber">Need for structural ADS protection</td>
+                            </tr>
+                            <tr>
+                                <td class="text-adt-muted">2026-02-03</td>
+                                <td>Pi 5 undervoltage, Arduino brownout</td>
+                                <td>Escalation chain &rarr; human physical intervention</td>
+                                <td class="text-adt-green">Escalation works across physical/digital boundary</td>
+                            </tr>
+                            <tr>
+                                <td class="text-adt-muted">2026-02-05</td>
+                                <td>ADS integrity chain broken at line 114</td>
+                                <td>Safe Logger v3.0 with atomic locking, chain healed</td>
+                                <td class="text-adt-green">Hash chain detects tampering/corruption</td>
+                            </tr>
+                            <tr>
+                                <td class="text-adt-muted">2026-02-05</td>
+                                <td>Architect violated SDD (unapproved spec)</td>
+                                <td>Human caught violation, logged to ADS</td>
+                                <td class="text-adt-red">Behavioural compliance insufficient &mdash; need DTTP</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Glossary -->
+        <section id="glossary" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Glossary</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.8rem;">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <dl>
+                                <dt class="text-adt-accent">ADS</dt><dd class="text-adt-muted">Authoritative Data Source &mdash; the single source of truth</dd>
+                                <dt class="text-adt-accent">SDD</dt><dd class="text-adt-muted">Specification-Driven Development &mdash; no spec, no code</dd>
+                                <dt class="text-adt-accent">DTTP</dt><dd class="text-adt-muted">Digital Transformation Transfer Protocol &mdash; structural enforcement</dd>
+                                <dt class="text-adt-accent">IoE</dt><dd class="text-adt-muted">Internet of Events &mdash; cross-system event capture</dd>
+                                <dt class="text-adt-accent">Digital Black Box</dt><dd class="text-adt-muted">Immutable, auditable record of all actions</dd>
+                                <dt class="text-adt-accent">Fail-Closed</dt><dd class="text-adt-muted">Any error = DENY. Never fails open</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl>
+                                <dt class="text-adt-accent">Jurisdiction</dt><dd class="text-adt-muted">Bounded set of files/actions a role may touch</dd>
+                                <dt class="text-adt-accent">Escalation</dt><dd class="text-adt-muted">Issue flagged for human attention</dd>
+                                <dt class="text-adt-accent">Hash Chain</dt><dd class="text-adt-muted">SHA-256 linked events for tamper detection</dd>
+                                <dt class="text-adt-accent">Safe Logger</dt><dd class="text-adt-muted">Atomic ADS writer with fcntl locking</dd>
+                                <dt class="text-adt-accent">Privilege Separation</dt><dd class="text-adt-muted">OS-level enforcement via user permissions</dd>
+                                <dt class="text-adt-accent">Hivemind</dt><dd class="text-adt-muted">Multi-agent specialised role model</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roadmap -->
+        <section id="roadmap" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Roadmap</span>
+                    <span class="badge-adt badge-pending">EVOLVING</span>
+                </div>
+                <div class="card-body" style="font-size:0.8rem;">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <h6 style="color:var(--adt-green); font-size:0.8rem;">Completed</h6>
+                            <ul class="list-unstyled text-adt-muted">
+                                <li>&#10003; ADS Ledger</li>
+                                <li>&#10003; SHA-256 Chain</li>
+                                <li>&#10003; SDD Enforcement</li>
+                                <li>&#10003; DTTP Engine</li>
+                                <li>&#10003; Operational Center</li>
+                                <li>&#10003; Phase 1 Hardening</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 style="color:var(--adt-amber); font-size:0.8rem;">In Progress</h6>
+                            <ul class="list-unstyled text-adt-muted">
+                                <li>&#9679; Operator Console</li>
+                                <li>&#9679; Privilege Separation</li>
+                                <li>&#9679; Self-Governance (SPEC-020)</li>
+                                <li>&#9679; CI/CD Pipelines</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 style="color:var(--adt-text-muted); font-size:0.8rem;">Planned</h6>
+                            <ul class="list-unstyled text-adt-muted">
+                                <li>&#9675; Multi-Project Support</li>
+                                <li>&#9675; IoE Cross-System Events</li>
+                                <li>&#9675; Full Invocation Chaining</li>
+                                <li>&#9675; Enterprise DTTP Network</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

@@ -4,6 +4,16 @@
 {% block title %}Dashboard - ADT Operational Center{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="projectSelector" style="width: 200px;">
+            <option value="">All Projects</option>
+            <!-- Populated via JS -->
+        </select>
+    </div>
+</div>
+
 <!-- Stats Row -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-4 col-xl-2">
@@ -63,8 +73,8 @@
                 <a href="/ads" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
             </div>
             <div class="card-body p-2">
-                <div class="timeline-container">
-                    {% for event in events|reverse %}
+                <div class="timeline-container" id="dashboard-timeline" style="max-height: 500px; overflow-y: auto;">
+                    {% for event in events %}
                     <div class="event-item
                         {% if not event.authorized %}event-denied
                         {% elif event.action_type in ['session_start', 'session_end'] %}event-session
@@ -72,7 +82,7 @@
                         {% elif event.status == 'pending' or event.action_type == 'pending_edit' %}event-pending
                         {% endif %}">
                         <div class="event-meta">
-                            {{ event.ts[:19] }}
+                            {{ event.ts[11:19] }}
                             &middot;
                             <span class="badge-adt {% if event.agent == 'CLAUDE' %}badge-agent-claude{% else %}badge-agent-gemini{% endif %}">
                                 {{ event.agent }}
@@ -138,11 +148,18 @@
                         <div class="task-column-header col-completed">
                             Completed ({{ tasks|selectattr('status', 'equalto', 'completed')|list|length }})
                         </div>
-                        {% for task in tasks if task.status == 'completed' %}
-                        <div class="task-card">
-                            <div class="task-id">{{ task.id }}</div>
-                            <div class="task-title">{{ task.title[:40] }}{% if task.title|length > 40 %}...{% endif %}</div>
-                            <div class="task-role">{{ task.assigned_to }}</div>
+                        {% set completed_tasks = tasks|selectattr('status', 'equalto', 'completed')|list %}
+                        {% for role, role_tasks in completed_tasks|groupby('assigned_to') %}
+                        <div class="task-role-group mt-1 mb-2">
+                            <div class="text-adt-muted fw-bold" style="font-size:0.65rem; border-bottom:1px solid var(--adt-border); margin-bottom:4px;">
+                                {{ role|upper }} ({{ role_tasks|length }})
+                            </div>
+                            {% for task in role_tasks %}
+                            <div class="task-card p-1 mb-1">
+                                <div class="task-id" style="font-size:0.6rem;">{{ task.id }}</div>
+                                <div class="task-title" style="font-size:0.75rem;">{{ task.title[:30] }}{% if task.title|length > 30 %}...{% endif %}</div>
+                            </div>
+                            {% endfor %}
                         </div>
                         {% endfor %}
                     </div>
@@ -180,6 +197,11 @@
                                     {% if spec.status == 'APPROVED' %}badge-completed
                                     {% elif spec.status == 'DRAFT' %}badge-pending
                                     {% else %}badge-in-progress{% endif %}">
+                                    {% if spec.status == 'APPROVED' %}
+                                    <i class="bi bi-patch-check-fill me-1"></i>
+                                    {% elif spec.status == 'DRAFT' %}
+                                    <i class="bi bi-clock-history me-1"></i>
+                                    {% endif %}
                                     {{ spec.status }}
                                 </span>
                             </td>
@@ -282,5 +304,52 @@ async function submitFeedback() {
         errEl.classList.remove('d-none');
     }
 }
+
+// Auto-scroll to bottom on load (SPEC-013)
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('dashboard-timeline');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Populate Project Selector
+    const selector = document.getElementById('projectSelector');
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentProject = urlParams.get('project');
+
+    fetch('/api/projects')
+        .then(r => r.json())
+        .then(projects => {
+            for (const name in projects) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                if (currentProject === name) opt.selected = true;
+                selector.appendChild(opt);
+            }
+        });
+
+    selector.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const newUrl = new URL(window.location);
+        if (val) {
+            newUrl.searchParams.set('project', val);
+        } else {
+            newUrl.searchParams.delete('project');
+        }
+        window.location.href = newUrl.toString();
+    });
+    
+    // Update links to preserve project context
+    if (currentProject) {
+        document.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href');
+            if (href && href.startsWith('/') && !href.includes('project=')) {
+                const sep = href.includes('?') ? '&' : '?';
+                a.setAttribute('href', `${href}${sep}project=${currentProject}`);
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

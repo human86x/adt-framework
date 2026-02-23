@@ -606,8 +606,8 @@ def detect_project_type(path: str) -> str:
 
 def init_command(args):
     """SPEC-031: Initialize ADT governance in any directory."""
-    from adt_center.api.governance_routes import _init_project
-    
+    from adt_center.api.governance_routes import _init_project, _is_production_mode
+
     try:
         result = _init_project(
             path=args.path,
@@ -618,6 +618,8 @@ def init_command(args):
         print(f"\nSUCCESS: Project '{result['name']}' initialized.")
         print(f"DTTP Port assigned: {result['port']}")
         print(f"Path: {result['path']}")
+        if _is_production_mode():
+            print(f"Shatterglass: OS-level permissions applied (production mode)")
     except Exception as e:
         print(f"Error: {e}")
 

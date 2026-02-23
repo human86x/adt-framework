@@ -23,19 +23,34 @@
         <div class="card card-adt">
             <div class="card-header d-flex justify-content-between align-items-center"
                  style="cursor:pointer;"
-                 onclick="viewSpec('{{ spec.id }}', '{{ spec.name }}')">
+                 data-status="{{ spec.status|upper }}"
+                 onclick="viewSpec('{{ spec.id }}', '{{ spec.name }}', this)">
                 <div>
                     <span class="text-adt-accent fw-bold">{{ spec.id }}</span>
                     <span class="ms-2">{{ spec.name }}</span>
                 </div>
                 <div class="d-flex align-items-center">
-                    <span class="badge-adt me-3
-                        {% if spec.status == 'approved' or spec.status == 'APPROVED' %}badge-completed
-                        {% elif spec.status == 'draft' or spec.status == 'DRAFT' %}badge-pending
-                        {% else %}badge-in-progress{% endif %}">
+                    {% if spec.status|upper == 'DRAFT' %}
+                    <button class="btn btn-success btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;" 
+                            onclick="event.stopPropagation(); updateStatusDirect('{{ spec.id }}', 'APPROVED')">
+                        Approve
+                    </button>
+                    {% elif spec.status|upper == 'APPROVED' or spec.status|upper == 'ACTIVE' %}
+                    <button class="btn btn-purple btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;" 
+                            onclick="event.stopPropagation(); updateStatusDirect('{{ spec.id }}', 'COMPLETED')">
+                        Complete
+                    </button>
+                    {% endif %}
+                    <span class="badge-adt me-3 {% if spec.status|upper == 'APPROVED' %}badge-completed{% elif spec.status|upper == 'DRAFT' %}badge-pending{% else %}badge-in-progress{% endif %}" 
+                          data-spec-id="{{ spec.id }}">
+                        {% if spec.status|upper == 'APPROVED' %}
+                        <i class="bi bi-patch-check-fill me-1"></i>
+                        {% elif spec.status|upper == 'DRAFT' %}
+                        <i class="bi bi-clock-history me-1"></i>
+                        {% endif %}
                         {{ spec.status|upper }}
                     </span>
-                    <span class="text-adt-muted" style="font-size:0.7rem;">Click to open &#8599;</span>
+                    <span class="text-adt-muted d-none d-md-inline" style="font-size:0.7rem;">Click to open &#8599;</span>
                 </div>
             </div>
             {# Hidden storage for rendered markdown #}
@@ -59,6 +74,7 @@
                 <h5 class="modal-title" id="specModalTitle">
                     <span id="m-spec-id" class="text-adt-accent"></span>
                     <span id="m-spec-name" class="ms-2"></span>
+                    <span id="m-spec-status" class="badge-adt ms-2" style="font-size:0.7rem;"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -67,7 +83,15 @@
                     <!-- Content injected here -->
                 </div>
             </div>
-            <div class="modal-footer border-adt">
+            <div class="modal-footer border-adt d-flex justify-content-between">
+                <div>
+                    <button type="button" id="btn-approve-spec" class="btn btn-sm btn-success d-none" onclick="updateStatus('APPROVED')">
+                        <i class="bi bi-patch-check-fill me-1"></i> Approve Spec
+                    </button>
+                    <button type="button" id="btn-complete-spec" class="btn btn-sm btn-purple d-none" onclick="updateStatus('COMPLETED')">
+                        <i class="bi bi-check-all me-1"></i> Mark Complete
+                    </button>
+                </div>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -109,14 +133,64 @@
 </div>
 
 <script>
-function viewSpec(id, name) {
+function viewSpec(id, name, el) {
     const content = document.getElementById('data-' + id).innerHTML;
+    const currentStatus = el.getAttribute('data-status') || 'DRAFT';
+
     document.getElementById('m-spec-id').innerText = id;
     document.getElementById('m-spec-name').innerText = name;
+    document.getElementById('m-spec-status').innerText = currentStatus;
     document.getElementById('specModalBody').innerHTML = content;
+    
+    // Toggle buttons based on status
+    const approveBtn = document.getElementById('btn-approve-spec');
+    const completeBtn = document.getElementById('btn-complete-spec');
+    
+    approveBtn.classList.add('d-none');
+    completeBtn.classList.add('d-none');
+    
+    if (currentStatus === 'DRAFT') {
+        approveBtn.classList.remove('d-none');
+    } else if (currentStatus === 'APPROVED' || currentStatus === 'ACTIVE') {
+        completeBtn.classList.remove('d-none');
+    }
     
     const myModal = new bootstrap.Modal(document.getElementById('specModal'));
     myModal.show();
+}
+
+async function updateStatusDirect(specId, newStatus) {
+    if (!confirm(`Are you sure you want to change Spec ${specId} status to ${newStatus}?`)) return;
+    await performUpdate(specId, newStatus);
+}
+
+async function updateStatus(newStatus) {
+    const specId = document.getElementById('m-spec-id').innerText;
+    if (!confirm(`Are you sure you want to change Spec ${specId} status to ${newStatus}?`)) return;
+    await performUpdate(specId, newStatus);
+}
+
+async function performUpdate(specId, newStatus) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const project = urlParams.get('project');
+    
+    try {
+        const query = project ? `?project=${project}` : '';
+        const res = await fetch(`/api/specs/${specId}/status${query}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        if (res.ok) {
+            location.reload();
+        } else {
+            const err = await res.json();
+            alert('Error: ' + err.error);
+        }
+    } catch (e) {
+        alert('Failed to update status');
+    }
 }
 
 document.getElementById('createSpecForm').addEventListener('submit', async (e) => {

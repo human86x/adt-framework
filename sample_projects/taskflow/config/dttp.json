@@ -1,0 +1,6 @@
+{
+  "name": "taskflow",
+  "port": 5003,
+  "mode": "development",
+  "enforcement_mode": "development"
+}

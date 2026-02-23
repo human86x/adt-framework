@@ -25,6 +25,9 @@ The framework governs its own development -- recursive self-improvement through 
 10. **Collaborative Bootstrap:** One-command setup for remote collaborators. Send framework, receive specs. (Status: DRAFT -- SPEC-025)
 11. **Governance Configurator:** Visual UI for human to configure DTTP roles, jurisdictions, and permissions. (Status: DRAFT -- SPEC-026)
 12. **Shatterglass Protocol:** OS-level file permission enforcement with time-limited privilege escalation. (Status: APPROVED -- SPEC-027)
+13. **External Project Governance:** Multi-project support -- govern external codebases with per-project DTTP isolation, project registry, and unified visibility. (Status: APPROVED -- SPEC-031)
+14. **Console Project Launcher:** Startup launcher with Forge Mode, Create/Import wizards, and guided setup. (Status: APPROVED -- SPEC-032)
+15. **Sovereign Change Requests:** Agent-proposed sovereign path changes queued for human review in Panel. (Status: APPROVED -- SPEC-033)
 
 ## Active Specifications
 
@@ -47,6 +50,10 @@ The framework governs its own development -- recursive self-improvement through 
 | SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |
 | SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |
 | SPEC-029 | Single-File Installer | APPROVED | ADT Framework |
+| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |
+| SPEC-031 | External Project Governance | APPROVED | ADT Framework |
+| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |
+| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |
 
 > Specs SPEC-014 through SPEC-017 originated in OceanPulse `_cortex/specs/`.
 > Specs SPEC-018+ are native to the ADT Framework -- the framework is now generating
@@ -67,6 +74,7 @@ SPEC-024 (ADT Connect)            <- Remote access via Cloudflare tunnels
 SPEC-026 (Governance Configurator) <- Visual DTTP rule configuration UI
 SPEC-027 (Shatterglass Protocol)    <- OS-level enforcement, privilege escalation
 SPEC-022 (Windows Installer)      <- Inno Setup bundled distribution
+SPEC-031 (External Projects)       <- adt init, registry, multi-project DTTP, TaskFlow sample
 ```
 
 ## Version Roadmap
@@ -76,7 +84,8 @@ SPEC-022 (Windows Installer)      <- Inno Setup bundled distribution
 | v0.1.0 | Core engines (ADS, SDD, DTTP) |
 | v0.2.0 | Operational Center + Agent SDK + Self-Governance |
 | v0.3.0 | Operator Console + Collaborative Bootstrap |
-| v0.4.0 | *Driven by collaborator feedback from v0.3* |
+| v0.4.0 | External Project Governance + Multi-project DTTP |
+| v0.5.0 | *Driven by external project findings from v0.4* |
 
 ## Role Assignments
 

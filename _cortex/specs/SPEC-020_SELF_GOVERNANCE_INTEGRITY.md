@@ -297,3 +297,190 @@ SPEC-020 is **COMPLETED** when:
 ---
 
 *"The framework governs itself, but the human governs the framework. This is not a contradiction -- it is the design."*
+
+---
+
+## 9. Amendment B: ADS Role Name Normalization (REQ-016)
+
+**Author:** CLAUDE (Systems_Architect)
+**Date:** 2026-02-18
+**Status:** APPROVED by Human 2026-02-18
+**Triggered By:** REQ-016 (Overseer/Gemini) -- inconsistent role casing in ADS events linked to hash chain instability
+
+---
+
+### 9.1 Problem
+
+ADS events contain a free-text `role` field. Different agents and hooks produce
+inconsistent casing:
+
+```
+"role": "DevOps_Engineer"     # From hive activation / active_role.txt
+"role": "devops_engineer"     # From env var set manually
+"role": "Backend_Engineer"    # From hook default
+"role": "backend_engineer"    # From Gemini CLI
+```
+
+This causes two problems:
+
+1. **Hash chain fragility:** The `role` field is included in the hash
+   calculation. `DevOps_Engineer` and `devops_engineer` produce different
+   hashes. If a chain is computed expecting one casing and an event arrives
+   with the other, verification fails.
+
+2. **Query inconsistency:** Filtering ADS events by role (e.g., in the
+   Console context panel or Hive Tracker) produces incomplete results when
+   the same logical role appears under multiple casings.
+
+### 9.2 Solution: Canonical Role Names with Validation
+
+#### 9.2.1 Canonical Role Registry
+
+The ADS schema maintains a list of canonical role names, sourced from
+`config/jurisdictions.json` at startup. For the framework (forge), the
+canonical roles are:
+
+```
+Systems_Architect
+Backend_Engineer
+Frontend_Engineer
+DevOps_Engineer
+Overseer
+```
+
+For external governed projects, canonical roles are whatever is defined in
+that project's `config/jurisdictions.json`.
+
+#### 9.2.2 Normalization in ADSEventSchema
+
+`ADSEventSchema.create_event()` normalizes the `role` field before creating
+the event dict. Normalization is case-insensitive matching against the
+canonical list:
+
+```python
+# In schema.py
+
+CANONICAL_ROLES = None  # Loaded at startup from jurisdictions.json
+
+@staticmethod
+def normalize_role(role: str) -> str:
+    """Normalize role name to canonical casing.
+    
+    Matches case-insensitively against canonical roles.
+    If no match found, returns the input unchanged (for forward
+    compatibility with new roles).
+    """
+    if ADSEventSchema.CANONICAL_ROLES is None:
+        return role  # Not yet initialized, pass through
+    for canonical in ADSEventSchema.CANONICAL_ROLES:
+        if role.lower() == canonical.lower():
+            return canonical
+    return role  # Unknown role, pass through unchanged
+```
+
+The normalization runs inside `create_event()`:
+
+```python
+@staticmethod
+def create_event(event_id, agent, role, action_type, ...):
+    role = ADSEventSchema.normalize_role(role)
+    # ... rest of event creation
+```
+
+#### 9.2.3 Validation in ADSEventSchema.validate()
+
+Add optional strict validation that warns (but does not reject) when a role
+name does not match any canonical role:
+
+```python
+@staticmethod
+def validate(event_data):
+    # ... existing checks ...
+    
+    # Role normalization check (warning, not rejection)
+    if ADSEventSchema.CANONICAL_ROLES:
+        role = event_data.get("role", "")
+        if role.lower() not in [r.lower() for r in ADSEventSchema.CANONICAL_ROLES]:
+            logger.warning(f"ADS: Unknown role '{role}' not in canonical list")
+    
+    return True
+```
+
+#### 9.2.4 Initialization
+
+The canonical role list is loaded once at service startup:
+
+```python
+# In service.py or app.py startup
+import json
+jurisdictions_path = os.path.join(project_root, "config", "jurisdictions.json")
+with open(jurisdictions_path) as f:
+    jur = json.load(f)
+ADSEventSchema.CANONICAL_ROLES = list(jur.get("jurisdictions", {}).keys())
+```
+
+#### 9.2.5 Hook Normalization
+
+The hooks (`claude_pretool.py`, `gemini_pretool.py`) also normalize role
+names before sending DTTP requests. They read the canonical list from the
+project's `config/jurisdictions.json`:
+
+```python
+# In hook startup
+def get_canonical_role(role, project_dir):
+    """Normalize role against project's jurisdiction config."""
+    jur_path = os.path.join(project_dir, "config", "jurisdictions.json")
+    if os.path.exists(jur_path):
+        with open(jur_path) as f:
+            jur = json.load(f)
+        for canonical in jur.get("jurisdictions", {}).keys():
+            if role.lower() == canonical.lower():
+                return canonical
+    return role
+```
+
+### 9.3 Agent Field Normalization
+
+The `agent` field has the same inconsistency: `CLAUDE` vs `claude`,
+`GEMINI` vs `gemini`. Apply the same normalization:
+
+```python
+CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN"]
+
+@staticmethod
+def normalize_agent(agent: str) -> str:
+    for canonical in ADSEventSchema.CANONICAL_AGENTS:
+        if agent.upper() == canonical:
+            return canonical
+    return agent.upper()  # Default: uppercase unknown agents
+```
+
+### 9.4 Files to Modify
+
+| File | Change |
+|------|--------|
+| `adt_core/ads/schema.py` | Add `CANONICAL_ROLES`, `CANONICAL_AGENTS`, `normalize_role()`, `normalize_agent()`. Apply in `create_event()`. |
+| `adt_core/dttp/service.py` | Load canonical roles from `jurisdictions.json` at startup, set `ADSEventSchema.CANONICAL_ROLES`. |
+| `adt_center/app.py` | Same initialization at Center startup. |
+| `adt_sdk/hooks/claude_pretool.py` | Add `get_canonical_role()`, normalize before DTTP request. |
+| `adt_sdk/hooks/gemini_pretool.py` | Same normalization. |
+
+### 9.5 Backward Compatibility
+
+- Existing ADS events with inconsistent casing are NOT retroactively fixed
+  (that would break the hash chain).
+- Normalization applies only to new events going forward.
+- The hash chain remains valid because each event's hash is computed from
+  its own content -- past events with `devops_engineer` keep their hashes,
+  future events will use `DevOps_Engineer`.
+- Unknown role names pass through unchanged (forward compatible with new
+  roles added to jurisdictions.json).
+
+### 9.6 Acceptance Criteria
+
+- [ ] `ADSEventSchema.create_event(role="devops_engineer")` produces event with `"role": "DevOps_Engineer"`
+- [ ] `ADSEventSchema.create_event(agent="gemini")` produces event with `"agent": "GEMINI"`
+- [ ] Canonical roles loaded from `jurisdictions.json` at DTTP and Center startup
+- [ ] Hooks normalize role before sending DTTP request
+- [ ] Unknown roles pass through without error (warning logged)
+- [ ] Existing ADS events with old casing remain valid (no retroactive changes)

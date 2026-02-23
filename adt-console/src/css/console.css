@@ -472,6 +472,19 @@ kbd {
   color: var(--text-primary);
 }
 
+#status-git {
+  color: var(--text-secondary);
+}
+
+#git-branch {
+  font-weight: 600;
+}
+
+#git-changes {
+  color: var(--accent-yellow);
+  font-size: 10px;
+}
+
 #statusbar {
   height: var(--statusbar-height);
   background: var(--bg-secondary);

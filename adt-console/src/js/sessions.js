@@ -58,6 +58,7 @@ const SessionManager = (() => {
       try {
         sessionInfo = await window.__TAURI__.core.invoke('create_session', {
           request: {
+            project: project || null,
             agent: agent,
             role: role,
             spec_id: specId,
@@ -93,6 +94,27 @@ const SessionManager = (() => {
     };
 
     sessions.set(session.id, session);
+
+    // SPEC-032: Track recent sessions for launcher
+    try {
+      const recentRaw = localStorage.getItem('adt_recent_sessions');
+      let recent = recentRaw ? JSON.parse(recentRaw) : [];
+      // Add new to front, unique by project/role/agent
+      const entry = {
+        project: session.project,
+        role: session.role,
+        agent: session.agent,
+        spec_id: session.spec_id,
+        command: session.command,
+        ts: new Date().toISOString()
+      };
+      recent = [entry, ...recent.filter(r => 
+        r.project !== entry.project || r.role !== entry.role || r.agent !== entry.agent
+      )].slice(0, 10);
+      localStorage.setItem('adt_recent_sessions', JSON.stringify(recent));
+    } catch (e) {
+      console.warn('Failed to save recent session:', e);
+    }
 
     // Create terminal
     const term = TerminalManager.create(session.id);
@@ -177,6 +199,8 @@ const SessionManager = (() => {
       ContextPanel.update(session);
     }
 
+    updateStatusBar();
+
     // Hide empty state
     document.getElementById('empty-state').style.display = 'none';
   }
@@ -185,7 +209,8 @@ const SessionManager = (() => {
     if (window.__TAURI__) {
       try {
         await window.__TAURI__.core.invoke('close_session', {
-          request: { sessionId: sessionId }
+          request: {
+            project: project || null, sessionId: sessionId }
         });
       } catch (err) {
         console.error('Failed to close session:', err);
@@ -207,6 +232,9 @@ const SessionManager = (() => {
       } else {
         activeSessionId = null;
         document.getElementById('empty-state').style.display = '';
+        if (typeof ProjectLauncher !== 'undefined') {
+          ProjectLauncher.toggle();
+        }
       }
     }
 
@@ -224,6 +252,7 @@ const SessionManager = (() => {
     const tab = document.createElement('button');
     tab.className = 'session-tab';
     tab.dataset.sessionId = session.id;
+    tab.dataset.project = session.project || '';
 
     const symbol = AGENT_SYMBOLS[session.agent.toLowerCase()] || AGENT_SYMBOLS.custom;
     const roleShort = session.role.replace('_Engineer', '').replace('Systems_', '');
@@ -243,7 +272,15 @@ const SessionManager = (() => {
       }
     });
 
-    tabsContainer.appendChild(tab);
+    // Grouping logic: find last tab of same project and insert after
+    const existingTabs = Array.from(tabsContainer.querySelectorAll('.session-tab'));
+    const lastProjectTab = existingTabs.reverse().find(t => t.dataset.project === tab.dataset.project);
+    
+    if (lastProjectTab) {
+      lastProjectTab.after(tab);
+    } else {
+      tabsContainer.appendChild(tab);
+    }
   }
 
   function renderSidebarEntry(session) {
@@ -265,6 +302,16 @@ const SessionManager = (() => {
 
   function updateStatusBar() {
     document.getElementById('status-sessions').textContent = `Sessions: ${sessions.size}`;
+    
+    const active = getActive();
+    const projectSpan = document.getElementById('status-project');
+    if (projectSpan) {
+      if (active && active.project) {
+        projectSpan.innerHTML = `<span class="status-dot dot-green"></span> Project: ${active.project}`;
+      } else {
+        projectSpan.innerHTML = `<span class="status-dot dot-grey"></span> Project: —`;
+      }
+    }
   }
 
   function getActive() {

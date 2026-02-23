@@ -5,8 +5,22 @@
 
 {% block content %}
 <div class="row g-4">
-    <!-- Left Column: Role Manager -->
+    <!-- Left Column: Authorizations & Role Manager -->
     <div class="col-lg-8">
+        <!-- SPEC-033: Pending Authorizations -->
+        <div id="scr-section" class="mb-5 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0" style="font-size:1.1rem; font-weight:700; color:var(--adt-amber);">
+                    &#9888; Pending Authorizations
+                </h5>
+                <span id="scr-count-badge" class="badge rounded-pill bg-danger">0</span>
+            </div>
+            <div id="scr-container" class="row g-3">
+                <!-- SCR cards injected by JS -->
+            </div>
+            <hr class="border-adt my-4">
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Role Jurisdiction Manager</h5>
             <span class="badge-adt badge-completed">HUMAN-ONLY ACCESS</span>
@@ -358,15 +372,21 @@ function editRole(name) {
         document.getElementById('action-' + action).checked = config.action_types.includes(action);
     });
     
-    // Specs list
+    // Specs list - Make them clickable (SPEC-026)
     const specsContainer = document.getElementById('specs-select-container');
     specsContainer.innerHTML = '';
     allSpecs.forEach(spec => {
         const badge = document.createElement('div');
         const isActive = config.specs.includes(spec.id);
-        badge.className = `badge-adt ${isActive ? 'badge-completed' : 'btn-adt-secondary'} p-2` ;
-        badge.style.cursor = 'default';
+        badge.className = `badge-adt spec-toggle-badge ${isActive ? 'badge-completed active' : 'btn-adt-secondary'} p-2` ;
+        badge.style.cursor = 'pointer';
+        badge.dataset.specId = spec.id;
         badge.innerHTML = `${spec.id}`;
+        badge.onclick = () => {
+            badge.classList.toggle('badge-completed');
+            badge.classList.toggle('active');
+            badge.classList.toggle('btn-adt-secondary');
+        };
         specsContainer.appendChild(badge);
     });
     
@@ -388,6 +408,7 @@ function addPathInput(value = '') {
 document.getElementById('editRoleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const role = document.getElementById('edit-role-id').value;
+    const config = currentRoles[role];
     
     const pathInputs = document.querySelectorAll('#paths-input-container input');
     const paths = Array.from(pathInputs).map(i => i.value.trim()).filter(v => v !== '');
@@ -395,23 +416,57 @@ document.getElementById('editRoleForm').addEventListener('submit', async (e) => 
     const actions = ['edit', 'patch', 'create', 'delete'].filter(a => 
         document.getElementById('action-' + a).checked
     );
+
+    // Get selected specs from UI
+    const selectedSpecs = Array.from(document.querySelectorAll('.spec-toggle-badge.active'))
+                               .map(b => b.dataset.specId);
     
     try {
+        // 1. Update jurisdiction paths and actions
         const res = await fetch(`/api/governance/roles/${role}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ paths, action_types: actions })
         });
         
-        if (res.ok) {
-            bootstrap.Modal.getInstance(document.getElementById('editRoleModal')).hide();
-            loadGovernance();
-        } else {
+        if (!res.ok) {
             const data = await res.json();
-            alert('Error: ' + data.error);
+            alert('Error updating jurisdiction: ' + data.error);
+            return;
         }
+
+        // 2. Update Spec bindings if they changed
+        // This is a bit complex because spec bindings are stored in config/specs.json per spec.
+        // We need to identify which specs were added and which were removed.
+        const originalSpecs = config.specs;
+        const added = selectedSpecs.filter(s => !originalSpecs.includes(s));
+        const removed = originalSpecs.filter(s => !selectedSpecs.includes(s));
+
+        for (const specId of [...added, ...removed]) {
+            // Fetch current spec roles first to avoid wiping others
+            const sRes = await fetch(`/api/specs/${specId}`);
+            if (!sRes.ok) continue;
+            const sData = await sRes.json();
+            let roles = sData.roles || [];
+            
+            if (added.includes(specId)) {
+                if (!roles.includes(role)) roles.push(role);
+            } else {
+                roles = roles.filter(r => r !== role);
+            }
+
+            await fetch(`/api/governance/specs/${specId}/roles`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roles, action_types: actions }) // Sync actions too
+            });
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('editRoleModal')).hide();
+        loadGovernance();
+        alert('Governance configuration updated and synced.');
     } catch (err) {
-        alert('Failed to save changes');
+        alert('Failed to save changes: ' + err.message);
     }
 });
 
@@ -503,12 +558,121 @@ function startShatterTimer(seconds) {
     }, 1000);
 }
 
+async function loadSCRs() {
+    try {
+        const res = await fetch('/api/governance/sovereign-requests?status=pending');
+        if (!res.ok) return;
+        const data = await res.json();
+        const scrs = data.requests || [];
+        
+        const section = document.getElementById('scr-section');
+        const badge = document.getElementById('scr-count-badge');
+        
+        if (scrs.length > 0) {
+            section.classList.remove('d-none');
+            badge.innerText = scrs.length;
+            renderSCRCards(scrs);
+        } else {
+            section.classList.add('d-none');
+        }
+    } catch (err) {
+        // Silently fail if endpoint doesn't exist yet
+    }
+}
+
+function renderSCRCards(scrs) {
+    const container = document.getElementById('scr-container');
+    container.innerHTML = '';
+    
+    scrs.forEach(scr => {
+        const col = document.createElement('div');
+        col.className = 'col-12';
+        
+        const agentColor = scr.agent.toLowerCase().includes('claude') ? 'var(--adt-blue)' : 'var(--adt-green)';
+        
+        let diffHtml = '';
+        if (scr.change_type === 'patch' && scr.patch) {
+            diffHtml = `
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt);">
+                    <div class="text-danger">-${scr.patch.old_string}</div>
+                    <div class="text-success">+${scr.patch.new_string}</div>
+                </div>
+            `;
+        } else if (scr.change_type === 'json_merge') {
+            diffHtml = `
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt);">
+                    <div class="text-adt-muted">Merge JSON:</div>
+                    <pre class="mb-0 text-success">${JSON.stringify(scr.merge_data, null, 2)}</pre>
+                </div>
+            `;
+        } else {
+            diffHtml = `<div class="text-adt-muted small mt-2">Change type: ${scr.change_type}</div>`;
+        }
+
+        col.innerHTML = `
+            <div class="card card-adt border-amber shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background:rgba(255, 171, 0, 0.05);">
+                    <div>
+                        <span class="text-adt-amber fw-bold">${scr.id}</span> &middot; 
+                        <span class="text-white">${scr.target_path}</span>
+                    </div>
+                    <div class="small text-adt-muted">${new Date(scr.ts).toLocaleString()}</div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2" style="font-size:0.9rem;">"${scr.description}"</p>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="badge-adt me-2" style="background:${agentColor}; color:white;">${scr.agent}</div>
+                        <div class="text-adt-muted small">${scr.role}</div>
+                    </div>
+                    ${diffHtml}
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <button class="btn btn-sm btn-outline-danger" onclick="handleSCR('${scr.id}', 'reject')">Reject</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="handleSCR('${scr.id}', 'edit')">Edit & Authorize</button>
+                        <button class="btn btn-sm btn-adt-primary" onclick="handleSCR('${scr.id}', 'authorize')">Authorize Change</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+async function handleSCR(id, action) {
+    if (action === 'reject') {
+        const reason = prompt('Reason for rejection:');
+        if (reason === null) return;
+        
+        await fetch(`/api/governance/sovereign-requests/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reject', reason })
+        });
+    } else if (action === 'authorize') {
+        if (!confirm('Authorize this sovereign change?')) return;
+        
+        await fetch(`/api/governance/sovereign-requests/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'authorize' })
+        });
+    } else if (action === 'edit') {
+        alert('Edit functionality coming soon.');
+        return;
+    }
+    
+    loadSCRs();
+}
+
 // Initial render
 document.addEventListener('DOMContentLoaded', () => {
     loadGovernance();
     loadEnforcement();
-    // Refresh enforcement every 10s
-    setInterval(loadEnforcement, 10000);
+    loadSCRs();
+    // Refresh enforcement & SCRs every 10s
+    setInterval(() => {
+        loadEnforcement();
+        loadSCRs();
+    }, 10000);
 });
 </script>
 {% endblock %}

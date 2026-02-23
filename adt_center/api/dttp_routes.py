@@ -1,12 +1,20 @@
 import logging
-
 import requests as http_client
 from flask import Blueprint, request, jsonify, current_app
 
 logger = logging.getLogger(__name__)
-
 dttp_bp = Blueprint("dttp", __name__)
 
+def _get_dttp_url(project_name=None):
+    """Resolve DTTP URL for a specific project."""
+    if not project_name:
+        return current_app.config["DTTP_URL"]
+        
+    project = current_app.project_registry.get_project(project_name)
+    if project and project.get("dttp_port"):
+        return f"http://localhost:{project['dttp_port']}"
+    
+    return current_app.config["DTTP_URL"]
 
 @dttp_bp.route("/request", methods=["POST"])
 def dttp_request():
@@ -14,6 +22,10 @@ def dttp_request():
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "code": "INVALID_BODY", "message": "No data provided"}), 400
+
+    # Project context
+    project_name = request.args.get("project") or data.get("project")
+    dttp_url = _get_dttp_url(project_name)
 
     # SPEC-018 Section 3.5: API Input Validation
     rationale = data.get("rationale")
@@ -26,7 +38,6 @@ def dttp_request():
     if params is not None and not isinstance(params, dict):
         return jsonify({"status": "error", "code": "INVALID_PARAMS", "message": "Params must be a dictionary"}), 400
 
-    dttp_url = current_app.config["DTTP_URL"]
     try:
         resp = http_client.post(f"{dttp_url}/request", json=data, timeout=10)
         return jsonify(resp.json()), resp.status_code
@@ -41,14 +52,16 @@ def dttp_request():
 @dttp_bp.route("/status", methods=["GET"])
 def dttp_status():
     """Proxy status check to the standalone DTTP service."""
-    dttp_url = current_app.config["DTTP_URL"]
+    project_name = request.args.get("project")
+    dttp_url = _get_dttp_url(project_name)
+    
     try:
         resp = http_client.get(f"{dttp_url}/status", timeout=5)
         return jsonify(resp.json()), resp.status_code
     except http_client.ConnectionError:
         return jsonify({
             "status": "offline",
-            "project": current_app.config.get("PROJECT_NAME", "unknown"),
+            "project": project_name or current_app.config.get("PROJECT_NAME", "unknown"),
             "message": "DTTP service is not running",
         }), 503
     except http_client.RequestException as e:

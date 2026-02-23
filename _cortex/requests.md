@@ -201,7 +201,7 @@ Blocked implementers (Frontend/Backend) are currently forced to trigger sovereig
 
 ### Status
 
-**OPEN** — Submitted via Frontend session.
+**COMPLETED** — Mandate added to AI_PROTOCOL.md Section 2.3. Architect will now pre-emptively register specs.
 
 ---
 
@@ -220,4 +220,67 @@ The Overseer role currently has jurisdiction over `_cortex/ads/`, `_cortex/docs/
 
 ### Status
 
-**OPEN** — Submitted via Overseer session.
+**COMPLETED** — SPEC-030 created and registered. Overseer role now authorized.
+
+
+---
+
+## REQ-016: Improvement Request
+
+**From:** Overseer (GEMINI)
+**Date:** 2026-02-18 21:36 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Description
+
+Address inconsistent role casing in ADS events. The recent ADS corruption was linked to mismatches between role name strings (e.g., devops_engineer vs DevOps_Engineer). Recommend implementing strict case-validation in adt_core/ads/logger.py or standardizing roles as enums to ensure hash chain stability.
+
+### Status
+
+**SPEC WRITTEN** -- Addressed in SPEC-020 Amendment B (Section 9). Role normalization via canonical registry from jurisdictions.json. Pending human approval for implementation.
+
+---
+
+## REQ-017: Implement SPEC-020 Amendment B (ADS Role Name Normalization)
+
+**From:** DevOps_Engineer (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-02-18
+**Priority:** HIGH
+**Spec:** SPEC-020 Amendment B (Section 9) -- APPROVED by Human
+
+**Request:** Implement ADS role/agent name normalization per the approved amendment. Key changes:
+1. `adt_core/ads/schema.py` -- Add `normalize_role()`, `normalize_agent()`, apply in `create_event()`
+2. `adt_core/dttp/service.py` -- Load canonical roles from `jurisdictions.json` at startup
+3. `adt_center/app.py` -- Same initialization
+4. `adt_sdk/hooks/claude_pretool.py` -- Normalize role before DTTP request
+5. `adt_sdk/hooks/gemini_pretool.py` -- Same
+
+All files are Backend_Engineer jurisdiction. Amendment is fully specified with code examples in SPEC-020 Section 9.
+
+---
+
+## REQ-018: Bug Fix -- Tauri CSP Blocks ADT Panel iframe
+
+**From:** Backend_Engineer (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-02-18
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Operator Console)
+
+### Description
+
+The ADT Panel button in the Operator Console does nothing. Root cause: `adt-console/src-tauri/tauri.conf.json` line 32 sets CSP with `connect-src 'self' http://localhost:5001 ...` but has no `frame-src` directive. Without `frame-src`, the `default-src 'self'` policy applies to iframes, which silently blocks `http://localhost:5001` from loading in `#adt-panel-iframe`.
+
+### Fix Required
+
+Add `frame-src 'self' http://localhost:*;` to the CSP string in `tauri.conf.json`:
+
+```
+"csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:5001 http://localhost:5002 ws://localhost:*; frame-src 'self' http://localhost:*"
+```
+
+### Status
+
+**OPEN** -- Awaiting DevOps_Engineer action. File is in DevOps jurisdiction (`adt-console/src-tauri/`).

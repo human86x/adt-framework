@@ -14,6 +14,7 @@ class DTTPConfig:
     project_name: str = ''
     enforcement_mode: str = 'development'
     access_token: Optional[str] = None
+    is_framework_project: bool = False
 
     @staticmethod
     def get_user_config_dir() -> str:
@@ -37,11 +38,17 @@ class DTTPConfig:
             project_name=os.environ.get('DTTP_PROJECT_NAME', d.get('project_name', '')),
             enforcement_mode=os.environ.get('DTTP_ENFORCEMENT_MODE', d.get('enforcement_mode', 'development')),
             access_token=os.environ.get('ADT_ACCESS_TOKEN', d.get('access_token')),
+            is_framework_project=os.environ.get('ADT_IS_FRAMEWORK', 'false').lower() == 'true'
         )
 
     @classmethod
     def from_project_root(cls, project_root: str, **overrides) -> 'DTTPConfig':
         project_root = os.path.abspath(project_root)
+        
+        # Check if it is the framework project
+        # This is a bit heuristic but works for now: check if it contains adt_core
+        is_framework = os.path.exists(os.path.join(project_root, "adt_core"))
+        
         config = cls(
             project_root=project_root,
             project_name=os.path.basename(project_root),
@@ -49,7 +56,22 @@ class DTTPConfig:
             specs_config=os.path.join(project_root, 'config', 'specs.json'),
             jurisdictions_config=os.path.join(project_root, 'config', 'jurisdictions.json'),
             enforcement_mode='development',
+            is_framework_project=is_framework
         )
+        
+        # Merge from config/dttp.json if it exists
+        dttp_json = os.path.join(project_root, "config", "dttp.json")
+        if os.path.exists(dttp_json):
+            try:
+                import json
+                with open(dttp_json, "r") as f:
+                    data = json.load(f)
+                    if "port" in data: config.port = data["port"]
+                    if "name" in data: config.project_name = data["name"]
+                    if "mode" in data: config.mode = data["mode"]
+                    if "enforcement_mode" in data: config.enforcement_mode = data["enforcement_mode"]
+            except: pass
+
         for key, val in overrides.items():
             if hasattr(config, key):
                 setattr(config, key, val)

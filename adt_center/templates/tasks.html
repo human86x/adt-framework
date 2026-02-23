@@ -86,35 +86,49 @@
                 <span class="badge-adt badge-completed ms-2">{{ tasks|selectattr('status', 'equalto', 'completed')|list|length }}</span>
             </div>
             <div class="card-body p-2">
-                {% for task in tasks if task.status == 'completed' %}
-                <div class="task-column">
-                    <div class="task-card {% if task.review_status == 'pending' %}border-warning{% elif task.review_status == 'rejected' %}border-danger{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="task-id">{{ task.id }}</div>
-                            <div class="d-flex gap-1">
-                                {% if task.review_status %}
-                                <span class="badge-adt {% if task.review_status == 'approved' %}badge-completed{% elif task.review_status == 'pending' %}badge-pending{% else %}badge-denied{% endif %}">
-                                    {{ task.review_status|upper }}
-                                </span>
-                                {% endif %}
-                                <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                {% set completed_tasks = tasks|selectattr('status', 'equalto', 'completed')|list %}
+                {% if completed_tasks %}
+                    {% for role, role_tasks in completed_tasks|groupby('assigned_to') %}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center p-2 mb-1 bg-dark rounded border border-secondary" 
+                             style="cursor:pointer; font-size:0.75rem;" 
+                             data-bs-toggle="collapse" data-bs-target="#collapse-{{ role|replace(' ', '-') }}">
+                            <span class="fw-bold">{{ role }}</span>
+                            <span class="badge rounded-pill bg-secondary">{{ role_tasks|length }}</span>
+                        </div>
+                        <div class="collapse" id="collapse-{{ role|replace(' ', '-') }}">
+                            {% for task in role_tasks %}
+                            <div class="task-column">
+                                <div class="task-card {% if task.review_status == 'pending' %}border-warning{% elif task.review_status == 'rejected' %}border-danger{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="task-id">{{ task.id }}</div>
+                                        <div class="d-flex gap-1">
+                                            {% if task.review_status %}
+                                            <span class="badge-adt {% if task.review_status == 'approved' %}badge-completed{% elif task.review_status == 'pending' %}badge-pending{% else %}badge-denied{% endif %}">
+                                                {{ task.review_status|upper }}
+                                            </span>
+                                            {% endif %}
+                                            <span class="badge-adt badge-spec">{{ task.spec_ref }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="task-title mt-1">{{ task.title }}</div>
+                                    {% if task.review_status == 'pending' %}
+                                    <div class="mt-2 d-flex gap-1">
+                                        <button class="btn btn-adt-primary btn-sm flex-grow-1" style="font-size:0.65rem; padding:0.2rem 0.4rem;"
+                                                onclick="overrideTask('{{ task.id }}', 'approve')">Approve</button>
+                                        <button class="btn btn-adt-secondary btn-sm" style="font-size:0.65rem; padding:0.2rem 0.4rem; color:var(--adt-red);"
+                                                onclick="openReject('{{ task.id }}')">Reject</button>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        <div class="task-title mt-1">{{ task.title }}</div>
-                        <div class="task-role mt-1">{{ task.assigned_to }}</div>
-                        {% if task.review_status == 'pending' %}
-                        <div class="mt-2 d-flex gap-1">
-                            <button class="btn btn-adt-primary btn-sm flex-grow-1" style="font-size:0.65rem; padding:0.2rem 0.4rem;"
-                                    onclick="overrideTask('{{ task.id }}', 'approve')">Approve</button>
-                            <button class="btn btn-adt-secondary btn-sm" style="font-size:0.65rem; padding:0.2rem 0.4rem; color:var(--adt-red);"
-                                    onclick="openReject('{{ task.id }}')">Reject</button>
-                        </div>
-                        {% endif %}
                     </div>
-                </div>
+                    {% endfor %}
                 {% else %}
                 <p class="text-adt-muted text-center py-3" style="font-size:0.8rem;">No completed tasks</p>
-                {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>

@@ -29,10 +29,10 @@
 <div class="card card-adt">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>{{ events|length }} events recorded</span>
-        <span class="text-adt-muted" style="font-size:0.7rem;">Newest first &middot; Append-only ledger</span>
+        <span class="text-adt-muted" style="font-size:0.7rem;">Chronological order &middot; Append-only ledger</span>
     </div>
-    <div class="card-body p-2">
-        {% for event in events|reverse %}
+    <div class="card-body p-2" id="ads-container" style="max-height: 75vh; overflow-y: auto;">
+        {% for event in events %}
         <div class="event-item event-filterable
             {% if not event.authorized %}event-denied
             {% elif event.action_type in ['session_start', 'session_end'] %}event-session
@@ -90,5 +90,13 @@ function applyFilters() {
         el.style.display = (matchAgent && matchAction) ? '' : 'none';
     });
 }
+
+// Auto-scroll to bottom on load (SPEC-013)
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('ads-container');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
 </script>
 {% endblock %}

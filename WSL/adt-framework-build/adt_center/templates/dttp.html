@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% set active_page = "dttp" %}
+
+{% block title %}DTTP Monitor - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0" style="font-size:1rem; font-weight:600;">DTTP Monitor</h5>
+    <span class="text-adt-muted" style="font-size:0.8rem;">Digital Transformation Transfer Protocol</span>
+</div>
+
+<!-- DTTP Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Requests</div>
+            <div class="stat-value text-accent">{{ dttp_events|length }}</div>
+            <div class="stat-detail">All DTTP actions</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Allowed</div>
+            <div class="stat-value text-green">{{ dttp_events|selectattr('authorized')|list|length }}</div>
+            <div class="stat-detail">Authorized actions</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Denied</div>
+            <div class="stat-value text-red">{{ dttp_denied|length }}</div>
+            <div class="stat-detail">Unauthorized attempts</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Gateway Status</div>
+            <div class="stat-value text-green">&#9679; ACTIVE</div>
+            <div class="stat-detail">Fail-closed mode</div>
+        </div>
+    </div>
+</div>
+
+<!-- DTTP Request Feed -->
+<div class="card card-adt mb-4">
+    <div class="card-header">Request Feed</div>
+    <div class="card-body p-2">
+        {% if dttp_events %}
+            {% for event in dttp_events|reverse %}
+            <div class="event-item {% if not event.authorized %}event-denied{% elif event.action_type == 'pending_edit' %}event-pending{% else %}event-complete{% endif %}">
+                <div class="event-meta d-flex justify-content-between">
+                    <span>
+                        {{ event.ts[:19] }} &middot;
+                        <span class="badge-adt {% if event.agent == 'CLAUDE' %}badge-agent-claude{% else %}badge-agent-gemini{% endif %}">{{ event.agent }}</span>
+                        &middot; {{ event.role }}
+                    </span>
+                    <span>
+                        {% if event.authorized %}
+                            <span class="badge-adt badge-completed">ALLOWED</span>
+                        {% else %}
+                            <span class="badge-adt badge-denied">DENIED</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="event-body">
+                    <span class="event-action">{{ event.action_type }}:</span> {{ event.description }}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-adt-muted text-center py-4" style="font-size:0.85rem;">No DTTP requests recorded yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- How DTTP Works -->
+<div class="card card-adt">
+    <div class="card-header">DTTP Enforcement Model</div>
+    <div class="card-body" style="font-size:0.8rem;">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <h6 style="font-size:0.85rem; color:var(--adt-accent);">5-Check Validation</h6>
+                <ol class="ps-3" style="color:var(--adt-text-muted);">
+                    <li>Role assigned</li>
+                    <li>Jurisdiction match</li>
+                    <li>No lock conflict</li>
+                    <li>Spec exists and active</li>
+                    <li>Spec authorizes role</li>
+                </ol>
+            </div>
+            <div class="col-md-4">
+                <h6 style="font-size:0.85rem; color:var(--adt-amber);">Three-User Model</h6>
+                <div style="color:var(--adt-text-muted);">
+                    <p class="mb-1"><strong class="text-adt-green">human</strong> &mdash; Full access, ultimate authority</p>
+                    <p class="mb-1"><strong class="text-adt-amber">agent</strong> &mdash; Read-only, API requests only</p>
+                    <p class="mb-0"><strong class="text-adt-accent">dttp</strong> &mdash; Write access, runs gateway</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h6 style="font-size:0.85rem; color:var(--adt-red);">Fail-Closed Policy</h6>
+                <p style="color:var(--adt-text-muted); margin:0;">
+                    Any error in validation, execution, or logging results in DENY. The system never fails open. All denials are logged with escalation flags.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

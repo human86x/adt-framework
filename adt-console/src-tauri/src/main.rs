@@ -54,6 +54,10 @@ fn main() {
             ipc::send_notification,
             ipc::read_project_file,
             ipc::toggle_autostart,
+            ipc::init_project,
+            ipc::list_projects,
+            ipc::start_project_dttp,
+            ipc::stop_project_dttp,
         ])
         .run(tauri::generate_context!())
         .expect("error running ADT Console");
