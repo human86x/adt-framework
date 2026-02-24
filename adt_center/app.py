@@ -138,6 +138,49 @@ def create_app():
         tasks = task_manager.list_tasks()
         return render_template("tasks.html", tasks=tasks, current_project=project_name)
 
+    @app.route("/hierarchy")
+    def hierarchy_page():
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        task_manager = TaskManager(paths["tasks"], project_name=paths["name"])
+        spec_registry = SpecRegistry(paths["specs"])
+        
+        tasks = task_manager.list_tasks()
+        specs = _enrich_specs(spec_registry.list_specs())
+        
+        # Load phases
+        phases_path = os.path.join(paths["root"], "_cortex", "phases.json")
+        phases = []
+        if os.path.exists(phases_path):
+            try:
+                import json
+                with open(phases_path, "r") as f:
+                    data = json.load(f)
+                    phases = data.get("phases", [])
+            except:
+                pass
+        
+        return render_template("hierarchy.html", 
+                               phases=phases, 
+                               tasks=tasks, 
+                               specs=specs, 
+                               current_project=project_name)
+
+    @app.route("/delegation")
+    def delegation_page():
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        task_manager = TaskManager(paths["tasks"], project_name=paths["name"])
+        spec_registry = SpecRegistry(paths["specs"])
+        
+        tasks = task_manager.list_tasks()
+        specs = _enrich_specs(spec_registry.list_specs())
+        
+        return render_template("delegation.html", 
+                               tasks=tasks, 
+                               specs=specs, 
+                               current_project=project_name)
+
     @app.route("/projects")
     def projects_page():
         projects = app.project_registry.list_projects()

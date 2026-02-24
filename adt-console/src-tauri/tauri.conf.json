@@ -29,7 +29,7 @@
       "tooltip": "ADT Console"
     },
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:5001 http://localhost:5002 ws://localhost:*"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:5001 http://localhost:5002 ws://localhost:*; frame-src 'self' http://localhost:*"
     }
   },
   "bundle": {

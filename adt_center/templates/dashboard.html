@@ -151,15 +151,20 @@
                         {% set completed_tasks = tasks|selectattr('status', 'equalto', 'completed')|list %}
                         {% for role, role_tasks in completed_tasks|groupby('assigned_to') %}
                         <div class="task-role-group mt-1 mb-2">
-                            <div class="text-adt-muted fw-bold" style="font-size:0.65rem; border-bottom:1px solid var(--adt-border); margin-bottom:4px;">
-                                {{ role|upper }} ({{ role_tasks|length }})
+                            <div class="d-flex justify-content-between align-items-center text-adt-muted fw-bold p-1 mb-1 border-bottom border-adt" 
+                                 style="font-size:0.65rem; cursor:pointer;"
+                                 data-bs-toggle="collapse" data-bs-target="#dash-collapse-{{ role|replace(' ', '-')|replace('_', '-') }}">
+                                <span>{{ role|upper }} ({{ role_tasks|length }})</span>
+                                <i class="bi bi-chevron-down" style="font-size: 0.6rem;"></i>
                             </div>
-                            {% for task in role_tasks %}
-                            <div class="task-card p-1 mb-1">
-                                <div class="task-id" style="font-size:0.6rem;">{{ task.id }}</div>
-                                <div class="task-title" style="font-size:0.75rem;">{{ task.title[:30] }}{% if task.title|length > 30 %}...{% endif %}</div>
+                            <div class="collapse show" id="dash-collapse-{{ role|replace(' ', '-')|replace('_', '-') }}">
+                                {% for task in role_tasks %}
+                                <div class="task-card p-1 mb-1">
+                                    <div class="task-id" style="font-size:0.6rem;">{{ task.id }}</div>
+                                    <div class="task-title" style="font-size:0.75rem;">{{ task.title[:30] }}{% if task.title|length > 30 %}...{% endif %}</div>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                         {% endfor %}
                     </div>

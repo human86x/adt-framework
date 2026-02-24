@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ADT Operator Console</title>
+  <title>ADT Operator Console v2.1</title>
+  <script>console.log("ADT Console HTML loaded v2.1");</script>
   <link rel="stylesheet" href="css/console.css">
   <link rel="stylesheet" href="css/launcher.css">
   <link rel="stylesheet" href="vendor/xterm.css">
@@ -93,6 +94,10 @@
         <button class="sidebar-collapse-btn" id="btn-collapse-right" title="Collapse (Ctrl+I)">&rsaquo;</button>
       </div>
       <div id="context-panel">
+        <div id="ctx-role-filter" class="role-filter-indicator" style="display:none; padding: 4px 8px; background: var(--bg-tertiary); font-size: 10px; border-bottom: 1px solid var(--border); justify-content: space-between; align-items: center;">
+           <span>Showing: <span id="ctx-filter-role" style="font-weight:700"></span></span>
+           <button id="btn-show-all-roles" style="background:none; border:none; color:var(--accent-blue); cursor:pointer; font-size:10px; padding:0">Show all</button>
+        </div>
         <section class="context-section">
           <h3>Active Session</h3>
           <div class="session-info-grid" style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
@@ -238,6 +243,14 @@
           <option value="/home/human/Projects/adt-framework">adt-framework (default)</option>
         </select>
       </label>
+      <div id="agent-flags" style="margin-bottom: 16px; display: none;">
+        <label id="flag-yolo" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
+          <input type="checkbox" id="input-yolo"> YOLO mode
+        </label>
+        <label id="flag-skip-permissions" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
+          <input type="checkbox" id="input-skip-permissions"> Skip permissions
+        </label>
+      </div>
       <div class="dialog-actions">
         <button type="button" id="btn-cancel-session">Cancel</button>
         <button type="submit" class="primary">Launch</button>

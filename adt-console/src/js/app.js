@@ -1,6 +1,8 @@
 // Application controller — initialization, keyboard shortcuts, toasts
 // SPEC-021: Main entry point for ADT Operator Console frontend
 
+console.log("ADT Console app.js loaded v2");
+
 // --- Toast Notification Manager ---
 const ToastManager = (() => {
   const ICONS = {
@@ -438,6 +440,26 @@ const GitStatusManager = (() => {
 
   agentSelect.addEventListener('change', () => {
     customGroup.style.display = agentSelect.value === 'custom' ? '' : 'none';
+    
+    // SPEC-034: Agent flags visibility
+    const flagsDiv = document.getElementById('agent-flags');
+    const yoloFlag = document.getElementById('flag-yolo');
+    const skipFlag = document.getElementById('flag-skip-permissions');
+    
+    if (flagsDiv) {
+      const agent = agentSelect.value.toLowerCase();
+      if (agent === 'gemini') {
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'flex';
+        skipFlag.style.display = 'none';
+      } else if (agent === 'claude') {
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'none';
+        skipFlag.style.display = 'flex';
+      } else {
+        flagsDiv.style.display = 'none';
+      }
+    }
   });
 
   form.addEventListener('submit', async (e) => {
@@ -447,11 +469,23 @@ const GitStatusManager = (() => {
     const command = selectedOption.dataset.command;
     const role = document.getElementById('input-role').value;
     const specId = document.getElementById('input-spec').value;
-    const project = document.getElementById('input-project').value;
+    
+    // SPEC-034: Fix project NAME vs PATH
+    const projectSelect = document.getElementById('input-project');
+    const project = projectSelect.value; // Name
+    const projectOption = projectSelect.options[projectSelect.selectedIndex];
+    const projectPath = projectOption ? projectOption.dataset.path : null;
+    
     const customCmd = document.getElementById('input-custom-command').value;
 
+    // SPEC-034: Agent flags
+    const flags = {
+      yolo: document.getElementById('input-yolo')?.checked || false,
+      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false
+    };
+
     dialog.close();
-    const session = await SessionManager.create(agent, role, specId, agent === 'custom' ? customCmd : command, project);
+    const session = await SessionManager.create(agent, role, specId, agent === 'custom' ? customCmd : command, project, projectPath, flags);
 
     // Update tray after session creation
     if (session) TrayBridge.refresh();

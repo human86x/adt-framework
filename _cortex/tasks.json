@@ -1630,11 +1630,14 @@
       "description": "Update adt-console/src/js/context.js: (1) fetchRequests() -- append &role=<session.role> to the requests API URL. (2) fetchTaskData() -- append &assigned_to=<session.role> to the tasks API URL, remove client-side filter on lines 200-203. (3) Add a visual indicator at top of context panel showing '[Showing: <role>]' with a clickable toggle to 'Show all'. Sessions without a role show all data.",
       "spec_ref": "SPEC-034",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_129"
-      ]
+      ],
+      "evidence": "Implemented role-aware filtering in context.js and added visual indicator in index.html.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-23T20:45:00Z"
     },
     {
       "id": "task_131",
@@ -1642,9 +1645,12 @@
       "description": "In adt-console/src/js/app.js form submit handler (line 450), the project dropdown .value contains the project NAME, not the filesystem path. The path is in dataset.path (line 394) but never read. Fix: on form submit, get the selected option's dataset.path and pass it as cwd to SessionManager.create(). Keep .value (name) for project field (API filtering). Update sessions.js to accept separate project name and projectPath params.",
       "spec_ref": "SPEC-034",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "evidence": "Fixed CWD by passing projectPath separately from project name. Updated app.js and sessions.js.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-23T20:45:00Z"
     },
     {
       "id": "task_132",
@@ -1662,9 +1668,12 @@
       "description": "In adt-console/src/js/app.js session creation dialog: add a checkbox 'YOLO mode' visible only when agent=gemini (appends --yolo to launch command), and a checkbox 'Skip permissions' visible only when agent=claude (appends --dangerously-skip-permissions). Checkboxes hidden by default, shown/hidden via agentSelect change handler. In sessions.js, append the flag to the command string before passing to IPC.",
       "spec_ref": "SPEC-034",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "evidence": "Added agent flags to session dialog and wired them to launch commands.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-23T20:45:00Z"
     }
   ]
 }

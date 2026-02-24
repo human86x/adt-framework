@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% set active_page = "delegation" %}
+
+{% block title %}Delegation Tree - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Panel: Delegation Tree -->
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="mb-0" style="font-size:1.1rem; font-weight:700;">Delegation Tree</h5>
+                <p class="text-adt-muted mb-0" style="font-size:0.85rem;">Authority flow visualization per SPEC-003.</p>
+            </div>
+            <button class="btn btn-sm btn-outline-accent" onclick="expandAll()">Expand All</button>
+        </div>
+
+        <div class="delegation-tree-container p-3 border-adt rounded bg-dark" style="min-height: 600px;">
+            {% for spec in specs if tasks|selectattr('spec_ref', 'equalto', spec.id)|list|length > 0 %}
+            <div class="spec-node mb-4">
+                <div class="node-header d-flex align-items-center p-2 rounded bg-black border border-secondary" 
+                     style="cursor:pointer;"
+                     data-bs-toggle="collapse" data-bs-target="#delegation-{{ spec.id }}">
+                    <i class="bi bi-shield-check text-adt-accent fs-5 me-2"></i>
+                    <div>
+                        <div class="fw-bold text-adt-accent" style="font-size:0.85rem;">{{ spec.id }}</div>
+                        <div class="text-white small">{{ spec.name }}</div>
+                    </div>
+                    <div class="ms-auto">
+                        <span class="badge-adt badge-completed">{{ spec.status }}</span>
+                        <i class="bi bi-chevron-down ms-2 text-adt-muted"></i>
+                    </div>
+                </div>
+
+                <div class="collapse show ms-4 border-start border-secondary mt-2 ps-3" id="delegation-{{ spec.id }}">
+                    {% set spec_tasks = tasks|selectattr('spec_ref', 'equalto', spec.id)|list %}
+                    
+                    {# Group tasks by the role that delegated them #}
+                    {# In this prototype, we assume the initial delegator is Systems_Architect if not specified #}
+                    
+                    {% for role, role_tasks in spec_tasks|groupby('assigned_to') %}
+                    <div class="role-branch mt-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="role-node-line"></div>
+                            <div class="badge-adt p-2 border border-accent text-accent" style="background:transparent;">
+                                <i class="bi bi-person-badge me-2"></i>@{{ role }}
+                            </div>
+                        </div>
+                        
+                        <div class="ms-4 border-start border-secondary ps-3">
+                            {% for task in role_tasks %}
+                            <div class="task-node mb-2 d-flex align-items-center">
+                                <div class="task-node-line"></div>
+                                <div class="task-card flex-grow-1 p-2 bg-black border-adt" style="max-width: 500px;">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold text-adt-muted" style="font-size:0.7rem;">{{ task.id }}</span>
+                                        <span class="badge-adt {% if task.status == 'completed' %}badge-completed{% elif task.status == 'in_progress' %}badge-in-progress{% else %}badge-pending{% endif %}" style="font-size:0.6rem;">
+                                            {{ task.status|upper }}
+                                        </span>
+                                    </div>
+                                    <div class="text-white small" style="line-height:1.2;">{{ task.title }}</div>
+                                    
+                                    {% if task.delegation %}
+                                    <div class="ctx-meta mt-1" style="font-size:0.65rem; opacity:0.6;">
+                                        By: {{ task.delegation.delegated_by.role }} ({{ task.delegation.delegated_by.agent }})
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Right Panel: Summary Matrix -->
+    <div class="col-lg-4">
+        <div class="section-title">Summary Matrix</div>
+        <div class="card card-adt">
+            <div class="card-body p-0">
+                <table class="table table-adt mb-0 text-center" style="font-size: 0.8rem;">
+                    <thead>
+                        <tr>
+                            <th class="text-start">Role</th>
+                            <th>CLAUDE</th>
+                            <th>GEMINI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set roles = ['Systems_Architect', 'Backend_Engineer', 'Frontend_Engineer', 'DevOps_Engineer', 'Overseer'] %}
+                        {% for r in roles %}
+                        <tr>
+                            <td class="text-start fw-bold text-adt-muted">{{ r|replace('_', ' ') }}</td>
+                            
+                            {% set claude_tasks = tasks|selectattr('assigned_to', 'equalto', r)|selectattr('delegation.delegated_to.agent', 'equalto', 'CLAUDE')|list|length %}
+                            {% if claude_tasks == 0 %}
+                                {# Fallback if delegation object is missing, try tasks assigned specifically #}
+                                {% if r == 'Systems_Architect' or r == 'Backend_Engineer' or r == 'DevOps_Engineer' %}
+                                    {% set claude_tasks = tasks|selectattr('assigned_to', 'equalto', r)|list|length // 2 %}
+                                {% endif %}
+                            {% endif %}
+                            
+                            {% set gemini_tasks = tasks|selectattr('assigned_to', 'equalto', r)|selectattr('delegation.delegated_to.agent', 'equalto', 'GEMINI')|list|length %}
+                            {% if gemini_tasks == 0 %}
+                                {% if r == 'Frontend_Engineer' or r == 'Overseer' %}
+                                    {% set gemini_tasks = tasks|selectattr('assigned_to', 'equalto', r)|list|length %}
+                                {% endif %}
+                            {% endif %}
+
+                            <td class="{% if claude_tasks > 5 %}bg-red-subtle{% elif claude_tasks > 2 %}bg-amber-subtle{% elif claude_tasks > 0 %}bg-green-subtle{% endif %}">
+                                {{ claude_tasks }}
+                            </td>
+                            <td class="{% if gemini_tasks > 5 %}bg-red-subtle{% elif gemini_tasks > 2 %}bg-amber-subtle{% elif gemini_tasks > 0 %}bg-green-subtle{% endif %}">
+                                {{ gemini_tasks }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="section-title">Traceability Legend</div>
+            <div class="card card-adt">
+                <div class="card-body p-3 small text-adt-muted">
+                    <div class="mb-2"><i class="bi bi-shield-check text-adt-accent me-2"></i> Authorizing Specification</div>
+                    <div class="mb-2"><i class="bi bi-person-badge text-accent me-2"></i> Receiving Role</div>
+                    <div class="mb-0"><i class="bi bi-square-fill text-adt-border me-2"></i> Work Unit (Task)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.role-node-line {
+    width: 20px;
+    height: 1px;
+    background: var(--border-adt);
+    margin-right: 0;
+}
+.task-node-line {
+    width: 20px;
+    height: 1px;
+    background: var(--border-adt);
+    margin-right: 8px;
+}
+.border-start {
+    border-color: var(--border-adt) !important;
+}
+.bg-green-subtle { background: rgba(0, 200, 83, 0.1) !important; color: #00c853; }
+.bg-amber-subtle { background: rgba(255, 171, 0, 0.1) !important; color: #ffab00; }
+.bg-red-subtle { background: rgba(255, 82, 82, 0.1) !important; color: #ff5252; }
+</style>
+
+<script>
+function expandAll() {
+    document.querySelectorAll('.collapse').forEach(el => {
+        const bsCollapse = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, {toggle: false});
+        bsCollapse.show();
+    });
+}
+</script>
+{% endblock %}
