@@ -97,6 +97,65 @@ const TrayBridge = (() => {
 })();
 
 
+// --- Shatterglass Bridge (SPEC-027) ---
+const ShatterglassBridge = (() => {
+  let isReady = false;
+  let isEnabled = false;
+
+  async function refresh() {
+    if (!window.__TAURI__) return;
+    try {
+      const status = await window.__TAURI__.core.invoke('get_production_mode');
+      isReady = status.ready;
+      isEnabled = status.enabled;
+      updateUI();
+    } catch (e) {
+      console.warn('Shatterglass status failed:', e);
+    }
+  }
+
+  function updateUI() {
+    const btn = document.getElementById('btn-shatterglass');
+    if (!btn) return;
+
+    if (!isReady) {
+      btn.classList.add('disabled');
+      btn.title = 'Run setup_shatterglass.sh first';
+    } else {
+      btn.classList.remove('disabled');
+      btn.title = isEnabled ? 'Disable Shatterglass' : 'Enable Shatterglass';
+      if (isEnabled) {
+        btn.classList.add('active');
+        document.body.classList.add('production-mode');
+      } else {
+        btn.classList.remove('active');
+        document.body.classList.remove('production-mode');
+      }
+    }
+  }
+
+  async function toggle() {
+    if (!isReady) return;
+    const action = isEnabled ? 'disable' : 'enable';
+    const warning = isEnabled 
+      ? "Disable Shatterglass? New agent sessions will have full file access."
+      : "Enable Shatterglass? New agent sessions will run with restricted OS permissions. Existing sessions are not affected.";
+    
+    if (confirm(warning)) {
+      try {
+        await window.__TAURI__.core.invoke(`${action}_production_mode`);
+        await refresh();
+        ToastManager.show(isEnabled ? 'info' : 'completion', 'Shatterglass', `Production mode ${isEnabled ? 'enabled' : 'disabled'}`);
+      } catch (e) {
+        console.error('Failed to toggle shatterglass:', e);
+      }
+    }
+  }
+
+  return { refresh, toggle };
+})();
+
+
 // --- Governance Panel Manager (delegates to GovernancePanel from governance.js) ---
 const GovernanceManager = (() => {
   function toggle() {
@@ -423,6 +482,9 @@ const GitStatusManager = (() => {
   }
 
   document.getElementById('btn-new-session').addEventListener('click', openNewSessionDialog);
+  document.getElementById('btn-shatterglass').addEventListener('click', () => {
+    ShatterglassBridge.toggle();
+  });
 
   // Reload roles and specs when project changes
   document.getElementById('input-project')?.addEventListener('change', () => {
@@ -834,6 +896,7 @@ const GitStatusManager = (() => {
   SessionManager.updateStatusBar();
   GitStatusManager.startPolling();
   TrayBridge.refresh();
+  ShatterglassBridge.refresh();
   watchForNativeNotifications();
 
   // Periodic uptime refresh

@@ -785,6 +785,21 @@ dialog select option {
   display: inline-block;
 }
 
+/* Shatterglass (Production Mode) */
+#btn-shatterglass.active {
+  color: var(--accent-red);
+}
+#btn-shatterglass.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.production-mode #topbar {
+  border-top-color: var(--accent-red);
+}
+.production-mode #terminal-area {
+  border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
 .dot-green { background: var(--accent-green); }
 .dot-yellow { background: var(--accent-yellow); }
 .dot-red { background: var(--accent-red); }
