@@ -331,7 +331,7 @@ The Console Context Panel fetches all requests and tasks without passing the act
 
 ### Status
 
-**OPEN**
+**COMPLETED** -- Implemented role-aware filtering in `context.js` and added visual indicator in `index.html`.
 
 ---
 
@@ -355,7 +355,7 @@ Show/hide based on agent dropdown. Append flags in `sessions.js` before IPC call
 
 ### Status
 
-**OPEN**
+**COMPLETED** -- Fixed CWD by passing `projectPath` separately from project name. Added agent flags to session dialog and wired them to launch commands.
 
 ---
 
@@ -422,7 +422,8 @@ The Tauri backend now has three new IPC commands for controlling Shatterglass pr
 
 ### Status
 
-**OPEN**
+**COMPLETED** -- Implemented Shatterglass toggle in Console top bar with state management, confirmation dialogs, and visual indicators.
+
 
 ---
 
