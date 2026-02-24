@@ -1,6 +1,58 @@
 // Session management — create, switch, close agent sessions
 // SPEC-021: Session lifecycle with ADT role/agent identity
 
+console.log("ADT Console sessions.js loaded v2");
+
+// --- Context Menu Manager ---
+const ContextMenuManager = (() => {
+  let activeMenu = null;
+
+  function show(e, items) {
+    e.preventDefault();
+    hide();
+
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+
+    items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = `context-menu-item ${item.danger ? 'danger' : ''}`;
+      el.innerHTML = `<span>${item.label}</span>`;
+      el.onclick = () => {
+        item.action();
+        hide();
+      };
+      menu.appendChild(el);
+    });
+
+    document.body.appendChild(menu);
+    activeMenu = menu;
+
+    // Close on click elsewhere
+    setTimeout(() => {
+      document.addEventListener('click', hideOnOutsideClick);
+    }, 0);
+  }
+
+  function hide() {
+    if (activeMenu) {
+      activeMenu.remove();
+      activeMenu = null;
+      document.removeEventListener('click', hideOnOutsideClick);
+    }
+  }
+
+  function hideOnOutsideClick(e) {
+    if (activeMenu && !activeMenu.contains(e.target)) {
+      hide();
+    }
+  }
+
+  return { show, hide };
+})();
+
 const SessionManager = (() => {
   const sessions = new Map();
   let activeSessionId = null;
@@ -28,19 +80,22 @@ const SessionManager = (() => {
 
   const DEFAULT_SHELL = '/bin/bash';
 
-  async function create(agent, role, specId, customCommand, project) {
+  async function create(agent, role, specId, customCommand, project, projectPath, flags) {
     let command = customCommand || AGENT_COMMANDS[agent] || DEFAULT_SHELL;
     let args = [];
+    flags = flags || {};
 
     // Special handling for Gemini: use -i for immediate summoning and add --yolo
     // We check agent.toLowerCase() to catch both 'gemini' and custom 'gemini' commands
     if (agent.toLowerCase() === 'gemini' || command === 'gemini') {
       command = 'gemini';
-      args = ['-i', `/summon ${role.toLowerCase()}`, '--yolo'];
+      args = ['-i', `/summon ${role.toLowerCase()}`];
+      if (flags.yolo) args.push('--yolo');
     } else if (agent.toLowerCase() === 'claude' || command === 'claude') {
       command = 'claude';
       const roleSuffix = role.replace('_Engineer', '').replace('Systems_', '').toLowerCase();
       args = [`/hive-${roleSuffix}`];
+      if (flags.skipPermissions) args.push('--dangerously-skip-permissions');
     } else if (command.includes(' ')) {
       const parts = command.split(' ');
       command = parts[0];
@@ -58,12 +113,13 @@ const SessionManager = (() => {
       try {
         sessionInfo = await window.__TAURI__.core.invoke('create_session', {
           request: {
+            project: project || null,
             agent: agent,
             role: role,
             spec_id: specId,
             command: command,
             args: args,
-            cwd: project || null,
+            cwd: projectPath || project || null,
             cols: size.cols,
             rows: size.rows,
           }
@@ -81,7 +137,7 @@ const SessionManager = (() => {
         role: role,
         spec_id: specId,
         command: command,
-        cwd: project,
+        cwd: projectPath || project,
         alive: true,
       };
     }
@@ -93,6 +149,27 @@ const SessionManager = (() => {
     };
 
     sessions.set(session.id, session);
+
+    // SPEC-032: Track recent sessions for launcher
+    try {
+      const recentRaw = localStorage.getItem('adt_recent_sessions');
+      let recent = recentRaw ? JSON.parse(recentRaw) : [];
+      // Add new to front, unique by project/role/agent
+      const entry = {
+        project: session.project,
+        role: session.role,
+        agent: session.agent,
+        spec_id: session.spec_id,
+        command: session.command,
+        ts: new Date().toISOString()
+      };
+      recent = [entry, ...recent.filter(r => 
+        r.project !== entry.project || r.role !== entry.role || r.agent !== entry.agent
+      )].slice(0, 10);
+      localStorage.setItem('adt_recent_sessions', JSON.stringify(recent));
+    } catch (e) {
+      console.warn('Failed to save recent session:', e);
+    }
 
     // Create terminal
     const term = TerminalManager.create(session.id);
@@ -177,11 +254,37 @@ const SessionManager = (() => {
       ContextPanel.update(session);
     }
 
+    updateStatusBar();
+
     // Hide empty state
     document.getElementById('empty-state').style.display = 'none';
   }
 
+  async function closeAll() {
+    const count = sessions.size;
+    if (count === 0) return;
+    
+    if (confirm(`Are you sure you want to close ALL ${count} sessions?`)) {
+      const ids = Array.from(sessions.keys());
+      for (const id of ids) {
+        // We call the internal close logic bypassing individual confirm
+        await _performClose(id);
+      }
+    }
+  }
+
   async function close(sessionId) {
+    const session = sessions.get(sessionId);
+    if (session) {
+      const confirmMsg = `Are you sure you want to close the ${session.role} session (${session.agent})?`;
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+    }
+    await _performClose(sessionId);
+  }
+
+  async function _performClose(sessionId) {
     if (window.__TAURI__) {
       try {
         await window.__TAURI__.core.invoke('close_session', {
@@ -207,10 +310,14 @@ const SessionManager = (() => {
       } else {
         activeSessionId = null;
         document.getElementById('empty-state').style.display = '';
+        if (typeof ProjectLauncher !== 'undefined') {
+          ProjectLauncher.toggle();
+        }
       }
     }
 
     updateStatusBar();
+    if (typeof TrayBridge !== 'undefined') TrayBridge.refresh();
   }
 
   const AGENT_SYMBOLS = {
@@ -224,6 +331,7 @@ const SessionManager = (() => {
     const tab = document.createElement('button');
     tab.className = 'session-tab';
     tab.dataset.sessionId = session.id;
+    tab.dataset.project = session.project || '';
 
     const symbol = AGENT_SYMBOLS[session.agent.toLowerCase()] || AGENT_SYMBOLS.custom;
     const roleShort = session.role.replace('_Engineer', '').replace('Systems_', '');
@@ -243,13 +351,30 @@ const SessionManager = (() => {
       }
     });
 
-    tabsContainer.appendChild(tab);
+    tab.addEventListener('contextmenu', (e) => {
+      ContextMenuManager.show(e, [
+        { label: 'Switch to Session', action: () => switchTo(session.id) },
+        { label: 'Close This Session', danger: true, action: () => close(session.id) },
+        { label: 'Close ALL Sessions', danger: true, action: () => closeAll() }
+      ]);
+    });
+
+    // Grouping logic: find last tab of same project and insert after
+    const existingTabs = Array.from(tabsContainer.querySelectorAll('.session-tab'));
+    const lastProjectTab = existingTabs.reverse().find(t => t.dataset.project === tab.dataset.project);
+    
+    if (lastProjectTab) {
+      lastProjectTab.after(tab);
+    } else {
+      tabsContainer.appendChild(tab);
+    }
   }
 
   function renderSidebarEntry(session) {
     const list = document.getElementById('session-list');
     const li = document.createElement('li');
     li.dataset.sessionId = session.id;
+    li.className = 'session-list-item';
     const roleClass = ROLE_CLASSES[session.role] || '';
     li.innerHTML = `
       <span class="session-role ${roleClass}">${session.role}</span>
@@ -258,13 +383,37 @@ const SessionManager = (() => {
         ${session.agent.toUpperCase()}
       </span>
       <span class="session-status">active</span>
+      <button class="btn-close-session-sidebar" title="Close Session">&times;</button>
     `;
-    li.addEventListener('click', () => switchTo(session.id));
+    li.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-close-session-sidebar')) {
+        close(session.id);
+      } else {
+        switchTo(session.id);
+      }
+    });
+    li.addEventListener('contextmenu', (e) => {
+      ContextMenuManager.show(e, [
+        { label: 'Switch to Session', action: () => switchTo(session.id) },
+        { label: 'Close This Session', danger: true, action: () => close(session.id) },
+        { label: 'Close ALL Sessions', danger: true, action: () => closeAll() }
+      ]);
+    });
     list.appendChild(li);
   }
 
   function updateStatusBar() {
     document.getElementById('status-sessions').textContent = `Sessions: ${sessions.size}`;
+    
+    const active = getActive();
+    const projectSpan = document.getElementById('status-project');
+    if (projectSpan) {
+      if (active && active.project) {
+        projectSpan.innerHTML = `<span class="status-dot dot-green"></span> Project: ${active.project}`;
+      } else {
+        projectSpan.innerHTML = `<span class="status-dot dot-grey"></span> Project: —`;
+      }
+    }
   }
 
   function getActive() {
@@ -305,5 +454,5 @@ const SessionManager = (() => {
     }
   }
 
-  return { create, switchTo, close, getActive, getAll, updateStatusBar, restore };
+  return { create, switchTo, close, closeAll, getActive, getAll, updateStatusBar, restore };
 })();

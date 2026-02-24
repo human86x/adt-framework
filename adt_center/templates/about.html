@@ -18,6 +18,9 @@
                     <a class="nav-link py-1 text-adt-muted" href="#sdd" style="text-decoration:none;">Specification-Driven Dev</a>
                     <a class="nav-link py-1 text-adt-muted" href="#dttp" style="text-decoration:none;">DTTP Enforcement</a>
                     <a class="nav-link py-1 text-adt-muted" href="#op-center" style="text-decoration:none;">Operational Center</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#external-projects" style="text-decoration:none;">External Projects</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#scr" style="text-decoration:none;">Sovereign Changes (SCR)</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#shatterglass" style="text-decoration:none;">Shatterglass Protocol</a>
                     <a class="nav-link py-1 text-adt-muted" href="#roles" style="text-decoration:none;">Roles & Jurisdiction</a>
                     <a class="nav-link py-1 text-adt-muted" href="#workflows" style="text-decoration:none;">Narrative Workflows</a>
                     <a class="nav-link py-1 text-adt-muted" href="#incidents" style="text-decoration:none;">Real Incidents</a>
@@ -181,7 +184,7 @@
             <div class="card card-adt">
                 <div class="card-header d-flex justify-content-between">
                     <span>DTTP &mdash; Structural Enforcement</span>
-                    <span class="badge-adt badge-pending">IN DEV</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
                 </div>
                 <div class="card-body" style="font-size:0.85rem;">
                     <p>Three enforcement levels:</p>
@@ -227,6 +230,58 @@
             </div>
         </section>
 
+        <!-- External Projects -->
+        <section id="external-projects" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>External Project Governance</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The ADT Framework is project-agnostic. It can govern any codebase by injecting a <code>_cortex/</code> environment and a dedicated DTTP instance.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Registry:</strong> All governed projects are tracked in a central registry.</li>
+                        <li><strong>Isolation:</strong> Each project has its own ADS event log, specifications, and DTTP port.</li>
+                        <li><strong>Unified Visibility:</strong> The Operational Center aggregates events and tasks from all projects into a single view.</li>
+                    </ul>
+                    <p class="text-adt-muted">Implementation: SPEC-031 &mdash; <code>adt init</code> command, project registry, multi-project DTTP.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sovereign Changes (SCR) -->
+        <section id="scr" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Sovereign Change Requests (SCR)</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>Sovereign paths (Tier 1) contain the rules of the framework itself. No agent can modify them directly, even with an approved spec.</p>
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "The machine cannot rewrite its own constitution without human oversight."
+                    </blockquote>
+                    <p>When an agent proposes a change to a sovereign file, the DTTP blocks the direct write and instead submits a <strong>Sovereign Change Request</strong>. The human must review and manually authorize the change through the Governance panel.</p>
+                    <p class="text-adt-muted">Implementation: SPEC-033 &mdash; Human-in-the-loop authorization queue.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shatterglass -->
+        <section id="shatterglass" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Shatterglass Protocol</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>A fail-safe mechanism for emergency maintenance. In high-enforcement production environments, even the human user may be restricted from modifying sovereign files at the OS level.</p>
+                    <p>The <strong>Shatterglass Protocol</strong> allows a human to temporarily escalate their OS privileges to repair the framework. Every Shatterglass session is time-limited, requires explicit confirmation, and is logged to the ADS with a mandatory audit requirement.</p>
+                    <p class="text-adt-muted">Implementation: SPEC-027 &mdash; time-limited privilege escalation and watchdog.</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Roles -->
         <section id="roles" class="mb-4">
             <div class="card card-adt">
@@ -246,8 +301,8 @@
                         <tbody>
                             <tr><td>Systems_Architect</td><td><code>_cortex/</code>, specs, architectural decisions</td><td>CLAUDE / GEMINI</td></tr>
                             <tr><td>Backend_Engineer</td><td><code>adt_core/</code>, <code>adt_center/api/</code>, <code>adt_center/app.py</code></td><td>CLAUDE / GEMINI</td></tr>
-                            <tr><td>Frontend_Engineer</td><td><code>adt_center/templates/</code>, <code>adt_center/static/</code></td><td>CLAUDE / GEMINI</td></tr>
-                            <tr><td>DevOps_Engineer</td><td><code>ops/</code>, deployment, Linux config</td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>Frontend_Engineer</td><td><code>adt_center/templates/</code>, <code>adt_center/static/</code>, <code>adt-console/src/</code></td><td>CLAUDE / GEMINI</td></tr>
+                            <tr><td>DevOps_Engineer</td><td><code>ops/</code>, <code>adt-console/src-tauri/</code>, deployment, Linux config</td><td>CLAUDE / GEMINI</td></tr>
                             <tr><td>Overseer</td><td><code>_cortex/ads/</code>, compliance, audit</td><td>CLAUDE / GEMINI</td></tr>
                         </tbody>
                     </table>
@@ -384,30 +439,33 @@
                         <div class="col-md-4">
                             <h6 style="color:var(--adt-green); font-size:0.8rem;">Completed</h6>
                             <ul class="list-unstyled text-adt-muted">
-                                <li>&#10003; ADS Ledger</li>
-                                <li>&#10003; SHA-256 Chain</li>
-                                <li>&#10003; SDD Enforcement</li>
-                                <li>&#10003; DTTP Engine</li>
-                                <li>&#10003; Operational Center</li>
-                                <li>&#10003; Phase 1 Hardening</li>
+                                <li>&#10003; ADS Ledger & SHA-256 Chain</li>
+                                <li>&#10003; SDD Enforcement Engine</li>
+                                <li>&#10003; DTTP Gateway Service</li>
+                                <li>&#10003; Operational Center & SDK</li>
+                                <li>&#10003; Operator Console (Tauri)</li>
+                                <li>&#10003; Self-Governance Integrity</li>
+                                <li>&#10003; External Project Governance</li>
+                                <li>&#10003; Sovereign Change Requests</li>
+                                <li>&#10003; Shatterglass Protocol</li>
                             </ul>
                         </div>
                         <div class="col-md-4">
                             <h6 style="color:var(--adt-amber); font-size:0.8rem;">In Progress</h6>
                             <ul class="list-unstyled text-adt-muted">
-                                <li>&#9679; Operator Console</li>
-                                <li>&#9679; Privilege Separation</li>
-                                <li>&#9679; Self-Governance (SPEC-020)</li>
-                                <li>&#9679; CI/CD Pipelines</li>
+                                <li>&#9679; Collaborative Bootstrap</li>
+                                <li>&#9679; ADT Connect (Remote Share)</li>
+                                <li>&#9679; Single-File Linux Installer</li>
+                                <li>&#9679; Windows MSI Distribution</li>
                             </ul>
                         </div>
                         <div class="col-md-4">
                             <h6 style="color:var(--adt-text-muted); font-size:0.8rem;">Planned</h6>
                             <ul class="list-unstyled text-adt-muted">
-                                <li>&#9675; Multi-Project Support</li>
                                 <li>&#9675; IoE Cross-System Events</li>
-                                <li>&#9675; Full Invocation Chaining</li>
                                 <li>&#9675; Enterprise DTTP Network</li>
+                                <li>&#9675; Advanced Visual Analytics</li>
+                                <li>&#9675; Sovereign DAO Integration</li>
                             </ul>
                         </div>
                     </div>

@@ -7,6 +7,7 @@ const ContextPanel = (() => {
   let escalationCount = 0;
   let pollInterval = null;
   let allSpecs = {};
+  let showAllRoles = false;
 
   async function update(session) {
     currentSession = session;
@@ -22,6 +23,9 @@ const ContextPanel = (() => {
     document.getElementById('ctx-task-priority').className = 'ctx-priority';
     document.getElementById('ctx-spec').textContent = '--';
     document.getElementById('ctx-event-count').textContent = '';
+
+    // SPEC-034: Update role filter indicator
+    updateFilterIndicator();
 
     if (session.startTime) {
       updateUptime(session);
@@ -40,6 +44,34 @@ const ContextPanel = (() => {
     }
   }
 
+  function updateFilterIndicator() {
+    const filterEl = document.getElementById('ctx-role-filter');
+    const roleEl = document.getElementById('ctx-filter-role');
+    const btn = document.getElementById('btn-show-all-roles');
+    
+    if (!filterEl || !currentSession?.role) {
+      if (filterEl) filterEl.style.display = 'none';
+      return;
+    }
+
+    if (showAllRoles) {
+      filterEl.style.display = 'flex';
+      roleEl.textContent = 'All roles';
+      btn.textContent = 'Filter by role';
+    } else {
+      filterEl.style.display = 'flex';
+      roleEl.textContent = currentSession.role.replace(/_/g, ' ');
+      btn.textContent = 'Show all';
+    }
+  }
+
+  function toggleFilter() {
+    showAllRoles = !showAllRoles;
+    if (currentSession) {
+      update(currentSession);
+    }
+  }
+
   function updateUptime(session) {
     const elapsed = Date.now() - session.startTime;
     const mins = Math.floor(elapsed / 60000);
@@ -51,7 +83,18 @@ const ContextPanel = (() => {
 
   async function fetchRequests() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/governance/requests`);
+      const projectName = currentSession?.project;
+      const role = currentSession?.role;
+      let url = projectName 
+        ? `${getCenterUrl()}/api/governance/requests?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/requests`;
+      
+      // SPEC-034: Role filtering
+      if (role && !showAllRoles) {
+        url += (url.includes('?') ? '&' : '?') + `role=${encodeURIComponent(role)}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       const requests = data.requests || [];
@@ -87,7 +130,11 @@ const ContextPanel = (() => {
 
   async function fetchDelegations() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/governance/delegations`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/governance/delegations?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/delegations`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       const delegations = data.delegations || [];
@@ -127,7 +174,11 @@ const ContextPanel = (() => {
 
   async function fetchSpecs() {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/specs`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/specs?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/specs`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       allSpecs = data.specs || {};
@@ -149,13 +200,25 @@ const ContextPanel = (() => {
 
   async function fetchTaskData(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/tasks`);
+      const projectName = session?.project;
+      const role = session?.role;
+      let url = projectName 
+        ? `${getCenterUrl()}/api/tasks?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/tasks`;
+      
+      // SPEC-034: Role filtering
+      if (role && !showAllRoles) {
+        url += (url.includes('?') ? '&' : '?') + `assigned_to=${encodeURIComponent(role)}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
 
       const tasks = data.tasks || [];
 
       // Find active task for this role
+      // Note: If backend already filtered by assigned_to, session.role check is redundant but safe
       const activeTask = tasks.find(t =>
         t.status === 'in_progress' &&
         t.assigned_to?.includes(session.role)
@@ -180,10 +243,11 @@ const ContextPanel = (() => {
           <span class="ctx-value-decoded">${specTitle}</span>
         `;
 
-        // Update To-Do list (Pending or In Progress for this role)
+        // Update To-Do list (Pending or In Progress)
+        // Note: Filter by role is still needed if showAllRoles is true
         const todoTasks = tasks.filter(t => 
           (t.status === 'in_progress' || t.status === 'pending') && 
-          t.assigned_to?.includes(session.role)
+          (showAllRoles ? true : t.assigned_to?.includes(session.role))
         );
         document.getElementById('count-todo').textContent = todoTasks.length;
         const todoContainer = document.getElementById('ctx-tasks-todo');
@@ -217,10 +281,10 @@ const ContextPanel = (() => {
         renderDelegation(null, session);
       }
 
-      // Render completed tasks — for this role
+      // Render completed tasks
       const completedTasks = tasks.filter(t => 
         t.status === 'completed' && 
-        t.assigned_to?.includes(session.role)
+        (showAllRoles ? true : t.assigned_to?.includes(session.role))
       ).reverse();
 
       const countCompletedEl = document.getElementById('count-completed');
@@ -439,7 +503,11 @@ const ContextPanel = (() => {
 
   async function fetchADSEvents(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/ads/events`);
+      const projectName = session?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/ads/events?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/ads/events`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
 
@@ -474,7 +542,11 @@ const ContextPanel = (() => {
 
   async function fetchRoleRequests(session) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/ads/events`);
+      const projectName = session?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/ads/events?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/ads/events`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const allEvents = await res.json();
       
@@ -487,6 +559,7 @@ const ContextPanel = (() => {
       ).slice(-5).reverse();
       
       const container = document.getElementById('ctx-role-requests');
+      if (!container) return;
       container.innerHTML = '';
       
       if (requests.length === 0) {
@@ -592,7 +665,11 @@ const ContextPanel = (() => {
 
   async function fetchDTTPStatus() {
     try {
-      const res = await fetch(`${getCenterUrl()}/dttp/status`);
+      const projectName = currentSession?.project;
+      const url = projectName 
+        ? `${getCenterUrl()}/api/dttp/status?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/dttp/status`;
+      const res = await fetch(url);
       if (!res.ok) {
         document.getElementById('status-dttp').innerHTML =
           '<span class="status-dot dot-grey"></span> DTTP: offline';
@@ -614,6 +691,12 @@ const ContextPanel = (() => {
 
   // Listen for file watcher events from Rust backend
   function initWatchers() {
+    // SPEC-034: Role filter toggle
+    const filterBtn = document.getElementById('btn-show-all-roles');
+    if (filterBtn) {
+      filterBtn.addEventListener('click', () => toggleFilter());
+    }
+
     if (window.__TAURI__) {
       window.__TAURI__.event.listen('ads-updated', () => {
         if (currentSession) {
@@ -645,5 +728,5 @@ const ContextPanel = (() => {
     }, 10000);
   }
 
-  return { update, initWatchers, updateUptime };
+  return { update, initWatchers, updateUptime, toggleFilter };
 })();

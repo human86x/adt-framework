@@ -46,6 +46,9 @@ _``_
 ---
 
 ## 2. Specification-Driven Development (SDD)
+n### 2.3 Pre-emptive Registration
+
+When a spec is approved, the Systems_Architect SHOULD immediately register it in `config/specs.json` to enable engineers to begin work without governance friction.
 
 ### 2.1 No Spec, No Code
 

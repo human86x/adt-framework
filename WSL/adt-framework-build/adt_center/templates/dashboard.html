@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard - ADT Operational Center{% endblock %}
+
+{% block content %}
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">ADS Events</div>
+            <div class="stat-value text-accent">{{ events|length }}</div>
+            <div class="stat-detail">Total recorded</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">Specifications</div>
+            <div class="stat-value text-green">{{ specs|length }}</div>
+            <div class="stat-detail">
+                {{ specs|selectattr('status', 'equalto', 'APPROVED')|list|length }} approved
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">Tasks</div>
+            <div class="stat-value text-purple">{{ tasks|length }}</div>
+            <div class="stat-detail">
+                {{ tasks|selectattr('status', 'equalto', 'completed')|list|length }} completed
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">Active Sessions</div>
+            <div class="stat-value text-amber">{{ active_sessions }}</div>
+            <div class="stat-detail">Agents online</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">DTTP Denials</div>
+            <div class="stat-value text-red">{{ denials }}</div>
+            <div class="stat-detail">Unauthorized attempts</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
+            <div class="stat-label">Chain Integrity</div>
+            <div class="stat-value text-green">&#10003;</div>
+            <div class="stat-detail">Hash chain valid</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ADS Timeline (Left) -->
+    <div class="col-lg-7">
+        <div class="card card-adt">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>ADS Timeline</span>
+                <a href="/ads" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
+            </div>
+            <div class="card-body p-2">
+                <div class="timeline-container">
+                    {% for event in events|reverse %}
+                    <div class="event-item
+                        {% if not event.authorized %}event-denied
+                        {% elif event.action_type in ['session_start', 'session_end'] %}event-session
+                        {% elif event.action_type == 'task_complete' %}event-complete
+                        {% elif event.status == 'pending' or event.action_type == 'pending_edit' %}event-pending
+                        {% endif %}">
+                        <div class="event-meta">
+                            {{ event.ts[:19] }}
+                            &middot;
+                            <span class="badge-adt {% if event.agent == 'CLAUDE' %}badge-agent-claude{% else %}badge-agent-gemini{% endif %}">
+                                {{ event.agent }}
+                            </span>
+                            &middot; {{ event.role }}
+                        </div>
+                        <div class="event-body">
+                            <span class="event-action">{{ event.action_type }}:</span>
+                            {{ event.description[:120] }}{% if event.description|length > 120 %}...{% endif %}
+                            {% if event.spec_ref %}
+                                <span class="badge-adt badge-spec ms-1">{{ event.spec_ref }}</span>
+                            {% endif %}
+                            {% if not event.authorized %}
+                                <span class="badge-adt badge-denied ms-1">DENIED</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-5">
+        <!-- Task Board -->
+        <div class="card card-adt mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Task Board</span>
+                <a href="/tasks" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
+            </div>
+            <div class="card-body p-3">
+                <div class="row g-3">
+                    <!-- Pending -->
+                    <div class="col-4 task-column">
+                        <div class="task-column-header col-pending">
+                            Pending ({{ tasks|selectattr('status', 'equalto', 'pending')|list|length }})
+                        </div>
+                        {% for task in tasks if task.status == 'pending' %}
+                        <div class="task-card">
+                            <div class="task-id">{{ task.id }}</div>
+                            <div class="task-title">{{ task.title[:40] }}{% if task.title|length > 40 %}...{% endif %}</div>
+                            <div class="task-role">{{ task.assigned_to }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <!-- In Progress -->
+                    <div class="col-4 task-column">
+                        <div class="task-column-header col-progress">
+                            In Progress ({{ tasks|selectattr('status', 'equalto', 'in_progress')|list|length }})
+                        </div>
+                        {% for task in tasks if task.status == 'in_progress' %}
+                        <div class="task-card">
+                            <div class="task-id">{{ task.id }}</div>
+                            <div class="task-title">{{ task.title[:40] }}{% if task.title|length > 40 %}...{% endif %}</div>
+                            <div class="task-role">{{ task.assigned_to }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <!-- Completed -->
+                    <div class="col-4 task-column">
+                        <div class="task-column-header col-completed">
+                            Completed ({{ tasks|selectattr('status', 'equalto', 'completed')|list|length }})
+                        </div>
+                        {% for task in tasks if task.status == 'completed' %}
+                        <div class="task-card">
+                            <div class="task-id">{{ task.id }}</div>
+                            <div class="task-title">{{ task.title[:40] }}{% if task.title|length > 40 %}...{% endif %}</div>
+                            <div class="task-role">{{ task.assigned_to }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spec Registry -->
+        <div class="card card-adt">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Spec Registry</span>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-warning" onclick="openFeedback()" style="font-size:0.7rem; padding:2px 8px;" title="Submit a request or feedback">
+                        + Request
+                    </button>
+                    <a href="/specs" class="text-decoration-none" style="font-size:0.75rem; color: var(--adt-accent);">View all &#8594;</a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-adt mb-0">
+                    <thead>
+                        <tr>
+                            <th>Spec</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for spec in specs %}
+                        <tr>
+                            <td class="text-adt-accent">{{ spec.id }}</td>
+                            <td>{{ spec.name[:45] }}{% if spec.name|length > 45 %}...{% endif %}</td>
+                            <td>
+                                <span class="badge-adt
+                                    {% if spec.status == 'APPROVED' %}badge-completed
+                                    {% elif spec.status == 'DRAFT' %}badge-pending
+                                    {% else %}badge-in-progress{% endif %}">
+                                    {{ spec.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Submit Feedback Modal (SPEC-025) -->
+<div class="modal fade modal-adt" id="feedbackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Submit Request / Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="feedback-error" class="alert alert-danger d-none" role="alert"></div>
+                <div id="feedback-success" class="alert alert-success d-none" role="alert"></div>
+                <form id="feedback-form">
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Your Name</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" 
+                               id="feedback-author" placeholder="Paul" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Type</label>
+                        <select class="form-select bg-dark text-light border-secondary" id="feedback-type">
+                            <option value="feature">Feature Request</option>
+                            <option value="improvement" selected>Improvement</option>
+                            <option value="bug">Bug Report</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-adt-muted" style="font-size:0.85rem;">Description</label>
+                        <textarea class="form-control bg-dark text-light border-secondary" 
+                                  id="feedback-desc" rows="6" required
+                                  placeholder="Describe your request, feature idea, or bug..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-adt">
+                <button type="button" class="btn btn-sm btn-adt-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-adt-primary" onclick="submitFeedback()">Submit Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openFeedback() {
+    document.getElementById('feedback-error').classList.add('d-none');
+    document.getElementById('feedback-success').classList.add('d-none');
+    document.getElementById('feedback-form').reset();
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+}
+
+async function submitFeedback() {
+    const author = document.getElementById('feedback-author').value.trim();
+    const type = document.getElementById('feedback-type').value;
+    const description = document.getElementById('feedback-desc').value.trim();
+    const errEl = document.getElementById('feedback-error');
+    const successEl = document.getElementById('feedback-success');
+    
+    errEl.classList.add('d-none');
+    successEl.classList.add('d-none');
+    
+    if (!author || !description) {
+        errEl.textContent = 'Name and description are required.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/requests', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ author, type, description })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            successEl.textContent = data.request_id + ' submitted successfully! Thank you.';
+            successEl.classList.remove('d-none');
+            document.getElementById('feedback-form').reset();
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                if (modal) modal.hide();
+            }, 2000);
+        } else {
+            errEl.textContent = data.error || 'Failed to submit request.';
+            errEl.classList.remove('d-none');
+        }
+    } catch (e) {
+        errEl.textContent = 'Network error: ' + e.message;
+        errEl.classList.remove('d-none');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{
+  "jurisdictions": {
+    "Architect": {
+      "paths": ["_cortex/", "config/", "docs/"],
+      "action_types": ["edit", "patch", "create", "delete"],
+      "locked": false
+    },
+    "Developer": {
+      "paths": ["src/", "tests/", "docs/", "config/", "requirements.txt", "templates/"],
+      "action_types": ["edit", "patch", "create", "delete"],
+      "locked": false
+    }
+  }
+}

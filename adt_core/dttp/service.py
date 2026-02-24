@@ -38,7 +38,7 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
     jurisdictions = JurisdictionManager(config.jurisdictions_config)
     policy_engine = PolicyEngine(validator, jurisdictions)
     action_handler = ActionHandler(config.project_root)
-    gateway = DTTPGateway(policy_engine, action_handler, ads_logger)
+    gateway = DTTPGateway(policy_engine, action_handler, ads_logger, is_framework=config.is_framework_project)
 
     # Store on app for access in routes
     app.dttp_gateway = gateway

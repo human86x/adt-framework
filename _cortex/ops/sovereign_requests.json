@@ -1,0 +1,139 @@
+{
+  "requests": [
+    {
+      "id": "scr_20260220_211315_000",
+      "ts": "2026-02-20T21:13:15.067233Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-031",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:13:24.640884Z",
+      "patch": {
+        "old_string": "1. **ADS Engine:**",
+        "new_string": "1. **ADS ENGINE UPDATED:**"
+      }
+    },
+    {
+      "id": "scr_20260220_211348_001",
+      "ts": "2026-02-20T21:13:48.795207Z",
+      "agent": "GEMINI",
+      "role": "Backend_Engineer",
+      "spec_ref": null,
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Test JSON merge for SPEC-999",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:13:52.868765Z",
+      "merge_data": {
+        "specs": {
+          "SPEC-999": {
+            "title": "Test Spec",
+            "status": "draft",
+            "roles": [
+              "Backend_Engineer"
+            ],
+            "action_types": [
+              "edit"
+            ],
+            "paths": [
+              "tests/"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260220_211402_002",
+      "ts": "2026-02-20T21:14:02.134953Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-031",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:14:05.822152Z",
+      "patch": {
+        "old_string": "1. **ADS ENGINE UPDATED:**",
+        "new_string": "1. **ADS Engine:**"
+      }
+    },
+    {
+      "id": "scr_20260220_211420_003",
+      "ts": "2026-02-20T21:14:20.990078Z",
+      "agent": "GEMINI",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-031",
+      "target_path": "config/specs.json",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path config/specs.json",
+      "status": "rejected",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:14:25.482014Z",
+      "patch": {
+        "old_string": "\"SPEC-031\": {",
+        "new_string": "\"SPEC-031-UPDATED\": {"
+      },
+      "rejection_reason": "Test rejection flow"
+    },
+    {
+      "id": "scr_20260220_212258_004",
+      "ts": "2026-02-20T21:22:58.257038Z",
+      "agent": "TEST_AGENT",
+      "role": "Backend_Engineer",
+      "spec_ref": null,
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Integration test SCR",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:22:58.306917Z",
+      "merge_data": {
+        "specs": {
+          "SPEC-TEST": {
+            "title": "Test Spec",
+            "status": "draft"
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260220_212258_005",
+      "ts": "2026-02-20T21:22:58.354466Z",
+      "agent": "TEST_AGENT",
+      "role": "Backend_Engineer",
+      "spec_ref": null,
+      "target_path": "config/dttp.json",
+      "change_type": "patch",
+      "description": "Reject this",
+      "status": "rejected",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-20T21:22:58.382723Z",
+      "patch": {
+        "old_string": "foo",
+        "new_string": "bar"
+      },
+      "rejection_reason": "Testing rejection"
+    },
+    {
+      "id": "scr_20260220_212258_006",
+      "ts": "2026-02-20T21:22:58.413619Z",
+      "agent": "TEST_AGENT",
+      "role": "Backend_Engineer",
+      "spec_ref": null,
+      "target_path": "config/dttp.json",
+      "change_type": "append",
+      "description": "",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "content": "\n# test"
+    }
+  ]
+}

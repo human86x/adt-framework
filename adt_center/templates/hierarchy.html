@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set active_page = "hierarchy" %}
+
+{% block title %}Project Hierarchy - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="mb-0" style="font-size:1.1rem; font-weight:700;">Project Hierarchy</h5>
+        <p class="text-adt-muted mb-0" style="font-size:0.85rem;">Phase-structured project visualization per SPEC-003.</p>
+    </div>
+    <div class="text-end">
+        {% set total_tasks = tasks|length %}
+        {% set completed_tasks = tasks|selectattr('status', 'equalto', 'completed')|list|length %}
+        {% set percent = (completed_tasks / total_tasks * 100)|round|int if total_tasks > 0 else 0 %}
+        <div class="small text-adt-muted mb-1">Global Progress: {{ percent }}%</div>
+        <div class="progress bg-dark border border-secondary" style="height: 8px; width: 200px;">
+            <div class="progress-bar bg-accent" role="progressbar" style="width: {{ percent }}%"></div>
+        </div>
+    </div>
+</div>
+
+<div class="hierarchy-container">
+    {% for phase in phases %}
+    <div class="card card-adt mb-4 border-adt">
+        <div class="card-header d-flex justify-content-between align-items-center bg-dark" 
+             style="cursor:pointer;" 
+             data-bs-toggle="collapse" data-bs-target="#phase-{{ phase.id|replace('.', '-') }}">
+            <div>
+                <span class="text-adt-muted fw-bold me-2">PHASE {{ phase.id }}</span>
+                <span class="fs-6 fw-bold">{{ phase.name }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge-adt {% if phase.status == 'completed' %}badge-completed{% elif phase.status == 'active' %}badge-in-progress{% else %}badge-pending{% endif %}">
+                    {{ phase.status|upper }}
+                </span>
+                <i class="bi bi-chevron-down text-adt-muted"></i>
+            </div>
+        </div>
+        <div class="collapse show" id="phase-{{ phase.id|replace('.', '-') }}">
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for spec_id in phase.specs %}
+                        {% set spec = specs|selectattr('id', 'equalto', spec_id)|first %}
+                        {% if spec %}
+                        <div class="list-group-item bg-transparent border-adt py-3 ps-4">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#spec-tasks-{{ spec_id }}">
+                                    <i class="bi bi-diagram-2 text-adt-accent me-2"></i>
+                                    <strong class="text-adt-accent">{{ spec_id }}</strong>
+                                    <span class="ms-2 text-white">{{ spec.name }}</span>
+                                    
+                                    {% if spec.status == 'APPROVED' %}
+                                    <i class="bi bi-patch-check-fill text-green ms-1" title="Approved"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    {% set spec_tasks = tasks|selectattr('spec_ref', 'equalto', spec_id)|list %}
+                                    {% set s_total = spec_tasks|length %}
+                                    {% set s_done = spec_tasks|selectattr('status', 'equalto', 'completed')|list|length %}
+                                    {% set s_percent = (s_done / s_total * 100)|round|int if s_total > 0 else 0 %}
+                                    
+                                    <span class="badge-adt {% if spec.status == 'APPROVED' %}badge-completed{% elif spec.status == 'DRAFT' %}badge-pending{% else %}badge-in-progress{% endif %} mb-1">
+                                        {{ spec.status }}
+                                    </span>
+                                    <div class="progress bg-dark" style="height: 4px; width: 100px;">
+                                        <div class="progress-bar bg-green" role="progressbar" style="width: {{ s_percent }}%"></div>
+                                    </div>
+                                    <div class="text-adt-muted" style="font-size:0.65rem; margin-top:2px;">{{ s_done }}/{{ s_total }} tasks</div>
+                                </div>
+                            </div>
+                            
+                            <div class="collapse show mt-3" id="spec-tasks-{{ spec_id }}">
+                                <div class="row g-2 ps-4">
+                                    {% for task in tasks if task.spec_ref == spec_id %}
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="task-card p-2 border-adt" style="font-size: 0.8rem;">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-bold text-adt-muted" style="font-size:0.7rem;">{{ task.id }}</span>
+                                                <span class="badge-adt {% if task.status == 'completed' %}badge-completed{% elif task.status == 'in_progress' %}badge-in-progress{% else %}badge-pending{% endif %}" style="font-size:0.6rem;">
+                                                    {{ task.status|replace('_', ' ')|upper }}
+                                                </span>
+                                            </div>
+                                            <div class="text-white mb-1" style="line-height:1.2;">{{ task.title }}</div>
+                                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                                <span class="text-adt-accent" style="font-size:0.7rem;">@{{ task.assigned_to }}</span>
+                                                {% if task.priority == 'critical' or task.priority == 'high' %}
+                                                <span class="text-red" style="font-size:0.7rem;">&#10071; {{ task.priority|upper }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.card-header[data-bs-toggle="collapse"] .bi-chevron-down {
+    transition: transform 0.3s;
+}
+.card-header[data-bs-toggle="collapse"].collapsed .bi-chevron-down {
+    transform: rotate(-90deg);
+}
+.list-group-item {
+    transition: background-color 0.2s;
+}
+.list-group-item:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+</style>
+{% endblock %}

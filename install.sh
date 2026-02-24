@@ -24,7 +24,7 @@ NC='\033[0m'
 
 echo -e "${BOLD}${CYAN}--- ADT Framework Activation ---${NC}"
 echo -e "ADT Framework: Specification-Driven Governance"
-echo "Version: 0.3.0-beta | SPEC-029 Compliance"
+echo "Version: 0.3.2 | SPEC-029 Compliance"
 echo "--------------------------------------------"
 
 # 1. Detect Platform
@@ -116,10 +116,10 @@ setup_venv() {
 install_console() {
     mkdir -p "$INSTALL_DIR/bin"
     echo -e "${YELLOW}[*]${NC} Checking for latest Console binary..."
-    
+
     # Try to fetch latest release version from GitHub API
     local LATEST_TAG=$(curl -s https://api.github.com/repos/human86x/adt-framework/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    
+
     if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
         local DOWNLOAD_URL="https://github.com/human86x/adt-framework/releases/download/$LATEST_TAG/adt-console.AppImage"
         echo -e "${GREEN}[*]${NC} Found release $LATEST_TAG. Downloading Console..."
@@ -136,8 +136,21 @@ start_services() {
     mkdir -p "$LOG_DIR"
     echo -e "${YELLOW}[*]${NC} Starting ADT Services..."
 
+    # Detect production mode (SPEC-027): explicit flag file + agent/dttp OS users
+    # Production mode requires human to explicitly enable via Console toggle
+    local PROD_MODE=false
+    if [ -f "$HOME/.adt/production_mode" ] && id -u agent &>/dev/null && id -u dttp &>/dev/null; then
+        PROD_MODE=true
+        echo -e "${GREEN}[*]${NC} Production mode detected (Shatterglass active)"
+    fi
+
     # Start DTTP Gateway
-    nohup "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
+    if $PROD_MODE; then
+        echo -e "${GREEN}[*]${NC} DTTP running as OS user 'dttp'"
+        nohup sudo -u dttp "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
+    else
+        nohup "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
+    fi
     echo $! > "$LOG_DIR/dttp.pid"
 
     # Start ADT Panel
@@ -159,23 +172,62 @@ start_services() {
     return 1
 }
 
-# 8. Verify Hooks (SPEC-029 R5)
+# 8. Verify Hooks & Agent CLIs (SPEC-029 R5)
+MIN_GEMINI_VER="0.25.0"
+
+version_gte() {
+    # Returns 0 (true) if $1 >= $2 using sort -V
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
 verify_hooks() {
-    echo -e "${YELLOW}[*]${NC} Verifying enforcement hooks..."
-    
+    echo -e "${YELLOW}[*]${NC} Verifying agent CLIs and enforcement hooks..."
+
+    # --- Gemini CLI ---
+    if command -v gemini &>/dev/null; then
+        local GVER
+        GVER=$(gemini --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+        if [ -n "$GVER" ] && version_gte "$GVER" "$MIN_GEMINI_VER"; then
+            echo -e "    Gemini CLI:        ${GREEN}v${GVER}${NC}"
+        elif [ -n "$GVER" ]; then
+            echo -e "    Gemini CLI:        ${RED}v${GVER} (OUTDATED -- need >= v${MIN_GEMINI_VER})${NC}"
+            echo -e "    ${YELLOW}>>  Run: npm update -g @google/gemini-cli${NC}"
+        else
+            echo -e "    Gemini CLI:        ${YELLOW}installed (unknown version)${NC}"
+        fi
+    else
+        echo -e "    Gemini CLI:        ${RED}NOT INSTALLED${NC}"
+        echo -e "    ${YELLOW}>>  Install: npm install -g @google/gemini-cli${NC}"
+    fi
+
+    # --- Claude Code ---
+    if command -v claude &>/dev/null; then
+        local CVER
+        CVER=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+        if [ -n "$CVER" ]; then
+            echo -e "    Claude Code:       ${GREEN}v${CVER}${NC}"
+        else
+            echo -e "    Claude Code:       ${GREEN}installed${NC}"
+        fi
+    else
+        echo -e "    Claude Code:       ${YELLOW}NOT INSTALLED${NC}"
+        echo -e "    ${YELLOW}>>  Install: npm install -g @anthropic-ai/claude-code${NC}"
+    fi
+
+    # --- Hook configs ---
     local CLAUDE_HOOK=".claude/settings.local.json"
     local GEMINI_HOOK=".gemini/settings.json"
-    
+
     if [ -f "$CLAUDE_HOOK" ]; then
-        echo -e "    Claude Code hooks: ${GREEN}ACTIVE${NC}"
+        echo -e "    Claude hooks:      ${GREEN}ACTIVE${NC}"
     else
-        echo -e "    Claude Code hooks: ${YELLOW}NOT CONFIGURED${NC}"
+        echo -e "    Claude hooks:      ${YELLOW}NOT CONFIGURED${NC}"
     fi
 
     if [ -f "$GEMINI_HOOK" ]; then
-        echo -e "    Gemini CLI hooks:  ${GREEN}ACTIVE${NC}"
+        echo -e "    Gemini hooks:      ${GREEN}ACTIVE${NC}"
     else
-        echo -e "    Gemini CLI hooks:   ${YELLOW}NOT CONFIGURED${NC}"
+        echo -e "    Gemini hooks:      ${YELLOW}NOT CONFIGURED${NC}"
     fi
 }
 

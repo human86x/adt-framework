@@ -36,10 +36,13 @@ const GovernancePanel = (() => {
   // --- Data Fetching ---
   async function fetchAll() {
     const url = API_URL();
+    const projectName = SessionManager.getActive()?.project;
+    const projectQuery = projectName ? `?project=${encodeURIComponent(projectName)}` : '';
+
     const [tasksRes, specsRes, eventsRes] = await Promise.allSettled([
-      fetch(`${url}/api/tasks`).then(r => r.ok ? r.json() : null),
-      fetch(`${url}/api/specs`).then(r => r.ok ? r.json() : null),
-      fetch(`${url}/api/ads/events`).then(r => r.ok ? r.json() : null),
+      fetch(`${url}/api/tasks${projectQuery}`).then(r => r.ok ? r.json() : null),
+      fetch(`${url}/api/specs${projectQuery}`).then(r => r.ok ? r.json() : null),
+      fetch(`${url}/api/ads/events${projectQuery}`).then(r => r.ok ? r.json() : null),
     ]);
 
     cachedTasks = tasksRes.status === 'fulfilled' && tasksRes.value
@@ -199,8 +202,9 @@ const GovernancePanel = (() => {
   // HIERARCHY VIEW (SPEC-003)
   // ============================
   function renderHierarchy(container) {
+    const projectName = SessionManager.getActive()?.project || 'ADT Framework';
     let html = '<div class="hierarchy-tree">';
-    html += '<div class="hier-root">ADT Framework</div>';
+    html += `<div class="hier-root">${projectName}</div>`;
 
     cachedPhases.forEach(phase => {
       const phaseSpecs = phase.specs || [];

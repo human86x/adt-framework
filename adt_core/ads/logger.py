@@ -47,7 +47,8 @@ class ADSLogger:
                 f.seek(0)
                 line = f.readline()
                 if line.strip(): return json.loads(line.decode('utf-8'))
-            except (json.JSONDecodeError, OSError):
+            except (json.JSONDecodeError, OSError) as e:
+                logger.error(f"Error reading last event from {self.file_path}: {e}")
                 return None
         return None
 

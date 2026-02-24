@@ -8,7 +8,8 @@
       "adt_sdk/",
       "config/",
       "tests/",
-      "adt-console/"
+      "adt-console/",
+      "sample_projects/"
     ],
     "Backend_Engineer": {
       "paths": [
@@ -29,12 +30,26 @@
       ],
       "locked": false
     },
-    "Frontend_Engineer": [
-      "adt_center/templates",
-      "adt_center/static",
-      "adt-console",
-      "adt-console/src/"
-    ],
+    "Frontend_Engineer": {
+      "paths": [
+        "adt_center/templates",
+        "adt_center/static",
+        "adt-console",
+        "adt-console/src/",
+        "install.sh"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete",
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge"
+      ],
+      "locked": false
+    },
     "DevOps_Engineer": {
       "paths": [
         "ops/",
@@ -50,8 +65,7 @@
         "_cortex/ops/",
         "adt_sdk/",
         "_cortex/work_logs/",
-        "install.sh",
-        "./"
+        "install.sh"
       ],
       "action_types": [
         "edit",

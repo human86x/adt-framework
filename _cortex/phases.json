@@ -1,0 +1,34 @@
+{
+  "phases": [
+    {
+      "id": "1",
+      "name": "Core Engines",
+      "status": "completed",
+      "specs": ["SPEC-014", "SPEC-015", "SPEC-016", "SPEC-017"]
+    },
+    {
+      "id": "1.5",
+      "name": "Hardening + Service Extraction",
+      "status": "completed",
+      "specs": ["SPEC-018", "SPEC-019", "SPEC-020"]
+    },
+    {
+      "id": "2",
+      "name": "Operator Console & UI",
+      "status": "active",
+      "specs": ["SPEC-021", "SPEC-025", "SPEC-026", "SPEC-028", "SPEC-034"]
+    },
+    {
+      "id": "3",
+      "name": "External Project Governance",
+      "status": "active",
+      "specs": ["SPEC-031", "SPEC-032", "SPEC-033", "SPEC-027"]
+    },
+    {
+      "id": "4",
+      "name": "Enterprise & Remote",
+      "status": "planned",
+      "specs": ["SPEC-022", "SPEC-024", "SPEC-029"]
+    }
+  ]
+}

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ADT Operational Center{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/adt.css') }}" rel="stylesheet">
     {% block head %}{% endblock %}
 </head>
@@ -41,6 +42,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'hierarchy' %}active{% endif %}" href="/hierarchy">
+                            <span class="nav-icon">&#9613;</span>Hierarchy
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'delegation' %}active{% endif %}" href="/delegation">
+                            <span class="nav-icon">&#9586;</span>Delegation
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if active_page == 'dttp' %}active{% endif %}" href="/dttp">
                             <span class="nav-icon">&#9889;</span>DTTP
                         </a>
@@ -48,6 +59,7 @@
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'governance' %}active{% endif %}" href="/governance">
                             <span class="nav-icon">&#9878;</span>Governance
+                            <span id="nav-scr-badge" class="badge rounded-pill bg-danger ms-1 d-none">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -71,6 +83,29 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function updateSCRBadge() {
+            try {
+                const res = await fetch('/api/governance/sovereign-requests?status=pending');
+                if (!res.ok) return;
+                const data = await res.json();
+                const scrs = data.requests || [];
+                const badge = document.getElementById('nav-scr-badge');
+                if (badge) {
+                    if (scrs.length > 0) {
+                        badge.innerText = scrs.length;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+                }
+            } catch (err) {}
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSCRBadge();
+            setInterval(updateSCRBadge, 30000); // Poll every 30s
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

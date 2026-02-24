@@ -2,7 +2,7 @@
 // SPEC-021: Tauri command handlers for session management, tray, notifications,
 // project file access, and system integration
 
-use crate::pty::{PtyManager, SessionInfo};
+use crate::pty::{self, PtyManager, SessionInfo};
 use crate::tray::{self, TrayStatus};
 use serde::Deserialize;
 
@@ -11,6 +11,7 @@ use tauri_plugin_notification::NotificationExt;
 
 #[derive(Deserialize)]
 pub struct CreateSessionRequest {
+    pub project: Option<String>,
     pub agent: String,
     pub role: String,
     pub spec_id: String,
@@ -56,6 +57,19 @@ pub struct NotificationRequest {
     pub body: String,
 }
 
+
+#[derive(Deserialize)]
+pub struct InitProjectRequest {
+    pub path: String,
+    pub name: Option<String>,
+    pub detect: Option<bool>,
+    pub start_dttp: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct ProjectNameRequest {
+    pub name: String,
+}
 // --- Session commands ---
 
 #[tauri::command]
@@ -64,12 +78,14 @@ pub fn create_session<R: Runtime>(
     pty_manager: State<PtyManager>,
     app_handle: tauri::AppHandle<R>,
 ) -> Result<SessionInfo, String> {
+    let project_name = request.project.as_deref().unwrap_or("adt-framework");
     log::info!(
-        "[IPC RECV] create_session: agent={}, role={}, cmd={}, args={:?}",
-        request.agent, request.role, request.command, request.args
+        "[IPC RECV] create_session: project={}, agent={}, role={}, cmd={}, args={:?}",
+        project_name, request.agent, request.role, request.command, request.args
     );
     pty_manager.create_session(
         None,
+        project_name,
         &request.agent,
         &request.role,
         &request.spec_id,
@@ -352,6 +368,214 @@ fn toggle_autostart_windows(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+
+// --- Shatterglass production mode commands (SPEC-027) ---
+
+/// Get current production mode status. Returns JSON with enabled flag and details.
+#[tauri::command]
+pub fn get_production_mode() -> Result<String, String> {
+    let enabled = pty::is_production_mode();
+    let flag_exists = pty::production_mode_flag_path().exists();
+
+    // Check if agent user exists
+    let agent_exists = std::fs::read_to_string("/etc/passwd")
+        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
+        .unwrap_or(false);
+
+    let result = serde_json::json!({
+        "enabled": enabled,
+        "flag_exists": flag_exists,
+        "agent_user_exists": agent_exists,
+        "ready": agent_exists,
+    });
+
+    Ok(result.to_string())
+}
+
+/// Enable production mode (Tier 1). Human-only action.
+/// New sessions will be spawned as the 'agent' OS user via sudo.
+#[tauri::command]
+pub fn enable_production_mode() -> Result<String, String> {
+    log::info!("[IPC RECV] enable_production_mode (human action)");
+    pty::enable_production_mode()?;
+    Ok("{\"enabled\": true}".to_string())
+}
+
+/// Disable production mode (back to Tier 3). Human-only action.
+/// New sessions will run as the human user directly.
+#[tauri::command]
+pub fn disable_production_mode() -> Result<String, String> {
+    log::info!("[IPC RECV] disable_production_mode (human action)");
+    pty::disable_production_mode()?;
+    Ok("{\"enabled\": false}".to_string())
+}
+
+// --- Project management commands (SPEC-032) ---
+
+/// Initialize a new project with ADT governance scaffolding.
+/// Calls: python3 -m adt_core.cli init <path> [--name <name>] [--detect]
+#[tauri::command]
+pub fn init_project(request: InitProjectRequest) -> Result<String, String> {
+    log::info!(
+        "[IPC RECV] init_project: path={}, name={:?}, detect={:?}",
+        request.path, request.name, request.detect
+    );
+
+    let python = find_python().ok_or("Python not found")?;
+    let mut cmd = std::process::Command::new(&python);
+    cmd.arg("-m").arg("adt_core.cli").arg("init").arg(&request.path);
+
+    if let Some(ref name) = request.name {
+        cmd.arg("--name").arg(name);
+    }
+    if request.detect.unwrap_or(false) {
+        // cmd.arg("--detect"); // Removed invalid flag
+    }
+
+    // Set PYTHONPATH to framework root
+    if let Ok(cwd) = std::env::current_dir() {
+        cmd.env("PYTHONPATH", &cwd);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Failed to run adt init: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("adt init failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // Optionally start DTTP for the new project
+    if request.start_dttp.unwrap_or(false) {
+        if let Err(e) = start_project_dttp_inner(&request.name.unwrap_or_else(|| {
+            std::path::Path::new(&request.path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "project".to_string())
+        })) {
+            log::warn!("Failed to auto-start DTTP: {}", e);
+        }
+    }
+
+    Ok(stdout)
+}
+
+/// List all registered projects with DTTP status enrichment.
+/// Reads ~/.adt/projects.json and checks port availability.
+#[tauri::command]
+pub fn list_projects() -> Result<String, String> {
+    log::info!("[IPC RECV] list_projects");
+
+    let registry_path = dirs::home_dir()
+        .ok_or("Cannot find home directory")?
+        .join(".adt")
+        .join("projects.json");
+
+    if !registry_path.exists() {
+        return Ok("[]".to_string());
+    }
+
+    let content = std::fs::read_to_string(&registry_path)
+        .map_err(|e| format!("Failed to read registry: {}", e))?;
+
+    // Parse, enrich with DTTP status, return
+    let mut registry: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid registry JSON: {}", e))?;
+
+    if let Some(projects) = registry.get_mut("projects") {
+        if let Some(arr) = projects.as_array_mut() {
+            for project in arr.iter_mut() {
+                if let Some(port) = project.get("port").and_then(|p| p.as_u64()) {
+                    let dttp_running = check_port(port as u16);
+                    project.as_object_mut().map(|obj| {
+                        obj.insert("dttp_running".to_string(), serde_json::Value::Bool(dttp_running));
+                    });
+                }
+            }
+        }
+    }
+
+    serde_json::to_string(&registry)
+        .map_err(|e| format!("Failed to serialize: {}", e))
+}
+
+/// Start DTTP service for a named project.
+#[tauri::command]
+pub fn start_project_dttp(request: ProjectNameRequest) -> Result<String, String> {
+    log::info!("[IPC RECV] start_project_dttp: name={}", request.name);
+    start_project_dttp_inner(&request.name)
+}
+
+/// Stop DTTP service for a named project.
+#[tauri::command]
+pub fn stop_project_dttp(request: ProjectNameRequest) -> Result<String, String> {
+    log::info!("[IPC RECV] stop_project_dttp: name={}", request.name);
+
+    let python = find_python().ok_or("Python not found")?;
+    let mut cmd = std::process::Command::new(&python);
+    cmd.arg("-m").arg("adt_core.cli").arg("projects").arg("stop").arg(&request.name);
+
+    if let Ok(cwd) = std::env::current_dir() {
+        cmd.env("PYTHONPATH", &cwd);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Failed to stop DTTP: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to stop DTTP: {}", stderr));
+    }
+
+    Ok(stdout)
+}
+
+// --- Project helper functions ---
+
+fn find_python() -> Option<String> {
+    // Check for venv python first
+    if let Ok(cwd) = std::env::current_dir() {
+        let venv = cwd.join("venv").join("bin").join("python3");
+        if venv.exists() {
+            return Some(venv.to_string_lossy().to_string());
+        }
+        let dotvenv = cwd.join(".venv").join("bin").join("python3");
+        if dotvenv.exists() {
+            return Some(dotvenv.to_string_lossy().to_string());
+        }
+    }
+    // Fall back to system python
+    Some("python3".to_string())
+}
+
+fn check_port(port: u16) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+        std::time::Duration::from_millis(200),
+    ).is_ok()
+}
+
+fn start_project_dttp_inner(name: &str) -> Result<String, String> {
+    let python = find_python().ok_or("Python not found")?;
+    let mut cmd = std::process::Command::new(&python);
+    cmd.arg("-m").arg("adt_core.cli").arg("projects").arg("start").arg(name);
+
+    if let Ok(cwd) = std::env::current_dir() {
+        cmd.env("PYTHONPATH", &cwd);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Failed to start DTTP: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to start DTTP: {}", stderr));
+    }
+
+    Ok(stdout)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -385,5 +609,23 @@ mod tests {
     fn test_read_project_file_nonexistent() {
         let result = read_project_file("this_file_does_not_exist_xyz.txt".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_find_python() {
+        let python = find_python();
+        assert!(python.is_some(), "Should find a python executable");
+    }
+
+    #[test]
+    fn test_check_port_closed() {
+        // Port 59999 should not be in use
+        assert!(!(check_port(59999)));
+    }
+
+    #[test]
+    fn test_list_projects_no_crash() {
+        // Ensures list_projects does not panic
+        let _ = list_projects();
     }
 }

@@ -1,0 +1,18 @@
+{
+  "specs": {
+    "BOOTSTRAP": {
+      "title": "Project Bootstrap",
+      "status": "approved",
+      "roles": ["Architect"],
+      "action_types": ["edit", "create", "delete", "patch"],
+      "paths": ["_cortex/", "config/"]
+    },
+    "SPEC-001": {
+      "title": "UI Upgrade",
+      "status": "approved",
+      "roles": ["Developer"],
+      "action_types": ["edit"],
+      "paths": ["templates/"]
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% set active_page = "ads" %}
+
+{% block title %}ADS Timeline - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0" style="font-size:1rem; font-weight:600;">Authoritative Data Source Timeline</h5>
+    <div class="d-flex gap-2">
+        <select id="filterAgent" class="form-select form-select-sm" style="width:auto; background-color:var(--adt-bg-card); border-color:var(--adt-border); color:var(--adt-text); font-size:0.8rem;">
+            <option value="">All Agents</option>
+            <option value="CLAUDE">CLAUDE</option>
+            <option value="GEMINI">GEMINI</option>
+        </select>
+        <select id="filterAction" class="form-select form-select-sm" style="width:auto; background-color:var(--adt-bg-card); border-color:var(--adt-border); color:var(--adt-text); font-size:0.8rem;">
+            <option value="">All Actions</option>
+            <option value="session_start">session_start</option>
+            <option value="session_end">session_end</option>
+            <option value="task_complete">task_complete</option>
+            <option value="pending_edit">pending_edit</option>
+            <option value="completed_edit">completed_edit</option>
+            <option value="denied_edit">denied_edit</option>
+            <option value="ui_build">ui_build</option>
+            <option value="spec_request">spec_request</option>
+        </select>
+    </div>
+</div>
+
+<div class="card card-adt">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>{{ events|length }} events recorded</span>
+        <span class="text-adt-muted" style="font-size:0.7rem;">Newest first &middot; Append-only ledger</span>
+    </div>
+    <div class="card-body p-2">
+        {% for event in events|reverse %}
+        <div class="event-item event-filterable
+            {% if not event.authorized %}event-denied
+            {% elif event.action_type in ['session_start', 'session_end'] %}event-session
+            {% elif event.action_type == 'task_complete' %}event-complete
+            {% elif event.status == 'pending' or event.action_type == 'pending_edit' %}event-pending
+            {% endif %}"
+            data-agent="{{ event.agent }}"
+            data-action="{{ event.action_type }}">
+            <div class="event-meta d-flex justify-content-between">
+                <span>
+                    {{ event.ts }}
+                    &middot;
+                    <span class="badge-adt {% if event.agent == 'CLAUDE' %}badge-agent-claude{% else %}badge-agent-gemini{% endif %}">
+                        {{ event.agent }}
+                    </span>
+                    &middot; {{ event.role }}
+                </span>
+                <span>
+                    {% if event.spec_ref %}
+                        <span class="badge-adt badge-spec">{{ event.spec_ref }}</span>
+                    {% endif %}
+                    {% if not event.authorized %}
+                        <span class="badge-adt badge-denied">DENIED</span>
+                    {% endif %}
+                    {% if event.escalation %}
+                        <span class="badge-adt badge-denied">ESCALATION</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="event-body">
+                <span class="event-action">{{ event.action_type }}:</span>
+                {{ event.description }}
+            </div>
+            {% if event.hash %}
+            <div class="mt-1" style="font-size:0.65rem; color:var(--adt-text-muted); font-family:monospace;">
+                hash: {{ event.hash[:16] }}...
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('filterAgent').addEventListener('change', applyFilters);
+document.getElementById('filterAction').addEventListener('change', applyFilters);
+function applyFilters() {
+    const agent = document.getElementById('filterAgent').value;
+    const action = document.getElementById('filterAction').value;
+    document.querySelectorAll('.event-filterable').forEach(el => {
+        const matchAgent = !agent || el.dataset.agent === agent;
+        const matchAction = !action || el.dataset.action === action;
+        el.style.display = (matchAgent && matchAction) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

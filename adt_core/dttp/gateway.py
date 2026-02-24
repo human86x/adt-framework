@@ -30,10 +30,12 @@ class DTTPGateway:
     def __init__(self, 
                  policy_engine: PolicyEngine, 
                  action_handler: ActionHandler, 
-                 logger: ADSLogger):
+                 logger: ADSLogger,
+                 is_framework: bool = False):
         self.policy_engine = policy_engine
         self.action_handler = action_handler
         self.logger = logger
+        self.is_framework = is_framework
 
     def request(self,
                 agent: str,
@@ -51,7 +53,8 @@ class DTTPGateway:
         normalized_path = os.path.normpath(path) if path else None
 
         # 1. Sovereign Path Check (Tier 1) - SPEC-020 Section 2.1
-        if normalized_path in SOVEREIGN_PATHS:
+        # Skip for external projects (SPEC-031)
+        if self.is_framework and normalized_path in SOVEREIGN_PATHS:
             event_id = ADSEventSchema.generate_id("sovereign_violation")
             self.logger.log(ADSEventSchema.create_event(
                 event_id=event_id,
@@ -71,7 +74,7 @@ class DTTPGateway:
         is_tier2 = False
         tier2_reason = None
 
-        if normalized_path in CONSTITUTIONAL_PATHS:
+        if self.is_framework and normalized_path in CONSTITUTIONAL_PATHS:
             is_tier2 = True
             tier2_reason = f"Tier 2 path {normalized_path}"
         

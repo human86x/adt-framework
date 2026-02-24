@@ -1,6 +1,8 @@
 // Application controller — initialization, keyboard shortcuts, toasts
 // SPEC-021: Main entry point for ADT Operator Console frontend
 
+console.log("ADT Console app.js loaded v2");
+
 // --- Toast Notification Manager ---
 const ToastManager = (() => {
   const ICONS = {
@@ -233,6 +235,46 @@ const RemoteManager = (() => {
 
   return { toggle, isSharing, getUrl: () => publicUrl };
 })();
+
+// --- Git Status Manager (SPEC-023) ---
+const GitStatusManager = (() => {
+  const getUrl = () => localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+  let intervalId = null;
+
+  async function refresh() {
+    try {
+      const res = await fetch(`${getUrl()}/api/git/status`);
+      if (!res.ok) throw new Error('Failed to fetch git status');
+      const data = await res.json();
+      
+      const dot = document.getElementById('git-dot');
+      const branchSpan = document.getElementById('git-branch');
+      const changesSpan = document.getElementById('git-changes');
+      
+      if (branchSpan) branchSpan.textContent = data.branch || '—';
+      if (changesSpan) {
+        changesSpan.textContent = data.changes > 0 ? `(${data.changes})` : '';
+      }
+      
+      if (dot) {
+        dot.className = `status-dot dot-${data.status === 'clean' ? 'green' : 'yellow'}`;
+      }
+    } catch (err) {
+      console.warn('Git status update failed:', err);
+      const branchSpan = document.getElementById('git-branch');
+      if (branchSpan) branchSpan.textContent = 'Offline';
+    }
+  }
+
+  function startPolling(ms = 30000) {
+    if (intervalId) clearInterval(intervalId);
+    refresh();
+    intervalId = setInterval(refresh, ms);
+  }
+
+  return { refresh, startPolling };
+})();
+
 // --- Main Application ---
 (function () {
   'use strict';
@@ -258,7 +300,10 @@ const RemoteManager = (() => {
     
     try {
       const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
-      const res = await fetch(`${centerUrl}/api/specs`);
+      const project = document.getElementById('input-project')?.value;
+      const url = project ? `${centerUrl}/api/specs?project=${encodeURIComponent(project)}` : `${centerUrl}/api/specs`;
+      
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch specs');
       const data = await res.json();
       const specs = data.specs || [];
@@ -289,12 +334,100 @@ const RemoteManager = (() => {
     }
   }
 
+  async function loadRoles() {
+    const roleSelect = document.getElementById('input-role');
+    if (!roleSelect) return;
+
+    try {
+      const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+      const project = document.getElementById('input-project')?.value;
+      if (!project) return;
+
+      const res = await fetch(`${centerUrl}/api/governance/roles?project=${encodeURIComponent(project)}`);
+      if (!res.ok) throw new Error('Failed to fetch roles');
+      const data = await res.json();
+      const roles = data.roles || {};
+      
+      roleSelect.innerHTML = '';
+      Object.keys(roles).forEach(roleName => {
+        const opt = document.createElement('option');
+        opt.value = roleName;
+        // Format role name for display: Systems_Architect -> Systems Architect
+        opt.textContent = roleName.replace(/_/g, ' ');
+        roleSelect.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('Error loading roles:', err);
+      // Fallback to hardcoded defaults if API fails
+      roleSelect.innerHTML = `
+        <option value="Systems_Architect">Systems Architect</option>
+        <option value="Backend_Engineer">Backend Engineer</option>
+        <option value="Frontend_Engineer">Frontend Engineer</option>
+        <option value="DevOps_Engineer">DevOps Engineer</option>
+        <option value="Overseer">Overseer</option>
+      `;
+    }
+  }
+
+  async function loadProjects() {
+    const projectSelect = document.getElementById('input-project');
+    if (!projectSelect) return;
+
+    try {
+      const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+      const res = await fetch(`${centerUrl}/api/projects`);
+      if (!res.ok) throw new Error('Failed to fetch projects');
+      const data = await res.json();
+      const projects = data.projects || data; // Handle both {projects: {}} and {} formats
+      
+      const currentValue = projectSelect.value;
+      projectSelect.innerHTML = '';
+      
+      const forgeGroup = document.createElement('optgroup');
+      forgeGroup.label = 'Internal Forge';
+      
+      const governedGroup = document.createElement('optgroup');
+      governedGroup.label = 'Governed Projects';
+
+      Object.keys(projects).forEach(name => {
+        const p = projects[name];
+        const opt = document.createElement('option');
+        opt.value = name; // Use name for API filtering
+        opt.dataset.path = p.path;
+        opt.textContent = `${name} (${p.path})`;
+        
+        if (p.is_framework || p.project_type === 'forge') {
+          forgeGroup.appendChild(opt);
+        } else {
+          governedGroup.appendChild(opt);
+        }
+      });
+
+      if (forgeGroup.children.length > 0) projectSelect.appendChild(forgeGroup);
+      if (governedGroup.children.length > 0) projectSelect.appendChild(governedGroup);
+
+      if (currentValue && projectSelect.querySelector(`option[value="${currentValue}"]`)) {
+        projectSelect.value = currentValue;
+      }
+    } catch (err) {
+      console.error('Error loading projects:', err);
+    }
+  }
+
   function openNewSessionDialog() {
-    loadSpecs();
+    loadProjects().then(() => {
+      loadRoles().then(() => loadSpecs());
+    });
     dialog.showModal();
+    setTimeout(() => agentSelect.focus(), 50);
   }
 
   document.getElementById('btn-new-session').addEventListener('click', openNewSessionDialog);
+
+  // Reload roles and specs when project changes
+  document.getElementById('input-project')?.addEventListener('change', () => {
+    loadRoles().then(() => loadSpecs());
+  });
 
   // Sidebar new session button
   const sidebarNewBtn = document.getElementById('btn-new-session-sidebar');
@@ -308,6 +441,26 @@ const RemoteManager = (() => {
 
   agentSelect.addEventListener('change', () => {
     customGroup.style.display = agentSelect.value === 'custom' ? '' : 'none';
+    
+    // SPEC-034: Agent flags visibility
+    const flagsDiv = document.getElementById('agent-flags');
+    const yoloFlag = document.getElementById('flag-yolo');
+    const skipFlag = document.getElementById('flag-skip-permissions');
+    
+    if (flagsDiv) {
+      const agent = agentSelect.value.toLowerCase();
+      if (agent === 'gemini') {
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'flex';
+        skipFlag.style.display = 'none';
+      } else if (agent === 'claude') {
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'none';
+        skipFlag.style.display = 'flex';
+      } else {
+        flagsDiv.style.display = 'none';
+      }
+    }
   });
 
   form.addEventListener('submit', async (e) => {
@@ -317,11 +470,23 @@ const RemoteManager = (() => {
     const command = selectedOption.dataset.command;
     const role = document.getElementById('input-role').value;
     const specId = document.getElementById('input-spec').value;
-    const project = document.getElementById('input-project').value;
+    
+    // SPEC-034: Fix project NAME vs PATH
+    const projectSelect = document.getElementById('input-project');
+    const project = projectSelect.value; // Name
+    const projectOption = projectSelect.options[projectSelect.selectedIndex];
+    const projectPath = projectOption ? projectOption.dataset.path : null;
+    
     const customCmd = document.getElementById('input-custom-command').value;
 
+    // SPEC-034: Agent flags
+    const flags = {
+      yolo: document.getElementById('input-yolo')?.checked || false,
+      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false
+    };
+
     dialog.close();
-    const session = await SessionManager.create(agent, role, specId, agent === 'custom' ? customCmd : command, project);
+    const session = await SessionManager.create(agent, role, specId, agent === 'custom' ? customCmd : command, project, projectPath, flags);
 
     // Update tray after session creation
     if (session) TrayBridge.refresh();
@@ -330,6 +495,10 @@ const RemoteManager = (() => {
   // --- Dashboard button ---
   document.getElementById('btn-dashboard').addEventListener('click', () => {
     DashboardManager.toggle();
+  });
+
+  document.getElementById('btn-projects').addEventListener('click', () => {
+    ProjectLauncher.toggle();
   });
 
   document.getElementById('btn-governance').addEventListener('click', () => {
@@ -469,6 +638,13 @@ const RemoteManager = (() => {
     if (e.ctrlKey && e.key === 'n') {
       e.preventDefault();
       openNewSessionDialog();
+      return;
+    }
+
+    // Ctrl+Shift+P: Projects Launcher
+    if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      e.preventDefault();
+      ProjectLauncher.toggle();
       return;
     }
 
@@ -645,9 +821,18 @@ const RemoteManager = (() => {
   // --- Initialize ---
   initOverlayTabs();
   initSettings();
+  ProjectLauncher.init();
+  GuideSystem.init();
   ContextPanel.initWatchers();
-  SessionManager.restore();
+  
+  SessionManager.restore().then(() => {
+    if (SessionManager.getAll().length === 0) {
+      ProjectLauncher.toggle();
+    }
+  });
+
   SessionManager.updateStatusBar();
+  GitStatusManager.startPolling();
   TrayBridge.refresh();
   watchForNativeNotifications();
 

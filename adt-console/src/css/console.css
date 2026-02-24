@@ -14,8 +14,8 @@
   --accent-yellow: #d29922;
   --accent-red: #f85149;
   --accent-purple: #bc8cff;
-  --sidebar-width: 200px;
-  --topbar-height: 40px;
+  --sidebar-width: 220px;
+  --topbar-height: 56px;
   --statusbar-height: 28px;
 }
 
@@ -40,12 +40,19 @@ body {
   height: var(--topbar-height);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
+  border-top: 3px solid var(--accent-blue); /* Visual marker for v2.1 */
   display: flex;
   align-items: center;
   padding: 0 8px;
   gap: 8px;
   user-select: none;
-  -webkit-app-region: drag;
+  position: relative;
+  z-index: 2100;
+  pointer-events: none;
+}
+
+.topbar-brand, .topbar-tabs, .topbar-actions {
+  pointer-events: auto;
 }
 
 .topbar-brand {
@@ -53,7 +60,8 @@ body {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  -webkit-app-region: no-drag;
+  -webkit-app-region: drag; /* Only drag from brand area */
+  cursor: grab;
 }
 
 .brand-logo {
@@ -77,7 +85,18 @@ body {
   gap: 2px;
   flex: 1;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-app-region: no-drag;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.topbar-tabs::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .session-tab {
@@ -93,6 +112,9 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag;
+  z-index: 2200;
 }
 
 .session-tab:hover {
@@ -111,18 +133,47 @@ body {
   flex-shrink: 0;
 }
 
-.session-tab .tab-close {
-  opacity: 0;
-  background: none;
+/* Session Close Buttons (UI Refinement - SPEC-021) */
+.tab-close, .btn-close-session-sidebar {
+  background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
 }
 
-.session-tab:hover .tab-close {
+.tab-close {
+  font-size: 14px;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  opacity: 0;
+}
+
+.btn-close-session-sidebar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  opacity: 0;
+}
+
+.session-tab:hover .tab-close,
+.session-list-item:hover .btn-close-session-sidebar {
   opacity: 1;
+}
+
+.tab-close:hover, .btn-close-session-sidebar:hover {
+  background: var(--accent-red);
+  color: #fff !important;
 }
 
 .topbar-actions {
@@ -230,7 +281,8 @@ body {
   padding: 4px;
 }
 
-#session-list li {
+#session-list li, .session-list-item {
+  position: relative;
   padding: 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -470,6 +522,19 @@ kbd {
 
 .status-item.clickable:hover {
   color: var(--text-primary);
+}
+
+#status-git {
+  color: var(--text-secondary);
+}
+
+#git-branch {
+  font-weight: 600;
+}
+
+#git-changes {
+  color: var(--accent-yellow);
+  font-size: 10px;
 }
 
 #statusbar {
@@ -1116,6 +1181,41 @@ input:checked + .slider:before {
   transform: translateX(14px);
   background-color: white;
 }
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  min-width: 160px;
+  padding: 4px 0;
+}
+
+.context-menu-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.context-menu-item.danger {
+  color: var(--accent-red);
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(248, 81, 73, 0.1);
+}
+
 /* Governance Panel Integration */
 .governance-panel {
   display: none;

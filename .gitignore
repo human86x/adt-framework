@@ -28,3 +28,17 @@ secrets.json
 
 # Logs
 *.log
+
+# Rust / Tauri build artifacts
+adt-console/src-tauri/target/
+
+# Binary artifacts
+bin/
+*.AppImage
+*.zip
+*.exe
+*.msi
+
+# Temp files
+*.tmp
+fix_logger.py

@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ADT Operator Console</title>
+  <title>ADT Operator Console v2.1</title>
+  <script>console.log("ADT Console HTML loaded v2.1");</script>
   <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/launcher.css">
   <link rel="stylesheet" href="vendor/xterm.css">
 </head>
 <body>
@@ -18,6 +20,7 @@
       <!-- Session tabs injected by JS -->
     </div>
     <div class="topbar-actions">
+      <button id="btn-projects" title="Projects (Ctrl+Shift+P)">Projects</button>
       <button id="btn-new-session" title="New Session (Ctrl+N)">+</button>
       <button id="btn-split" title="Split View (Ctrl+\)">&#9707;</button>
       <button id="btn-dashboard" title="Dashboard (Ctrl+D)">&#9638;</button>
@@ -91,6 +94,10 @@
         <button class="sidebar-collapse-btn" id="btn-collapse-right" title="Collapse (Ctrl+I)">&rsaquo;</button>
       </div>
       <div id="context-panel">
+        <div id="ctx-role-filter" class="role-filter-indicator" style="display:none; padding: 4px 8px; background: var(--bg-tertiary); font-size: 10px; border-bottom: 1px solid var(--border); justify-content: space-between; align-items: center;">
+           <span>Showing: <span id="ctx-filter-role" style="font-weight:700"></span></span>
+           <button id="btn-show-all-roles" style="background:none; border:none; color:var(--accent-blue); cursor:pointer; font-size:10px; padding:0">Show all</button>
+        </div>
         <section class="context-section">
           <h3>Active Session</h3>
           <div class="session-info-grid" style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
@@ -178,11 +185,17 @@
       <span class="status-dot dot-green"></span> ADS: 0 events
     </span>
     <span id="status-sessions" class="status-item">Sessions: 0</span>
+    <span id="status-project" class="status-item" title="Active Project">
+      <span class="status-dot dot-grey"></span> Project: —
+    </span>
     <span id="status-remote" class="status-item clickable" title="Go Remote (Secure Tunnel)">
       <span class="status-dot dot-grey"></span> <span class="remote-label">Go Remote</span>
     </span>
     <span id="status-escalations" class="status-item status-escalations">Escalations: 0</span>
     <span id="status-dttp" class="status-item">DTTP: --</span>
+    <span id="status-git" class="status-item" title="Git Status">
+      <span class="status-dot dot-grey" id="git-dot"></span> <span id="git-branch">—</span> <span id="git-changes"></span>
+    </span>
     <span id="status-clock"></span>
   </footer>
 
@@ -195,7 +208,7 @@
       <h2>New Session</h2>
       <label>
         Agent
-        <select id="input-agent">
+        <select id="input-agent" autofocus>
           <option value="claude" data-command="claude" data-color="#6B7FD7">Claude Code</option>
           <option value="gemini" data-command="gemini" data-color="#4CAF50">Gemini CLI</option>
           <option value="shell" data-command="/bin/bash" data-color="#8b949e">System Shell (Bash)</option>
@@ -225,8 +238,19 @@
       </label>
       <label>
         Project
-        <input type="text" id="input-project" value="/home/human/Projects/adt-framework" placeholder="Project root path">
+        <select id="input-project">
+          <!-- Populated by JS -->
+          <option value="/home/human/Projects/adt-framework">adt-framework (default)</option>
+        </select>
       </label>
+      <div id="agent-flags" style="margin-bottom: 16px; display: none;">
+        <label id="flag-yolo" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
+          <input type="checkbox" id="input-yolo"> YOLO mode
+        </label>
+        <label id="flag-skip-permissions" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
+          <input type="checkbox" id="input-skip-permissions"> Skip permissions
+        </label>
+      </div>
       <div class="dialog-actions">
         <button type="button" id="btn-cancel-session">Cancel</button>
         <button type="submit" class="primary">Launch</button>
@@ -305,6 +329,8 @@
   <script src="js/terminal.js"></script>
   <script src="js/sessions.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/launcher.js"></script>
+  <script src="js/guide.js"></script>
   <script src="js/context.js"></script>
   <script src="js/governance.js"></script>
   <script src="js/app.js"></script>

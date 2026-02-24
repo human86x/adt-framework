@@ -1,0 +1,353 @@
+/* SPEC-032: ADT Project Launcher Styling - Professional Refinement */
+
+.launcher-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #0d1117; 
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 60px;
+  overflow-y: auto;
+  color: #e6edf3;
+}
+
+.launcher-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.launcher-header h1 {
+  font-size: 3rem;
+  margin: 0;
+  color: #6B7FD7;
+  letter-spacing: 4px;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(107, 127, 215, 0.3);
+}
+
+.launcher-header p {
+  color: #8b949e;
+  font-size: 1.2rem;
+  margin-top: 12px;
+  letter-spacing: 1px;
+}
+
+.launcher-search {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto 50px auto;
+}
+
+.launcher-search input {
+  width: 100%;
+  padding: 16px 24px;
+  background: #161b22;
+  border: 2px solid #30363d;
+  border-radius: 8px;
+  color: #e6edf3;
+  font-size: 1.2rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.launcher-search input:focus {
+  border-color: #6B7FD7;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(107, 127, 215, 0.15);
+}
+
+.launcher-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto 50px auto;
+}
+
+.launcher-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 32px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.launcher-card:hover {
+  border-color: #6B7FD7;
+  transform: translateY(-8px);
+  background: #1c2128;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+.launcher-card.forge-mode {
+  border-left: 4px solid #d29922;
+}
+
+.launcher-card.forge-mode:hover {
+  border-color: #d29922;
+  box-shadow: 0 12px 24px rgba(210, 153, 34, 0.15);
+}
+
+.launcher-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.4rem;
+  color: #e6edf3;
+  letter-spacing: 1px;
+}
+
+.launcher-card p {
+  margin: 0;
+  font-size: 1rem;
+  color: #8b949e;
+  line-height: 1.6;
+}
+
+.launcher-section-title {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto 24px auto;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #8b949e;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 12px;
+  font-weight: 600;
+}
+
+.project-list {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto 60px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.project-item {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 20px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-item:hover {
+  background: #1c2128;
+  border-color: #6B7FD7;
+  transform: scale(1.01);
+}
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.project-name {
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: #e6edf3;
+}
+
+.project-path {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #8b949e;
+  opacity: 0.7;
+}
+
+.project-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.project-stats {
+  display: flex;
+  gap: 20px;
+  color: #8b949e;
+  font-weight: 500;
+}
+
+.project-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid #30363d;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.project-item.forge .project-name {
+  color: #d29922;
+}
+
+.launcher-recent {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.recent-item {
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  transition: all 0.2s;
+}
+
+.recent-item:hover {
+  background: #1c2128;
+  border-color: #6B7FD7;
+}
+
+.recent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recent-main strong {
+  font-size: 1.1rem;
+  color: #e6edf3;
+}
+
+.recent-time {
+  color: #8b949e;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Wizard Modals - High Contrast & Solid */
+.wizard-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #0d1117; 
+  border: 2px solid #6B7FD7;
+  border-radius: 12px;
+  padding: 40px;
+  z-index: 1100;
+  width: 550px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+  color: #e6edf3;
+}
+
+.wizard-content h2 {
+  margin-top: 0;
+  margin-bottom: 30px;
+  font-size: 1.8rem;
+  color: #6B7FD7;
+  text-align: center;
+  font-weight: 700;
+}
+
+.wizard-field {
+  margin-bottom: 24px;
+}
+
+.wizard-field label {
+  display: block;
+  margin-bottom: 10px;
+  color: #8b949e;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.wizard-field input, .wizard-field select, .wizard-field textarea {
+  width: 100%;
+  padding: 14px 18px;
+  background: #161b22; 
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #ffffff; 
+  font-size: 1.1rem;
+  transition: border-color 0.2s;
+}
+
+.wizard-field input:focus, .wizard-field select:focus {
+  border-color: #6B7FD7;
+  outline: none;
+}
+
+.wizard-field select option {
+  background: #161b22;
+  color: #ffffff;
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  gap: 16px;
+}
+
+.wizard-actions button {
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wizard-actions button.btn-prev {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.wizard-actions button.btn-prev:hover {
+  border-color: #e6edf3;
+  color: #e6edf3;
+}
+
+.wizard-actions button.primary {
+  background: #6B7FD7;
+  border: 1px solid #6B7FD7;
+  color: white;
+  flex: 1;
+}
+
+.wizard-actions button.primary:hover {
+  background: #5a6ec8;
+  transform: translateY(-2px);
+}
+
+.wizard-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.95); 
+  z-index: 1050;
+  backdrop-filter: blur(10px);
+}

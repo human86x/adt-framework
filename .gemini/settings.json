@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/human/Projects/adt-framework/adt_sdk/hooks/gemini_pretool.py",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}

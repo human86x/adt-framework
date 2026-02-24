@@ -1,0 +1,41 @@
+{
+  "jurisdictions": {
+    "Systems_Architect": [
+      "_cortex/",
+      "docs/",
+      "adt_core/",
+      "adt_center/",
+      "adt_sdk/",
+      "config/",
+      "tests/",
+      "adt-console/"
+    ],
+    "Backend_Engineer": [
+      "adt_core/",
+      "adt_center/api/",
+      "adt_center/app.py",
+      "adt_sdk/",
+      "tests/",
+      "config/"
+    ],
+    "Frontend_Engineer": [
+      "adt_center/templates",
+      "adt_center/static",
+      "adt-console"
+    ],
+    "DevOps_Engineer": [
+      "ops/",
+      ".github/",
+      ".gemini/",
+      ".claude/",
+      "adt-console/src-tauri/",
+      "setup.py",
+      "start.sh",
+      "console.sh",
+      "adt-console/"
+    ],
+    "Overseer": [
+      "_cortex/ads/"
+    ]
+  }
+}
