@@ -419,6 +419,7 @@ const GitStatusManager = (() => {
       loadRoles().then(() => loadSpecs());
     });
     dialog.showModal();
+    setTimeout(() => agentSelect.focus(), 50);
   }
 
   document.getElementById('btn-new-session').addEventListener('click', openNewSessionDialog);

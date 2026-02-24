@@ -24,7 +24,7 @@ NC='\033[0m'
 
 echo -e "${BOLD}${CYAN}--- ADT Framework Activation ---${NC}"
 echo -e "ADT Framework: Specification-Driven Governance"
-echo "Version: 0.3.0-beta | SPEC-029 Compliance"
+echo "Version: 0.3.2 | SPEC-029 Compliance"
 echo "--------------------------------------------"
 
 # 1. Detect Platform
@@ -136,9 +136,10 @@ start_services() {
     mkdir -p "$LOG_DIR"
     echo -e "${YELLOW}[*]${NC} Starting ADT Services..."
 
-    # Detect production mode (SPEC-027): agent and dttp OS users exist
+    # Detect production mode (SPEC-027): explicit flag file + agent/dttp OS users
+    # Production mode requires human to explicitly enable via Console toggle
     local PROD_MODE=false
-    if id -u agent &>/dev/null && id -u dttp &>/dev/null; then
+    if [ -f "$HOME/.adt/production_mode" ] && id -u agent &>/dev/null && id -u dttp &>/dev/null; then
         PROD_MODE=true
         echo -e "${GREEN}[*]${NC} Production mode detected (Shatterglass active)"
     fi

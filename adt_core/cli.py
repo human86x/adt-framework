@@ -555,8 +555,16 @@ def install_hooks(project_path: str, framework_root: str):
         
         hooks = settings.get("hooks", {})
         pre_tool = hooks.get("PreToolUse", [])
-        if not any(h.get("command") == claude_hook for h in pre_tool):
-            pre_tool.append({"matcher": "Write|Edit|NotebookEdit", "command": claude_hook})
+        claude_cmd = f"python3 {claude_hook}"
+        # Check both nested format (correct) and flat format (legacy)
+        if not any(
+            claude_hook in (h.get("command", ""), next((sub.get("command", "") for sub in h.get("hooks", [])), ""))
+            for h in pre_tool
+        ):
+            pre_tool.append({
+                "matcher": "Write|Edit|NotebookEdit",
+                "hooks": [{"type": "command", "command": claude_cmd, "timeout": 15}]
+            })
             hooks["PreToolUse"] = pre_tool
             settings["hooks"] = hooks
             with open(claude_settings, "w") as f:
@@ -579,8 +587,16 @@ def install_hooks(project_path: str, framework_root: str):
 
         hooks = settings.get("hooks", {})
         before_tool = hooks.get("BeforeTool", [])
-        if not any(h.get("command") == gemini_hook for h in before_tool):
-            before_tool.append({"matcher": "write_file|replace", "command": gemini_hook})
+        gemini_cmd = f"python3 {gemini_hook}"
+        # Check both nested format (correct) and flat format (legacy)
+        if not any(
+            gemini_hook in (h.get("command", ""), next((sub.get("command", "") for sub in h.get("hooks", [])), ""))
+            for h in before_tool
+        ):
+            before_tool.append({
+                "matcher": "write_file|replace",
+                "hooks": [{"type": "command", "command": gemini_cmd, "timeout": 15000}]
+            })
             hooks["BeforeTool"] = before_tool
             settings["hooks"] = hooks
             with open(gemini_settings, "w") as f:

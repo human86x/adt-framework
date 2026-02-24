@@ -2,7 +2,7 @@
 // SPEC-021: Tauri command handlers for session management, tray, notifications,
 // project file access, and system integration
 
-use crate::pty::{PtyManager, SessionInfo};
+use crate::pty::{self, PtyManager, SessionInfo};
 use crate::tray::{self, TrayStatus};
 use serde::Deserialize;
 
@@ -368,6 +368,47 @@ fn toggle_autostart_windows(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+
+// --- Shatterglass production mode commands (SPEC-027) ---
+
+/// Get current production mode status. Returns JSON with enabled flag and details.
+#[tauri::command]
+pub fn get_production_mode() -> Result<String, String> {
+    let enabled = pty::is_production_mode();
+    let flag_exists = pty::production_mode_flag_path().exists();
+
+    // Check if agent user exists
+    let agent_exists = std::fs::read_to_string("/etc/passwd")
+        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
+        .unwrap_or(false);
+
+    let result = serde_json::json!({
+        "enabled": enabled,
+        "flag_exists": flag_exists,
+        "agent_user_exists": agent_exists,
+        "ready": agent_exists,
+    });
+
+    Ok(result.to_string())
+}
+
+/// Enable production mode (Tier 1). Human-only action.
+/// New sessions will be spawned as the 'agent' OS user via sudo.
+#[tauri::command]
+pub fn enable_production_mode() -> Result<String, String> {
+    log::info!("[IPC RECV] enable_production_mode (human action)");
+    pty::enable_production_mode()?;
+    Ok("{\"enabled\": true}".to_string())
+}
+
+/// Disable production mode (back to Tier 3). Human-only action.
+/// New sessions will run as the human user directly.
+#[tauri::command]
+pub fn disable_production_mode() -> Result<String, String> {
+    log::info!("[IPC RECV] disable_production_mode (human action)");
+    pty::disable_production_mode()?;
+    Ok("{\"enabled\": false}".to_string())
+}
 
 // --- Project management commands (SPEC-032) ---
 

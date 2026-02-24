@@ -58,6 +58,9 @@ fn main() {
             ipc::list_projects,
             ipc::start_project_dttp,
             ipc::stop_project_dttp,
+            ipc::get_production_mode,
+            ipc::enable_production_mode,
+            ipc::disable_production_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error running ADT Console");

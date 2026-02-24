@@ -10,9 +10,9 @@ mkdir -p "$LOG_DIR"
 
 echo "--- ADT Framework Activation ---"
 
-# Detect production mode (SPEC-027): agent and dttp OS users exist
+# Detect production mode (SPEC-027): explicit flag file + agent/dttp OS users
 PRODUCTION_MODE=false
-if id -u agent &>/dev/null && id -u dttp &>/dev/null; then
+if [ -f "$HOME/.adt/production_mode" ] && id -u agent &>/dev/null && id -u dttp &>/dev/null; then
     PRODUCTION_MODE=true
     echo "[*] Production mode detected (Shatterglass active)"
 fi

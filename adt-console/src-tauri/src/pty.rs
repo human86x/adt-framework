@@ -90,32 +90,59 @@ pub struct PtyManager {
 }
 
 /// Detect if Shatterglass production mode is active.
-/// Production mode is active when:
-/// 1. The OS user 'agent' exists (created by setup_shatterglass.sh)
-/// 2. Tier 1 sovereign files are owned by human (not group-writable)
-fn is_production_mode() -> bool {
-    // Check if 'agent' OS user exists via /etc/passwd lookup
-    let agent_exists = std::fs::read_to_string("/etc/passwd")
-        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
-        .unwrap_or(false);
-
-    if !agent_exists {
+/// Production mode requires EXPLICIT human activation via the Console UI toggle,
+/// which creates the flag file ~/.adt/production_mode.
+/// This replaces heuristic detection to prevent false positives during partial setup.
+pub fn is_production_mode() -> bool {
+    let flag_path = production_mode_flag_path();
+    if !flag_path.exists() {
         return false;
     }
 
-    // Check that at least one Tier 1 file has restricted permissions (644 = not group-writable)
-    // This confirms setup_shatterglass.sh has been run
-    if let Ok(metadata) = std::fs::metadata("config/specs.json") {
-        use std::os::unix::fs::MetadataExt;
-        let mode = metadata.mode() & 0o777;
-        // In production mode, sovereign files are 644 (human rw, others read-only)
-        // In dev mode they'd be 664 or wider
-        if mode == 0o644 {
-            return true;
-        }
+    // Flag file exists -- verify the agent OS user also exists,
+    // otherwise production mode would fail on sudo -u agent
+    std::fs::read_to_string("/etc/passwd")
+        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
+        .unwrap_or(false)
+}
+
+/// Path to the production mode flag file.
+pub fn production_mode_flag_path() -> PathBuf {
+    let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    path.push(".adt");
+    path.push("production_mode");
+    path
+}
+
+/// Enable production mode (called from IPC on human button click).
+pub fn enable_production_mode() -> Result<(), String> {
+    // Pre-check: agent user must exist
+    let agent_exists = std::fs::read_to_string("/etc/passwd")
+        .map(|content| content.lines().any(|line| line.starts_with("agent:")))
+        .unwrap_or(false);
+    if !agent_exists {
+        return Err("Cannot enable production mode: 'agent' OS user does not exist. Run setup_shatterglass.sh first.".to_string());
     }
 
-    false
+    let flag_path = production_mode_flag_path();
+    if let Some(parent) = flag_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&flag_path, "enabled\n")
+        .map_err(|e| format!("Failed to create production mode flag: {}", e))?;
+    log::info!("[SHATTERGLASS] Production mode ENABLED by human action");
+    Ok(())
+}
+
+/// Disable production mode (called from IPC on human button click).
+pub fn disable_production_mode() -> Result<(), String> {
+    let flag_path = production_mode_flag_path();
+    if flag_path.exists() {
+        fs::remove_file(&flag_path)
+            .map_err(|e| format!("Failed to remove production mode flag: {}", e))?;
+    }
+    log::info!("[SHATTERGLASS] Production mode DISABLED by human action");
+    Ok(())
 }
 
 impl PtyManager {
