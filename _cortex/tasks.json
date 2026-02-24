@@ -1674,6 +1674,21 @@
       "evidence": "Added agent flags to session dialog and wired them to launch commands.",
       "last_updated_by": "GEMINI (Frontend_Engineer)",
       "last_updated_at": "2026-02-23T20:45:00Z"
+    },
+    {
+      "id": "task_134",
+      "title": "SPEC-003: Implement Hierarchy and Delegation views in ADT Center",
+      "description": "Brought the Flask-based Operational Center to parity with the Operator Console by implementing hierarchy.html, delegation.html, and adding the necessary routes to app.py. Created _cortex/phases.json.",
+      "spec_ref": "SPEC-003",
+      "assigned_to": "Frontend_Engineer + Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_004"
+      ],
+      "evidence": "Routes added to app.py, hierarchy.html and delegation.html created, base.html updated.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-02-24T21:31:50.600282+00:00Z"
     }
   ]
 }
