@@ -174,6 +174,7 @@ const ProjectLauncher = (() => {
     // Attempt to pre-fill the existing "New Session" dialog
     const projectSelect = document.getElementById("input-project");
     const dialog = document.getElementById("new-session-dialog");
+    const agentSelect = document.getElementById("input-agent");
     
     if (projectSelect && dialog) {
       // 1. Ensure project exists in the dropdown (it should be there if app loaded)
@@ -182,6 +183,9 @@ const ProjectLauncher = (() => {
       
       // 2. Show the native Tauri dialog
       dialog.showModal();
+
+      // 3. Focus the agent select for quick keyboard usage
+      if (agentSelect) setTimeout(() => agentSelect.focus(), 100);
     } else {
       alert("Error: New Session dialog not found in the DOM.");
     }
@@ -214,6 +218,11 @@ const ProjectLauncher = (() => {
     
     document.getElementById("btn-wiz-cancel").onclick = closeWizard;
     document.getElementById("btn-wiz-submit").onclick = submitCreate;
+    
+    setTimeout(() => {
+      const nameInput = document.getElementById("wiz-create-name");
+      if (nameInput) nameInput.focus();
+    }, 100);
   }
 
   function openImportWizard() {
@@ -231,6 +240,11 @@ const ProjectLauncher = (() => {
     
     document.getElementById("btn-wiz-cancel").onclick = closeWizard;
     document.getElementById("btn-wiz-submit").onclick = submitImport;
+
+    setTimeout(() => {
+      const pathInput = document.getElementById("wiz-import-path");
+      if (pathInput) pathInput.focus();
+    }, 100);
   }
 
   function showWizard(html) {

@@ -133,18 +133,47 @@ body {
   flex-shrink: 0;
 }
 
-.session-tab .tab-close {
-  opacity: 0;
-  background: none;
+/* Session Close Buttons (UI Refinement - SPEC-021) */
+.tab-close, .btn-close-session-sidebar {
+  background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
 }
 
-.session-tab:hover .tab-close {
+.tab-close {
+  font-size: 14px;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  opacity: 0;
+}
+
+.btn-close-session-sidebar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  opacity: 0;
+}
+
+.session-tab:hover .tab-close,
+.session-list-item:hover .btn-close-session-sidebar {
   opacity: 1;
+}
+
+.tab-close:hover, .btn-close-session-sidebar:hover {
+  background: var(--accent-red);
+  color: #fff !important;
 }
 
 .topbar-actions {
@@ -252,7 +281,8 @@ body {
   padding: 4px;
 }
 
-#session-list li {
+#session-list li, .session-list-item {
+  position: relative;
   padding: 8px;
   border-radius: 4px;
   cursor: pointer;
