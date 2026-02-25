@@ -767,6 +767,69 @@ def update_task_status(task_id):
     return jsonify({"error": "Failed to update task"}), 500
 
 
+@governance_bp.route("/governance/requests/<req_id>/status", methods=["PUT"])
+@governance_bp.route("/requests/<req_id>/status", methods=["PUT"])
+def update_request_status(req_id):
+    """SPEC-035: Agent self-service request status update."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
+
+    new_status = data.get("status", "COMPLETED").upper()
+    agent = data.get("agent")
+    role = data.get("role")
+
+    if not agent or not role:
+        return jsonify({"error": "agent and role are required"}), 400
+
+    if not os.path.exists(requests_path):
+        return jsonify({"error": "requests.md not found"}), 404
+
+    with open(requests_path, "r") as f:
+        content = f.read()
+
+    # Find the REQ block
+    pattern = rf"## ({req_id}):.*?\n(.*?)\n### Status\n\n\*\*(.*?)\*\*"
+    match = re.search(pattern, content, re.DOTALL)
+    
+    if not match:
+        return jsonify({"error": f"Request {req_id} not found or status section missing"}), 404
+
+    # Extract metadata to check 'To:'
+    metadata = match.group(2)
+    to_match = re.search(r"\*\*To:\*\* (.*)", metadata)
+    to_role = to_match.group(1).strip().lstrip("@") if to_match else "ALL"
+
+    if to_role != "ALL" and to_role.lower() != role.lower():
+        return jsonify({"error": f"Request {req_id} is addressed to {to_role}, not {role}"}), 403
+
+    # Update the status
+    # We replace the captured status group
+    start_of_status = match.start(3)
+    end_of_status = match.end(3)
+    
+    updated_content = content[:start_of_status] + new_status + content[end_of_status:]
+
+    with open(requests_path, "w") as f:
+        f.write(updated_content)
+
+    event_id = ADSEventSchema.generate_id("req_upd")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent=agent, role=role, action_type="request_status_updated",
+        description=f"Request {req_id} marked as {new_status} by {role}.",
+        spec_ref="SPEC-035",
+        authorized=True, tier=3,
+        action_data={"req_id": req_id, "status": new_status}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "req_id": req_id, "new_status": new_status, "event_id": event_id})
+
+
 @governance_bp.route("/tasks/<task_id>/override", methods=["PUT"])
 def override_task_status(task_id):
     """SPEC-026: Human override of task status (reject/approve/reassign/reopen)."""

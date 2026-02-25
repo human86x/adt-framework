@@ -114,3 +114,36 @@ class ADTClient:
         except requests.RequestException as e:
             logger.error("DTTP log_event failed: %s", e)
             return {"status": "error", "message": str(e)}
+
+    def complete_task(self, task_id: str, evidence: str = "") -> Dict[str, Any]:
+        """Update task status to completed."""
+        # Task API is on the ADT Panel (port 5001 by default)
+        panel_url = self.dttp_url.replace(":5002", ":5001")
+        url = f"{panel_url}/api/tasks/{task_id}/status"
+        payload = {
+            "agent": self.agent_name,
+            "role": self.role,
+            "status": "completed",
+            "evidence": evidence
+        }
+        try:
+            response = requests.put(url, json=payload, timeout=10)
+            return response.json()
+        except requests.RequestException as e:
+            return {"status": "error", "message": str(e)}
+
+    def complete_request(self, req_id: str, status: str = "COMPLETED") -> Dict[str, Any]:
+        """Update request status."""
+        # Request API is on the ADT Panel (port 5001 by default)
+        panel_url = self.dttp_url.replace(":5002", ":5001")
+        url = f"{panel_url}/api/governance/requests/{req_id}/status"
+        payload = {
+            "agent": self.agent_name,
+            "role": self.role,
+            "status": status.upper()
+        }
+        try:
+            response = requests.put(url, json=payload, timeout=10)
+            return response.json()
+        except requests.RequestException as e:
+            return {"status": "error", "message": str(e)}
