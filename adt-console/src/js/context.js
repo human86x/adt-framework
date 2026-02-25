@@ -24,6 +24,18 @@ const ContextPanel = (() => {
     document.getElementById('ctx-spec').textContent = '--';
     document.getElementById('ctx-event-count').textContent = '';
 
+    // SPEC-036: Update Sandbox status
+    const sandboxEl = document.getElementById('ctx-sandbox');
+    if (sandboxEl) {
+      if (session.sandboxed) {
+        sandboxEl.innerHTML = '<span class="text-adt-success">Active</span>';
+      } else if (session.agent_user === 'agent') {
+        sandboxEl.innerHTML = '<span class="text-adt-accent">Tier 1</span>';
+      } else {
+        sandboxEl.innerHTML = '<span style="opacity:0.5">None</span>';
+      }
+    }
+
     // SPEC-034: Update role filter indicator
     updateFilterIndicator();
 
@@ -114,11 +126,18 @@ const ContextPanel = (() => {
       requests.reverse().slice(0, 10).forEach(req => {
         const li = document.createElement('li');
         li.className = 'tracker-item';
-        const statusClass = req.status.toLowerCase().includes('complete') ? 'badge-completed' : 'badge-pending';
+        const isCompleted = req.status.toLowerCase().includes('complete');
+        const statusClass = isCompleted ? 'badge-completed' : 'badge-pending';
+        
+        // SPEC-035: Add Mark Complete button for human operator
+        const completeBtn = !isCompleted ? 
+          `<button class="btn-complete-tracker" onclick="ContextPanel.completeRequest('${req.id}', this)" title="Mark Complete">✓ Done</button>` : '';
+
         li.innerHTML = `
           <div class="tracker-header">
             <strong>${req.id}</strong>
             <span class="badge-adt ${statusClass}">${req.status}</span>
+            ${completeBtn}
           </div>
           <div class="tracker-body" style="font-size: 10px;">${truncate(req.summary, 100)}</div>
           <div class="ctx-meta">From: ${req.author}</div>
@@ -259,10 +278,15 @@ const ContextPanel = (() => {
             todoTasks.slice(0, 10).forEach(t => {
               const li = document.createElement('li');
               li.className = 'tracker-item';
+              
+              // SPEC-035: Add Mark Complete button for assigned role
+              const completeBtn = `<button class="btn-complete-tracker" onclick="ContextPanel.completeTask('${t.id}', this)" title="Mark Complete">✓ Done</button>`;
+
               li.innerHTML = `
                 <div class="tracker-header">
                   <strong>${t.id}</strong>
                   <span class="badge-adt badge-${t.status.replace('_', '-')}">${t.status.replace('_', ' ')}</span>
+                  ${completeBtn}
                 </div>
                 <div class="tracker-body">${t.title}</div>
               `;
@@ -715,18 +739,103 @@ const ContextPanel = (() => {
       });
     }
 
-    // Browser fallback: poll every 10s
-    pollInterval = setInterval(() => {
-      if (currentSession) {
-        fetchADSEvents(currentSession);
-        fetchTaskData(currentSession);
-        fetchRoleRequests(currentSession);
-        fetchDelegations();
-        fetchRequests();
-        fetchDTTPStatus();
+        // Browser fallback: poll every 10s
+        pollInterval = setInterval(() => {
+          if (currentSession) {
+            fetchADSEvents(currentSession);
+            fetchTaskData(currentSession);
+            fetchRoleRequests(currentSession);
+            fetchDelegations();
+            fetchRequests();
+            fetchDTTPStatus();
+          }
+        }, 10000);
       }
-    }, 10000);
-  }
-
-  return { update, initWatchers, updateUptime, toggleFilter };
-})();
+    
+      async function completeTask(taskId, btn) {
+        if (!currentSession?.role) {
+          ToastManager.show('denial', 'Error', 'No active session role');
+          return;
+        }
+        
+        const evidence = prompt(`Mark task ${taskId} as complete?\nEvidence:`);
+        if (evidence === null) return;
+    
+        if (btn) {
+          btn.classList.add('loading');
+          btn.disabled = true;
+        }
+    
+        try {
+          const res = await fetch(`${getCenterUrl()}/api/tasks/${taskId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'completed',
+              role: currentSession.role,
+              agent: currentSession.agent || 'GEMINI',
+              evidence: evidence || 'Completed via Operator Console'
+            })
+          });
+    
+          if (res.ok) {
+            ToastManager.show('completion', 'Task Completed', taskId);
+            await fetchTaskData(currentSession);
+          } else {
+            const data = await res.json();
+            ToastManager.show('denial', 'Failed', data.error || 'Unknown error');
+          }
+        } catch (e) {
+          ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+        } finally {
+          if (btn) {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+          }
+        }
+      }
+    
+      async function completeRequest(reqId, btn) {
+        if (!currentSession?.role) {
+          ToastManager.show('denial', 'Error', 'No active session role');
+          return;
+        }
+    
+        if (!confirm(`Mark request ${reqId} as COMPLETED?`)) return;
+    
+        if (btn) {
+          btn.classList.add('loading');
+          btn.disabled = true;
+        }
+    
+        try {
+          const res = await fetch(`${getCenterUrl()}/api/governance/requests/${reqId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'COMPLETED',
+              role: currentSession.role,
+              agent: currentSession.agent || 'GEMINI'
+            })
+          });
+    
+          if (res.ok) {
+            ToastManager.show('completion', 'Request Completed', reqId);
+            await fetchRequests();
+          } else {
+            const data = await res.json();
+            ToastManager.show('denial', 'Failed', data.error || 'Unknown error');
+          }
+        } catch (e) {
+          ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+        } finally {
+          if (btn) {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+          }
+        }
+      }
+    
+      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest };
+    })();
+    
