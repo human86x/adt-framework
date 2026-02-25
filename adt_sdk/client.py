@@ -133,7 +133,11 @@ class ADTClient:
             return {"status": "error", "message": str(e)}
 
     def complete_request(self, req_id: str, status: str = "COMPLETED") -> Dict[str, Any]:
-        """Update request status."""
+        """Update request status. Backward compatibility wrapper for update_request_status."""
+        return self.update_request_status(req_id, status)
+
+    def update_request_status(self, req_id: str, status: str = "COMPLETED") -> Dict[str, Any]:
+        """Update request status via governed API."""
         # Request API is on the ADT Panel (port 5001 by default)
         panel_url = self.dttp_url.replace(":5002", ":5001")
         url = f"{panel_url}/api/governance/requests/{req_id}/status"
@@ -147,3 +151,50 @@ class ADTClient:
             return response.json()
         except requests.RequestException as e:
             return {"status": "error", "message": str(e)}
+
+    def file_request(self, 
+                     to_role: str, 
+                     title: str, 
+                     description: str,
+                     priority: str = "MEDIUM",
+                     req_type: str = "SPEC_REQUEST",
+                     related_specs: Optional[list] = None) -> Dict[str, Any]:
+        """File a cross-role request via the governed API."""
+        panel_url = self.dttp_url.replace(":5002", ":5001")
+        url = f"{panel_url}/api/governance/requests"
+        payload = {
+            "from_role": self.role,
+            "from_agent": self.agent_name,
+            "to_role": to_role,
+            "title": title,
+            "description": description,
+            "priority": priority,
+            "type": req_type,
+            "related_specs": related_specs or []
+        }
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            return response.json()
+        except requests.RequestException as e:
+            return {"status": "error", "message": str(e)}
+
+    def git_commit(self, message: str, files: Optional[list] = None) -> Dict[str, Any]:
+        """Submit a git commit action through DTTP."""
+        return self.request(
+            spec_id="SPEC-023",
+            action="git_commit",
+            params={"message": message, "files": files or ["."]},
+            rationale=f"Governed commit: {message}"
+        )
+
+    def git_push(self, branch: str = "main", remote: str = "origin", tier2_justification: Optional[str] = None) -> Dict[str, Any]:
+        """Submit a git push action through DTTP."""
+        params = {"branch": branch, "remote": remote}
+        if tier2_justification:
+            params["tier2_justification"] = tier2_justification
+        return self.request(
+            spec_id="SPEC-023",
+            action="git_push",
+            params=params,
+            rationale=f"Governed push to {remote}/{branch}"
+        )

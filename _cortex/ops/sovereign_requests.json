@@ -130,10 +130,151 @@
       "target_path": "config/dttp.json",
       "change_type": "append",
       "description": "",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-25T21:09:45.480575Z",
+      "content": "\n# test"
+    },
+    {
+      "id": "scr_20260225_095846_007",
+      "ts": "2026-02-25T09:58:46.200356Z",
+      "agent": "GEMINI",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-035",
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Register SPEC-035 in specs.json",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-25T21:10:04.127149Z",
+      "merge_data": {
+        "specs": {
+          "SPEC-035": {
+            "title": "Unified Status Management API",
+            "status": "draft",
+            "roles": [
+              "Backend_Engineer",
+              "Systems_Architect"
+            ],
+            "action_types": [
+              "edit",
+              "patch",
+              "create",
+              "delete"
+            ],
+            "paths": [
+              "adt_center/api/",
+              "adt_sdk/",
+              "adt_core/",
+              "_cortex/"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260225_095914_008",
+      "ts": "2026-02-25T09:59:14.667952Z",
+      "agent": "gemini",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-034",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-25T21:10:15.184437Z",
+      "patch": {
+        "old_string": "16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: APPROVED -- SPEC-034)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n",
+        "new_string": "16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: COMPLETED -- SPEC-034)\n17. **Unified Status Management API:** DTTP-mediated API for agents to update tasks/requests status without governance friction. (Status: DRAFT -- SPEC-035)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n| SPEC-035 | Unified Status Management API | DRAFT | ADT Framework |\n"
+      }
+    },
+    {
+      "id": "scr_20260225_205952_009",
+      "ts": "2026-02-25T20:59:52.020613Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-017",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
+      "status": "superseded",
+      "authorized_by": "SYSTEM",
+      "authorized_at": null,
+      "patch": {
+        "old_string": "16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: APPROVED -- SPEC-034)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |",
+        "new_string": "16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: COMPLETED -- SPEC-034)\n17. **Unified Status Management API:** DTTP-mediated API for agents to update tasks/requests status without governance friction. (Status: DRAFT -- SPEC-035)\n18. **Agent Filesystem Sandbox:** Defense-in-depth agent isolation -- app-layer sandbox (Phase A) and OS-level namespaces (Phase B). (Status: DRAFT -- SPEC-036)\n19. **Cross-Role Request Access:** Governed API for filing cross-role requests, per-session role identity fix. (Status: DRAFT -- SPEC-037)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | COMPLETED | ADT Framework |\n| SPEC-035 | Unified Status Management API | DRAFT | ADT Framework |\n| SPEC-036 | Agent Filesystem Sandbox | DRAFT | ADT Framework (REQ-026) |\n| SPEC-037 | Cross-Role Request Access | DRAFT | ADT Framework (REQ-027) |"
+      },
+      "rejection_reason": "Superseded by scr_20260225_211610_011/012 (file state changed by prior SCR)"
+    },
+    {
+      "id": "scr_20260225_210557_010",
+      "ts": "2026-02-25T21:05:57.572745Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-017",
+      "target_path": "config/specs.json",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path config/specs.json",
+      "status": "superseded",
+      "authorized_by": "SYSTEM",
+      "authorized_at": null,
+      "patch": {
+        "old_string": "    \"SPEC-034\": {\n      \"title\": \"Role-Aware Context Panel\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Frontend_Engineer\",\n        \"DevOps_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt-console/src/\",\n        \".gemini/\",\n        \".claude/\",\n        \"adt_sdk/hooks/\",\n        \"adt_core/cli.py\",\n        \"_cortex/specs/\",\n        \"_cortex/\"\n      ]\n    }\n  }\n}",
+        "new_string": "    \"SPEC-034\": {\n      \"title\": \"Role-Aware Context Panel\",\n      \"status\": \"completed\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Frontend_Engineer\",\n        \"DevOps_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt-console/src/\",\n        \".gemini/\",\n        \".claude/\",\n        \"adt_sdk/hooks/\",\n        \"adt_core/cli.py\",\n        \"_cortex/specs/\",\n        \"_cortex/\"\n      ]\n    },\n    \"SPEC-035\": {\n      \"title\": \"Unified Status Management API\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt_sdk/\",\n        \"adt_core/\",\n        \"tests/\"\n      ]\n    },\n    \"SPEC-036\": {\n      \"title\": \"Agent Filesystem Sandbox\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"DevOps_Engineer\",\n        \"Backend_Engineer\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt-console/src-tauri/\",\n        \"adt_sdk/hooks/\",\n        \"adt_core/cli.py\",\n        \"scripts/\",\n        \"tests/\"\n      ]\n    },\n    \"SPEC-037\": {\n      \"title\": \"Cross-Role Request Access\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt_sdk/\",\n        \"adt_sdk/hooks/\",\n        \"tests/\"\n      ]\n    }\n  }\n}"
+      },
+      "rejection_reason": "Superseded by scr_20260225_211610_011/012 (file state changed by prior SCR)"
+    },
+    {
+      "id": "scr_20260225_211610_011",
+      "ts": "2026-02-25T21:16:10.596686Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-036",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Add SPEC-036/037 to objectives, update SPEC-035 status to APPROVED",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-25T21:23:04.921668Z",
+      "patch": {
+        "old_string": "17. **Unified Status Management API:** DTTP-mediated API for agents to update tasks/requests status without governance friction. (Status: DRAFT -- SPEC-035)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n| SPEC-035 | Unified Status Management API | DRAFT | ADT Framework |",
+        "new_string": "17. **Unified Status Management API:** DTTP-mediated API for agents to update tasks/requests status without governance friction. (Status: APPROVED -- SPEC-035)\n18. **Agent Filesystem Sandbox:** Defense-in-depth agent isolation -- app-layer sandbox (Phase A) and OS-level namespaces (Phase B). (Status: APPROVED -- SPEC-036)\n19. **Cross-Role Request Access:** Governed API for filing cross-role requests, per-session role identity fix. (Status: APPROVED -- SPEC-037)\n\n## Active Specifications\n\n| Spec | Name | Status | Origin |\n|------|------|--------|--------|\n| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |\n| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |\n| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |\n| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |\n| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |\n| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |\n| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |\n| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |\n| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |\n| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |\n| SPEC-023 | Git Governance | APPROVED | ADT Framework |\n| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |\n| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |\n| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |\n| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |\n| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |\n| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |\n| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |\n| SPEC-031 | External Project Governance | APPROVED | ADT Framework |\n| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |\n| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |\n| SPEC-034 | Role-Aware Context Panel | COMPLETED | ADT Framework |\n| SPEC-035 | Unified Status Management API | APPROVED | ADT Framework |\n| SPEC-036 | Agent Filesystem Sandbox | APPROVED | ADT Framework (REQ-026) |\n| SPEC-037 | Cross-Role Request Access | APPROVED | ADT Framework (REQ-027) |"
+      }
+    },
+    {
+      "id": "scr_20260225_211610_012",
+      "ts": "2026-02-25T21:16:10.638861Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-036",
+      "target_path": "config/specs.json",
+      "change_type": "patch",
+      "description": "Register SPEC-036/037, update SPEC-034 completed, SPEC-035 approved",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-02-25T21:23:11.183709Z",
+      "patch": {
+        "old_string": "    \"SPEC-035\": {\n      \"title\": \"Unified Status Management API\",\n      \"status\": \"draft\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\",\n        \"delete\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt_sdk/\",\n        \"adt_core/\",\n        \"_cortex/\"\n      ]\n    }\n  }\n}",
+        "new_string": "    \"SPEC-035\": {\n      \"title\": \"Unified Status Management API\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt_sdk/\",\n        \"adt_core/\",\n        \"tests/\"\n      ]\n    },\n    \"SPEC-036\": {\n      \"title\": \"Agent Filesystem Sandbox\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"DevOps_Engineer\",\n        \"Backend_Engineer\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt-console/src-tauri/\",\n        \"adt_sdk/hooks/\",\n        \"adt_core/cli.py\",\n        \"scripts/\",\n        \"tests/\"\n      ]\n    },\n    \"SPEC-037\": {\n      \"title\": \"Cross-Role Request Access\",\n      \"status\": \"approved\",\n      \"roles\": [\n        \"Backend_Engineer\",\n        \"Systems_Architect\"\n      ],\n      \"action_types\": [\n        \"edit\",\n        \"patch\",\n        \"create\"\n      ],\n      \"paths\": [\n        \"adt_center/api/\",\n        \"adt_sdk/\",\n        \"adt_sdk/hooks/\",\n        \"tests/\"\n      ]\n    }\n  }\n}"
+      }
+    },
+    {
+      "id": "scr_20260225_212709_013",
+      "ts": "2026-02-25T21:27:09.025732Z",
+      "agent": "GEMINI",
+      "role": "Frontend_Engineer",
+      "spec_ref": "SPEC-021",
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
       "status": "pending",
       "authorized_by": null,
       "authorized_at": null,
-      "content": "\n# test"
+      "patch": {
+        "old_string": "| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n",
+        "new_string": "| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n| SPEC-035 | Unified Status Management API | APPROVED | ADT Framework |\n| SPEC-036 | Agent Filesystem Sandbox | APPROVED | ADT Framework |\n| SPEC-037 | Cross-Role Request Access | APPROVED | ADT Framework |\n"
+      }
     }
   ]
 }

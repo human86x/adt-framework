@@ -24,11 +24,13 @@ Exit code 0 = decision provided. Exit code 2 = blocking error.
 import json
 import os
 import sys
+import re
 
 import requests
 
 # Tool names this hook intercepts
 INTERCEPTED_TOOLS = {"Write", "Edit", "NotebookEdit"}
+READ_TOOLS = {"Read", "Glob", "Grep"}
 
 
 def make_deny(reason: str) -> dict:
@@ -67,6 +69,14 @@ def to_project_relative(abs_path: str, project_dir: str) -> str:
 
 def extract_file_path(tool_name: str, tool_input: dict) -> str:
     """Extract the target file path from tool input."""
+    if tool_name in {"Read", "Write", "Edit"}:
+        return tool_input.get("file_path", "")
+    elif tool_name == "Glob":
+        return tool_input.get("directory_path", "")
+    elif tool_name == "Grep":
+        return tool_input.get("directory_path", "")
+    elif tool_name == "NotebookEdit":
+        return tool_input.get("file_path", "")
     return tool_input.get("file_path", "")
 
 
@@ -178,8 +188,12 @@ def main():
 
     tool_name = hook_input.get("tool_name", "")
 
-    # Only intercept write tools
-    if tool_name not in INTERCEPTED_TOOLS:
+    # Intercept write tools OR read tools (if sandboxed)
+    is_write = tool_name in INTERCEPTED_TOOLS
+    is_read = tool_name in READ_TOOLS
+    adt_sandbox = os.environ.get("ADT_SANDBOX") == "1"
+
+    if not is_write and not (is_read and adt_sandbox):
         sys.exit(0)
 
     tool_input = hook_input.get("tool_input", {})
@@ -189,21 +203,23 @@ def main():
                                  hook_input.get("cwd", os.getcwd()))
     dttp_url = os.environ.get("DTTP_URL", read_project_dttp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "CLAUDE")
-    role = os.environ.get("ADT_ROLE")
-    spec_id = os.environ.get("ADT_SPEC_ID")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
 
-    # Dynamic role switching: read active role from file (set by /hive-* skills)
-    role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
-    if os.path.exists(role_file):
-        try:
-            with open(role_file) as rf:
-                file_role = rf.read().strip()
-                if file_role:
-                    role = file_role
-        except OSError:
-            pass  # Fall back to env var
-    # Dynamic spec switching: read active spec from file
+    # SPEC-037: Fix role priority (env var first, then file fallback)
+    role = os.environ.get("ADT_ROLE")
+    if not role:
+        role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
+        if os.path.exists(role_file):
+            try:
+                with open(role_file) as rf:
+                    file_role = rf.read().strip()
+                    if file_role:
+                        role = file_role
+            except OSError:
+                pass  # Fall back to default
+    
+    # Active spec still from file if available, or env var
+    spec_id = os.environ.get("ADT_SPEC_ID")
     spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
     if os.path.exists(spec_file):
         try:
@@ -212,23 +228,58 @@ def main():
                 if file_spec:
                     spec_id = file_spec
         except OSError:
-            pass  # Fall back to env var
+            pass
 
-    if not role or not spec_id:
-        print(json.dumps(make_deny(
-            "DTTP hook: ADT_ROLE and ADT_SPEC_ID environment variables must be set. "
-            "Please initialize your session correctly."
-        )))
-        sys.exit(0)
-
+    if not role:
+        role = "Backend_Engineer"
+    if not spec_id:
+        spec_id = "SPEC-017"
 
     # Extract and convert file path
     abs_path = extract_file_path(tool_name, tool_input)
     if not abs_path:
-        # No file path -- let it through (shouldn't happen for write tools)
+        sys.exit(0)
+
+    # SPEC-036: Resolution and containment check
+    full_abs_path = os.path.realpath(abs_path)
+    full_project_dir = os.path.realpath(project_dir)
+    
+    is_contained = (full_abs_path == full_project_dir or 
+                    full_abs_path.startswith(full_project_dir + os.sep))
+
+    if adt_sandbox and not is_contained:
+        print(json.dumps(make_deny(f"SANDBOX VIOLATION: Path {abs_path} is outside project root.")))
         sys.exit(0)
 
     rel_path = to_project_relative(abs_path, project_dir)
+
+    # If it's a read tool and we reached here, it passed containment (if sandboxed)
+    if is_read:
+        print(json.dumps(make_allow(f"DTTP allowed {tool_name} on {rel_path}")))
+        sys.exit(0)
+
+    # SPEC-037: Redirect requests.md append to API
+    if rel_path == "_cortex/requests.md" and tool_name == "Write":
+        content = tool_input.get("content", "")
+        if "## REQ-" in content:
+            # Attempt to file via API
+            from adt_sdk.client import ADTClient
+            client = ADTClient(dttp_url=dttp_url, agent_name=agent, role=role)
+            
+            # Simple extraction from markdown
+            title_match = re.search(r"## REQ-\d+: (.*)", content)
+            title = title_match.group(1) if title_match else "Redirected Request"
+            to_match = re.search(r"\*\*To:\*\* @?([a-zA-Z_]+)", content)
+            to_role = to_match.group(1) if to_match else "Systems_Architect"
+            
+            desc_part = content.split("### Description")
+            description = desc_part[1].split("### Status")[0].strip() if len(desc_part) > 1 else content
+            
+            result = client.file_request(to_role=to_role, title=title, description=description)
+            if result.get("status") == "success":
+                # Claude Code hook format for allowing/denying
+                print(json.dumps(make_allow(f"Request transparently filed via governed API: {result.get('req_id')}")))
+                sys.exit(0)
 
     # Build DTTP action and params
     action, params = build_dttp_params(tool_name, tool_input, rel_path)

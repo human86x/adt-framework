@@ -449,6 +449,7 @@ def session_start():
     res = _get_project_resources(project_name)
     
     session_id = data.get("session_id", "unknown")
+    sandbox = data.get("sandbox", False)
     event_id = ADSEventSchema.generate_id("session_start")
     event = ADSEventSchema.create_event(
         event_id=event_id,
@@ -457,11 +458,22 @@ def session_start():
         action_type="session_start",
         description=f"Session started: {session_id} for agent {data['agent']} as {data['role']}.",
         spec_ref=data["spec_id"],
-        session_id=session_id
+        session_id=session_id,
+        action_data={"sandbox": sandbox}
     )
     res["logger"].log(event)
     return jsonify({"status": "success", "event_id": event_id})
 
+
+@governance_bp.route("/sessions", methods=["GET"])
+def list_active_sessions():
+    """SPEC-036: Return list of active sessions with sandbox status."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    sessions = res["query"].get_active_sessions_details()
+    return jsonify({"sessions": sessions})
+    
+    
 @governance_bp.route("/sessions/end", methods=["POST"])
 def session_end():
     data = request.get_json()
@@ -676,6 +688,66 @@ def submit_request():
     return jsonify({"status": "success", "request_id": req_id, "event_id": event_id}), 201
 
 
+@governance_bp.route("/governance/requests", methods=["POST"])
+def api_file_request():
+    """SPEC-037: Governed API for filing cross-role requests."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["from_role", "to_role", "title"]):
+        return jsonify({"error": "from_role, to_role, and title are required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
+
+    from_role = data["from_role"]
+    from_agent = data.get("from_agent", "AGENT")
+    to_role = data["to_role"]
+    title = data["title"]
+    description = data.get("description", "")
+    priority = data.get("priority", "MEDIUM")
+    req_type = data.get("type", "SPEC_REQUEST")
+    related_specs = data.get("related_specs", [])
+
+    # Generate REQ-ID
+    next_num = 1
+    if os.path.exists(requests_path):
+        with open(requests_path, "r") as f:
+            existing = f.read()
+            nums = re.findall(r"## REQ-(\d+)", existing)
+            if nums:
+                next_num = max(int(n) for n in nums) + 1
+    req_id = f"REQ-{next_num:03d}"
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    
+    # Format entry
+    entry = f"\n\n---\n\n## {req_id}: {title}\n\n"
+    entry += f"**From:** {from_role} ({from_agent})\n"
+    entry += f"**To:** @{to_role}\n"
+    entry += f"**Date:** {timestamp}\n"
+    entry += f"**Type:** {req_type}\n"
+    entry += f"**Priority:** {priority}\n"
+    if related_specs:
+        entry += f"**Related Specs:** {', '.join(related_specs)}\n"
+    entry += f"\n### Description\n\n{description}\n\n### Status\n\n**OPEN**\n"
+
+    os.makedirs(os.path.dirname(requests_path), exist_ok=True)
+    with open(requests_path, "a") as f:
+        f.write(entry)
+
+    # Log to ADS
+    event_id = ADSEventSchema.generate_id("req_filed")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent=from_agent, role=from_role, action_type="request_filed",
+        description=f"Filed {req_id}: {title} targeting {to_role}.",
+        spec_ref="SPEC-037", authorized=True, tier=3,
+        action_data={"req_id": req_id, "to_role": to_role, "title": title}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "req_id": req_id, "event_id": event_id}), 201
+
+
 @governance_bp.route("/governance/roles", methods=["GET"])
 def get_governance_roles():
     """SPEC-026: Unified view of role jurisdictions and spec bindings."""
@@ -841,11 +913,14 @@ def override_task_status(task_id):
     if request.headers.get("X-Agent"):
         return jsonify({"error": "Override endpoint is human-only"}), 403
 
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+
     action = data.get("action")
     reason = data.get("reason", "")
     reassign_to = data.get("reassign_to")
     
-    task = current_app.task_manager.get_task(task_id)
+    task = res["task_manager"].get_task(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
 
@@ -882,7 +957,7 @@ def override_task_status(task_id):
     else:
         return jsonify({"error": f"Unknown action: {action}"}), 400
 
-    if current_app.task_manager.update_task(task_id, updates):
+    if res["task_manager"].update_task(task_id, updates):
         event_id = ADSEventSchema.generate_id("task_ovr")
         event = ADSEventSchema.create_event(
             event_id=event_id, agent="HUMAN", role="Collaborator", action_type=event_type,
@@ -890,7 +965,7 @@ def override_task_status(task_id):
             authorized=True, tier=1,
             action_data={"task_id": task_id, "action": action, "reason": reason}
         )
-        current_app.ads_logger.log(event)
+        res["logger"].log(event)
         return jsonify({"status": "success", "task_id": task_id, "event_id": event_id})
     
     return jsonify({"error": "Failed to update task"}), 500
@@ -899,7 +974,13 @@ def override_task_status(task_id):
 @governance_bp.route("/governance/enforcement", methods=["GET"])
 def get_enforcement_status():
     """SPEC-026: DTTP state and recent denials."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
     dttp_url = current_app.config.get("DTTP_URL", "http://localhost:5002")
+    # If project is specified and not framework, we should ideally use its DTTP port
+    # But for status we might just use the default or derive it
+    
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
         resp = http_client.get(f"{dttp_url}/status", timeout=2)
@@ -917,7 +998,7 @@ def get_enforcement_status():
     except:
         pass
         
-    events = current_app.ads_query.get_all_events()
+    events = res["query"].get_all_events()
     denials = [e for e in events if not e.get("authorized", True)][-10:]
     status["recent_denials"] = denials
     return jsonify(status)
@@ -966,7 +1047,7 @@ def update_role_jurisdiction(role_name):
         description=f"Updated jurisdiction for {role_name}.", spec_ref="SPEC-026",
         authorized=True, tier=1, action_data={"before": old_config, "after": jurisdictions[role_name]}
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "role": role_name, "event_id": event_id})
 
 @governance_bp.route("/governance/specs/<spec_id>/roles", methods=["PUT"])
@@ -999,7 +1080,7 @@ def update_spec_roles(spec_id):
         description=f"Updated role bindings for {spec_id}.", spec_ref="SPEC-026",
         authorized=True, tier=1, action_data={"before": old_spec, "after": specs[spec_id]}
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "spec_id": spec_id, "event_id": event_id})
 
 @governance_bp.route("/governance/conflicts", methods=["GET"])

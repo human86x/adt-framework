@@ -1,6 +1,7 @@
 # SPEC-035: Unified Status Management API
 
-**Status:** DRAFT
+**Status:** APPROVED
+**Approved:** 2026-02-25 by Human
 **Author:** Systems_Architect (GEMINI)
 **Date:** 2026-02-25
 **Related Specs:** SPEC-026 (Governance Configurator), SPEC-028 (Hive Tracker Panel), SPEC-034 (Role-Aware Context Panel)

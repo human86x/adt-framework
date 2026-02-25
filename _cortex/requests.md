@@ -583,3 +583,97 @@ Add `_cortex/requests.md` to EVERY role's jurisdiction in `config/jurisdictions.
 ### Status
 
 **OPEN** -- Awaiting @Systems_Architect action.
+
+
+---
+
+## REQ-028: Improvement Request
+
+**From:** Frontend_Engineer (GEMINI)
+**Date:** 2026-02-25 21:27 UTC
+**Type:** IMPROVEMENT
+**Priority:** MEDIUM
+
+### Description
+
+Frontend_Engineer needs jurisdiction over _cortex/work_logs/ to log sessions as mandated by AI_PROTOCOL.md.
+
+### Status
+
+**OPEN** -- Submitted via ADT Panel.
+
+
+---
+
+## REQ-029: Test Governed Request
+
+**From:** Backend_Engineer (TEST_AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-02-25 21:36 UTC
+**Type:** IMPROVEMENT
+**Priority:** LOW
+
+### Description
+
+This is a test request filed via API.
+
+### Status
+
+**OPEN**
+
+
+---
+
+## REQ-030: Status Update Test
+
+**From:** Backend_Engineer (AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-02-25 21:36 UTC
+**Type:** SPEC_REQUEST
+**Priority:** MEDIUM
+
+### Description
+
+Testing status update.
+
+### Status
+
+**COMPLETED**
+
+
+---
+
+## REQ-031: Test Governed Request
+
+**From:** Backend_Engineer (TEST_AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-02-25 21:41 UTC
+**Type:** IMPROVEMENT
+**Priority:** LOW
+
+### Description
+
+This is a test request filed via API.
+
+### Status
+
+**OPEN**
+
+
+---
+
+## REQ-032: Status Update Test
+
+**From:** Backend_Engineer (AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-02-25 21:41 UTC
+**Type:** SPEC_REQUEST
+**Priority:** MEDIUM
+
+### Description
+
+Testing status update.
+
+### Status
+
+**COMPLETED**

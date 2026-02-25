@@ -186,51 +186,51 @@ def create_app():
         projects = app.project_registry.list_projects()
         return render_template("projects.html", projects=projects)
 
-    @app.route("/api/projects")
-    def api_list_projects():
+    def _get_enriched_projects(project_dict):
         from adt_core.cli import is_port_in_use
-        projects = app.project_registry.list_projects()
         enriched = {}
-        
-        for name, config in projects.items():
-            project_root = config["path"]
+        for name, config in project_dict.items():
             paths = get_project_paths(name)
-            
-            # 1. DTTP Status
             port = config.get("dttp_port")
             dttp_running = is_port_in_use(port) if port else False
-            
-            # 2. Stats
             stats = {"specs": 0, "tasks": 0, "ads_events": 0}
-            
-            # Specs
             if os.path.exists(paths["specs"]):
                 stats["specs"] = len([f for f in os.listdir(paths["specs"]) if f.endswith(".md")])
-                
-            # Tasks
             if os.path.exists(paths["tasks"]):
                 try:
                     with open(paths["tasks"], "r") as f:
                         data = json.load(f)
                         stats["tasks"] = len(data.get("tasks", []))
-                except:
-                    pass
-                    
-            # ADS Events
+                except: pass
             if os.path.exists(paths["ads"]):
                 try:
                     with open(paths["ads"], "r") as f:
                         stats["ads_events"] = sum(1 for _ in f)
-                except:
-                    pass
-            
-            enriched[name] = {
-                **config,
-                "dttp_running": dttp_running,
-                "stats": stats
-            }
-            
-        return jsonify(enriched)
+                except: pass
+            enriched[name] = {**config, "dttp_running": dttp_running, "stats": stats}
+        return enriched
+
+    @app.route("/api/projects")
+    def api_list_governed_projects():
+        """SPEC-031 Amendment A: Return only governed projects."""
+        projects = app.project_registry.list_governed_projects()
+        return jsonify(_get_enriched_projects(projects))
+
+    @app.route("/api/forge")
+    def api_get_forge():
+        """SPEC-031 Amendment A: Return forge (framework) metadata."""
+        forge = app.project_registry.get_forge()
+        if not forge:
+            return jsonify({"error": "Forge not found"}), 404
+        # Wrap in dict matching projects format
+        name = forge.pop("name")
+        return jsonify(_get_enriched_projects({name: forge}))
+
+    @app.route("/api/projects/all")
+    def api_list_all_projects():
+        """SPEC-031 Amendment A: Return all projects including forge."""
+        projects = app.project_registry.list_projects()
+        return jsonify(_get_enriched_projects(projects))
 
     @app.route("/dttp")
     def dttp_monitor():
