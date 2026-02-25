@@ -1689,6 +1689,52 @@
       "evidence": "Routes added to app.py, hierarchy.html and delegation.html created, base.html updated.",
       "last_updated_by": "GEMINI (Frontend_Engineer)",
       "last_updated_at": "2026-02-24T21:31:50.600282+00:00Z"
+    },
+    {
+      "id": "task_135",
+      "title": "SPEC-035: Implement request status update API",
+      "description": "Add PUT /api/governance/requests/<id>/status to governance_routes.py. Implement Markdown parsing and updating logic to reflect status changes in requests.md. Verify role authorization (caller role matches To: field).",
+      "spec_ref": "SPEC-035",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Implementation verified via CLI test.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T20:55:21.368658Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_136",
+      "title": "SPEC-035: Add SDK methods for task and request completion",
+      "description": "Add complete_task and complete_request methods to ADTClient in adt_sdk/client.py. These methods call the status update APIs.",
+      "spec_ref": "SPEC-035",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_135"
+      ],
+      "evidence": "SDK methods for status update implemented and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T20:55:26.727632Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_137",
+      "title": "SPEC-035: Add CLI commands for status management",
+      "description": "Add adt tasks complete <id> and adt requests complete <id> commands to adt_core/cli.py. These commands use the ADT SDK to report progress/completion.",
+      "spec_ref": "SPEC-035",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_136"
+      ],
+      "evidence": "CLI commands for status management implemented and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T20:55:27.625036Z",
+      "review_status": "pending"
     }
   ]
 }

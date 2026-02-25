@@ -93,7 +93,7 @@
 
 ### Status
 
-**APPROVED** — Added to SPEC-013 UI Refinements.
+**COMPLETED** — Added to SPEC-013 UI Refinements.
 
 ---
 
@@ -499,3 +499,87 @@ Agents use `Bash(python3 ...)` to write directly to _cortex/ files, bypassing th
 ### Status
 
 **OPEN**
+
+---
+
+## REQ-026: Spec Request -- Agent Filesystem Sandboxing for External Projects
+
+**From:** DevOps_Engineer (CLAUDE)
+**To:** @Systems_Architect
+**Date:** 2026-02-25
+**Priority:** CRITICAL
+**Related Specs:** SPEC-031 (External Project Governance), SPEC-027 (Shatterglass), SPEC-014 (DTTP)
+
+### Problem
+
+When agents are launched in the ADT Console for an external project, they have **zero filesystem isolation**. An agent spawned with `cwd=/home/human/Projects/my-app` can:
+
+1. **Read anything** on the system -- the ADT Framework's `_cortex/specs/`, other projects' source code, SSH keys, environment files. The DTTP hook only intercepts Write/Edit/NotebookEdit tools. Read, Glob, Grep, and Bash are completely ungoverned.
+2. **Write outside their project** -- while the DTTP hook converts paths to project-relative for validation, an agent can use `Bash(echo "..." > /some/other/path)` to write anywhere the OS user has access.
+3. **Read ADT Framework governance artifacts** -- an external project agent has no business seeing the framework's specs, tasks, ADS events, or coordination data. This is a confidentiality violation.
+
+The current architecture only enforces **intra-project jurisdiction** (which role can write which files within a project). There is no **inter-project isolation** (preventing agents from one project from accessing another project entirely).
+
+### What We Need
+
+Agents launched for an external project MUST operate in a **complete filesystem sandbox** scoped to their project root. The sandbox must enforce:
+
+1. **Read isolation**: The agent can ONLY read files within its project root directory. No access to the ADT framework directory, no access to other projects, no access to home directory files outside the project. Read, Glob, Grep must all be confined.
+2. **Write isolation via DTTP only**: The agent's ONLY mechanism for writing files is through the DTTP gateway. No direct filesystem writes. The Bash tool should not be able to write outside the sandbox. Within the sandbox, writes still go through DTTP for jurisdiction and spec validation.
+3. **No network escape**: The agent should only be able to reach its own project's DTTP service (on its assigned port), not other projects' DTTP services or the ADT Panel API.
+4. **Environment sanitization**: No leaking of framework paths, other project paths, or sensitive environment variables into the agent's session.
+
+### Implementation Considerations
+
+**Tier 3 (Development mode -- no OS users):**
+- Configure Claude Code's `allowedDirectories` / `blockedDirectories` per-session to restrict filesystem access to project root only
+- Configure Gemini CLI's equivalent sandbox settings
+- Restrict Bash tool access via agent-specific shell profiles that `chroot` or use namespace isolation
+- Set `HOME` to a temporary directory within the project sandbox
+
+**Tier 1 (Production mode -- Shatterglass active):**
+- The `agent` OS user should have no read access outside the active project root
+- Use Linux mount namespaces or `unshare` to create per-session filesystem views
+- Bind-mount only the project directory into the agent's namespace
+- The DTTP socket/port is the only allowed network endpoint
+
+**Agent CLI configuration (critical):**
+- Claude Code: The PTY spawner must generate a per-session `.claude/settings.json` in the project directory that sets `allowedDirectories: ["/path/to/project"]` BEFORE the agent process starts
+- Gemini CLI: Equivalent sandbox configuration
+- Both: Hook configs must point to the framework's DTTP hook scripts using absolute paths (REQ-022)
+
+### Why This Is Critical
+
+Without filesystem sandboxing, the entire DTTP governance model is theater for external projects. An agent told to "implement feature X" in Project Y can read the ADT Framework's own governance rules, read other projects' proprietary code, and write anywhere via Bash. This fundamentally violates the ADT principle that governance is an intrinsic system property -- right now, governance stops at the project boundary.
+
+### Status
+
+**OPEN** -- Awaiting spec from @Systems_Architect.
+
+---
+
+## REQ-027: Fix requests.md Jurisdiction -- All Roles Must Be Able to File Requests
+
+**From:** DevOps_Engineer (CLAUDE)
+**To:** @Systems_Architect
+**Date:** 2026-02-25
+**Priority:** HIGH
+**Related Specs:** SPEC-020 (Self-Governance), SPEC-034
+
+### Problem
+
+`_cortex/requests.md` is currently ONLY in the **Overseer** jurisdiction (see `config/jurisdictions.json` line 85). This means no other role -- Backend_Engineer, Frontend_Engineer, DevOps_Engineer -- can write to it through DTTP. Every cross-role request filed today has required a Bash workaround to bypass DTTP, which:
+
+1. Defeats the governance model we are building
+2. Creates ungoverned writes to a Tier 2 coordination file
+3. Is exactly the kind of bypass that the Overseer should be flagging
+
+The cross-role request system is the ONLY mechanism agents have to communicate needs across jurisdiction boundaries. Blocking agents from using it forces them into ungoverned workarounds.
+
+### Proposed Fix
+
+Add `_cortex/requests.md` to EVERY role's jurisdiction in `config/jurisdictions.json` with `append`-only semantics (agents can add new requests but cannot modify or delete existing ones). Alternatively, create a `POST /api/governance/requests` API endpoint that any role can call to file a new request -- the API appends to requests.md server-side, governed by the DTTP service.
+
+### Status
+
+**OPEN** -- Awaiting @Systems_Architect action.
