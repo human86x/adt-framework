@@ -486,6 +486,61 @@ const GitStatusManager = (() => {
     ShatterglassBridge.toggle();
   });
 
+  // --- SPEC-037: File Request Dialog ---
+  const requestDialog = document.getElementById('file-request-dialog');
+  const requestForm = document.getElementById('file-request-form');
+
+  if (requestDialog) {
+    document.getElementById('btn-file-request')?.addEventListener('click', () => {
+      requestDialog.showModal();
+    });
+
+    document.getElementById('btn-cancel-request')?.addEventListener('click', () => {
+      requestDialog.close();
+    });
+
+    requestForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const activeSession = SessionManager.getActive();
+      if (!activeSession) {
+        ToastManager.show('denial', 'Error', 'No active session to file request from');
+        return;
+      }
+
+      const payload = {
+        from_role: activeSession.role,
+        from_agent: activeSession.agent,
+        to_role: document.getElementById('request-to-role').value,
+        priority: document.getElementById('request-priority').value,
+        title: document.getElementById('request-title').value,
+        description: document.getElementById('request-description').value,
+        project: activeSession.project
+      };
+
+      const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+      try {
+        const res = await fetch(`${centerUrl}/api/governance/requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          ToastManager.show('completion', 'Request Filed', data.req_id || 'Success');
+          requestDialog.close();
+          requestForm.reset();
+          if (typeof ContextPanel !== 'undefined') ContextPanel.fetchRequests();
+        } else {
+          const err = await res.json();
+          ToastManager.show('denial', 'Failed to file', err.error || 'Unknown error');
+        }
+      } catch (err) {
+        ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+      }
+    });
+  }
+
   // Reload roles and specs when project changes
   document.getElementById('input-project')?.addEventListener('change', () => {
     loadRoles().then(() => loadSpecs());
