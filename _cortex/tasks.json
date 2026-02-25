@@ -1731,236 +1731,291 @@
       "depends_on": [
         "task_136"
       ],
-            "evidence": "CLI commands for status management implemented and verified.",
-            "last_updated_by": "GEMINI (Backend_Engineer)",
-            "last_updated_at": "2026-02-25T20:55:27.625036Z",
-            "review_status": "pending"
-          },
-          {
-            "id": "task_138",
-            "title": "SPEC-036: Per-session sandbox directory creation and cleanup",
-            "description": "Implement sandbox dir management in pty.rs: create <project_root>/.adt/sandbox/<session_id>/ on start, delete on exit.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_139",
-            "title": "SPEC-036: Claude Code settings.json generation with allowedDirectories",
-            "description": "Generate per-session .claude/settings.json in sandbox dir with strict allowedDirectories and permissions.deny lists.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_140",
-            "title": "SPEC-036: Gemini CLI sandbox config generation",
-            "description": "Generate per-session .gemini/settings.json in sandbox dir with equivalent isolation config.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_141",
-            "title": "SPEC-036: Environment sanitization in PTY spawner",
-            "description": "Redirect HOME/TMPDIR to sandbox, strip sensitive env vars (SSH_AUTH_SOCK, AWS_*, etc), set ADT_SANDBOX=1.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_142",
-            "title": "SPEC-036: Extend claude_pretool.py to intercept Read/Glob/Grep",
-            "description": "Intercept read-class tools when ADT_SANDBOX=1 and enforce ADT_SANDBOX_ROOT containment.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_143",
-            "title": "SPEC-036: Extend gemini_pretool.py to intercept read tools",
-            "description": "Equivalent read interception for Gemini CLI tools when sandboxed.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_144",
-            "title": "SPEC-036: Add sandbox status to GET /api/sessions",
-            "description": "Expose sandbox metadata in session API for Console visibility.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "medium"
-          },
-          {
-            "id": "task_145",
-            "title": "SPEC-036: Sandbox Phase A integration tests (Read/Glob)",
-            "description": "Verify agent cannot read outside project root via any governed tool.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_146",
-            "title": "SPEC-036: Sandbox Phase A integration tests (Bash escape)",
-            "description": "Verify Bash tool blocklist and containment.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_147",
-            "title": "SPEC-036 Phase B: Implement unshare mount namespace wrapper",
-            "description": "Hardware-enforced isolation using mount namespaces and pivot_root in pty.rs.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_148",
-            "title": "SPEC-036 Phase B: Implement network namespace with DTTP allowlist",
-            "description": "Restrict agent network access to only project DTTP and Panel ports via iptables/netns.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_149",
-            "title": "SPEC-036 Phase B: Add bubblewrap fallback",
-            "description": "Use bwrap for isolation on systems where unprivileged unshare is disabled.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "medium"
-          },
-          {
-            "id": "task_150",
-            "title": "SPEC-036 Phase B integration tests",
-            "description": "Verify absolute path isolation and network blocking.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_151",
-            "title": "SPEC-036: Update setup_shatterglass.sh for Phase B deps",
-            "description": "Ensure bubblewrap and netns requirements are met during production setup.",
-            "spec_ref": "SPEC-036",
-            "assigned_to": "DevOps_Engineer",
-            "status": "pending",
-            "priority": "medium"
-          },
-          {
-            "id": "task_152",
-            "title": "SPEC-037: Implement POST /api/governance/requests endpoint",
-            "description": "Governed API for filing cross-role requests without requests.md jurisdiction bypass.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_153",
-            "title": "SPEC-037: Add file_request() and update_request_status() to SDK",
-            "description": "Update ADTClient with SPEC-037 methods.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_154",
-            "title": "SPEC-037: Fix role priority in claude_pretool.py",
-            "description": "Prioritize ADT_ROLE env var over active_role.txt to support multi-session isolation.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "critical"
-          },
-          {
-            "id": "task_155",
-            "title": "SPEC-037: Fix role priority in gemini_pretool.py",
-            "description": "Equivalent role resolution fix for Gemini CLI hook.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "critical"
-          },
-          {
-            "id": "task_156",
-            "title": "SPEC-037: Add hook redirect for requests.md append",
-            "description": "Intercept append operations to requests.md and redirect to the governed API endpoint.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_157",
-            "title": "SPEC-037: Write tests for request API and role priority",
-            "description": "Verify multi-session isolation and governed request filing.",
-            "spec_ref": "SPEC-037",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_158",
-            "title": "SPEC-031 Amendment A: Registry project_type field",
-            "description": "Add project_type (forge/governed) to registry and implement helper methods.",
-            "spec_ref": "SPEC-031",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_159",
-            "title": "SPEC-031 Amendment A: Gateway tier-3 lock for external projects",
-            "description": "Structural lock preventing tier elevation for git actions in external projects.",
-            "spec_ref": "SPEC-031",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "critical"
-          },
-          {
-            "id": "task_160",
-            "title": "SPEC-031 Amendment A: Gateway path containment check",
-            "description": "Deny file operations resolving outside project root.",
-            "spec_ref": "SPEC-031",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "critical"
-          },
-          {
-            "id": "task_161",
-            "title": "SPEC-031 Amendment A: API separation forge/governed",
-            "description": "Split /api/projects into /api/forge and /api/governed endpoints.",
-            "spec_ref": "SPEC-031",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          },
-          {
-            "id": "task_162",
-            "title": "SPEC-031 Amendment A: API project-aware requests/delegations",
-            "description": "Fix /requests and /delegations endpoints to honor ?project= filter.",
-            "spec_ref": "SPEC-031",
-            "assigned_to": "Backend_Engineer",
-            "status": "pending",
-            "priority": "high"
-          }
-        ]
-      }
-      
+      "evidence": "CLI commands for status management implemented and verified.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T20:55:27.625036Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_138",
+      "title": "SPEC-036: Per-session sandbox directory creation and cleanup",
+      "description": "Implement sandbox dir management in pty.rs: create <project_root>/.adt/sandbox/<session_id>/ on start, delete on exit.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_139",
+      "title": "SPEC-036: Claude Code settings.json generation with allowedDirectories",
+      "description": "Generate per-session .claude/settings.json in sandbox dir with strict allowedDirectories and permissions.deny lists.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_140",
+      "title": "SPEC-036: Gemini CLI sandbox config generation",
+      "description": "Generate per-session .gemini/settings.json in sandbox dir with equivalent isolation config.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_141",
+      "title": "SPEC-036: Environment sanitization in PTY spawner",
+      "description": "Redirect HOME/TMPDIR to sandbox, strip sensitive env vars (SSH_AUTH_SOCK, AWS_*, etc), set ADT_SANDBOX=1.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_142",
+      "title": "SPEC-036: Extend claude_pretool.py to intercept Read/Glob/Grep",
+      "description": "Intercept read-class tools when ADT_SANDBOX=1 and enforce ADT_SANDBOX_ROOT containment.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Claude hook extended to intercept Read/Glob/Grep.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:48.154569Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_143",
+      "title": "SPEC-036: Extend gemini_pretool.py to intercept read tools",
+      "description": "Equivalent read interception for Gemini CLI tools when sandboxed.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Gemini hook extended to intercept read tools.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:48.779488Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_144",
+      "title": "SPEC-036: Add sandbox status to GET /api/sessions",
+      "description": "Expose sandbox metadata in session API for Console visibility.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "GET /api/sessions added with sandbox status.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:49.379877Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_145",
+      "title": "SPEC-036: Sandbox Phase A integration tests (Read/Glob)",
+      "description": "Verify agent cannot read outside project root via any governed tool.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_146",
+      "title": "SPEC-036: Sandbox Phase A integration tests (Bash escape)",
+      "description": "Verify Bash tool blocklist and containment.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_147",
+      "title": "SPEC-036 Phase B: Implement unshare mount namespace wrapper",
+      "description": "Hardware-enforced isolation using mount namespaces and pivot_root in pty.rs.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_148",
+      "title": "SPEC-036 Phase B: Implement network namespace with DTTP allowlist",
+      "description": "Restrict agent network access to only project DTTP and Panel ports via iptables/netns.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_149",
+      "title": "SPEC-036 Phase B: Add bubblewrap fallback",
+      "description": "Use bwrap for isolation on systems where unprivileged unshare is disabled.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_150",
+      "title": "SPEC-036 Phase B integration tests",
+      "description": "Verify absolute path isolation and network blocking.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_151",
+      "title": "SPEC-036: Update setup_shatterglass.sh for Phase B deps",
+      "description": "Ensure bubblewrap and netns requirements are met during production setup.",
+      "spec_ref": "SPEC-036",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_152",
+      "title": "SPEC-037: Implement POST /api/governance/requests endpoint",
+      "description": "Governed API for filing cross-role requests without requests.md jurisdiction bypass.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "POST /api/governance/requests implemented.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:50.038045Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_153",
+      "title": "SPEC-037: Add file_request() and update_request_status() to SDK",
+      "description": "Update ADTClient with SPEC-037 methods.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "SDK methods for requests and git persistence added.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:50.613769Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_154",
+      "title": "SPEC-037: Fix role priority in claude_pretool.py",
+      "description": "Prioritize ADT_ROLE env var over active_role.txt to support multi-session isolation.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "evidence": "Claude hook role priority fixed.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:51.270467Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_155",
+      "title": "SPEC-037: Fix role priority in gemini_pretool.py",
+      "description": "Equivalent role resolution fix for Gemini CLI hook.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "evidence": "Gemini hook role priority fixed.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:51.891655Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_156",
+      "title": "SPEC-037: Add hook redirect for requests.md append",
+      "description": "Intercept append operations to requests.md and redirect to the governed API endpoint.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Hook redirect for requests.md append implemented.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:52.562324Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_157",
+      "title": "SPEC-037: Write tests for request API and role priority",
+      "description": "Verify multi-session isolation and governed request filing.",
+      "spec_ref": "SPEC-037",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Integration tests for request API and role priority passing.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:53.153703Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_158",
+      "title": "SPEC-031 Amendment A: Registry project_type field",
+      "description": "Add project_type (forge/governed) to registry and implement helper methods.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Registry project_type field and helpers implemented.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:53.752209Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_159",
+      "title": "SPEC-031 Amendment A: Gateway tier-3 lock for external projects",
+      "description": "Structural lock preventing tier elevation for git actions in external projects.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "evidence": "Gateway Tier 3 lock for external projects implemented.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:54.307135Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_160",
+      "title": "SPEC-031 Amendment A: Gateway path containment check",
+      "description": "Deny file operations resolving outside project root.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "evidence": "Gateway path containment check implemented.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:54.886893Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_161",
+      "title": "SPEC-031 Amendment A: API separation forge/governed",
+      "description": "Split /api/projects into /api/forge and /api/governed endpoints.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "API separated into forge and governed endpoints.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:55.445612Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_162",
+      "title": "SPEC-031 Amendment A: API project-aware requests/delegations",
+      "description": "Fix /requests and /delegations endpoints to honor ?project= filter.",
+      "spec_ref": "SPEC-031",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "API requests and delegations now project-aware.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-02-25T21:41:56.003187Z",
+      "review_status": "pending"
+    }
+  ]
+}
