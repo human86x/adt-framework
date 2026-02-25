@@ -106,6 +106,7 @@
             <div><strong style="color:var(--text-muted)">Agent:</strong> <span id="ctx-agent">—</span></div>
             <div><strong style="color:var(--text-muted)">Spec:</strong> <span id="ctx-spec" class="ctx-truncate">—</span></div>
             <div><strong style="color:var(--text-muted)">Time:</strong> <span id="ctx-uptime">—</span></div>
+            <div><strong style="color:var(--text-muted)">Sandbox:</strong> <span id="ctx-sandbox">—</span></div>
           </div>
           
           <div id="ctx-task-container" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
@@ -129,7 +130,10 @@
         <section class="context-section">
           <div class="section-header-row">
             <h3>Requests Received</h3>
-            <span id="count-requests" class="ctx-badge">0</span>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="count-requests" class="ctx-badge">0</span>
+              <button id="btn-file-request" class="btn-mini-action" title="File Cross-Role Request">+</button>
+            </div>
           </div>
           <ul id="ctx-requests-list" class="tracker-list">
             <li class="ctx-empty">Loading requests...</li>
@@ -255,6 +259,45 @@
       <div class="dialog-actions">
         <button type="button" id="btn-cancel-session">Cancel</button>
         <button type="submit" class="primary">Launch</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- File Request Dialog (SPEC-037) -->
+  <dialog id="file-request-dialog">
+    <form id="file-request-form">
+      <h2>File Cross-Role Request</h2>
+      <div class="ctx-meta" style="margin-bottom: 12px;">Communicate requirements across jurisdiction boundaries.</div>
+      <label>
+        To Role
+        <select id="request-to-role" required>
+          <option value="Systems_Architect">Systems Architect</option>
+          <option value="Backend_Engineer">Backend Engineer</option>
+          <option value="Frontend_Engineer">Frontend Engineer</option>
+          <option value="DevOps_Engineer">DevOps Engineer</option>
+          <option value="Overseer">Overseer</option>
+        </select>
+      </label>
+      <label>
+        Priority
+        <select id="request-priority">
+          <option value="LOW">Low</option>
+          <option value="MEDIUM" selected>Medium</option>
+          <option value="HIGH">High</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+      </label>
+      <label>
+        Title
+        <input type="text" id="request-title" placeholder="Spec Request: ..." required>
+      </label>
+      <label>
+        Description
+        <textarea id="request-description" rows="4" placeholder="Detailed requirements..." required></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="btn-cancel-request">Cancel</button>
+        <button type="submit" class="primary">File Request</button>
       </div>
     </form>
   </dialog>
