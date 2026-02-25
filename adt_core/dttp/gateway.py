@@ -15,6 +15,9 @@ SOVEREIGN_PATHS = [
     "_cortex/MASTER_PLAN.md",
 ]
 
+# SPEC-031 Amendment A: Governance Lock applies to ALL projects
+GOVERNANCE_LOCKED = SOVEREIGN_PATHS
+
 CONSTITUTIONAL_PATHS = [
     "adt_core/dttp/gateway.py",
     "adt_core/dttp/policy.py",
@@ -52,6 +55,32 @@ class DTTPGateway:
         path = params.get("file") or params.get("path")
         normalized_path = os.path.normpath(path) if path else None
 
+        # 0. Path Containment Check (SPEC-031 Amendment A)
+        if path:
+            try:
+                # This ensures the path is within project_root
+                self.action_handler._resolve_path(path)
+            except PermissionError as e:
+                event_id = ADSEventSchema.generate_id("containment_violation")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="denied_containment",
+                    description=f"DENIED: Path {path} escapes project root. Rationale: {rationale}",
+                    spec_ref=spec_id, authorized=False, tier=1, escalation=True
+                ))
+                return {"status": "denied", "reason": "path_outside_project_root"}
+
+        # 0b. Governance Lock Check (SPEC-031 Amendment A)
+        if normalized_path in GOVERNANCE_LOCKED:
+            if not self.is_framework:
+                # Project's own agents CANNOT modify their own governance files
+                event_id = ADSEventSchema.generate_id("gov_lock_violation")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="governance_lock_violation",
+                    description=f"DENIED: Agent attempted to modify governance-locked file {normalized_path}. Rationale: {rationale}",
+                    spec_ref=spec_id, authorized=False, tier=1, escalation=True
+                ))
+                return {"status": "denied", "reason": "governance_file_protected"}
+
         # 1. Sovereign Path Check (Tier 1) - SPEC-020 Section 2.1
         # Skip for external projects (SPEC-031)
         if self.is_framework and normalized_path in SOVEREIGN_PATHS:
@@ -78,13 +107,14 @@ class DTTPGateway:
             is_tier2 = True
             tier2_reason = f"Tier 2 path {normalized_path}"
         
-        # 2b. Action-based Tier Elevation (SPEC-023)
-        if action == "git_tag":
-            is_tier2 = True
-            tier2_reason = "git_tag is a Tier 2 action"
-        elif action == "git_push" and params.get("branch") == "main":
-            is_tier2 = True
-            tier2_reason = "Pushing to main is a Tier 2 action"
+        # 2b. Action-based Tier Elevation (SPEC-023) - Framework ONLY (Amendment A)
+        if self.is_framework:
+            if action == "git_tag":
+                is_tier2 = True
+                tier2_reason = "git_tag is a Tier 2 action"
+            elif action == "git_push" and params.get("branch") == "main":
+                is_tier2 = True
+                tier2_reason = "Pushing to main is a Tier 2 action"
 
         if is_tier2:
             tier = 2
@@ -175,7 +205,7 @@ class DTTPGateway:
         ))
 
         # 6. Execute
-        result = self.action_handler.execute(action, params)
+        result = self.action_handler.execute(action, params, agent=agent, role=role)
 
         # 7. Log Post-action
         post_event_id = ADSEventSchema.generate_id(f"completed_{action}")
