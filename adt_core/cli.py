@@ -748,6 +748,36 @@ def projects_command(args):
             # Recursively call start
             subprocess.run([sys.executable, __file__, "projects", "start", name])
 
+def tasks_command(args):
+    client = ADTClient(
+        dttp_url=os.environ.get("DTTP_URL", "http://localhost:5002"),
+        agent_name=os.environ.get("ADT_AGENT", "CLI"),
+        role=os.environ.get("ADT_ROLE", "Architect")
+    )
+    
+    if args.subcommand == 'complete':
+        print(f"Marking task {args.id} as completed...")
+        result = client.complete_task(args.id, args.evidence)
+        if result.get("status") == "success":
+            print(f"SUCCESS: Task {args.id} marked as completed. ADS Event: {result.get('event_id')}")
+        else:
+            print(f"ERROR: {result.get('error', 'Unknown error')}")
+
+def requests_command(args):
+    client = ADTClient(
+        dttp_url=os.environ.get("DTTP_URL", "http://localhost:5002"),
+        agent_name=os.environ.get("ADT_AGENT", "CLI"),
+        role=os.environ.get("ADT_ROLE", "Architect")
+    )
+    
+    if args.subcommand == 'complete':
+        print(f"Marking request {args.id} as {args.status}...")
+        result = client.complete_request(args.id, args.status)
+        if result.get("status") == "success":
+            print(f"SUCCESS: Request {args.id} marked as {args.status}. ADS Event: {result.get('event_id')}")
+        else:
+            print(f"ERROR: {result.get('error', 'Unknown error')}")
+
 def main():
     parser = argparse.ArgumentParser(prog='adt', description='ADT Framework CLI')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -780,6 +810,22 @@ def main():
     proj_rm = proj_sub.add_parser('remove', help='Remove a project from registry')
     proj_rm.add_argument('name', help='Project name')
     
+    # tasks group
+    tasks_parser = subparsers.add_parser('tasks', help='Manage tasks')
+    tasks_sub = tasks_parser.add_subparsers(dest='subcommand', help='Tasks subcommands')
+    
+    tasks_complete = tasks_sub.add_parser('complete', help='Mark a task as completed')
+    tasks_complete.add_argument('id', help='Task ID (e.g. task_001)')
+    tasks_complete.add_argument('--evidence', '-e', default='', help='Completion evidence')
+
+    # requests group
+    requests_parser = subparsers.add_parser('requests', help='Manage requests')
+    requests_sub = requests_parser.add_subparsers(dest='subcommand', help='Requests subcommands')
+    
+    requests_complete = requests_sub.add_parser('complete', help='Mark a request as completed')
+    requests_complete.add_argument('id', help='Request ID (e.g. REQ-001)')
+    requests_complete.add_argument('--status', '-s', default='COMPLETED', help='Status to set (default: COMPLETED)')
+
     # connect group
     connect_parser = subparsers.add_parser('connect', help='Manage remote access')
     connect_sub = connect_parser.add_subparsers(dest='subcommand', help='Connect subcommands')
@@ -816,6 +862,10 @@ def main():
             connect_parser.print_help()
     elif args.command == 'shatterglass':
         shatterglass_command(args)
+    elif args.command == 'tasks':
+        tasks_command(args)
+    elif args.command == 'requests':
+        requests_command(args)
     else:
         parser.print_help()
 
