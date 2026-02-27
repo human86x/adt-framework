@@ -115,10 +115,24 @@ class ADTClient:
             logger.error("DTTP log_event failed: %s", e)
             return {"status": "error", "message": str(e)}
 
+    def _get_panel_url(self) -> str:
+        """Derive the ADT Panel URL from the DTTP URL.
+        Defaults to port 5001 on the same host."""
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(self.dttp_url)
+        # Rebuild with port 5001
+        netloc = parsed.hostname or "localhost"
+        if parsed.port:
+            netloc = f"{netloc}:5001"
+        else:
+            netloc = f"{netloc}:5001"
+        
+        return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment)).rstrip("/")
+
     def complete_task(self, task_id: str, evidence: str = "") -> Dict[str, Any]:
         """Update task status to completed."""
         # Task API is on the ADT Panel (port 5001 by default)
-        panel_url = self.dttp_url.replace(":5002", ":5001")
+        panel_url = self._get_panel_url()
         url = f"{panel_url}/api/tasks/{task_id}/status"
         payload = {
             "agent": self.agent_name,
@@ -139,7 +153,7 @@ class ADTClient:
     def update_request_status(self, req_id: str, status: str = "COMPLETED") -> Dict[str, Any]:
         """Update request status via governed API."""
         # Request API is on the ADT Panel (port 5001 by default)
-        panel_url = self.dttp_url.replace(":5002", ":5001")
+        panel_url = self._get_panel_url()
         url = f"{panel_url}/api/governance/requests/{req_id}/status"
         payload = {
             "agent": self.agent_name,
@@ -160,7 +174,7 @@ class ADTClient:
                      req_type: str = "SPEC_REQUEST",
                      related_specs: Optional[list] = None) -> Dict[str, Any]:
         """File a cross-role request via the governed API."""
-        panel_url = self.dttp_url.replace(":5002", ":5001")
+        panel_url = self._get_panel_url()
         url = f"{panel_url}/api/governance/requests"
         payload = {
             "from_role": self.role,
