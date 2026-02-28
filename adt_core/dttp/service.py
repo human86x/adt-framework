@@ -47,6 +47,16 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
     app.dttp_start_time = time.time()
     app.dttp_stats = {"total_requests": 0, "total_denials": 0}
 
+    # SPEC-020 Amendment B: Load canonical roles for normalization
+    try:
+        from adt_core.ads.schema import ADSEventSchema
+        import json
+        with open(config.jurisdictions_config) as f:
+            jur_data = json.load(f)
+            ADSEventSchema.CANONICAL_ROLES = list(jur_data.get("jurisdictions", {}).keys())
+    except Exception as e:
+        pass
+
     @app.route("/request", methods=["POST"])
     def dttp_request():
         data = request.get_json()
@@ -161,7 +171,7 @@ def main():
 
     logger.info("Starting DTTP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
     app = create_dttp_app(config)
-    app.run(host="0.0.0.0", port=config.port, debug=(config.mode == "development"))
+    app.run(host="::", port=config.port, debug=(config.mode == "development"))
 
 
 if __name__ == "__main__":
