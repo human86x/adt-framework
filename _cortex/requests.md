@@ -283,7 +283,7 @@ Add `frame-src 'self' http://localhost:*;` to the CSP string in `tauri.conf.json
 
 ### Status
 
-**OPEN** -- Awaiting DevOps_Engineer action. File is in DevOps jurisdiction (`adt-console/src-tauri/`).
+**COMPLETED -- IMPLEMENTED ROLE AND AGENT NORMALIZATION IN ADSEVENTSCHEMA, INITIALIZED CANONICAL ROLES AT STARTUP IN DTTP AND CENTER, AND UPDATED HOOKS TO NORMALIZE BEFORE SUBMISSION.** -- Awaiting DevOps_Engineer action. File is in DevOps jurisdiction (`adt-console/src-tauri/`).
 
 ---
 
@@ -677,3 +677,28 @@ Testing status update.
 ### Status
 
 **COMPLETED**
+
+
+---
+
+## REQ-033: Bug Fix -- Flask Services Bind IPv4 Only, Tauri WebKit Resolves localhost to IPv6
+
+**From:** DevOps_Engineer (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-02-28
+**Priority:** HIGH
+**Related Specs:** SPEC-021 (Operator Console), SPEC-015 (Operational Center), SPEC-019 (DTTP Service)
+
+### Description
+
+The ADT Console cannot connect to localhost services. Root cause: `getent hosts localhost` resolves to `::1` (IPv6) on this system. WebKit (used by Tauri) follows this resolution and attempts `[::1]:5001` / `[::1]:5002`. Both Flask services bind to `0.0.0.0` (IPv4 only), so IPv6 connections are refused. `curl` falls back to IPv4 automatically, but WebKit does not.
+
+**Fix required in two files:**
+1. `adt_center/app.py:267` -- change `host="0.0.0.0"` to `host="::"`
+2. `adt_core/dttp/service.py:164` -- change `host="0.0.0.0"` to `host="::"`
+
+Binding to `::` enables dual-stack (IPv4 + IPv6) on Linux. Both `127.0.0.1` and `::1` connections will be accepted.
+
+### Status
+
+**COMPLETED -- CHANGED HOST BINDING TO '::' IN ADT_CENTER/APP.PY AND ADT_CORE/DTTP/SERVICE.PY. VERIFIED DUAL-STACK BINDING WITH NETSTAT.** -- Awaiting Backend_Engineer action.
