@@ -113,48 +113,27 @@ fn cleanup_sandbox(project_root: &Path, session_id: &str) {
     }
 }
 
-/// Generate Claude Code settings.json with allowedDirectories for sandboxing.
+/// Generate Claude Code sandbox settings file.
+/// This file is loaded via `claude --settings <path>` to enforce sandbox restrictions.
+/// Uses Claude Code's native permission system to deny access outside project root.
 fn generate_claude_sandbox_config(
     sandbox_root: &Path,
     project_root: &Path,
     framework_root: &Path,
-) -> Result<(), String> {
+) -> Result<PathBuf, String> {
     let project_str = project_root.to_string_lossy();
 
-    // Determine hook script path (absolute, in the framework)
+    // Hook script path (absolute)
     let hook_script = framework_root
         .join("adt_sdk")
         .join("hooks")
         .join("claude_pretool.py");
-    let _hook_path = hook_script.to_string_lossy();
+    let hook_path = hook_script.to_string_lossy();
 
+    // Claude Code uses `permissions.deny` patterns and `hooks` in settings.json.
+    // The --settings flag merges these with the project's own settings.
     let config = serde_json::json!({
         "permissions": {
-            "allow": [
-                "Bash(python3:*)",
-                "Bash(pytest:*)",
-                "Bash(pip:*)",
-                "Bash(npm:*)",
-                "Bash(node:*)",
-                "Bash(git:*)",
-                "Bash(cargo:*)",
-                "Bash(make:*)",
-                "Bash(ls:*)",
-                "Bash(cat:*)",
-                "Bash(grep:*)",
-                "Bash(find:*)",
-                "Bash(head:*)",
-                "Bash(tail:*)",
-                "Bash(wc:*)",
-                "Bash(echo:*)",
-                "Bash(mkdir:*)",
-                "Bash(cp:*)",
-                "Bash(mv:*)",
-                "Bash(rm:*)",
-                "Bash(touch:*)",
-                "Bash(cd:*)",
-                "Bash(pwd:*)"
-            ],
             "deny": [
                 "Bash(curl:*)",
                 "Bash(wget:*)",
@@ -162,29 +141,38 @@ fn generate_claude_sandbox_config(
                 "Bash(scp:*)"
             ]
         },
-        "allowedDirectories": [
-            project_str
-        ]
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Write|Edit|NotebookEdit|Read|Glob|Grep",
+                    "hooks": [{
+                        "type": "command",
+                        "command": format!("python3 {}", hook_path),
+                        "timeout": 15
+                    }]
+                }
+            ]
+        }
     });
 
-    let settings_path = sandbox_root.join(".claude").join("settings.json");
+    let settings_path = sandbox_root.join("claude_sandbox_settings.json");
     let json_str = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize Claude config: {}", e))?;
-    fs::write(&settings_path, json_str)
+    fs::write(&settings_path, &json_str)
         .map_err(|e| format!("Failed to write Claude sandbox config: {}", e))?;
 
-    log::info!("[SANDBOX] Generated Claude config at {:?}", settings_path);
-    Ok(())
+    log::info!("[SANDBOX] Generated Claude sandbox settings at {:?}", settings_path);
+    Ok(settings_path)
 }
 
-/// Generate Gemini CLI settings.json with sandbox config.
+/// Generate Gemini CLI sandbox settings.json.
+/// Gemini CLI uses --sandbox flag and .gemini/settings.json in CWD.
+/// We write a settings.json in the project's .gemini/ dir with extended hooks.
 fn generate_gemini_sandbox_config(
-    sandbox_root: &Path,
+    _sandbox_root: &Path,
     project_root: &Path,
     framework_root: &Path,
 ) -> Result<(), String> {
-    let project_str = project_root.to_string_lossy();
-
     // Determine hook script path
     let hook_script = framework_root
         .join("adt_sdk")
@@ -192,10 +180,8 @@ fn generate_gemini_sandbox_config(
         .join("gemini_pretool.py");
     let hook_path = hook_script.to_string_lossy();
 
+    // Write extended hook config that intercepts BOTH read and write tools
     let config = serde_json::json!({
-        "sandbox": {
-            "allowedDirectories": [project_str]
-        },
         "hooks": {
             "BeforeTool": [{
                 "matcher": "write_file|replace|read_file|list_files|search_files",
@@ -208,13 +194,22 @@ fn generate_gemini_sandbox_config(
         }
     });
 
-    let settings_path = sandbox_root.join(".gemini").join("settings.json");
-    let json_str = serde_json::to_string_pretty(&config)
-        .map_err(|e| format!("Failed to serialize Gemini config: {}", e))?;
-    fs::write(&settings_path, json_str)
-        .map_err(|e| format!("Failed to write Gemini sandbox config: {}", e))?;
+    // Write to project's .gemini/settings.json (Gemini reads from CWD)
+    let gemini_dir = project_root.join(".gemini");
+    let _ = fs::create_dir_all(&gemini_dir);
+    let settings_path = gemini_dir.join("settings.json");
 
-    log::info!("[SANDBOX] Generated Gemini config at {:?}", settings_path);
+    // Only write if no settings.json exists (don't overwrite project config)
+    if !settings_path.exists() {
+        let json_str = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize Gemini config: {}", e))?;
+        fs::write(&settings_path, json_str)
+            .map_err(|e| format!("Failed to write Gemini sandbox config: {}", e))?;
+        log::info!("[SANDBOX] Generated Gemini config at {:?}", settings_path);
+    } else {
+        log::info!("[SANDBOX] Gemini settings.json already exists, skipping generation");
+    }
+
     Ok(())
 }
 
@@ -243,14 +238,9 @@ fn apply_sandbox_env(
     cmd.env("ADT_PROJECT_DIR", &project_str);
     cmd.env("DTTP_URL", dttp_url);
 
-    // Agent-specific config directory redirects
-    if agent == "claude" {
-        let claude_config = sandbox_root.join(".claude");
-        cmd.env("CLAUDE_CONFIG_DIR", claude_config.to_string_lossy().as_ref());
-    } else if agent == "gemini" {
-        let gemini_config = sandbox_root.join(".gemini");
-        cmd.env("GEMINI_CONFIG_DIR", gemini_config.to_string_lossy().as_ref());
-    }
+    // Note: Agent CLI flags (--settings, --sandbox) are injected into args
+    // in create_session(), not via env vars. CLAUDE_CONFIG_DIR and
+    // GEMINI_CONFIG_DIR do not exist as real env vars.
 
     // Remove sensitive environment variables
     // portable_pty's CommandBuilder inherits the parent env by default,
@@ -744,12 +734,21 @@ impl PtyManager {
 
             match create_sandbox_dir(&project_root, &session_id) {
                 Ok(sb_root) => {
-                    // Generate agent-specific sandbox configs
+                    // Generate agent-specific sandbox configs and inject CLI flags
                     if agent == "claude" {
-                        if let Err(e) = generate_claude_sandbox_config(
+                        match generate_claude_sandbox_config(
                             &sb_root, &project_root, &framework_root
                         ) {
-                            log::error!("[SANDBOX] Claude config generation failed: {}", e);
+                            Ok(settings_path) => {
+                                // Inject --settings flag into command args
+                                let settings_str = settings_path.to_string_lossy().to_string();
+                                cmd.arg("--settings");
+                                cmd.arg(&settings_str);
+                                log::info!("[SANDBOX] Claude --settings {} injected", settings_str);
+                            }
+                            Err(e) => {
+                                log::error!("[SANDBOX] Claude config generation failed: {}", e);
+                            }
                         }
                     } else if agent == "gemini" {
                         if let Err(e) = generate_gemini_sandbox_config(
@@ -757,6 +756,9 @@ impl PtyManager {
                         ) {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
+                        // Inject --sandbox flag for Gemini CLI
+                        cmd.arg("--sandbox");
+                        log::info!("[SANDBOX] Gemini --sandbox flag injected");
                     }
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
