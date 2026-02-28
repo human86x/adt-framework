@@ -1,13 +1,14 @@
 // PTY multiplexer — spawn and manage terminal processes
 // SPEC-021 Phase A: portable-pty based process management
 // SPEC-021 S9: Persistence and stability improvements
+// SPEC-036: Agent Filesystem Sandbox (Phase A)
 
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Runtime};
@@ -53,6 +54,252 @@ fn resolve_command(command: &str, user_path: &str) -> String {
     command.to_string()
 }
 
+
+// --- SPEC-036: Agent Filesystem Sandbox ---
+
+/// Environment variables that must NEVER be passed to sandboxed agent sessions.
+/// These could leak sensitive credentials or paths outside the sandbox.
+const SANDBOX_ENV_DENYLIST: &[&str] = &[
+    "SSH_AUTH_SOCK", "SSH_AGENT_PID",
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+    "AWS_DEFAULT_REGION", "AWS_PROFILE",
+    "GCP_PROJECT", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT",
+    "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
+    "AZURE_SUBSCRIPTION_ID",
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    "ADT_FRAMEWORK_ROOT",
+    "GITHUB_TOKEN", "GH_TOKEN", "GITLAB_TOKEN",
+    "NPM_TOKEN", "PYPI_TOKEN",
+    "DATABASE_URL", "REDIS_URL",
+    "DOCKER_HOST",
+];
+
+/// Prefixes for environment variables that should be stripped from sandboxed sessions.
+const SANDBOX_ENV_PREFIX_DENYLIST: &[&str] = &[
+    "AWS_", "GCP_", "AZURE_", "GOOGLE_CLOUD_",
+];
+
+/// Create the sandbox directory structure for a session.
+/// Returns the sandbox root path: <project_root>/.adt/sandbox/<session_id>/
+fn create_sandbox_dir(project_root: &Path, session_id: &str) -> Result<PathBuf, String> {
+    let sandbox_root = project_root
+        .join(".adt")
+        .join("sandbox")
+        .join(session_id);
+
+    // Create subdirectories
+    for subdir in &[".claude", ".gemini", "home", "tmp"] {
+        fs::create_dir_all(sandbox_root.join(subdir))
+            .map_err(|e| format!("Failed to create sandbox dir {}: {}", subdir, e))?;
+    }
+
+    log::info!("[SANDBOX] Created sandbox at {:?}", sandbox_root);
+    Ok(sandbox_root)
+}
+
+/// Clean up a session's sandbox directory.
+fn cleanup_sandbox(project_root: &Path, session_id: &str) {
+    let sandbox_root = project_root
+        .join(".adt")
+        .join("sandbox")
+        .join(session_id);
+
+    if sandbox_root.exists() {
+        if let Err(e) = fs::remove_dir_all(&sandbox_root) {
+            log::warn!("[SANDBOX] Failed to cleanup {:?}: {}", sandbox_root, e);
+        } else {
+            log::info!("[SANDBOX] Cleaned up sandbox for {}", session_id);
+        }
+    }
+}
+
+/// Generate Claude Code settings.json with allowedDirectories for sandboxing.
+fn generate_claude_sandbox_config(
+    sandbox_root: &Path,
+    project_root: &Path,
+    framework_root: &Path,
+) -> Result<(), String> {
+    let project_str = project_root.to_string_lossy();
+
+    // Determine hook script path (absolute, in the framework)
+    let hook_script = framework_root
+        .join("adt_sdk")
+        .join("hooks")
+        .join("claude_pretool.py");
+    let _hook_path = hook_script.to_string_lossy();
+
+    let config = serde_json::json!({
+        "permissions": {
+            "allow": [
+                "Bash(python3:*)",
+                "Bash(pytest:*)",
+                "Bash(pip:*)",
+                "Bash(npm:*)",
+                "Bash(node:*)",
+                "Bash(git:*)",
+                "Bash(cargo:*)",
+                "Bash(make:*)",
+                "Bash(ls:*)",
+                "Bash(cat:*)",
+                "Bash(grep:*)",
+                "Bash(find:*)",
+                "Bash(head:*)",
+                "Bash(tail:*)",
+                "Bash(wc:*)",
+                "Bash(echo:*)",
+                "Bash(mkdir:*)",
+                "Bash(cp:*)",
+                "Bash(mv:*)",
+                "Bash(rm:*)",
+                "Bash(touch:*)",
+                "Bash(cd:*)",
+                "Bash(pwd:*)"
+            ],
+            "deny": [
+                "Bash(curl:*)",
+                "Bash(wget:*)",
+                "Bash(ssh:*)",
+                "Bash(scp:*)"
+            ]
+        },
+        "allowedDirectories": [
+            project_str
+        ]
+    });
+
+    let settings_path = sandbox_root.join(".claude").join("settings.json");
+    let json_str = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize Claude config: {}", e))?;
+    fs::write(&settings_path, json_str)
+        .map_err(|e| format!("Failed to write Claude sandbox config: {}", e))?;
+
+    log::info!("[SANDBOX] Generated Claude config at {:?}", settings_path);
+    Ok(())
+}
+
+/// Generate Gemini CLI settings.json with sandbox config.
+fn generate_gemini_sandbox_config(
+    sandbox_root: &Path,
+    project_root: &Path,
+    framework_root: &Path,
+) -> Result<(), String> {
+    let project_str = project_root.to_string_lossy();
+
+    // Determine hook script path
+    let hook_script = framework_root
+        .join("adt_sdk")
+        .join("hooks")
+        .join("gemini_pretool.py");
+    let hook_path = hook_script.to_string_lossy();
+
+    let config = serde_json::json!({
+        "sandbox": {
+            "allowedDirectories": [project_str]
+        },
+        "hooks": {
+            "BeforeTool": [{
+                "matcher": "write_file|replace|read_file|list_files|search_files",
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("python3 {}", hook_path),
+                    "timeout": 15000
+                }]
+            }]
+        }
+    });
+
+    let settings_path = sandbox_root.join(".gemini").join("settings.json");
+    let json_str = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize Gemini config: {}", e))?;
+    fs::write(&settings_path, json_str)
+        .map_err(|e| format!("Failed to write Gemini sandbox config: {}", e))?;
+
+    log::info!("[SANDBOX] Generated Gemini config at {:?}", settings_path);
+    Ok(())
+}
+
+/// Apply sandbox environment variables to a CommandBuilder.
+/// Sanitizes the environment by:
+/// 1. Redirecting HOME and TMPDIR to sandbox directories
+/// 2. Setting ADT_SANDBOX=1 and ADT_SANDBOX_ROOT
+/// 3. Removing sensitive env vars (cloud creds, SSH keys, etc.)
+/// 4. Pointing agent config dirs to sandbox copies
+fn apply_sandbox_env(
+    cmd: &mut CommandBuilder,
+    sandbox_root: &Path,
+    project_root: &Path,
+    agent: &str,
+    dttp_url: &str,
+) {
+    let sandbox_home = sandbox_root.join("home");
+    let sandbox_tmp = sandbox_root.join("tmp");
+    let project_str = project_root.to_string_lossy().to_string();
+
+    // Core sandbox env
+    cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
+    cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
+    cmd.env("ADT_SANDBOX", "1");
+    cmd.env("ADT_SANDBOX_ROOT", &project_str);
+    cmd.env("ADT_PROJECT_DIR", &project_str);
+    cmd.env("DTTP_URL", dttp_url);
+
+    // Agent-specific config directory redirects
+    if agent == "claude" {
+        let claude_config = sandbox_root.join(".claude");
+        cmd.env("CLAUDE_CONFIG_DIR", claude_config.to_string_lossy().as_ref());
+    } else if agent == "gemini" {
+        let gemini_config = sandbox_root.join(".gemini");
+        cmd.env("GEMINI_CONFIG_DIR", gemini_config.to_string_lossy().as_ref());
+    }
+
+    // Remove sensitive environment variables
+    // portable_pty's CommandBuilder inherits the parent env by default,
+    // so we override dangerous vars with empty strings to effectively remove them
+    for var in SANDBOX_ENV_DENYLIST {
+        cmd.env(var, "");
+    }
+
+    // Also clear prefix-matched vars from the current process env
+    for (key, _) in std::env::vars() {
+        for prefix in SANDBOX_ENV_PREFIX_DENYLIST {
+            if key.starts_with(prefix) && !SANDBOX_ENV_DENYLIST.contains(&key.as_str()) {
+                cmd.env(&key, "");
+            }
+        }
+    }
+
+    log::info!(
+        "[SANDBOX] Environment sanitized for {} session in {}",
+        agent, project_str
+    );
+}
+
+/// Determine if a session should be sandboxed.
+/// Returns true for agent sessions with a project CWD that differs from the framework root,
+/// OR for any agent session when sandbox is explicitly desired.
+fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
+    // Only sandbox agent sessions, not human shell sessions
+    if agent == "shell" || agent == "human" {
+        return false;
+    }
+
+    // If we have a CWD, sandbox is enabled
+    cwd.is_some()
+}
+
+/// Get the framework root directory (where the ADT Framework is installed).
+fn get_framework_root() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Check if a project path is the framework itself.
+fn is_framework_project(project_root: &Path, framework_root: &Path) -> bool {
+    // Canonicalize both paths for reliable comparison
+    let canon_project = project_root.canonicalize().unwrap_or_else(|_| project_root.to_path_buf());
+    let canon_framework = framework_root.canonicalize().unwrap_or_else(|_| framework_root.to_path_buf());
+    canon_project == canon_framework
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub id: String,
@@ -82,6 +329,7 @@ struct PtySession {
     writer: Box<dyn Write + Send>,
     info: SessionInfo,
     metadata: PersistentSession,
+    sandbox_root: Option<PathBuf>,
 }
 
 pub struct PtyManager {
@@ -241,6 +489,16 @@ impl PtyManager {
             None
         };
 
+        // Generate session ID early (needed for sandbox directory naming)
+        let session_id = if let Some(id) = reserved_id {
+            id
+        } else {
+            let mut next_id_lock = self.next_id.lock().map_err(|_| "Mutex poisoned")?;
+            let id = format!("session_{}", *next_id_lock);
+            *next_id_lock += 1;
+            id
+        };
+
         let mut cmd = if let Some(ref _agent_user) = agent_user {
             // Wrap with sudo -u agent: sudo -u agent <command> [args...]
             let mut c = CommandBuilder::new("sudo");
@@ -287,33 +545,71 @@ impl PtyManager {
             "http://localhost:5002".to_string()
         };
 
+        // SPEC-036: Set up sandbox for agent sessions
+        let framework_root = get_framework_root();
+        let sandbox_root = if should_sandbox(agent, cwd.as_deref()) {
+            let project_root = PathBuf::from(cwd.as_deref().unwrap());
+            let is_framework = is_framework_project(&project_root, &framework_root);
+
+            match create_sandbox_dir(&project_root, &session_id) {
+                Ok(sb_root) => {
+                    // Generate agent-specific sandbox configs
+                    if agent == "claude" {
+                        if let Err(e) = generate_claude_sandbox_config(
+                            &sb_root, &project_root, &framework_root
+                        ) {
+                            log::error!("[SANDBOX] Claude config generation failed: {}", e);
+                        }
+                    } else if agent == "gemini" {
+                        if let Err(e) = generate_gemini_sandbox_config(
+                            &sb_root, &project_root, &framework_root
+                        ) {
+                            log::error!("[SANDBOX] Gemini config generation failed: {}", e);
+                        }
+                    }
+
+                    // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
+                    if !is_framework {
+                        apply_sandbox_env(&mut cmd, &sb_root, &project_root, agent, &dttp_url);
+                    }
+
+                    log::info!(
+                        "[SANDBOX] Session {} sandboxed at {:?} (framework_project={})",
+                        session_id, sb_root, is_framework
+                    );
+                    Some(sb_root)
+                }
+                Err(e) => {
+                    log::error!("[SANDBOX] Failed to create sandbox for {}: {}", session_id, e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // Set environment variables for ADT context
         cmd.env("ADT_AGENT", agent);
         cmd.env("ADT_ROLE", role);
         cmd.env("ADT_SPEC_ID", spec_id);
-        cmd.env("DTTP_URL", dttp_url);
+        if sandbox_root.is_none() {
+            // Only set DTTP_URL here if not already set by sandbox env
+            cmd.env("DTTP_URL", &dttp_url);
+        }
         cmd.env("TERM", "xterm-256color");
         cmd.env("PATH", &user_path);
 
         if let Some(path) = &cwd {
-            cmd.env("CLAUDE_PROJECT_DIR", path);
-            cmd.env("GEMINI_PROJECT_DIR", path);
+            if sandbox_root.is_none() {
+                cmd.env("CLAUDE_PROJECT_DIR", path);
+                cmd.env("GEMINI_PROJECT_DIR", path);
+            }
         }
 
         let _child = pair
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("Failed to spawn process: {}", e))?;
-
-        // Generate or reserve session ID
-        let session_id = if let Some(id) = reserved_id {
-            id
-        } else {
-            let mut next_id_lock = self.next_id.lock().map_err(|_| "Mutex poisoned")?;
-            let id = format!("session_{}", *next_id_lock);
-            *next_id_lock += 1;
-            id
-        };
 
         let writer = pair
             .master
@@ -391,6 +687,7 @@ impl PtyManager {
             writer,
             info: info.clone(),
             metadata,
+            sandbox_root,
         };
 
         {
@@ -451,9 +748,21 @@ impl PtyManager {
     }
 
     pub fn close_session(&self, session_id: &str) -> Result<(), String> {
+        let sandbox_info: Option<(PathBuf, String)>;
         {
             let mut sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
-            sessions.remove(session_id).ok_or_else(|| format!("Session not found: {}", session_id))?;
+            let session = sessions.remove(session_id)
+                .ok_or_else(|| format!("Session not found: {}", session_id))?;
+            sandbox_info = session.sandbox_root.as_ref().map(|_sb| {
+                let project_root = session.metadata.cwd.as_ref()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from("."));
+                (project_root, session_id.to_string())
+            });
+        }
+        // SPEC-036: Clean up sandbox directory after session closes
+        if let Some((project_root, sid)) = sandbox_info {
+            cleanup_sandbox(&project_root, &sid);
         }
         self.save_state();
         Ok(())
