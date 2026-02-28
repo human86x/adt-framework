@@ -95,6 +95,23 @@ def read_project_dttp_url(project_dir: str) -> str:
     return "http://localhost:5002"  # fallback
 
 
+def get_canonical_role(role: str, project_dir: str) -> str:
+    """Normalize role name against project's jurisdiction config."""
+    if not role:
+        return role
+    jur_path = os.path.join(project_dir, "config", "jurisdictions.json")
+    if os.path.exists(jur_path):
+        try:
+            with open(jur_path) as f:
+                jur = json.load(f)
+            for canonical in jur.get("jurisdictions", {}).keys():
+                if role.lower() == canonical.lower():
+                    return canonical
+        except:
+            pass
+    return role
+
+
 def build_dttp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
     """Build DTTP action and params from Claude Code tool input.
 
@@ -232,6 +249,10 @@ def main():
 
     if not role:
         role = "Backend_Engineer"
+    
+    # SPEC-020 Amendment B: Normalize role name
+    role = get_canonical_role(role, project_dir)
+
     if not spec_id:
         spec_id = "SPEC-017"
 
