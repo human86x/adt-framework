@@ -275,6 +275,20 @@
         "old_string": "| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n",
         "new_string": "| SPEC-034 | Role-Aware Context Panel | APPROVED | ADT Framework |\n| SPEC-035 | Unified Status Management API | APPROVED | ADT Framework |\n| SPEC-036 | Agent Filesystem Sandbox | APPROVED | ADT Framework |\n| SPEC-037 | Cross-Role Request Access | APPROVED | ADT Framework |\n"
       }
+    },
+    {
+      "id": "scr_20260227_115422_014",
+      "ts": "2026-02-27T11:54:22.543321Z",
+      "agent": "GEMINI",
+      "role": "Backend_Engineer",
+      "spec_ref": "SPEC-017",
+      "target_path": "config/dttp.json",
+      "change_type": "full_replace",
+      "description": "Agent proposed edit on sovereign path config/dttp.json",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "content": "{\n  \"port\": 5002,\n  \"mode\": \"development\",\n  \"project_name\": \"adt-framework\"\n}\n"
     }
   ]
 }
