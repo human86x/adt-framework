@@ -31,6 +31,131 @@ import requests
 # Tool names this hook intercepts
 INTERCEPTED_TOOLS = {"Write", "Edit", "NotebookEdit"}
 READ_TOOLS = {"Read", "Glob", "Grep"}
+BASH_TOOLS = {"Bash"}
+
+# Patterns that indicate file write operations in shell commands
+BASH_WRITE_OPERATORS = re.compile(
+    r'(?:'
+    r'>\s*\S'           # > redirect (overwrite)
+    r'|>>\s*\S'         # >> redirect (append)
+    r'|\btee\b'         # tee command
+    r'|\bdd\b.*\bof='   # dd with output file
+    r'|\binstall\b'     # install command
+    r'|\bmkdir\b'       # mkdir
+    r'|\brmdir\b'       # rmdir
+    r'|\brm\b'          # rm
+    r'|\bmv\b'          # mv (destination could be outside)
+    r'|\bcp\b'          # cp (destination could be outside)
+    r'|\bln\b'          # ln (symlink creation)
+    r'|\bchmod\b'       # chmod
+    r'|\bchown\b'       # chown
+    r'|\btouch\b'       # touch
+    r'|\bsed\b.*-i'     # sed in-place
+    r'|\bpatch\b'       # patch command
+    r'|\bgit\s+push'    # git push
+    r'|\bsudo\b'        # sudo anything
+    r'|\bsu\b'          # su
+    r')'
+)
+
+# Regex to extract absolute paths and ~/ paths from a shell command
+BASH_PATH_RE = re.compile(
+    r'(?:'
+    r'(?<![a-zA-Z0-9_])(/[a-zA-Z0-9_./-]{2,})'  # /absolute/path
+    r'|(?<![a-zA-Z0-9_])(~/[a-zA-Z0-9_./-]*)'     # ~/home-relative
+    r')'
+)
+
+# Sensitive path prefixes that are never allowed in sandbox
+SENSITIVE_PATHS = [
+    "/etc/", "/root/", "/var/", "/proc/", "/sys/", "/dev/",
+    "/boot/", "/sbin/", "/usr/sbin/",
+]
+
+# Sensitive home-directory paths
+SENSITIVE_HOME_PATHS = [
+    ".ssh", ".aws", ".azure", ".gcloud", ".config/gcloud",
+    ".kube", ".docker", ".gnupg", ".npmrc", ".pypirc",
+    ".netrc", ".env",
+]
+
+
+def check_bash_sandbox(command: str, project_dir: str) -> str:
+    """Check if a Bash command violates sandbox containment.
+
+    Returns empty string if allowed, or a denial reason if blocked.
+    """
+    full_project_dir = os.path.realpath(project_dir)
+    home_dir = os.path.expanduser("~")
+
+    # Unconditionally blocked commands in sandbox
+    if re.search(r'\bsudo\b', command):
+        return "SANDBOX: 'sudo' is not permitted in sandbox mode."
+    if re.search(r'\bsu\s', command):
+        return "SANDBOX: 'su' is not permitted in sandbox mode."
+
+    # Extract all paths from the command
+    paths_found = []
+    for match in BASH_PATH_RE.finditer(command):
+        abs_path = match.group(1)
+        home_path = match.group(2)
+        if abs_path:
+            paths_found.append(abs_path)
+        elif home_path:
+            # Expand ~/... to absolute
+            expanded = os.path.expanduser(home_path)
+            paths_found.append(expanded)
+
+    # Check each path for containment
+    for path in paths_found:
+        resolved = os.path.realpath(path)
+
+        # Check sensitive system paths
+        for sensitive in SENSITIVE_PATHS:
+            if resolved.startswith(sensitive) or resolved == sensitive.rstrip("/"):
+                return (
+                    f"SANDBOX: Bash command references sensitive path {path}. "
+                    f"Agents cannot access system paths in sandbox mode."
+                )
+
+        # Check sensitive home paths
+        for home_sensitive in SENSITIVE_HOME_PATHS:
+            sensitive_full = os.path.join(home_dir, home_sensitive)
+            if resolved.startswith(sensitive_full) or resolved == sensitive_full:
+                return (
+                    f"SANDBOX: Bash command references sensitive path {path}. "
+                    f"Agents cannot access credentials/keys in sandbox mode."
+                )
+
+        # If command has write operators, check path containment
+        if BASH_WRITE_OPERATORS.search(command):
+            is_contained = (
+                resolved == full_project_dir
+                or resolved.startswith(full_project_dir + os.sep)
+            )
+            if not is_contained:
+                return (
+                    f"SANDBOX: Bash write operation targets path outside project root: {path}. "
+                    f"All file modifications must be within {project_dir}."
+                )
+
+    # Check for scripting one-liners that can write anywhere (regardless of shell operators)
+    scripting_write = re.search(
+        r'(?:'
+        r'python[23]?\s+-c\s+.*(?:open|write|Path)'
+        r'|node\s+-e\s+.*(?:writeFile|appendFile|fs\.)'
+        r'|ruby\s+-e\s+.*(?:File\.write|File\.open|IO\.write)'
+        r'|perl\s+-e\s+.*(?:open|print\s+\w+\s)'
+        r')',
+        command,
+    )
+    if scripting_write:
+        return (
+            "SANDBOX: Bash command contains scripting language with file write "
+            "operations. Use Write/Edit tools instead for governed file access."
+        )
+
+    return ""  # Allowed
 
 
 def make_deny(reason: str) -> dict:
@@ -205,12 +330,13 @@ def main():
 
     tool_name = hook_input.get("tool_name", "")
 
-    # Intercept write tools OR read tools (if sandboxed)
+    # Intercept write tools OR read tools (if sandboxed) OR bash (if sandboxed)
     is_write = tool_name in INTERCEPTED_TOOLS
     is_read = tool_name in READ_TOOLS
+    is_bash = tool_name in BASH_TOOLS
     adt_sandbox = os.environ.get("ADT_SANDBOX") == "1"
 
-    if not is_write and not (is_read and adt_sandbox):
+    if not is_write and not (is_read and adt_sandbox) and not (is_bash and adt_sandbox):
         sys.exit(0)
 
     tool_input = hook_input.get("tool_input", {})
@@ -255,6 +381,17 @@ def main():
 
     if not spec_id:
         spec_id = "SPEC-017"
+
+    # SPEC-036: Bash sandbox enforcement
+    if is_bash and adt_sandbox:
+        bash_command = tool_input.get("command", "")
+        denial = check_bash_sandbox(bash_command, project_dir)
+        if denial:
+            print(json.dumps(make_deny(denial)))
+            sys.exit(0)
+        # Bash passed sandbox check -- allow
+        print(json.dumps(make_allow("SANDBOX: Bash command passed containment check")))
+        sys.exit(0)
 
     # Extract and convert file path
     abs_path = extract_file_path(tool_name, tool_input)

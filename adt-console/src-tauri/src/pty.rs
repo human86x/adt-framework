@@ -144,7 +144,7 @@ fn generate_claude_sandbox_config(
         "hooks": {
             "PreToolUse": [
                 {
-                    "matcher": "Write|Edit|NotebookEdit|Read|Glob|Grep",
+                    "matcher": "Write|Edit|NotebookEdit|Read|Glob|Grep|Bash",
                     "hooks": [{
                         "type": "command",
                         "command": format!("python3 {}", hook_path),
@@ -184,7 +184,7 @@ fn generate_gemini_sandbox_config(
     let config = serde_json::json!({
         "hooks": {
             "BeforeTool": [{
-                "matcher": "write_file|replace|read_file|list_files|search_files",
+                "matcher": "write_file|replace|read_file|list_files|search_files|run_shell|shell",
                 "hooks": [{
                     "type": "command",
                     "command": format!("python3 {}", hook_path),

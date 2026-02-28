@@ -568,3 +568,168 @@ class TestPhaseB_NamespaceIsolation:
         production_mode = True
         should_phase_b = production_mode and not is_framework
         assert should_phase_b, "Phase B should activate with production mode"
+
+
+class TestBashSandboxInterception:
+    """SPEC-036: Bash tool sandbox containment tests."""
+
+    def test_bash_write_outside_project_denied(self, sandbox_project):
+        """Bash redirect to path outside project root must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("echo x > /tmp/evil.txt", project_root)
+        assert result, "Write to /tmp should be denied"
+        assert "outside project root" in result
+
+    def test_bash_write_inside_project_allowed(self, sandbox_project):
+        """Bash redirect to path inside project root must be allowed."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        target = os.path.join(project_root, "output.txt")
+        result = mod.check_bash_sandbox(f"echo test > {target}", project_root)
+        assert result == "", f"Write inside project should be allowed, got: {result}"
+
+    def test_bash_read_etc_denied(self, sandbox_project):
+        """Bash reading /etc/* must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("cat /etc/shadow", project_root)
+        assert result, "/etc/shadow should be denied"
+        assert "sensitive path" in result
+
+    def test_bash_read_ssh_keys_denied(self, sandbox_project):
+        """Bash reading ~/.ssh/* must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("cat ~/.ssh/id_rsa", project_root)
+        assert result, "SSH keys should be denied"
+        assert "sensitive path" in result or "credentials" in result
+
+    def test_bash_read_aws_credentials_denied(self, sandbox_project):
+        """Bash reading ~/.aws/* must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("cat ~/.aws/credentials", project_root)
+        assert result, "AWS creds should be denied"
+
+    def test_bash_sudo_unconditionally_denied(self, sandbox_project):
+        """sudo must be blocked regardless of target path."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("sudo apt install something", project_root)
+        assert result, "sudo should be denied"
+        assert "sudo" in result
+
+    def test_bash_python_oneliner_write_denied(self, sandbox_project):
+        """Python one-liner file writes must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox(
+            "python3 -c \"open('/tmp/x','w').write('y')\"", project_root
+        )
+        assert result, "Python file write should be denied"
+        assert "scripting language" in result
+
+    def test_bash_node_oneliner_write_denied(self, sandbox_project):
+        """Node one-liner file writes must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox(
+            "node -e \"fs.writeFileSync('/x','y')\"", project_root
+        )
+        assert result, "Node file write should be denied"
+        assert "scripting language" in result
+
+    def test_bash_tee_outside_denied(self, sandbox_project):
+        """tee to path outside project must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("echo x | tee /tmp/out.txt", project_root)
+        assert result, "tee to /tmp should be denied"
+
+    def test_bash_cp_outside_denied(self, sandbox_project):
+        """cp to path outside project must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("cp secret.txt /home/other/", project_root)
+        assert result, "cp outside should be denied"
+
+    def test_bash_symlink_escape_denied(self, sandbox_project):
+        """ln -s creating escape symlink must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        target = os.path.join(project_root, "link")
+        result = mod.check_bash_sandbox(
+            f"ln -s /etc/passwd {target}", project_root
+        )
+        assert result, "Symlink to /etc should be denied"
+
+    def test_bash_safe_commands_allowed(self, sandbox_project):
+        """Safe commands with no external paths must be allowed."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        safe_commands = [
+            "git status",
+            "python3 main.py",
+            "pip install flask",
+            "npm test",
+            "cargo build",
+            "make all",
+            "pytest -v",
+        ]
+        for cmd in safe_commands:
+            result = mod.check_bash_sandbox(cmd, project_root)
+            assert result == "", f"'{cmd}' should be allowed, got: {result}"
+
+    def test_bash_proc_access_denied(self, sandbox_project):
+        """Access to /proc must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("cat /proc/1/cmdline", project_root)
+        assert result, "/proc should be denied"
+
+    def test_bash_chmod_outside_denied(self, sandbox_project):
+        """chmod on path outside project must be denied."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("chmod 777 /etc/crontab", project_root)
+        assert result, "chmod outside should be denied"
+
+    def test_bash_chmod_inside_allowed(self, sandbox_project):
+        """chmod on path inside project must be allowed."""
+        mod = _load_claude_hook()
+        project_root = str(sandbox_project["project_root"])
+        target = os.path.join(project_root, "run.sh")
+        result = mod.check_bash_sandbox(f"chmod +x {target}", project_root)
+        assert result == "", f"chmod inside project should be allowed, got: {result}"
+
+
+class TestGeminiBashSandbox:
+    """SPEC-036: Gemini shell tool sandbox containment tests."""
+
+    def test_gemini_bash_write_outside_denied(self, sandbox_project):
+        """Gemini shell write outside project must be denied."""
+        mod = _load_gemini_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("echo x > /tmp/evil.txt", project_root)
+        assert result, "Write to /tmp should be denied"
+
+    def test_gemini_bash_sudo_denied(self, sandbox_project):
+        """Gemini shell sudo must be denied."""
+        mod = _load_gemini_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("sudo rm -rf /", project_root)
+        assert result, "sudo should be denied"
+
+    def test_gemini_bash_safe_allowed(self, sandbox_project):
+        """Gemini shell safe commands must be allowed."""
+        mod = _load_gemini_hook()
+        project_root = str(sandbox_project["project_root"])
+        result = mod.check_bash_sandbox("npm test", project_root)
+        assert result == "", "npm test should be allowed"
+
+    def test_gemini_has_bash_tools_defined(self):
+        """Gemini hook must define BASH_TOOLS for shell interception."""
+        mod = _load_gemini_hook()
+        assert hasattr(mod, "BASH_TOOLS"), "BASH_TOOLS must be defined"
+        assert "run_shell" in mod.BASH_TOOLS or "shell" in mod.BASH_TOOLS
