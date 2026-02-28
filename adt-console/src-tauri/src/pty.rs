@@ -300,6 +300,160 @@ fn is_framework_project(project_root: &Path, framework_root: &Path) -> bool {
     canon_project == canon_framework
 }
 
+
+// --- SPEC-036 Phase B: OS-Level Namespace Isolation ---
+
+/// Check if bubblewrap (bwrap) is available on the system.
+fn has_bubblewrap() -> bool {
+    Command::new("which")
+        .arg("bwrap")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Check if user namespaces are supported (unshare works without root).
+fn has_user_namespaces() -> bool {
+    Command::new("unshare")
+        .args(["--user", "--map-root-user", "true"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Build the command prefix for bubblewrap (bwrap) sandboxing.
+/// This creates a minimal filesystem view containing only the project root
+/// and essential system directories (read-only).
+fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
+    let project_str = project_root.to_string_lossy().to_string();
+
+    let mut args = vec![
+        "bwrap".to_string(),
+        // Essential system dirs (read-only)
+        "--ro-bind".to_string(), "/usr".to_string(), "/usr".to_string(),
+        "--ro-bind".to_string(), "/lib".to_string(), "/lib".to_string(),
+        "--ro-bind".to_string(), "/bin".to_string(), "/bin".to_string(),
+        "--ro-bind".to_string(), "/sbin".to_string(), "/sbin".to_string(),
+        "--ro-bind".to_string(), "/etc".to_string(), "/etc".to_string(),
+    ];
+
+    // /lib64 exists on some distros
+    if Path::new("/lib64").exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), "/lib64".to_string(), "/lib64".to_string(),
+        ]);
+    }
+
+    // /lib32 on some distros
+    if Path::new("/lib32").exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), "/lib32".to_string(), "/lib32".to_string(),
+        ]);
+    }
+
+    args.extend_from_slice(&[
+        // Project directory (read-write)
+        "--bind".to_string(), project_str.clone(), "/project".to_string(),
+        // Temporary directories
+        "--tmpfs".to_string(), "/tmp".to_string(),
+        // Device and proc filesystems
+        "--dev".to_string(), "/dev".to_string(),
+        "--proc".to_string(), "/proc".to_string(),
+        // Network isolation -- agent can only reach loopback
+        "--unshare-net".to_string(),
+        // Kill agent if Console dies
+        "--die-with-parent".to_string(),
+        // Set working directory
+        "--chdir".to_string(), "/project".to_string(),
+        // Separator before the actual command
+        "--".to_string(),
+    ]);
+
+    args
+}
+
+/// Build the command prefix for unshare-based namespace isolation.
+/// This is the preferred method when user namespaces are available.
+fn build_unshare_script(project_root: &Path, _dttp_port: u16) -> String {
+    let project_str = project_root.to_string_lossy();
+    format!(
+        r#"mount --make-rprivate / 2>/dev/null; mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc; mount --bind {project} /sandbox/project; mount --rbind /usr /sandbox/usr; mount --rbind /lib /sandbox/lib; mount --rbind /bin /sandbox/bin; mount --rbind /sbin /sandbox/sbin; mount --rbind /etc /sandbox/etc; test -d /lib64 && mkdir -p /sandbox/lib64 && mount --rbind /lib64 /sandbox/lib64; mount -t tmpfs tmpfs /sandbox/tmp; mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; mount -t proc proc /sandbox/proc; cd /sandbox && pivot_root . /sandbox/tmp 2>/dev/null && umount -l /tmp/tmp 2>/dev/null; cd /project"#,
+        project = project_str
+    )
+}
+
+/// Determine the isolation method for Phase B.
+/// Returns: "bwrap", "unshare", or "none"
+fn detect_isolation_method() -> &'static str {
+    if has_bubblewrap() {
+        "bwrap"
+    } else if has_user_namespaces() {
+        "unshare"
+    } else {
+        "none"
+    }
+}
+
+/// Wrap a command with namespace isolation for Phase B (Tier 1 production mode).
+/// Returns the modified command and args, or None if isolation is not available.
+fn wrap_with_namespace(
+    command: &str,
+    args: &[String],
+    project_root: &Path,
+    dttp_port: u16,
+) -> Option<(String, Vec<String>)> {
+    let method = detect_isolation_method();
+
+    match method {
+        "bwrap" => {
+            let mut bwrap_args = build_bwrap_args(project_root, dttp_port);
+            bwrap_args.push(command.to_string());
+            bwrap_args.extend(args.iter().cloned());
+
+            // bwrap is the command, everything else is args
+            let bwrap_cmd = bwrap_args.remove(0);
+            log::info!(
+                "[SANDBOX PHASE B] Using bubblewrap isolation for {}",
+                project_root.display()
+            );
+            Some((bwrap_cmd, bwrap_args))
+        }
+        "unshare" => {
+            // unshare with mount namespace
+            let setup_script = build_unshare_script(project_root, dttp_port);
+            let agent_cmd = if args.is_empty() {
+                command.to_string()
+            } else {
+                format!("{} {}", command, args.join(" "))
+            };
+            let full_script = format!("{}; exec {}", setup_script, agent_cmd);
+
+            log::info!(
+                "[SANDBOX PHASE B] Using unshare namespace isolation for {}",
+                project_root.display()
+            );
+            Some((
+                "unshare".to_string(),
+                vec![
+                    "--mount".to_string(),
+                    "--map-root-user".to_string(),
+                    "--fork".to_string(),
+                    "--".to_string(),
+                    "/bin/bash".to_string(),
+                    "-c".to_string(),
+                    full_script,
+                ],
+            ))
+        }
+        _ => {
+            log::warn!(
+                "[SANDBOX PHASE B] No isolation method available (no bwrap, no user namespaces).                  Falling back to Phase A only."
+            );
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub id: String,
@@ -499,8 +653,46 @@ impl PtyManager {
             id
         };
 
-        let mut cmd = if let Some(ref _agent_user) = agent_user {
-            // Wrap with sudo -u agent: sudo -u agent <command> [args...]
+        // SPEC-036 Phase B: Determine if namespace isolation applies
+        // Must be decided before building CommandBuilder
+        let framework_root = get_framework_root();
+        let phase_b_wrap: Option<(String, Vec<String>)> = if production_mode && is_agent_session {
+            if let Some(ref cwd_path) = cwd {
+                let project_root = PathBuf::from(cwd_path);
+                let is_fw = is_framework_project(&project_root, &framework_root);
+                if !is_fw {
+                    let dttp_port_num = {
+                        let config_path = project_root.join("config").join("dttp.json");
+                        if config_path.exists() {
+                            fs::read_to_string(&config_path).ok()
+                                .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+                                .and_then(|j| j.get("port").and_then(|p| p.as_u64()))
+                                .map(|p| p as u16)
+                                .unwrap_or(5002)
+                        } else {
+                            5002
+                        }
+                    };
+                    wrap_with_namespace(&resolved_command, args, &project_root, dttp_port_num)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut cmd = if let Some((ref ns_cmd, ref ns_args)) = phase_b_wrap {
+            // Phase B: Namespace-wrapped command (production + external project)
+            let mut c = CommandBuilder::new(ns_cmd);
+            for arg in ns_args {
+                c.arg(arg);
+            }
+            c
+        } else if let Some(ref _agent_user) = agent_user {
+            // Tier 1 production mode but framework project (no namespace)
             let mut c = CommandBuilder::new("sudo");
             c.arg("-u");
             c.arg("agent");
@@ -546,7 +738,6 @@ impl PtyManager {
         };
 
         // SPEC-036: Set up sandbox for agent sessions
-        let framework_root = get_framework_root();
         let sandbox_root = if should_sandbox(agent, cwd.as_deref()) {
             let project_root = PathBuf::from(cwd.as_deref().unwrap());
             let is_framework = is_framework_project(&project_root, &framework_root);

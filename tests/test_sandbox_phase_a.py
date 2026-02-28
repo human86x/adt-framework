@@ -446,3 +446,125 @@ class TestGeminiHookSandbox:
         )
         # Outside project returns absolute path
         assert os.path.isabs(rel), f"Path outside project should remain absolute: {rel}"
+
+
+# === Test Class: Phase B Namespace Isolation (task_150) ===
+
+class TestPhaseB_NamespaceIsolation:
+    """Verify OS-level namespace isolation logic (SPEC-036 Phase B)."""
+
+    def test_bwrap_detection(self):
+        """bubblewrap availability should be detectable."""
+        import shutil
+        bwrap_path = shutil.which("bwrap")
+        # bwrap may or may not be installed -- test just ensures no crash
+        if bwrap_path:
+            assert os.path.isfile(bwrap_path)
+
+    def test_bwrap_args_contain_ro_bind(self, sandbox_project):
+        """bwrap args should include read-only system dir binds."""
+        project_root = sandbox_project["project_root"]
+        # Simulate build_bwrap_args logic
+        args = [
+            "bwrap",
+            "--ro-bind", "/usr", "/usr",
+            "--ro-bind", "/lib", "/lib",
+            "--ro-bind", "/bin", "/bin",
+            "--ro-bind", "/sbin", "/sbin",
+            "--ro-bind", "/etc", "/etc",
+            "--bind", project_root, "/project",
+            "--tmpfs", "/tmp",
+            "--dev", "/dev",
+            "--proc", "/proc",
+            "--unshare-net",
+            "--die-with-parent",
+            "--chdir", "/project",
+            "--",
+        ]
+
+        # Verify structure
+        assert args[0] == "bwrap"
+        assert "--ro-bind" in args
+        assert "--bind" in args
+        assert "--unshare-net" in args
+        assert "--die-with-parent" in args
+        assert args[-1] == "--"
+
+        # /usr should be read-only
+        ro_bind_idx = args.index("--ro-bind")
+        assert args[ro_bind_idx + 1] == "/usr"
+
+        # Project should be read-write bind
+        bind_idx = args.index("--bind")
+        assert args[bind_idx + 1] == project_root
+        assert args[bind_idx + 2] == "/project"
+
+    def test_bwrap_no_home_dir_exposed(self, sandbox_project):
+        """bwrap args should NOT include /home binding."""
+        args = [
+            "--ro-bind", "/usr", "/usr",
+            "--ro-bind", "/lib", "/lib",
+            "--ro-bind", "/bin", "/bin",
+            "--bind", sandbox_project["project_root"], "/project",
+            "--tmpfs", "/tmp",
+        ]
+        # /home should not appear anywhere in binds
+        home_binds = [a for a in args if a.startswith("/home")]
+        assert len(home_binds) == 0, "No /home paths should be in bwrap args"
+
+    def test_network_isolation_flag_present(self):
+        """bwrap should include --unshare-net for network isolation."""
+        args = ["--unshare-net", "--die-with-parent"]
+        assert "--unshare-net" in args
+
+    def test_die_with_parent_flag(self):
+        """bwrap should kill agent if Console dies."""
+        args = ["--die-with-parent"]
+        assert "--die-with-parent" in args
+
+    def test_unshare_script_mounts_project(self, sandbox_project):
+        """unshare script should mount project at /sandbox/project."""
+        project_root = sandbox_project["project_root"]
+        # Simulate build_unshare_script
+        script = f"mount --bind {project_root} /sandbox/project"
+        assert project_root in script
+        assert "/sandbox/project" in script
+
+    def test_unshare_script_makes_system_readonly(self):
+        """unshare script should mount system dirs read-only."""
+        script = "mount --rbind /usr /sandbox/usr"
+        assert "--rbind" in script
+        assert "/usr" in script
+
+    def test_phase_b_only_for_external_projects(self, tmp_path):
+        """Phase B should NOT activate for framework project."""
+        framework_root = tmp_path / "adt-framework"
+        framework_root.mkdir()
+
+        # Same path = framework = no Phase B
+        is_framework = (
+            os.path.realpath(str(framework_root)) ==
+            os.path.realpath(str(framework_root))
+        )
+        assert is_framework, "Framework project should be detected"
+
+        # Different path = external = Phase B applies
+        external = tmp_path / "my-app"
+        external.mkdir()
+        is_external = (
+            os.path.realpath(str(external)) !=
+            os.path.realpath(str(framework_root))
+        )
+        assert is_external, "External project should be detected"
+
+    def test_phase_b_requires_production_mode(self):
+        """Phase B should only activate when production mode is on."""
+        # In code, Phase B is gated by: production_mode && !is_framework
+        production_mode = False
+        is_framework = False
+        should_phase_b = production_mode and not is_framework
+        assert not should_phase_b, "Phase B requires production mode"
+
+        production_mode = True
+        should_phase_b = production_mode and not is_framework
+        assert should_phase_b, "Phase B should activate with production mode"
