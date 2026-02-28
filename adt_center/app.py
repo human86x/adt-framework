@@ -64,6 +64,18 @@ def create_app():
     app.spec_registry = SpecRegistry(SPECS_DIR)
     app.task_manager = TaskManager(TASKS_PATH, project_name=app.config["PROJECT_NAME"])
 
+    # SPEC-020 Amendment B: Load canonical roles for normalization
+    try:
+        from adt_core.ads.schema import ADSEventSchema
+        import json
+        jurisdictions_path = os.path.join(PROJECT_ROOT, "config", "jurisdictions.json")
+        if os.path.exists(jurisdictions_path):
+            with open(jurisdictions_path) as f:
+                jur_data = json.load(f)
+                ADSEventSchema.CANONICAL_ROLES = list(jur_data.get("jurisdictions", {}).keys())
+    except Exception as e:
+        app.logger.warning(f"Failed to load canonical roles for normalization: {e}")
+
     # Register Jinja2 filter for markdown
     @app.template_filter('markdown')
     def markdown_filter(text):
@@ -264,4 +276,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="::", port=5001, debug=False)
