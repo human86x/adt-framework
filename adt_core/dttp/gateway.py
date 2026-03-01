@@ -52,6 +52,14 @@ class DTTPGateway:
         Processes a DTTP request: validates, logs pre-action, executes, logs post-action.
         If dry_run=True, runs all validation but skips execution.
         """
+        # SPEC-036 / REQ-029: Normalize action type
+        # Treat 'write' and 'create' as 'edit' (full file write)
+        # Treat 'replace' as 'patch' (partial file update)
+        if action in ("write", "create"):
+            action = "edit"
+        elif action == "replace":
+            action = "patch"
+
         path = params.get("file") or params.get("path")
         normalized_path = os.path.normpath(path) if path else None
 
