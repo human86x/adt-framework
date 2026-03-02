@@ -328,17 +328,18 @@ def main():
             except OSError:
                 pass  # Fall back to default
     
-    # Active spec still from file if available, or env var
+    # SPEC-037: Fix spec priority (env var first, then file fallback)
     spec_id = os.environ.get("ADT_SPEC_ID")
-    spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
-    if os.path.exists(spec_file):
-        try:
-            with open(spec_file) as sf:
-                file_spec = sf.read().strip()
-                if file_spec:
-                    spec_id = file_spec
-        except OSError:
-            pass
+    if not spec_id:
+        spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
+        if os.path.exists(spec_file):
+            try:
+                with open(spec_file) as sf:
+                    file_spec = sf.read().strip()
+                    if file_spec:
+                        spec_id = file_spec
+            except OSError:
+                pass
 
     if not role:
         role = "Backend_Engineer"
