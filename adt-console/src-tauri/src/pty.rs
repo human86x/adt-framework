@@ -305,12 +305,30 @@ fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
 /// Get the framework root directory (where the ADT Framework is installed).
 fn get_framework_root() -> PathBuf {
     if let Ok(root) = std::env::var("ADT_FRAMEWORK_ROOT") {
-        return PathBuf::from(root);
+        let path = PathBuf::from(root);
+        if path.exists() {
+            return path;
+        }
     }
-    // Fallback to standard location
-    dirs::home_dir()
-        .map(|h| h.join("Projects/adt-framework"))
-        .unwrap_or_else(|| PathBuf::from("."))
+    // Fallback 1: Standard location
+    if let Some(home) = dirs::home_dir() {
+        let path = home.join("Projects/adt-framework");
+        if path.exists() {
+            return path;
+        }
+    }
+    // Fallback 2: Current executable directory traversal (for development)
+    if let Ok(exe_path) = std::env::current_exe() {
+        let mut curr = exe_path.parent();
+        while let Some(path) = curr {
+            if path.join("_cortex").exists() {
+                return path.to_path_buf();
+            }
+            curr = path.parent();
+        }
+    }
+    // Final fallback: current directory
+    PathBuf::from(".")
 }
 
 /// Check if a project path is the framework itself.
@@ -326,16 +344,12 @@ fn is_framework_project(project_root: &Path, framework_root: &Path) -> bool {
 
 /// Check if bubblewrap (bwrap) is available on the system.
 fn has_bubblewrap() -> bool {
-    Command::new("which")
-        .arg("bwrap")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    Path::new("/usr/bin/bwrap").exists()
 }
 
 /// Check if user namespaces are supported (unshare works without root).
 fn has_user_namespaces() -> bool {
-    Command::new("unshare")
+    Command::new("/usr/bin/unshare")
         .args(["--user", "--map-root-user", "true"])
         .output()
         .map(|o| o.status.success())
@@ -455,7 +469,7 @@ fn build_unshare_script(project_root: &Path, _dttp_port: u16, framework_root: &P
     let project_str = project_root.to_string_lossy();
     let framework_str = framework_root.to_string_lossy();
     format!(
-        r#"mount --make-rprivate / 2>/dev/null; mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; mount --bind {project} /sandbox/project; mount --rbind /usr /sandbox/usr; mount --rbind /lib /sandbox/lib; mount --rbind /bin /sandbox/bin; mount --rbind /sbin /sandbox/sbin; mount --rbind /etc /sandbox/etc; mount --rbind {framework} /sandbox/adt-framework; test -d /lib64 && mkdir -p /sandbox/lib64 && mount --rbind /lib64 /sandbox/lib64; mount -t tmpfs tmpfs /sandbox/tmp; mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; mount -t proc proc /sandbox/proc; cd /sandbox && pivot_root . /sandbox/tmp 2>/dev/null && umount -l /tmp/tmp 2>/dev/null; cd /project"#,
+        r#"/usr/bin/mount --make-rprivate / 2>/dev/null; /usr/bin/mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; /usr/bin/mount --bind {project} /sandbox/project; /usr/bin/mount --rbind /usr /sandbox/usr; /usr/bin/mount --rbind /lib /sandbox/lib; /usr/bin/mount --rbind /bin /sandbox/bin; /usr/bin/mount --rbind /sbin /sandbox/sbin; /usr/bin/mount --rbind /etc /sandbox/etc; /usr/bin/mount --rbind {framework} /sandbox/adt-framework; /usr/bin/test -d /lib64 && /usr/bin/mkdir -p /sandbox/lib64 && /usr/bin/mount --rbind /lib64 /sandbox/lib64; /usr/bin/mount -t tmpfs tmpfs /sandbox/tmp; /usr/bin/mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; /usr/bin/mount -t proc proc /sandbox/proc; cd /sandbox && /usr/sbin/pivot_root . /sandbox/tmp 2>/dev/null && /usr/bin/umount -l /tmp/tmp 2>/dev/null; cd /project"#,
         project = project_str,
         framework = framework_str
     )
