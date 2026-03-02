@@ -403,15 +403,25 @@ fn build_bwrap_args(
         ]);
     }
 
-    // Agent binary parent dir (so the CLI can be found inside the namespace)
+    // Agent binary context (parent + sibling lib dir for npm/cargo)
     let binary_parent = Path::new(agent_binary_path)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_default();
+
     if !binary_parent.is_empty() && Path::new(&binary_parent).exists() {
-        args.extend_from_slice(&[
-            "--ro-bind".to_string(), binary_parent.clone(), binary_parent.clone(),
-        ]);
+        args.extend_from_slice(&["--ro-bind".to_string(), binary_parent.clone(), binary_parent.clone()]);
+
+        // Mount sibling 'lib' dir if it exists (common for npm global modules)
+        if binary_parent.ends_with("bin") {
+            if let Some(prefix) = Path::new(&binary_parent).parent() {
+                let lib_dir = prefix.join("lib");
+                if lib_dir.exists() {
+                    let lib_str = lib_dir.to_string_lossy().to_string();
+                    args.extend_from_slice(&["--ro-bind".to_string(), lib_str.clone(), lib_str.clone()]);
+                }
+            }
+        }
     }
 
     // Common user tool directories (npm global, cargo, pipx, etc.)
@@ -465,13 +475,42 @@ fn build_bwrap_args(
 
 /// Build the command prefix for unshare-based namespace isolation.
 /// This is the preferred method when user namespaces are available.
-fn build_unshare_script(project_root: &Path, _dttp_port: u16, framework_root: &Path) -> String {
+fn build_unshare_script(
+    project_root: &Path,
+    _dttp_port: u16,
+    framework_root: &Path,
+    agent_binary_path: &str,
+) -> String {
     let project_str = project_root.to_string_lossy();
     let framework_str = framework_root.to_string_lossy();
+
+    // Determine binary parent to mount
+    let binary_parent = Path::new(agent_binary_path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let mut binary_mount = String::new();
+    if !binary_parent.is_empty() && Path::new(&binary_parent).exists() {
+        binary_mount.push_str(&format!("mkdir -p /sandbox{bin}; mount --rbind {bin} /sandbox{bin}; ", bin = binary_parent));
+
+        // Mount sibling 'lib' dir if it exists (common for npm global modules)
+        if binary_parent.ends_with("bin") {
+            if let Some(prefix) = Path::new(&binary_parent).parent() {
+                let lib_dir = prefix.join("lib");
+                if lib_dir.exists() {
+                    let lib_str = lib_dir.to_string_lossy().to_string();
+                    binary_mount.push_str(&format!("mkdir -p /sandbox{lib}; mount --rbind {lib} /sandbox{lib}; ", lib = lib_str));
+                }
+            }
+        }
+    }
+
     format!(
-        r#"/usr/bin/mount --make-rprivate / 2>/dev/null; /usr/bin/mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; /usr/bin/mount --bind {project} /sandbox/project; /usr/bin/mount --rbind /usr /sandbox/usr; /usr/bin/mount --rbind /lib /sandbox/lib; /usr/bin/mount --rbind /bin /sandbox/bin; /usr/bin/mount --rbind /sbin /sandbox/sbin; /usr/bin/mount --rbind /etc /sandbox/etc; /usr/bin/mount --rbind {framework} /sandbox/adt-framework; /usr/bin/test -d /lib64 && /usr/bin/mkdir -p /sandbox/lib64 && /usr/bin/mount --rbind /lib64 /sandbox/lib64; /usr/bin/mount -t tmpfs tmpfs /sandbox/tmp; /usr/bin/mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; /usr/bin/mount -t proc proc /sandbox/proc; cd /sandbox && /usr/sbin/pivot_root . /sandbox/tmp 2>/dev/null && /usr/bin/umount -l /tmp/tmp 2>/dev/null; cd /project"#,
+        r#"/usr/bin/mount --make-rprivate / 2>/dev/null; /usr/bin/mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; /usr/bin/mount --bind {project} /sandbox/project; /usr/bin/mount --rbind /usr /sandbox/usr; /usr/bin/mount --rbind /lib /sandbox/lib; /usr/bin/mount --rbind /bin /sandbox/bin; /usr/bin/mount --rbind /sbin /sandbox/sbin; /usr/bin/mount --rbind /etc /sandbox/etc; /usr/bin/mount --rbind {framework} /sandbox/adt-framework; {bin_mount} /usr/bin/test -d /lib64 && /usr/bin/mkdir -p /sandbox/lib64 && /usr/bin/mount --rbind /lib64 /sandbox/lib64; /usr/bin/mount -t tmpfs tmpfs /sandbox/tmp; /usr/bin/mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; /usr/bin/mount -t proc proc /sandbox/proc; cd /sandbox && /usr/sbin/pivot_root . /sandbox/tmp 2>/dev/null && /usr/bin/umount -l /tmp/tmp 2>/dev/null; cd /project"#,
         project = project_str,
-        framework = framework_str
+        framework = framework_str,
+        bin_mount = binary_mount
     )
 }
 
@@ -514,7 +553,7 @@ fn wrap_with_namespace(
         }
         "unshare" => {
             // unshare with mount namespace
-            let setup_script = build_unshare_script(project_root, dttp_port, framework_root);
+            let setup_script = build_unshare_script(project_root, dttp_port, framework_root, command);
             let agent_cmd = if args.is_empty() {
                 command.to_string()
             } else {
@@ -527,7 +566,7 @@ fn wrap_with_namespace(
                 project_root.display()
             );
             Some((
-                "unshare".to_string(),
+                "/usr/bin/unshare".to_string(),
                 vec![
                     "--mount".to_string(),
                     "--map-root-user".to_string(),
@@ -727,7 +766,13 @@ impl PtyManager {
         // Tauri apps launched from desktop environments inherit a minimal PATH.
         let user_path = resolve_user_path();
         let resolved_command = resolve_command(command, &user_path);
-        log::info!("[PTY PATH] Resolved '{}' -> '{}'", command, resolved_command);
+        // Canonicalize to resolve symlinks (crucial for sandboxing npm-global modules)
+        let canonical_command = PathBuf::from(&resolved_command)
+            .canonicalize()
+            .unwrap_or_else(|_| PathBuf::from(&resolved_command));
+        let command_to_run = canonical_command.to_string_lossy().to_string();
+        log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')", 
+                  command, resolved_command, command_to_run);
 
         // SPEC-027: In production mode, wrap agent commands with sudo -u agent.
         // Shell sessions requested by the human remain as the human user.
@@ -769,7 +814,7 @@ impl PtyManager {
                             5002
                         }
                     };
-                    wrap_with_namespace(&resolved_command, args, &project_root, dttp_port_num, &framework_root)
+                    wrap_with_namespace(&command_to_run, args, &project_root, dttp_port_num, &framework_root)
                 } else {
                     None
                 }
@@ -792,13 +837,13 @@ impl PtyManager {
             let mut c = CommandBuilder::new("/usr/bin/sudo");
             c.arg("-u");
             c.arg("agent");
-            c.arg(&resolved_command);
+            c.arg(&command_to_run);
             for arg in args {
                 c.arg(arg);
             }
             c
         } else {
-            let mut c = CommandBuilder::new(&resolved_command);
+            let mut c = CommandBuilder::new(&command_to_run);
             for arg in args {
                 c.arg(arg);
             }
