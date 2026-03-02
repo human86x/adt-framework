@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "command": "/home/human/Projects/adt-framework/adt_sdk/hooks/claude_pretool.py"
+      }
+    ]
+  }
+}

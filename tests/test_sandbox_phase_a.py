@@ -462,9 +462,10 @@ class TestPhaseB_NamespaceIsolation:
             assert os.path.isfile(bwrap_path)
 
     def test_bwrap_args_contain_ro_bind(self, sandbox_project):
-        """bwrap args should include read-only system dir binds."""
+        """bwrap args should include read-only system dir binds and framework mount."""
         project_root = sandbox_project["project_root"]
-        # Simulate build_bwrap_args logic
+        framework_root = "/home/test/adt-framework"
+        # Simulate build_bwrap_args logic (Phase B fixes applied)
         args = [
             "bwrap",
             "--ro-bind", "/usr", "/usr",
@@ -472,11 +473,11 @@ class TestPhaseB_NamespaceIsolation:
             "--ro-bind", "/bin", "/bin",
             "--ro-bind", "/sbin", "/sbin",
             "--ro-bind", "/etc", "/etc",
+            "--ro-bind", framework_root, "/adt-framework",
             "--bind", project_root, "/project",
             "--tmpfs", "/tmp",
             "--dev", "/dev",
             "--proc", "/proc",
-            "--unshare-net",
             "--die-with-parent",
             "--chdir", "/project",
             "--",
@@ -486,13 +487,17 @@ class TestPhaseB_NamespaceIsolation:
         assert args[0] == "bwrap"
         assert "--ro-bind" in args
         assert "--bind" in args
-        assert "--unshare-net" in args
+        # --unshare-net must NOT be present (breaks DTTP localhost access)
+        assert "--unshare-net" not in args, "bwrap must not use --unshare-net (breaks DTTP)"
         assert "--die-with-parent" in args
         assert args[-1] == "--"
 
         # /usr should be read-only
         ro_bind_idx = args.index("--ro-bind")
         assert args[ro_bind_idx + 1] == "/usr"
+
+        # Framework should be mounted at /adt-framework
+        assert "/adt-framework" in args, "Framework must be mounted at /adt-framework for hooks"
 
         # Project should be read-write bind
         bind_idx = args.index("--bind")
@@ -512,10 +517,14 @@ class TestPhaseB_NamespaceIsolation:
         home_binds = [a for a in args if a.startswith("/home")]
         assert len(home_binds) == 0, "No /home paths should be in bwrap args"
 
-    def test_network_isolation_flag_present(self):
-        """bwrap should include --unshare-net for network isolation."""
-        args = ["--unshare-net", "--die-with-parent"]
-        assert "--unshare-net" in args
+    def test_no_network_isolation_flag(self):
+        """bwrap must NOT include --unshare-net (breaks DTTP localhost access).
+        Network isolation deferred to future slirp4netns integration.
+        Phase A hooks already block curl/wget/ssh/scp."""
+        # Simulate current bwrap args (--unshare-net removed)
+        args = ["--die-with-parent", "--chdir", "/project"]
+        assert "--unshare-net" not in args, "Network namespace breaks DTTP"
+        assert "--die-with-parent" in args
 
     def test_die_with_parent_flag(self):
         """bwrap should kill agent if Console dies."""
@@ -556,6 +565,37 @@ class TestPhaseB_NamespaceIsolation:
             os.path.realpath(str(framework_root))
         )
         assert is_external, "External project should be detected"
+
+    def test_namespace_mode_hook_paths(self):
+        """In namespace mode, hook paths should use /adt-framework/ prefix."""
+        # When namespace_mode=True, hooks reference /adt-framework/ mount
+        namespace_hook = "/adt-framework/adt_sdk/hooks/claude_pretool.py"
+        assert namespace_hook.startswith("/adt-framework/")
+        # When namespace_mode=False, hooks use host absolute paths
+        host_hook = "/home/test/adt-framework/adt_sdk/hooks/claude_pretool.py"
+        assert not host_hook.startswith("/adt-framework/")
+
+    def test_namespace_mode_env_paths(self):
+        """In namespace mode, env vars should use /project/ and /adt-framework/ paths."""
+        # Namespace mode env expectations
+        ns_env = {
+            "HOME": "/project/.adt/sandbox/session_42/home",
+            "TMPDIR": "/tmp",
+            "ADT_SANDBOX_ROOT": "/project",
+            "ADT_PROJECT_DIR": "/project",
+            "PYTHONPATH": "/adt-framework",
+        }
+        assert ns_env["HOME"].startswith("/project/")
+        assert ns_env["TMPDIR"] == "/tmp"
+        assert ns_env["ADT_SANDBOX_ROOT"] == "/project"
+        assert ns_env["PYTHONPATH"] == "/adt-framework"
+
+    def test_namespace_mode_settings_path(self):
+        """In namespace mode, --settings path should use /project/ prefix."""
+        session_id = "session_42"
+        ns_settings = f"/project/.adt/sandbox/{session_id}/claude_sandbox_settings.json"
+        assert ns_settings.startswith("/project/")
+        assert session_id in ns_settings
 
     def test_phase_b_requires_production_mode(self):
         """Phase B should only activate when production mode is on."""

@@ -1658,7 +1658,7 @@
       "description": "Both hook configs use relative paths (python3 adt_sdk/hooks/gemini_pretool.py and python3 adt_sdk/hooks/claude_pretool.py). When sessions open with wrong CWD, hooks silently fail. Fix: update both to use absolute paths (python3 /home/human/Projects/adt-framework/adt_sdk/hooks/...). Also update adt_core/cli.py init_command() hook installation to write absolute paths based on the framework install location.",
       "spec_ref": "SPEC-034",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "depends_on": []
     },
@@ -1742,7 +1742,7 @@
       "description": "Implement sandbox dir management in pty.rs: create <project_root>/.adt/sandbox/<session_id>/ on start, delete on exit.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1751,7 +1751,7 @@
       "description": "Generate per-session .claude/settings.json in sandbox dir with strict allowedDirectories and permissions.deny lists.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1760,7 +1760,7 @@
       "description": "Generate per-session .gemini/settings.json in sandbox dir with equivalent isolation config.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1769,7 +1769,7 @@
       "description": "Redirect HOME/TMPDIR to sandbox, strip sensitive env vars (SSH_AUTH_SOCK, AWS_*, etc), set ADT_SANDBOX=1.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1817,7 +1817,7 @@
       "description": "Verify agent cannot read outside project root via any governed tool.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1826,7 +1826,7 @@
       "description": "Verify Bash tool blocklist and containment.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1835,7 +1835,7 @@
       "description": "Hardware-enforced isolation using mount namespaces and pivot_root in pty.rs.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1853,7 +1853,7 @@
       "description": "Use bwrap for isolation on systems where unprivileged unshare is disabled.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium"
     },
     {
@@ -1862,7 +1862,7 @@
       "description": "Verify absolute path isolation and network blocking.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -1871,7 +1871,7 @@
       "description": "Ensure bubblewrap and netns requirements are met during production setup.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium"
     },
     {

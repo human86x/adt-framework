@@ -289,6 +289,218 @@
       "authorized_by": null,
       "authorized_at": null,
       "content": "{\n  \"port\": 5002,\n  \"mode\": \"development\",\n  \"project_name\": \"adt-framework\"\n}\n"
+    },
+    {
+      "id": "scr_20260301_222915_015",
+      "ts": "2026-03-01T22:29:15.362643Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/jurisdictions.json",
+      "change_type": "json_merge",
+      "description": "Expand Systems_Architect jurisdiction to project root and grant Backend/Frontend Engineers access to work_logs.",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:08:25.928473Z",
+      "merge_data": {
+        "jurisdictions": {
+          "Systems_Architect": [
+            "./",
+            "_cortex/",
+            "docs/",
+            "adt_core/",
+            "adt_center/",
+            "adt_sdk/",
+            "config/",
+            "tests/",
+            "adt-console/",
+            "sample_projects/"
+          ],
+          "Backend_Engineer": {
+            "paths": [
+              "adt_core/",
+              "adt_center/api/",
+              "adt_center/app.py",
+              "adt_sdk/",
+              "tests/",
+              "config/",
+              "tests/integration/",
+              "adt_center/api/governance_routes.py",
+              "_cortex/work_logs/"
+            ]
+          },
+          "Frontend_Engineer": {
+            "paths": [
+              "adt_center/templates",
+              "adt_center/static",
+              "adt-console",
+              "adt-console/src/",
+              "install.sh",
+              "_cortex/work_logs/"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260302_101000_016",
+      "ts": "2026-03-02T10:10:00.787412Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/jurisdictions.json",
+      "change_type": "json_merge",
+      "description": "Fix project root jurisdiction mapping (change ./ to . for python os.path.normpath compatibility).",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:10:07.185327Z",
+      "merge_data": {
+        "jurisdictions": {
+          "Systems_Architect": [
+            ".",
+            "_cortex/",
+            "docs/",
+            "adt_core/",
+            "adt_center/",
+            "adt_sdk/",
+            "config/",
+            "tests/",
+            "adt-console/",
+            "sample_projects/"
+          ]
+        }
+      }
+    },
+    {
+      "id": "scr_20260302_101033_017",
+      "ts": "2026-03-02T10:10:33.253031Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/jurisdictions.json",
+      "change_type": "json_merge",
+      "description": "Fix project root jurisdiction mapping. Add .gitignore explicitly since python os.path.normpath does not match `.` with `.gitignore` via startswith `.`.",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:10:38.074353Z",
+      "merge_data": {
+        "jurisdictions": {
+          "Systems_Architect": [
+            ".gitignore",
+            "_cortex/",
+            "docs/",
+            "adt_core/",
+            "adt_center/",
+            "adt_sdk/",
+            "config/",
+            "tests/",
+            "adt-console/",
+            "sample_projects/"
+          ]
+        }
+      }
+    },
+    {
+      "id": "scr_20260302_101102_018",
+      "ts": "2026-03-02T10:11:02.236425Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Authorize Systems_Architect to edit .gitignore in SPEC-017 for ADS git synchronization.",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:11:10.040947Z",
+      "merge_data": {
+        "specs": {
+          "SPEC-017": {
+            "paths": [
+              "adt_core/",
+              "adt_center/",
+              "adt_sdk/",
+              "config/",
+              "tests/",
+              "_cortex/",
+              "adt_core/dttp/gateway.py",
+              "adt_core/dttp/service.py",
+              "adt_core/dttp/policy.py",
+              "adt_core/ads/logger.py",
+              "adt_core/ads/integrity.py",
+              "adt_core/ads/crypto.py",
+              ".gitignore"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260302_101206_019",
+      "ts": "2026-03-02T10:12:06.201557Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Authorize Systems_Architect to perform git operations under SPEC-023 to maintain continuity of the integrity chain.",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:12:11.993057Z",
+      "merge_data": {
+        "specs": {
+          "SPEC-023": {
+            "roles": [
+              "DevOps_Engineer",
+              "Backend_Engineer",
+              "Frontend_Engineer",
+              "Systems_Architect"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260302_101219_020",
+      "ts": "2026-03-02T10:12:19.061114Z",
+      "agent": "GEMINI",
+      "role": "systems_architect",
+      "spec_ref": null,
+      "target_path": "config/jurisdictions.json",
+      "change_type": "json_merge",
+      "description": "Grant Systems_Architect git action types to match SPEC-023 authorization.",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-03-02T10:12:26.094227Z",
+      "merge_data": {
+        "jurisdictions": {
+          "Systems_Architect": {
+            "paths": [
+              ".",
+              ".gitignore",
+              "_cortex/",
+              "docs/",
+              "adt_core/",
+              "adt_center/",
+              "adt_sdk/",
+              "config/",
+              "tests/",
+              "adt-console/",
+              "sample_projects/"
+            ],
+            "action_types": [
+              "edit",
+              "patch",
+              "create",
+              "delete",
+              "git_commit",
+              "git_push",
+              "git_tag",
+              "git_merge"
+            ],
+            "locked": false
+          }
+        }
+      }
     }
   ]
 }

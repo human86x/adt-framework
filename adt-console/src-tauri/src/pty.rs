@@ -116,19 +116,26 @@ fn cleanup_sandbox(project_root: &Path, session_id: &str) {
 /// Generate Claude Code sandbox settings file.
 /// This file is loaded via `claude --settings <path>` to enforce sandbox restrictions.
 /// Uses Claude Code's native permission system to deny access outside project root.
+/// When `namespace_mode` is true, hook paths use /adt-framework/ (the bwrap mount point)
+/// instead of host absolute paths.
 fn generate_claude_sandbox_config(
     sandbox_root: &Path,
     project_root: &Path,
     framework_root: &Path,
+    namespace_mode: bool,
 ) -> Result<PathBuf, String> {
-    let project_str = project_root.to_string_lossy();
+    let _project_str = project_root.to_string_lossy();
 
-    // Hook script path (absolute)
-    let hook_script = framework_root
-        .join("adt_sdk")
-        .join("hooks")
-        .join("claude_pretool.py");
-    let hook_path = hook_script.to_string_lossy();
+    // Hook script path -- inside namespace it's at /adt-framework/..., on host it's absolute
+    let hook_path = if namespace_mode {
+        "/adt-framework/adt_sdk/hooks/claude_pretool.py".to_string()
+    } else {
+        let hook_script = framework_root
+            .join("adt_sdk")
+            .join("hooks")
+            .join("claude_pretool.py");
+        hook_script.to_string_lossy().to_string()
+    };
 
     // Claude Code uses `permissions.deny` patterns and `hooks` in settings.json.
     // The --settings flag merges these with the project's own settings.
@@ -168,17 +175,23 @@ fn generate_claude_sandbox_config(
 /// Generate Gemini CLI sandbox settings.json.
 /// Gemini CLI uses --sandbox flag and .gemini/settings.json in CWD.
 /// We write a settings.json in the project's .gemini/ dir with extended hooks.
+/// When `namespace_mode` is true, hook paths use /adt-framework/ mount point.
 fn generate_gemini_sandbox_config(
     _sandbox_root: &Path,
     project_root: &Path,
     framework_root: &Path,
+    namespace_mode: bool,
 ) -> Result<(), String> {
-    // Determine hook script path
-    let hook_script = framework_root
-        .join("adt_sdk")
-        .join("hooks")
-        .join("gemini_pretool.py");
-    let hook_path = hook_script.to_string_lossy();
+    // Determine hook script path -- namespace uses /adt-framework/ mount
+    let hook_path = if namespace_mode {
+        "/adt-framework/adt_sdk/hooks/gemini_pretool.py".to_string()
+    } else {
+        let hook_script = framework_root
+            .join("adt_sdk")
+            .join("hooks")
+            .join("gemini_pretool.py");
+        hook_script.to_string_lossy().to_string()
+    };
 
     // Write extended hook config that intercepts BOTH read and write tools
     let config = serde_json::json!({
@@ -219,28 +232,40 @@ fn generate_gemini_sandbox_config(
 /// 2. Setting ADT_SANDBOX=1 and ADT_SANDBOX_ROOT
 /// 3. Removing sensitive env vars (cloud creds, SSH keys, etc.)
 /// 4. Pointing agent config dirs to sandbox copies
+/// When `namespace_mode` is true, paths are relative to the bwrap mount layout
+/// (/project, /adt-framework) instead of host absolute paths.
 fn apply_sandbox_env(
     cmd: &mut CommandBuilder,
     sandbox_root: &Path,
     project_root: &Path,
     agent: &str,
     dttp_url: &str,
+    namespace_mode: bool,
+    session_id: &str,
 ) {
-    let sandbox_home = sandbox_root.join("home");
-    let sandbox_tmp = sandbox_root.join("tmp");
-    let project_str = project_root.to_string_lossy().to_string();
+    if namespace_mode {
+        // Inside bwrap: project is at /project, framework at /adt-framework
+        let ns_sandbox_home = format!("/project/.adt/sandbox/{}/home", session_id);
+        cmd.env("HOME", &ns_sandbox_home);
+        cmd.env("TMPDIR", "/tmp");
+        cmd.env("ADT_SANDBOX", "1");
+        cmd.env("ADT_SANDBOX_ROOT", "/project");
+        cmd.env("ADT_PROJECT_DIR", "/project");
+        cmd.env("DTTP_URL", dttp_url);
+        cmd.env("PYTHONPATH", "/adt-framework");
+    } else {
+        // Phase A only: host absolute paths
+        let sandbox_home = sandbox_root.join("home");
+        let sandbox_tmp = sandbox_root.join("tmp");
+        let project_str = project_root.to_string_lossy().to_string();
 
-    // Core sandbox env
-    cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
-    cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
-    cmd.env("ADT_SANDBOX", "1");
-    cmd.env("ADT_SANDBOX_ROOT", &project_str);
-    cmd.env("ADT_PROJECT_DIR", &project_str);
-    cmd.env("DTTP_URL", dttp_url);
-
-    // Note: Agent CLI flags (--settings, --sandbox) are injected into args
-    // in create_session(), not via env vars. CLAUDE_CONFIG_DIR and
-    // GEMINI_CONFIG_DIR do not exist as real env vars.
+        cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
+        cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
+        cmd.env("ADT_SANDBOX", "1");
+        cmd.env("ADT_SANDBOX_ROOT", &project_str);
+        cmd.env("ADT_PROJECT_DIR", &project_str);
+        cmd.env("DTTP_URL", dttp_url);
+    }
 
     // Remove sensitive environment variables
     // portable_pty's CommandBuilder inherits the parent env by default,
@@ -259,8 +284,8 @@ fn apply_sandbox_env(
     }
 
     log::info!(
-        "[SANDBOX] Environment sanitized for {} session in {}",
-        agent, project_str
+        "[SANDBOX] Environment sanitized for {} session (namespace_mode={})",
+        agent, namespace_mode
     );
 }
 
@@ -279,7 +304,13 @@ fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
 
 /// Get the framework root directory (where the ADT Framework is installed).
 fn get_framework_root() -> PathBuf {
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    if let Ok(root) = std::env::var("ADT_FRAMEWORK_ROOT") {
+        return PathBuf::from(root);
+    }
+    // Fallback to standard location
+    dirs::home_dir()
+        .map(|h| h.join("Projects/adt-framework"))
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// Check if a project path is the framework itself.
@@ -314,11 +345,21 @@ fn has_user_namespaces() -> bool {
 /// Build the command prefix for bubblewrap (bwrap) sandboxing.
 /// This creates a minimal filesystem view containing only the project root
 /// and essential system directories (read-only).
-fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
+/// NOTE: --unshare-net is intentionally omitted. Phase A hooks block curl/wget/ssh/scp,
+/// and env sanitization strips cloud creds. Network isolation would break DTTP
+/// (localhost:5002 is unreachable from a new network namespace). Deferred to
+/// future slirp4netns integration.
+fn build_bwrap_args(
+    project_root: &Path,
+    _dttp_port: u16,
+    agent_binary_path: &str,
+    framework_root: &Path,
+) -> Vec<String> {
     let project_str = project_root.to_string_lossy().to_string();
+    let framework_str = framework_root.to_string_lossy().to_string();
 
     let mut args = vec![
-        "bwrap".to_string(),
+        "/usr/bin/bwrap".to_string(),
         // Essential system dirs (read-only)
         "--ro-bind".to_string(), "/usr".to_string(), "/usr".to_string(),
         "--ro-bind".to_string(), "/lib".to_string(), "/lib".to_string(),
@@ -326,6 +367,13 @@ fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
         "--ro-bind".to_string(), "/sbin".to_string(), "/sbin".to_string(),
         "--ro-bind".to_string(), "/etc".to_string(), "/etc".to_string(),
     ];
+
+    // /usr/local/bin often contains node, required for gemini
+    if Path::new("/usr/local/bin").exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), "/usr/local/bin".to_string(), "/usr/local/bin".to_string(),
+        ]);
+    }
 
     // /lib64 exists on some distros
     if Path::new("/lib64").exists() {
@@ -341,6 +389,47 @@ fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
         ]);
     }
 
+    // Agent binary parent dir (so the CLI can be found inside the namespace)
+    let binary_parent = Path::new(agent_binary_path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    if !binary_parent.is_empty() && Path::new(&binary_parent).exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), binary_parent.clone(), binary_parent.clone(),
+        ]);
+    }
+
+    // Common user tool directories (npm global, cargo, pipx, etc.)
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    for tool_dir in &[
+        format!("{}/.npm-global/bin", home),
+        format!("{}/.cargo/bin", home),
+        format!("{}/.local/bin", home),
+    ] {
+        if Path::new(tool_dir).exists()
+            && !tool_dir.starts_with(&binary_parent)
+        {
+            args.extend_from_slice(&[
+                "--ro-bind".to_string(), tool_dir.clone(), tool_dir.clone(),
+            ]);
+        }
+    }
+
+    // Framework root (read-only at /adt-framework so hooks can execute)
+    args.extend_from_slice(&[
+        "--ro-bind".to_string(), framework_str, "/adt-framework".to_string(),
+    ]);
+
+    // Python venv inside framework (for hook dependencies like `requests`)
+    let venv_path = framework_root.join(".venv");
+    if venv_path.exists() {
+        let venv_str = venv_path.to_string_lossy().to_string();
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), venv_str, "/adt-framework/.venv".to_string(),
+        ]);
+    }
+
     args.extend_from_slice(&[
         // Project directory (read-write)
         "--bind".to_string(), project_str.clone(), "/project".to_string(),
@@ -349,8 +438,6 @@ fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
         // Device and proc filesystems
         "--dev".to_string(), "/dev".to_string(),
         "--proc".to_string(), "/proc".to_string(),
-        // Network isolation -- agent can only reach loopback
-        "--unshare-net".to_string(),
         // Kill agent if Console dies
         "--die-with-parent".to_string(),
         // Set working directory
@@ -364,11 +451,13 @@ fn build_bwrap_args(project_root: &Path, _dttp_port: u16) -> Vec<String> {
 
 /// Build the command prefix for unshare-based namespace isolation.
 /// This is the preferred method when user namespaces are available.
-fn build_unshare_script(project_root: &Path, _dttp_port: u16) -> String {
+fn build_unshare_script(project_root: &Path, _dttp_port: u16, framework_root: &Path) -> String {
     let project_str = project_root.to_string_lossy();
+    let framework_str = framework_root.to_string_lossy();
     format!(
-        r#"mount --make-rprivate / 2>/dev/null; mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc; mount --bind {project} /sandbox/project; mount --rbind /usr /sandbox/usr; mount --rbind /lib /sandbox/lib; mount --rbind /bin /sandbox/bin; mount --rbind /sbin /sandbox/sbin; mount --rbind /etc /sandbox/etc; test -d /lib64 && mkdir -p /sandbox/lib64 && mount --rbind /lib64 /sandbox/lib64; mount -t tmpfs tmpfs /sandbox/tmp; mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; mount -t proc proc /sandbox/proc; cd /sandbox && pivot_root . /sandbox/tmp 2>/dev/null && umount -l /tmp/tmp 2>/dev/null; cd /project"#,
-        project = project_str
+        r#"mount --make-rprivate / 2>/dev/null; mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; mount --bind {project} /sandbox/project; mount --rbind /usr /sandbox/usr; mount --rbind /lib /sandbox/lib; mount --rbind /bin /sandbox/bin; mount --rbind /sbin /sandbox/sbin; mount --rbind /etc /sandbox/etc; mount --rbind {framework} /sandbox/adt-framework; test -d /lib64 && mkdir -p /sandbox/lib64 && mount --rbind /lib64 /sandbox/lib64; mount -t tmpfs tmpfs /sandbox/tmp; mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; mount -t proc proc /sandbox/proc; cd /sandbox && pivot_root . /sandbox/tmp 2>/dev/null && umount -l /tmp/tmp 2>/dev/null; cd /project"#,
+        project = project_str,
+        framework = framework_str
     )
 }
 
@@ -391,12 +480,13 @@ fn wrap_with_namespace(
     args: &[String],
     project_root: &Path,
     dttp_port: u16,
+    framework_root: &Path,
 ) -> Option<(String, Vec<String>)> {
     let method = detect_isolation_method();
 
     match method {
         "bwrap" => {
-            let mut bwrap_args = build_bwrap_args(project_root, dttp_port);
+            let mut bwrap_args = build_bwrap_args(project_root, dttp_port, command, framework_root);
             bwrap_args.push(command.to_string());
             bwrap_args.extend(args.iter().cloned());
 
@@ -410,7 +500,7 @@ fn wrap_with_namespace(
         }
         "unshare" => {
             // unshare with mount namespace
-            let setup_script = build_unshare_script(project_root, dttp_port);
+            let setup_script = build_unshare_script(project_root, dttp_port, framework_root);
             let agent_cmd = if args.is_empty() {
                 command.to_string()
             } else {
@@ -437,7 +527,7 @@ fn wrap_with_namespace(
         }
         _ => {
             log::warn!(
-                "[SANDBOX PHASE B] No isolation method available (no bwrap, no user namespaces).                  Falling back to Phase A only."
+                "[SANDBOX PHASE B] No isolation method available (no bwrap, no user namespaces). Falling back to Phase A only."
             );
             None
         }
@@ -454,6 +544,8 @@ pub struct SessionInfo {
     pub command: String,
     pub alive: bool,
     pub agent_user: Option<String>,
+    pub sandboxed: Option<bool>,
+    pub sandbox_tier: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -663,7 +755,7 @@ impl PtyManager {
                             5002
                         }
                     };
-                    wrap_with_namespace(&resolved_command, args, &project_root, dttp_port_num)
+                    wrap_with_namespace(&resolved_command, args, &project_root, dttp_port_num, &framework_root)
                 } else {
                     None
                 }
@@ -683,7 +775,7 @@ impl PtyManager {
             c
         } else if let Some(ref _agent_user) = agent_user {
             // Tier 1 production mode but framework project (no namespace)
-            let mut c = CommandBuilder::new("sudo");
+            let mut c = CommandBuilder::new("/usr/bin/sudo");
             c.arg("-u");
             c.arg("agent");
             c.arg(&resolved_command);
@@ -699,8 +791,11 @@ impl PtyManager {
             c
         };
 
-        if let Some(path) = &cwd {
-            cmd.cwd(path);
+        // Bug 6 fix: skip cmd.cwd() when bwrap handles it via --chdir /project
+        if phase_b_wrap.is_none() {
+            if let Some(path) = &cwd {
+                cmd.cwd(path);
+            }
         }
 
         // Determine DTTP_URL from project config if available
@@ -728,6 +823,7 @@ impl PtyManager {
         };
 
         // SPEC-036: Set up sandbox for agent sessions
+        let namespace_mode = phase_b_wrap.is_some();
         let sandbox_root = if should_sandbox(agent, cwd.as_deref()) {
             let project_root = PathBuf::from(cwd.as_deref().unwrap());
             let is_framework = is_framework_project(&project_root, &framework_root);
@@ -737,11 +833,15 @@ impl PtyManager {
                     // Generate agent-specific sandbox configs and inject CLI flags
                     if agent == "claude" {
                         match generate_claude_sandbox_config(
-                            &sb_root, &project_root, &framework_root
+                            &sb_root, &project_root, &framework_root, namespace_mode
                         ) {
                             Ok(settings_path) => {
-                                // Inject --settings flag into command args
-                                let settings_str = settings_path.to_string_lossy().to_string();
+                                // Bug 4 fix: rewrite --settings path for namespace mode
+                                let settings_str = if namespace_mode {
+                                    format!("/project/.adt/sandbox/{}/claude_sandbox_settings.json", session_id)
+                                } else {
+                                    settings_path.to_string_lossy().to_string()
+                                };
                                 cmd.arg("--settings");
                                 cmd.arg(&settings_str);
                                 log::info!("[SANDBOX] Claude --settings {} injected", settings_str);
@@ -752,7 +852,7 @@ impl PtyManager {
                         }
                     } else if agent == "gemini" {
                         if let Err(e) = generate_gemini_sandbox_config(
-                            &sb_root, &project_root, &framework_root
+                            &sb_root, &project_root, &framework_root, namespace_mode
                         ) {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
@@ -763,12 +863,15 @@ impl PtyManager {
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
                     if !is_framework {
-                        apply_sandbox_env(&mut cmd, &sb_root, &project_root, agent, &dttp_url);
+                        apply_sandbox_env(
+                            &mut cmd, &sb_root, &project_root, agent, &dttp_url,
+                            namespace_mode, &session_id,
+                        );
                     }
 
                     log::info!(
-                        "[SANDBOX] Session {} sandboxed at {:?} (framework_project={})",
-                        session_id, sb_root, is_framework
+                        "[SANDBOX] Session {} sandboxed at {:?} (framework_project={}, namespace_mode={})",
+                        session_id, sb_root, is_framework, namespace_mode
                     );
                     Some(sb_root)
                 }
@@ -822,6 +925,14 @@ impl PtyManager {
             command: command.to_string(),
             alive: true,
             agent_user: agent_user,
+            sandboxed: if sandbox_root.is_some() { Some(true) } else { Some(false) },
+            sandbox_tier: if namespace_mode {
+                Some("phase_b".to_string())
+            } else if sandbox_root.is_some() {
+                Some("phase_a".to_string())
+            } else {
+                None
+            },
         };
 
         let metadata = PersistentSession {
@@ -1044,12 +1155,81 @@ mod tests {
             command: "bash".to_string(),
             alive: true,
             agent_user: Some("agent".to_string()),
+            sandboxed: Some(true),
+            sandbox_tier: Some("phase_b".to_string()),
         };
 
         let json = serde_json::to_string(&info).unwrap();
         let decoded: SessionInfo = serde_json::from_str(&json).unwrap();
         assert_eq!(info.id, decoded.id);
         assert_eq!(info.alive, decoded.alive);
+        assert_eq!(decoded.sandboxed, Some(true));
+        assert_eq!(decoded.sandbox_tier, Some("phase_b".to_string()));
+    }
+
+    #[test]
+    fn test_session_info_serde_no_sandbox() {
+        let info = SessionInfo {
+            id: "shell_1".to_string(),
+            project: "adt-framework".to_string(),
+            agent: "shell".to_string(),
+            role: "human".to_string(),
+            spec_id: "".to_string(),
+            command: "bash".to_string(),
+            alive: true,
+            agent_user: None,
+            sandboxed: Some(false),
+            sandbox_tier: None,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let decoded: SessionInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.sandboxed, Some(false));
+        assert_eq!(decoded.sandbox_tier, None);
+    }
+
+    #[test]
+    fn test_bwrap_args_no_unshare_net() {
+        // Phase B bwrap args must NOT include --unshare-net (breaks DTTP)
+        let project = PathBuf::from("/tmp/test-project");
+        let framework = PathBuf::from("/home/test/adt-framework");
+        let args = build_bwrap_args(&project, 5002, "/usr/bin/claude", &framework);
+
+        assert!(!args.contains(&"--unshare-net".to_string()),
+            "bwrap args must NOT include --unshare-net (breaks DTTP localhost access)");
+        assert!(args.contains(&"--die-with-parent".to_string()));
+        assert!(args.contains(&"--chdir".to_string()));
+    }
+
+    #[test]
+    fn test_bwrap_args_has_framework_mount() {
+        let project = PathBuf::from("/tmp/test-project");
+        let framework = PathBuf::from("/home/test/adt-framework");
+        let args = build_bwrap_args(&project, 5002, "/usr/bin/claude", &framework);
+
+        // Framework must be mounted at /adt-framework for hooks
+        let ro_positions: Vec<usize> = args.iter().enumerate()
+            .filter(|(_, a)| a.as_str() == "--ro-bind")
+            .map(|(i, _)| i)
+            .collect();
+
+        let has_framework_mount = ro_positions.iter().any(|&i| {
+            i + 2 < args.len()
+                && args[i + 1] == "/home/test/adt-framework"
+                && args[i + 2] == "/adt-framework"
+        });
+        assert!(has_framework_mount, "Framework root must be mounted at /adt-framework");
+    }
+
+    #[test]
+    fn test_bwrap_args_has_project_bind() {
+        let project = PathBuf::from("/tmp/test-project");
+        let framework = PathBuf::from("/home/test/adt-framework");
+        let args = build_bwrap_args(&project, 5002, "/usr/bin/claude", &framework);
+
+        let bind_idx = args.iter().position(|a| a == "--bind").unwrap();
+        assert_eq!(args[bind_idx + 1], "/tmp/test-project");
+        assert_eq!(args[bind_idx + 2], "/project");
     }
 
     #[test]

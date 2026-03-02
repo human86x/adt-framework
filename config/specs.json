@@ -76,7 +76,8 @@
         "adt_core/dttp/policy.py",
         "adt_core/ads/logger.py",
         "adt_core/ads/integrity.py",
-        "adt_core/ads/crypto.py"
+        "adt_core/ads/crypto.py",
+        ".gitignore"
       ]
     },
     "SPEC-018": {
@@ -264,7 +265,8 @@
       "roles": [
         "DevOps_Engineer",
         "Backend_Engineer",
-        "Frontend_Engineer"
+        "Frontend_Engineer",
+        "Systems_Architect"
       ],
       "action_types": [
         "git_commit",
@@ -439,7 +441,8 @@
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "write"
       ],
       "paths": [
         "adt-console/src-tauri/",

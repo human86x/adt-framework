@@ -1,16 +1,31 @@
 {
   "jurisdictions": {
-    "Systems_Architect": [
-      "_cortex/",
-      "docs/",
-      "adt_core/",
-      "adt_center/",
-      "adt_sdk/",
-      "config/",
-      "tests/",
-      "adt-console/",
-      "sample_projects/"
-    ],
+    "Systems_Architect": {
+      "paths": [
+        ".",
+        ".gitignore",
+        "_cortex/",
+        "docs/",
+        "adt_core/",
+        "adt_center/",
+        "adt_sdk/",
+        "config/",
+        "tests/",
+        "adt-console/",
+        "sample_projects/"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete",
+        "git_commit",
+        "git_push",
+        "git_tag",
+        "git_merge"
+      ],
+      "locked": false
+    },
     "Backend_Engineer": {
       "paths": [
         "adt_core/",
@@ -20,7 +35,8 @@
         "tests/",
         "config/",
         "tests/integration/",
-        "adt_center/api/governance_routes.py"
+        "adt_center/api/governance_routes.py",
+        "_cortex/work_logs/"
       ],
       "action_types": [
         "edit",
@@ -36,7 +52,8 @@
         "adt_center/static",
         "adt-console",
         "adt-console/src/",
-        "install.sh"
+        "install.sh",
+        "_cortex/work_logs/"
       ],
       "action_types": [
         "edit",
