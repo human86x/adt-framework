@@ -593,16 +593,30 @@ function renderSCRCards(scrs) {
         let diffHtml = '';
         if (scr.change_type === 'patch' && scr.patch) {
             diffHtml = `
-                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt);">
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt); white-space:pre-wrap; overflow-x:auto;">
                     <div class="text-danger">-${scr.patch.old_string}</div>
                     <div class="text-success">+${scr.patch.new_string}</div>
                 </div>
             `;
         } else if (scr.change_type === 'json_merge') {
             diffHtml = `
-                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt);">
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt); white-space:pre-wrap; overflow-x:auto;">
                     <div class="text-adt-muted">Merge JSON:</div>
-                    <pre class="mb-0 text-success">${JSON.stringify(scr.merge_data, null, 2)}</pre>
+                    <pre class="mb-0 text-success">${JSON.stringify(scr.merge_data || scr.payload, null, 2)}</pre>
+                </div>
+            `;
+        } else if (scr.change_type === 'append') {
+            diffHtml = `
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt); white-space:pre-wrap; overflow-x:auto;">
+                    <div class="text-adt-muted">Append:</div>
+                    <div class="text-success">+${scr.content || scr.payload || ''}</div>
+                </div>
+            `;
+        } else if (scr.change_type === 'full_replace') {
+            diffHtml = `
+                <div class="diff-viewer mt-2 p-2 rounded" style="background:rgba(0,0,0,0.2); font-family:monospace; font-size:0.75rem; border:1px solid var(--border-adt); white-space:pre-wrap; overflow-x:auto;">
+                    <div class="text-adt-muted">Full Replace:</div>
+                    <div class="text-success">${scr.content || scr.payload || ''}</div>
                 </div>
             `;
         } else {

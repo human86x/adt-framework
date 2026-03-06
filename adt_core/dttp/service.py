@@ -103,6 +103,13 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
             return jsonify({"status": "error", "code": "INVALID_BODY", "message": "Request body must be JSON"}), 400
 
         try:
+            # SPEC-020 Amendment B: Normalize role and agent before logging
+            from adt_core.ads.schema import ADSEventSchema
+            if "agent" in data:
+                data["agent"] = ADSEventSchema.normalize_agent(data["agent"])
+            if "role" in data:
+                data["role"] = ADSEventSchema.normalize_role(data["role"])
+
             event_id = app.dttp_gateway.logger.log(data)
             return jsonify({"status": "success", "event_id": event_id}), 200
         except ValueError as e:

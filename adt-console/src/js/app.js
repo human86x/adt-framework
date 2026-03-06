@@ -434,10 +434,20 @@ const GitStatusManager = (() => {
 
     try {
       const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
-      const res = await fetch(`${centerUrl}/api/projects`);
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json();
-      const projects = data.projects || data; // Handle both {projects: {}} and {} formats
+      const [forgeRes, governedRes] = await Promise.all([
+        fetch(`${centerUrl}/api/forge`),
+        fetch(`${centerUrl}/api/projects`)
+      ]);
+      
+      let projects = {};
+      if (forgeRes.ok) {
+        const d = await forgeRes.json();
+        Object.assign(projects, d.projects || d);
+      }
+      if (governedRes.ok) {
+        const d = await governedRes.json();
+        Object.assign(projects, d.projects || d);
+      }
       
       const currentValue = projectSelect.value;
       projectSelect.innerHTML = '';

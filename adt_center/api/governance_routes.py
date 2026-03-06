@@ -396,7 +396,10 @@ def _parse_requests(file_path):
 @governance_bp.route("/git/status", methods=["GET"])
 def get_git_status():
     """SPEC-023: Get current git branch and uncommitted changes count."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     try:
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root).decode().strip()
         status_porcelain = subprocess.check_output(["git", "status", "--porcelain"], cwd=root).decode().strip()
@@ -410,7 +413,7 @@ def get_git_status():
             "status": "clean" if changes_count == 0 else "dirty"
         })
     except Exception as e:
-        current_app.logger.error(f"Failed to get git status: {e}")
+        current_app.logger.error(f"Failed to get git status for {project_name or 'framework'}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -978,8 +981,11 @@ def get_enforcement_status():
     res = _get_project_resources(project_name)
     
     dttp_url = current_app.config.get("DTTP_URL", "http://localhost:5002")
-    # If project is specified and not framework, we should ideally use its DTTP port
-    # But for status we might just use the default or derive it
+    if project_name:
+        registry = ProjectRegistry()
+        project = registry.get_project(project_name)
+        if project and project.get("dttp_port"):
+            dttp_url = f"http://localhost:{project['dttp_port']}"
     
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
@@ -1010,7 +1016,10 @@ def update_role_jurisdiction(role_name):
     if not data:
         return jsonify({"error": "No JSON body"}), 400
 
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     jur_path = os.path.join(root, "config", "jurisdictions.json")
     jurisdictions_data = _load_json(jur_path)
     jurisdictions = jurisdictions_data.get("jurisdictions", {})
@@ -1057,7 +1066,10 @@ def update_spec_roles(spec_id):
     if not data:
         return jsonify({"error": "No JSON body"}), 400
 
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     specs_path = os.path.join(root, "config", "specs.json")
     specs_config = _load_json(specs_path)
     specs = specs_config.get("specs", {})
@@ -1086,7 +1098,10 @@ def update_spec_roles(spec_id):
 @governance_bp.route("/governance/conflicts", methods=["GET"])
 def get_governance_conflicts():
     """SPEC-026: Detect and return jurisdiction conflicts."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     jur_path = os.path.join(root, "config", "jurisdictions.json")
     specs_path = os.path.join(root, "config", "specs.json")
     jurisdictions = _load_json(jur_path).get("jurisdictions", {})
@@ -1311,8 +1326,10 @@ def list_sovereign_requests():
     status_filter = request.args.get("status")
     if status_filter:
         filtered = [r for r in scrs["requests"] if r["status"] == status_filter]
+        filtered.sort(key=lambda x: x["ts"], reverse=True)
         return jsonify({"requests": filtered})
         
+    scrs["requests"].sort(key=lambda x: x["ts"], reverse=True)
     return jsonify(scrs)
 
 @governance_bp.route("/governance/sovereign-requests/<scr_id>", methods=["PUT"])
