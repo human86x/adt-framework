@@ -30,8 +30,8 @@ import requests
 
 # Gemini CLI tool names for file modification
 INTERCEPTED_TOOLS = {"write_file", "replace"}
-READ_TOOLS = {"read_file", "list_files", "search_files"}
-BASH_TOOLS = {"run_shell", "shell"}
+READ_TOOLS = {"read_file", "list_files", "search_files", "list_directory", "grep_search", "glob"}
+BASH_TOOLS = {"run_shell", "shell", "run_shell_command"}
 
 # Patterns that indicate file write operations in shell commands
 BASH_WRITE_OPERATORS = re.compile(
@@ -177,10 +177,9 @@ def extract_file_path(tool_name: str, tool_input: dict) -> str:
     """Extract the target file path from Gemini CLI tool input."""
     if tool_name in {"read_file", "replace", "write_file"}:
         return tool_input.get("file_path", "")
-    elif tool_name == "list_files":
-        return tool_input.get("dir_path", "")
-    elif tool_name == "search_files":
-        return tool_input.get("dir_path", "")
+    elif tool_name in {"list_files", "list_directory", "search_files", "grep_search", "glob"}:
+        # These tools use dir_path or directory_path
+        return tool_input.get("dir_path") or tool_input.get("directory_path", "")
     return tool_input.get("file_path", "")
 
 

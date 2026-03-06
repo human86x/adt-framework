@@ -2016,6 +2016,74 @@
       "last_updated_by": "GEMINI (Backend_Engineer)",
       "last_updated_at": "2026-02-25T21:41:56.003187Z",
       "review_status": "pending"
+    },
+    {
+      "id": "task_163",
+      "title": "Create _cortex/capabilities/ directory and initialize JSONL files",
+      "description": "Initialize _cortex/capabilities/ directory and intents.jsonl, capability_events.jsonl files.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Created _cortex/capabilities/ directory and initialized empty JSONL files.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-03-06T20:37:43Z"
+    },
+    {
+      "id": "task_164",
+      "title": "Extend ADSEventSchema with capability event types",
+      "description": "Add capability_intent_defined, capability_event_captured, capability_maturity_updated to adt_core/ads/schema.py.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Added capability_intent_defined, capability_event_captured, and capability_maturity_updated to ADSEventSchema in adt_core/ads/schema.py.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-03-06T22:33:53.151359Z"
+    },
+    {
+      "id": "task_165",
+      "title": "Implement capability intent and event API endpoints",
+      "description": "Implement POST /api/governance/capabilities/intents and /events in adt_center/api/governance_routes.py.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented CapabilityManager in adt_core/ads/capability.py and added POST/GET endpoints in adt_center/api/governance_routes.py.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-03-06T22:33:53.151473Z"
+    },
+    {
+      "id": "task_166",
+      "title": "Update SCR model and DTTP Gateway for intent_id linking",
+      "description": "Add intent_id support to SCR model and update DTTP Gateway to validate intent_id justification.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented intent_id linking in SCR model (governance_routes.py) and DTTP Gateway (gateway.py).",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-03-06T22:59:12.052481Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_167",
+      "title": "Create Capabilities UI tab and Traceability Explorer",
+      "description": "Implement the new Capabilities tab in ADT Panel with real-time intent mapping and event traceability.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented capabilities.html and added 'Capabilities' tab to the Panel. Tested with live intent/event data."
+    },
+    {
+      "id": "task_168",
+      "title": "Update jurisdictions and specs for capability paths",
+      "description": "Update config/jurisdictions.json and config/specs.json to grant access to _cortex/capabilities/.",
+      "spec_ref": "SPEC-038",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "medium"
     }
   ]
 }

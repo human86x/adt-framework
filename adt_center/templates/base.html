@@ -22,48 +22,53 @@
             <div class="collapse navbar-collapse" id="navMain">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">
+                        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard', project=current_project) }}">
                             <span class="nav-icon">&#9632;</span>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'ads' %}active{% endif %}" href="/ads">
+                        <a class="nav-link {% if active_page == 'ads' %}active{% endif %}" href="{{ url_for('ads_timeline', project=current_project) }}">
                             <span class="nav-icon">&#9776;</span>ADS Timeline
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'specs' %}active{% endif %}" href="/specs">
+                        <a class="nav-link {% if active_page == 'specs' %}active{% endif %}" href="{{ url_for('specs_page', project=current_project) }}">
                             <span class="nav-icon">&#9883;</span>Specs
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'tasks' %}active{% endif %}" href="/tasks">
+                        <a class="nav-link {% if active_page == 'tasks' %}active{% endif %}" href="{{ url_for('tasks_page', project=current_project) }}">
                             <span class="nav-icon">&#9745;</span>Tasks
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'hierarchy' %}active{% endif %}" href="/hierarchy">
+                        <a class="nav-link {% if active_page == 'hierarchy' %}active{% endif %}" href="{{ url_for('hierarchy_page', project=current_project) }}">
                             <span class="nav-icon">&#9613;</span>Hierarchy
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'delegation' %}active{% endif %}" href="/delegation">
+                        <a class="nav-link {% if active_page == 'capabilities' %}active{% endif %}" href="{{ url_for('capabilities_page', project=current_project) }}">
+                            <span class="nav-icon">&#9670;</span>Capabilities
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'delegation' %}active{% endif %}" href="{{ url_for('delegation_page', project=current_project) }}">
                             <span class="nav-icon">&#9586;</span>Delegation
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'dttp' %}active{% endif %}" href="/dttp">
+                        <a class="nav-link {% if active_page == 'dttp' %}active{% endif %}" href="{{ url_for('dttp_monitor', project=current_project) }}">
                             <span class="nav-icon">&#9889;</span>DTTP
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'governance' %}active{% endif %}" href="/governance">
+                        <a class="nav-link {% if active_page == 'governance' %}active{% endif %}" href="{{ url_for('governance_page', project=current_project) }}">
                             <span class="nav-icon">&#9878;</span>Governance
                             <span id="nav-scr-badge" class="badge rounded-pill bg-danger ms-1 d-none">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'about' %}active{% endif %}" href="/about">
+                        <a class="nav-link {% if active_page == 'about' %}active{% endif %}" href="{{ url_for('about_page', project=current_project) }}">
                             <span class="nav-icon">&#9432;</span>Help
                         </a>
                     </li>
@@ -78,6 +83,9 @@
 
     <footer class="footer-adt">
         <div class="container-fluid px-4">
+            {% if current_project %}
+            <span class="badge bg-secondary me-2">PROJECT: {{ current_project }}</span>
+            {% endif %}
             ADT Framework (Sheridan, 2026) &middot; Governance is an intrinsic system property, not an external overlay.
         </div>
     </footer>
@@ -86,8 +94,12 @@
     <script>
         async function updateSCRBadge() {
             try {
-                const res = await fetch('/api/governance/sovereign-requests?status=pending');
-                if (!res.ok) return;
+                const urlParams = new URLSearchParams(window.location.search);
+                const project = urlParams.get('project');
+                let url = '/api/governance/sovereign-requests?status=pending';
+                if (project) url += `&project=${project}`;
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 const scrs = data.requests || [];
                 const badge = document.getElementById('nav-scr-badge');

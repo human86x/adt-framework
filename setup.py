@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="adt-framework",
-    version="0.1.0",
+    version="0.3.3",
     description="Advanced Digital Transformation -- Governance-Native AI Agent Management",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

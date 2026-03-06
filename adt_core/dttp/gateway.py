@@ -77,6 +77,32 @@ class DTTPGateway:
                 ))
                 return {"status": "denied", "reason": "path_outside_project_root"}
 
+        # SPEC-038: Intent Validation
+        intent_id = params.get("intent_id")
+        if intent_id:
+            from adt_core.ads.capability import CapabilityManager
+            cm = CapabilityManager(self.action_handler.project_root)
+            intent = cm.get_intent(intent_id)
+            if not intent:
+                event_id = ADSEventSchema.generate_id("intent_not_found")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="denied_intent",
+                    description=f"DENIED: Intent {intent_id} not found. Rationale: {rationale}",
+                    spec_ref=spec_id, authorized=False, tier=3, escalation=True,
+                    intent_id=intent_id
+                ))
+                return {"status": "denied", "reason": "intent_not_found"}
+            
+            if intent.get("status") in ["Completed", "Cancelled"]:
+                event_id = ADSEventSchema.generate_id("intent_inactive")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="denied_intent",
+                    description=f"DENIED: Intent {intent_id} is {intent.get('status')}. Rationale: {rationale}",
+                    spec_ref=spec_id, authorized=False, tier=3, escalation=True,
+                    intent_id=intent_id
+                ))
+                return {"status": "denied", "reason": "intent_inactive"}
+
         # 0b. Governance Lock Check (SPEC-031 Amendment A)
         if normalized_path in GOVERNANCE_LOCKED:
             if not self.is_framework:

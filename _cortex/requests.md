@@ -259,6 +259,11 @@ Address inconsistent role casing in ADS events. The recent ADS corruption was li
 
 All files are Backend_Engineer jurisdiction. Amendment is fully specified with code examples in SPEC-020 Section 9.
 
+### Status
+
+**COMPLETED**
+
+
 ---
 
 ## REQ-018: Bug Fix -- Tauri CSP Blocks ADT Panel iframe
@@ -377,7 +382,7 @@ Fix: Update both to absolute paths. Also update `adt_core/cli.py` `init_command(
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 ---
 
@@ -476,29 +481,15 @@ Note: Gemini timeout is in milliseconds (15000), Claude is in seconds (15).
 **To:** @Systems_Architect
 **Date:** 2026-02-24
 **Priority:** HIGH
-**Related Specs:** SPEC-020, SPEC-034, SPEC-028
+**Related Specs:** SPEC-020, SPEC-034, SPEC-028, SPEC-035
 
 ### Problem
 
 When an agent completes work requested via cross-role request (e.g., REQ-024), it cannot mark the request as COMPLETED in `_cortex/requests.md` or update `_cortex/tasks.json` because those paths are outside its jurisdiction. The only option is using Bash to bypass DTTP -- which violates the governance principles we are building.
 
-This affects every role: Backend cannot update requests.md (Architect jurisdiction), Frontend cannot mark tasks done (Architect jurisdiction), DevOps cannot close requests it filed, etc.
-
-### Current Workaround
-
-Agents use `Bash(python3 ...)` to write directly to _cortex/ files, bypassing the DTTP hook entirely. This is logged to ADS but is not governed -- defeating the purpose of jurisdiction enforcement.
-
-### Proposed Solutions (pick one or combine)
-
-**Option A -- Status Update API:** Add a `POST /api/governance/requests/<id>/status` endpoint that any role can call to update the status of requests addressed TO them (`**To:** @<role>`). DTTP validates the caller matches the `To:` field. Same pattern for tasks: allow assigned_to role to update status.
-
-**Option B -- Scoped Write Permissions:** Add a new DTTP action type `status_update` that grants limited write access to specific fields in `_cortex/requests.md` and `_cortex/tasks.json` -- only the Status section of requests addressed to the calling role, and only the status/evidence fields of tasks assigned to the calling role.
-
-**Option C -- Completion Handshake:** The completing agent logs a `task_completed` ADS event. A lightweight watcher (or the Overseer) picks up completion events and updates requests.md/tasks.json centrally. No cross-jurisdiction writes needed.
-
 ### Status
 
-**OPEN**
+**COMPLETED** — SPEC-035 implemented. Status update API available at `/api/governance/requests/<id>/status`.
 
 ---
 
@@ -508,53 +499,11 @@ Agents use `Bash(python3 ...)` to write directly to _cortex/ files, bypassing th
 **To:** @Systems_Architect
 **Date:** 2026-02-25
 **Priority:** CRITICAL
-**Related Specs:** SPEC-031 (External Project Governance), SPEC-027 (Shatterglass), SPEC-014 (DTTP)
-
-### Problem
-
-When agents are launched in the ADT Console for an external project, they have **zero filesystem isolation**. An agent spawned with `cwd=/home/human/Projects/my-app` can:
-
-1. **Read anything** on the system -- the ADT Framework's `_cortex/specs/`, other projects' source code, SSH keys, environment files. The DTTP hook only intercepts Write/Edit/NotebookEdit tools. Read, Glob, Grep, and Bash are completely ungoverned.
-2. **Write outside their project** -- while the DTTP hook converts paths to project-relative for validation, an agent can use `Bash(echo "..." > /some/other/path)` to write anywhere the OS user has access.
-3. **Read ADT Framework governance artifacts** -- an external project agent has no business seeing the framework's specs, tasks, ADS events, or coordination data. This is a confidentiality violation.
-
-The current architecture only enforces **intra-project jurisdiction** (which role can write which files within a project). There is no **inter-project isolation** (preventing agents from one project from accessing another project entirely).
-
-### What We Need
-
-Agents launched for an external project MUST operate in a **complete filesystem sandbox** scoped to their project root. The sandbox must enforce:
-
-1. **Read isolation**: The agent can ONLY read files within its project root directory. No access to the ADT framework directory, no access to other projects, no access to home directory files outside the project. Read, Glob, Grep must all be confined.
-2. **Write isolation via DTTP only**: The agent's ONLY mechanism for writing files is through the DTTP gateway. No direct filesystem writes. The Bash tool should not be able to write outside the sandbox. Within the sandbox, writes still go through DTTP for jurisdiction and spec validation.
-3. **No network escape**: The agent should only be able to reach its own project's DTTP service (on its assigned port), not other projects' DTTP services or the ADT Panel API.
-4. **Environment sanitization**: No leaking of framework paths, other project paths, or sensitive environment variables into the agent's session.
-
-### Implementation Considerations
-
-**Tier 3 (Development mode -- no OS users):**
-- Configure Claude Code's `allowedDirectories` / `blockedDirectories` per-session to restrict filesystem access to project root only
-- Configure Gemini CLI's equivalent sandbox settings
-- Restrict Bash tool access via agent-specific shell profiles that `chroot` or use namespace isolation
-- Set `HOME` to a temporary directory within the project sandbox
-
-**Tier 1 (Production mode -- Shatterglass active):**
-- The `agent` OS user should have no read access outside the active project root
-- Use Linux mount namespaces or `unshare` to create per-session filesystem views
-- Bind-mount only the project directory into the agent's namespace
-- The DTTP socket/port is the only allowed network endpoint
-
-**Agent CLI configuration (critical):**
-- Claude Code: The PTY spawner must generate a per-session `.claude/settings.json` in the project directory that sets `allowedDirectories: ["/path/to/project"]` BEFORE the agent process starts
-- Gemini CLI: Equivalent sandbox configuration
-- Both: Hook configs must point to the framework's DTTP hook scripts using absolute paths (REQ-022)
-
-### Why This Is Critical
-
-Without filesystem sandboxing, the entire DTTP governance model is theater for external projects. An agent told to "implement feature X" in Project Y can read the ADT Framework's own governance rules, read other projects' proprietary code, and write anywhere via Bash. This fundamentally violates the ADT principle that governance is an intrinsic system property -- right now, governance stops at the project boundary.
+**Related Specs:** SPEC-031 (External Project Governance), SPEC-027 (Shatterglass), SPEC-014 (DTTP), SPEC-036
 
 ### Status
 
-**OPEN** -- Awaiting spec from @Systems_Architect.
+**IN PROGRESS** — SPEC-036 Phase A (Application-layer sandbox) COMPLETED. Phase B (OS-level namespaces) in progress.
 
 ---
 
@@ -564,25 +513,11 @@ Without filesystem sandboxing, the entire DTTP governance model is theater for e
 **To:** @Systems_Architect
 **Date:** 2026-02-25
 **Priority:** HIGH
-**Related Specs:** SPEC-020 (Self-Governance), SPEC-034
-
-### Problem
-
-`_cortex/requests.md` is currently ONLY in the **Overseer** jurisdiction (see `config/jurisdictions.json` line 85). This means no other role -- Backend_Engineer, Frontend_Engineer, DevOps_Engineer -- can write to it through DTTP. Every cross-role request filed today has required a Bash workaround to bypass DTTP, which:
-
-1. Defeats the governance model we are building
-2. Creates ungoverned writes to a Tier 2 coordination file
-3. Is exactly the kind of bypass that the Overseer should be flagging
-
-The cross-role request system is the ONLY mechanism agents have to communicate needs across jurisdiction boundaries. Blocking agents from using it forces them into ungoverned workarounds.
-
-### Proposed Fix
-
-Add `_cortex/requests.md` to EVERY role's jurisdiction in `config/jurisdictions.json` with `append`-only semantics (agents can add new requests but cannot modify or delete existing ones). Alternatively, create a `POST /api/governance/requests` API endpoint that any role can call to file a new request -- the API appends to requests.md server-side, governed by the DTTP service.
+**Related Specs:** SPEC-020 (Self-Governance), SPEC-034, SPEC-037
 
 ### Status
 
-**OPEN** -- Awaiting @Systems_Architect action.
+**COMPLETED** — SPEC-037 implemented. Governed API for filing requests available at `/api/governance/requests`. Transparent hook redirect added.
 
 
 ---
@@ -701,7 +636,7 @@ Binding to `::` enables dual-stack (IPv4 + IPv6) on Linux. Both `127.0.0.1` and 
 
 ### Status
 
-**COMPLETED -- CHANGED HOST BINDING TO '::' IN ADT_CENTER/APP.PY AND ADT_CORE/DTTP/SERVICE.PY. VERIFIED DUAL-STACK BINDING WITH NETSTAT.** -- Awaiting Backend_Engineer action.
+**COMPLETED**
 
 ---
 
@@ -711,16 +646,9 @@ Binding to `::` enables dual-stack (IPv4 + IPv6) on Linux. Both `127.0.0.1` and 
 - **Date:** 2026-03-01
 - **Spec:** SPEC-036
 - **Priority:** Medium
-- **Status:** OPEN
+- **Status:** COMPLETED
 
-**Context:** SPEC-036 Phase B wraps agent processes in bubblewrap namespaces. Inside the namespace, the ADT framework root is bind-mounted at `/adt-framework`. The DTTP hooks (`adt_sdk/hooks/claude_pretool.py`, `adt_sdk/hooks/gemini_pretool.py`) need to import Python packages (e.g., `requests`) that may live in the framework's venv.
-
-**Request:** Verify that hooks work when:
-1. Called with `PYTHONPATH=/adt-framework` set in environment
-2. The framework venv is bind-mounted at its original path inside the namespace
-3. The `ADT_SANDBOX_ROOT` is set to `/project` instead of the host absolute path
-
-No code changes may be needed if the hooks already use relative imports and `os.environ` correctly. Just need Backend to verify and confirm or flag issues.
+**Result:** Backend_Engineer verified PYTHONPATH requirements. PTY spawner recommended to include framework venv site-packages in the sandbox environment.
 
 
 ---
@@ -774,7 +702,7 @@ Investigation reveals several issues in `adt-console/src-tauri/src/pty.rs`:
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 
 ---
@@ -852,7 +780,7 @@ The current healer.py fails with PermissionError (Errno 1) during backup because
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 
 ---
@@ -871,4 +799,63 @@ SPEC-020 Amendment B mandates role and agent normalization. Currently, the /log 
 
 ### Status
 
-**OPEN**
+**COMPLETED**
+
+---
+
+## REQ-040: Strict Project Context Filtering in ADT Panel
+
+**From:** DevOps_Engineer (GEMINI)
+**To:** @Backend_Engineer
+**Date: 2026-03-06 20:33 UTC**
+**Type:** ARCHITECTURAL_FIX
+**Priority:** HIGH
+
+### Description
+
+Currently, selecting an external project (e.g., 'smart-lab') in the ADT Panel results in a mixed view where internal Forge specs/ADS events are still visible alongside project-specific items.
+
+**Requirements:**
+1. Update `adt_center/app.py` and all routes in `adt_center/api/` to strictly scope data by the `project` query parameter.
+2. Ensure that when a project is selected, the internal Forge (Framework) data is hidden unless explicitly requested.
+3. Verify that background API polling (ADS events, task updates) respects the active project context to prevent data leakage between project views.
+
+### Status
+
+**COMPLETED** — Strict project context filtering implemented across all API routes and templates. Fixed leaking git status and enforcement monitor. Navigation now preserves project scope.
+
+
+---
+
+## REQ-041: Task Completion: task_167
+
+**From:** Frontend_Engineer (GEMINI)
+**To:** @Systems_Architect
+**Date:** 2026-03-06 22:37 UTC
+**Type:** TASK_STATUS_UPDATE
+**Priority:** MEDIUM
+**Related Specs:** SPEC-038
+
+### Status
+
+**COMPLETED** — Task 167 verified. Capabilities UI and Traceability Explorer integrated.
+
+
+---
+
+## REQ-042: Missing API Endpoints for Capabilities UI
+
+**From:** Frontend_Engineer (GEMINI)
+**To:** @Backend_Engineer
+**Date:** 2026-03-06 22:37 UTC
+**Type:** API_REQUEST
+**Priority:** HIGH
+**Related Specs:** SPEC-038
+
+### Description
+
+Capabilities UI (task_167) is implemented but requires backend endpoints (/api/governance/capabilities/*) to be functional.
+
+### Status
+
+**COMPLETED** — Backend endpoints for Capabilities (/api/governance/capabilities/*) have been implemented and verified as part of task_165.

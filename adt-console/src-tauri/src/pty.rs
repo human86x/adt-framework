@@ -19,13 +19,18 @@ use tauri::{Emitter, Runtime};
 /// This runs the user's shell to get the full PATH.
 fn resolve_user_path() -> String {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
-    if let Ok(output) = Command::new(&shell)
-        .args(["-l", "-c", "echo $PATH"])
-        .output()
-    {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !path.is_empty() {
-            return path;
+    // Use -li (login + interactive) so both .profile AND .bashrc are sourced.
+    // Many users add PATH entries in .bashrc which -l alone won't pick up
+    // (non-interactive login shells skip .bashrc on bash).
+    for flags in &[["-li", "-c", "echo $PATH"], ["-l", "-c", "echo $PATH"]] {
+        if let Ok(output) = Command::new(&shell)
+            .args(flags.as_slice())
+            .output()
+        {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return path;
+            }
         }
     }
     // Fallback: current PATH plus common user binary locations
@@ -91,6 +96,16 @@ fn create_sandbox_dir(project_root: &Path, session_id: &str) -> Result<PathBuf, 
     for subdir in &[".claude", ".gemini", "home", "tmp"] {
         fs::create_dir_all(sandbox_root.join(subdir))
             .map_err(|e| format!("Failed to create sandbox dir {}: {}", subdir, e))?;
+    }
+
+    // In production mode, make sandbox dirs writable by the 'agent' OS user.
+    // The Tauri process runs as 'human' and creates dirs owned by human:human,
+    // but sudo -u agent needs the agent user to write to HOME/TMPDIR inside the sandbox.
+    if is_production_mode() {
+        let _ = Command::new("/bin/chmod")
+            .args(["-R", "777", &sandbox_root.to_string_lossy()])
+            .output();
+        log::info!("[SANDBOX] Set sandbox permissions for agent user");
     }
 
     log::info!("[SANDBOX] Created sandbox at {:?}", sandbox_root);
@@ -342,9 +357,20 @@ fn is_framework_project(project_root: &Path, framework_root: &Path) -> bool {
 
 // --- SPEC-036 Phase B: OS-Level Namespace Isolation ---
 
-/// Check if bubblewrap (bwrap) is available on the system.
+/// Check if bubblewrap (bwrap) is available AND functional on the system.
+/// Just checking existence is insufficient — unprivileged user namespaces may be
+/// disabled (sysctl kernel.unprivileged_userns_clone=0), causing bwrap to fail
+/// with "Permission denied" at runtime despite the binary existing.
 fn has_bubblewrap() -> bool {
-    Path::new("/usr/bin/bwrap").exists()
+    if !Path::new("/usr/bin/bwrap").exists() {
+        return false;
+    }
+    // Smoke-test: run a trivial bwrap command to verify it actually works
+    Command::new("/usr/bin/bwrap")
+        .args(["--ro-bind", "/usr", "/usr", "--", "/usr/bin/true"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// Check if user namespaces are supported (unshare works without root).
@@ -359,10 +385,9 @@ fn has_user_namespaces() -> bool {
 /// Build the command prefix for bubblewrap (bwrap) sandboxing.
 /// This creates a minimal filesystem view containing only the project root
 /// and essential system directories (read-only).
-/// NOTE: --unshare-net is intentionally omitted. Phase A hooks block curl/wget/ssh/scp,
-/// and env sanitization strips cloud creds. Network isolation would break DTTP
-/// (localhost:5002 is unreachable from a new network namespace). Deferred to
-/// future slirp4netns integration.
+/// NOTE: --unshare-net is enabled in Phase B (SPEC-036 task_148).
+/// Network communication to host DTTP (localhost:5002) and ADT Panel (localhost:5001)
+/// is bridged via socat.
 fn build_bwrap_args(
     project_root: &Path,
     _dttp_port: u16,
@@ -374,6 +399,7 @@ fn build_bwrap_args(
 
     let mut args = vec![
         "/usr/bin/bwrap".to_string(),
+        "--unshare-net".to_string(), // Enable network isolation
         // Essential system dirs (read-only)
         "--ro-bind".to_string(), "/usr".to_string(), "/usr".to_string(),
         "--ro-bind".to_string(), "/lib".to_string(), "/lib".to_string(),
@@ -382,10 +408,10 @@ fn build_bwrap_args(
         "--ro-bind".to_string(), "/etc".to_string(), "/etc".to_string(),
     ];
 
-    // /usr/local/bin often contains node, required for gemini
-    if Path::new("/usr/local/bin").exists() {
+    // /usr/local contains many user tools and often their targets (e.g. /usr/local/nodejs)
+    if Path::new("/usr/local").exists() {
         args.extend_from_slice(&[
-            "--ro-bind".to_string(), "/usr/local/bin".to_string(), "/usr/local/bin".to_string(),
+            "--ro-bind".to_string(), "/usr/local".to_string(), "/usr/local".to_string(),
         ]);
     }
 
@@ -404,23 +430,28 @@ fn build_bwrap_args(
     }
 
     // Agent binary context (parent + sibling lib dir for npm/cargo)
-    let binary_parent = Path::new(agent_binary_path)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
+    // We try to find a sensible 'root' to mount so that dependencies are available
+    let binary_path = Path::new(agent_binary_path);
+    let mut mount_root = binary_path.parent().map(|p| p.to_path_buf());
 
-    if !binary_parent.is_empty() && Path::new(&binary_parent).exists() {
-        args.extend_from_slice(&["--ro-bind".to_string(), binary_parent.clone(), binary_parent.clone()]);
-
-        // Mount sibling 'lib' dir if it exists (common for npm global modules)
-        if binary_parent.ends_with("bin") {
-            if let Some(prefix) = Path::new(&binary_parent).parent() {
-                let lib_dir = prefix.join("lib");
-                if lib_dir.exists() {
-                    let lib_str = lib_dir.to_string_lossy().to_string();
-                    args.extend_from_slice(&["--ro-bind".to_string(), lib_str.clone(), lib_str.clone()]);
-                }
+    // Heuristic: if inside .npm-global or .cargo, mount the whole thing
+    if let Some(ref path) = mount_root {
+        let path_str = path.to_string_lossy();
+        if path_str.contains(".npm-global") {
+            if let Some(idx) = path_str.find(".npm-global") {
+                mount_root = Some(PathBuf::from(&path_str[..idx + 11]));
             }
+        } else if path_str.contains(".cargo") {
+            if let Some(idx) = path_str.find(".cargo") {
+                mount_root = Some(PathBuf::from(&path_str[..idx + 6]));
+            }
+        }
+    }
+
+    if let Some(root) = mount_root {
+        if root.exists() {
+            let root_str = root.to_string_lossy().to_string();
+            args.extend_from_slice(&["--ro-bind".to_string(), root_str.clone(), root_str.clone()]);
         }
     }
 
@@ -432,7 +463,7 @@ fn build_bwrap_args(
         format!("{}/.local/bin", home),
     ] {
         if Path::new(tool_dir).exists()
-            && !tool_dir.starts_with(&binary_parent)
+            && !binary_path.starts_with(tool_dir)
         {
             args.extend_from_slice(&[
                 "--ro-bind".to_string(), tool_dir.clone(), tool_dir.clone(),
@@ -484,34 +515,121 @@ fn build_unshare_script(
     let project_str = project_root.to_string_lossy();
     let framework_str = framework_root.to_string_lossy();
 
-    // Determine binary parent to mount
-    let binary_parent = Path::new(agent_binary_path)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
+    // Determine binary mount point
+    let binary_path = Path::new(agent_binary_path);
+    let mut mount_root = binary_path.parent().map(|p| p.to_path_buf());
 
-    let mut binary_mount = String::new();
-    if !binary_parent.is_empty() && Path::new(&binary_parent).exists() {
-        binary_mount.push_str(&format!("mkdir -p /sandbox{bin}; mount --rbind {bin} /sandbox{bin}; ", bin = binary_parent));
-
-        // Mount sibling 'lib' dir if it exists (common for npm global modules)
-        if binary_parent.ends_with("bin") {
-            if let Some(prefix) = Path::new(&binary_parent).parent() {
-                let lib_dir = prefix.join("lib");
-                if lib_dir.exists() {
-                    let lib_str = lib_dir.to_string_lossy().to_string();
-                    binary_mount.push_str(&format!("mkdir -p /sandbox{lib}; mount --rbind {lib} /sandbox{lib}; ", lib = lib_str));
-                }
+    // Heuristic: if inside .npm-global or .cargo, mount the whole thing
+    if let Some(ref path) = mount_root {
+        let path_str = path.to_string_lossy();
+        if path_str.contains(".npm-global") {
+            if let Some(idx) = path_str.find(".npm-global") {
+                mount_root = Some(PathBuf::from(&path_str[..idx + 11]));
+            }
+        } else if path_str.contains(".cargo") {
+            if let Some(idx) = path_str.find(".cargo") {
+                mount_root = Some(PathBuf::from(&path_str[..idx + 6]));
             }
         }
     }
 
+    let mut binary_mount = String::new();
+    if let Some(root) = mount_root {
+        if root.exists() {
+            let root_str = root.to_string_lossy();
+            binary_mount.push_str(&format!("/usr/bin/mkdir -p /sandbox{root}; /usr/bin/mount --rbind {root} /sandbox{root}; ", root = root_str));
+        }
+    }
+
+    // Include /usr/local if it exists
+    let local_mount = if Path::new("/usr/local").exists() {
+        "/usr/bin/mkdir -p /sandbox/usr/local; /usr/bin/mount --rbind /usr/local /sandbox/usr/local; "
+    } else {
+        ""
+    };
+
     format!(
-        r#"/usr/bin/mount --make-rprivate / 2>/dev/null; /usr/bin/mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; /usr/bin/mount --bind {project} /sandbox/project; /usr/bin/mount --rbind /usr /sandbox/usr; /usr/bin/mount --rbind /lib /sandbox/lib; /usr/bin/mount --rbind /bin /sandbox/bin; /usr/bin/mount --rbind /sbin /sandbox/sbin; /usr/bin/mount --rbind /etc /sandbox/etc; /usr/bin/mount --rbind {framework} /sandbox/adt-framework; {bin_mount} /usr/bin/test -d /lib64 && /usr/bin/mkdir -p /sandbox/lib64 && /usr/bin/mount --rbind /lib64 /sandbox/lib64; /usr/bin/mount -t tmpfs tmpfs /sandbox/tmp; /usr/bin/mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; /usr/bin/mount -t proc proc /sandbox/proc; cd /sandbox && /usr/sbin/pivot_root . /sandbox/tmp 2>/dev/null && /usr/bin/umount -l /tmp/tmp 2>/dev/null; cd /project"#,
+        r#"/usr/bin/mount --make-rprivate / 2>/dev/null; /usr/bin/mkdir -p /sandbox/project /sandbox/usr /sandbox/lib /sandbox/bin /sandbox/sbin /sandbox/etc /sandbox/tmp /sandbox/dev /sandbox/proc /sandbox/adt-framework; /usr/bin/mount --bind {project} /sandbox/project; /usr/bin/mount --rbind /usr /sandbox/usr; /usr/bin/mount --rbind /lib /sandbox/lib; /usr/bin/mount --rbind /bin /sandbox/bin; /usr/bin/mount --rbind /sbin /sandbox/sbin; /usr/bin/mount --rbind /etc /sandbox/etc; /usr/bin/mount --rbind {framework} /sandbox/adt-framework; {local_mount} {bin_mount} /usr/bin/test -d /lib64 && /usr/bin/mkdir -p /sandbox/lib64 && /usr/bin/mount --rbind /lib64 /sandbox/lib64; /usr/bin/mount -t tmpfs tmpfs /sandbox/tmp; /usr/bin/mount -t devtmpfs devtmpfs /sandbox/dev 2>/dev/null || true; /usr/bin/mount -t proc proc /sandbox/proc; cd /sandbox && /usr/sbin/pivot_root . /sandbox/tmp 2>/dev/null && /usr/bin/umount -l /tmp/tmp 2>/dev/null; cd /project"#,
         project = project_str,
         framework = framework_str,
+        local_mount = local_mount,
         bin_mount = binary_mount
     )
+}
+
+/// Spawn socat background processes to bridge DTTP/Panel ports from host into the namespace.
+/// Since bwrap's --unshare-net creates a new network namespace with only loopback,
+/// the agent cannot reach localhost:5002 on the host.
+/// We use a two-step bridge:
+/// 1. Host Host-Port -> Host Unix-Socket (in sandbox)
+/// 2. Namespace Host-Port (localhost) -> Namespace Unix-Socket (in sandbox)
+fn spawn_network_bridges(
+    sandbox_root: &Path,
+    dttp_port: u16,
+    panel_port: u16,
+) -> Vec<std::process::Child> {
+    let mut bridges = Vec::new();
+
+    let dttp_sock = sandbox_root.join("dttp.sock");
+    let panel_sock = sandbox_root.join("panel.sock");
+
+    // 1. DTTP Bridge (Host Side: TCP -> Unix Socket)
+    // socat UNIX-LISTEN:/path/to/dttp.sock,fork TCP:127.0.0.1:5002
+    match Command::new("/usr/bin/socat")
+        .args([
+            &format!("UNIX-LISTEN:{},fork,reuseaddr", dttp_sock.to_string_lossy()),
+            &format!("TCP:127.0.0.1:{}", dttp_port),
+        ])
+        .spawn()
+    {
+        Ok(child) => bridges.push(child),
+        Err(e) => log::error!("[SANDBOX] Failed to spawn host DTTP bridge: {}", e),
+    }
+
+    // 2. ADT Panel Bridge (Host Side: TCP -> Unix Socket)
+    match Command::new("/usr/bin/socat")
+        .args([
+            &format!("UNIX-LISTEN:{},fork,reuseaddr", panel_sock.to_string_lossy()),
+            &format!("TCP:127.0.0.1:{}", panel_port),
+        ])
+        .spawn()
+    {
+        Ok(child) => bridges.push(child),
+        Err(e) => log::error!("[SANDBOX] Failed to spawn host Panel bridge: {}", e),
+    }
+
+    bridges
+}
+
+/// Build a shell wrapper to start the namespace-side of the network bridge.
+fn build_bridge_wrapper(
+    command: &str,
+    args: &[String],
+    session_id: &str,
+    dttp_port: u16,
+    panel_port: u16,
+) -> (String, Vec<String>) {
+    let dttp_sock = format!("/project/.adt/sandbox/{}/dttp.sock", session_id);
+    let panel_sock = format!("/project/.adt/sandbox/{}/panel.sock", session_id);
+
+    let agent_cmd = if args.is_empty() {
+        command.to_string()
+    } else {
+        format!("{} {}", command, args.join(" "))
+    };
+
+    // The wrapper starts background socat bridges inside the namespace (Unix Socket -> TCP)
+    // then execs the agent command.
+    let script = format!(
+        "socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
+         socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
+         exec {}",
+        dttp_port, dttp_sock,
+        panel_port, panel_sock,
+        agent_cmd
+    );
+
+    ("/bin/sh".to_string(), vec!["-c".to_string(), script])
 }
 
 /// Determine the isolation method for Phase B.
@@ -533,37 +651,42 @@ fn wrap_with_namespace(
     args: &[String],
     project_root: &Path,
     dttp_port: u16,
+    panel_port: u16,
     framework_root: &Path,
+    session_id: &str,
 ) -> Option<(String, Vec<String>)> {
     let method = detect_isolation_method();
 
     match method {
         "bwrap" => {
             let mut bwrap_args = build_bwrap_args(project_root, dttp_port, command, framework_root);
-            bwrap_args.push(command.to_string());
-            bwrap_args.extend(args.iter().cloned());
+            
+            // Wrap the agent command with the network bridge script
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            bwrap_args.push(bridge_cmd);
+            bwrap_args.extend(bridge_args);
 
             // bwrap is the command, everything else is args
             let bwrap_cmd = bwrap_args.remove(0);
             log::info!(
-                "[SANDBOX PHASE B] Using bubblewrap isolation for {}",
-                project_root.display()
+                "[SANDBOX PHASE B] Using bubblewrap isolation for session {}",
+                session_id
             );
             Some((bwrap_cmd, bwrap_args))
         }
         "unshare" => {
             // unshare with mount namespace
             let setup_script = build_unshare_script(project_root, dttp_port, framework_root, command);
-            let agent_cmd = if args.is_empty() {
-                command.to_string()
-            } else {
-                format!("{} {}", command, args.join(" "))
-            };
-            let full_script = format!("{}; exec {}", setup_script, agent_cmd);
+            
+            // Wrap the agent command with the network bridge script
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            let agent_script = format!("{} {}", bridge_cmd, bridge_args.join(" "));
+            
+            let full_script = format!("{}; {}", setup_script, agent_script);
 
             log::info!(
-                "[SANDBOX PHASE B] Using unshare namespace isolation for {}",
-                project_root.display()
+                "[SANDBOX PHASE B] Using unshare namespace isolation for session {}",
+                session_id
             );
             Some((
                 "/usr/bin/unshare".to_string(),
@@ -572,7 +695,7 @@ fn wrap_with_namespace(
                     "--map-root-user".to_string(),
                     "--fork".to_string(),
                     "--".to_string(),
-                    "/bin/bash".to_string(),
+                    "/usr/bin/bash".to_string(),
                     "-c".to_string(),
                     full_script,
                 ],
@@ -619,6 +742,7 @@ struct PtySession {
     info: SessionInfo,
     metadata: PersistentSession,
     sandbox_root: Option<PathBuf>,
+    bridge_processes: Vec<std::process::Child>,
 }
 
 pub struct PtyManager {
@@ -794,6 +918,23 @@ impl PtyManager {
             id
         };
 
+        // Determine DTTP and Panel ports
+        let dttp_port_num = if let Some(path) = &cwd {
+            let config_path = PathBuf::from(path).join("config").join("dttp.json");
+            if config_path.exists() {
+                fs::read_to_string(&config_path).ok()
+                    .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+                    .and_then(|j| j.get("port").and_then(|p| p.as_u64()))
+                    .map(|p| p as u16)
+                    .unwrap_or(5002)
+            } else {
+                5002
+            }
+        } else {
+            5002
+        };
+        let panel_port_num = 5001; // Default Panel port
+
         // SPEC-036 Phase B: Determine if namespace isolation applies
         // Must be decided before building CommandBuilder
         let framework_root = get_framework_root();
@@ -802,19 +943,15 @@ impl PtyManager {
                 let project_root = PathBuf::from(cwd_path);
                 let is_fw = is_framework_project(&project_root, &framework_root);
                 if !is_fw {
-                    let dttp_port_num = {
-                        let config_path = project_root.join("config").join("dttp.json");
-                        if config_path.exists() {
-                            fs::read_to_string(&config_path).ok()
-                                .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
-                                .and_then(|j| j.get("port").and_then(|p| p.as_u64()))
-                                .map(|p| p as u16)
-                                .unwrap_or(5002)
-                        } else {
-                            5002
-                        }
-                    };
-                    wrap_with_namespace(&command_to_run, args, &project_root, dttp_port_num, &framework_root)
+                    wrap_with_namespace(
+                        &command_to_run,
+                        args,
+                        &project_root,
+                        dttp_port_num,
+                        panel_port_num,
+                        &framework_root,
+                        &session_id,
+                    )
                 } else {
                     None
                 }
@@ -833,8 +970,12 @@ impl PtyManager {
             }
             c
         } else if let Some(ref _agent_user) = agent_user {
-            // Tier 1 production mode but framework project (no namespace)
+            // Production mode: run as OS user 'agent' via sudo.
+            // Use -E to preserve environment (HOME, TMPDIR, etc.) set by sandbox
+            // setup — without this, sudo resets HOME to /home/agent (from /etc/passwd)
+            // which may not exist, causing agents to crash on startup.
             let mut c = CommandBuilder::new("/usr/bin/sudo");
+            c.arg("-E");
             c.arg("-u");
             c.arg("agent");
             c.arg(&command_to_run);
@@ -857,29 +998,8 @@ impl PtyManager {
             }
         }
 
-        // Determine DTTP_URL from project config if available
-        let dttp_url = if let Some(path) = &cwd {
-            let config_path = PathBuf::from(path).join("config").join("dttp.json");
-            if config_path.exists() {
-                if let Ok(content) = fs::read_to_string(config_path) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(port) = json.get("port").and_then(|p| p.as_u64()) {
-                            format!("http://localhost:{}", port)
-                        } else {
-                            "http://localhost:5002".to_string()
-                        }
-                    } else {
-                        "http://localhost:5002".to_string()
-                    }
-                } else {
-                    "http://localhost:5002".to_string()
-                }
-            } else {
-                "http://localhost:5002".to_string()
-            }
-        } else {
-            "http://localhost:5002".to_string()
-        };
+        // Determine DTTP_URL for SDK communication
+        let dttp_url = format!("http://localhost:{}", dttp_port_num);
 
         // SPEC-036: Set up sandbox for agent sessions
         let namespace_mode = phase_b_wrap.is_some();
@@ -915,16 +1035,32 @@ impl PtyManager {
                         ) {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
-                        // Inject --sandbox flag for Gemini CLI
-                        cmd.arg("--sandbox");
-                        log::info!("[SANDBOX] Gemini --sandbox flag injected");
+                        // Note: Do NOT inject --sandbox flag. Gemini's --sandbox requires
+                        // docker/podman for container isolation. Our sandbox is DTTP-based
+                        // (hook enforcement + env isolation), not container-based.
+                        log::info!("[SANDBOX] Gemini DTTP hook sandbox configured (no --sandbox flag)");
                     }
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
+                    // For external projects: full env sanitization
+                    // For framework projects in production mode: still need HOME redirect
+                    // because sudo -u agent sets HOME=/home/agent which may not exist
                     if !is_framework {
                         apply_sandbox_env(
                             &mut cmd, &sb_root, &project_root, agent, &dttp_url,
                             namespace_mode, &session_id,
+                        );
+                    } else if production_mode && is_agent_session {
+                        // Framework project + production mode: redirect HOME/TMPDIR
+                        // to sandbox so agents have a writable home directory
+                        let sandbox_home = sb_root.join("home");
+                        let sandbox_tmp = sb_root.join("tmp");
+                        cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
+                        cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
+                        cmd.env("DTTP_URL", &dttp_url);
+                        log::info!(
+                            "[SANDBOX] Framework project production mode: HOME={:?}, TMPDIR={:?}",
+                            sandbox_home, sandbox_tmp
                         );
                     }
 
@@ -1045,12 +1181,20 @@ impl PtyManager {
             }
         });
 
+        let mut bridge_processes = Vec::new();
+        if namespace_mode {
+            if let Some(ref sb_root) = sandbox_root {
+                bridge_processes = spawn_network_bridges(sb_root, dttp_port_num, panel_port_num);
+            }
+        }
+
         let session = PtySession {
             master: pair.master,
             writer,
             info: info.clone(),
             metadata,
             sandbox_root,
+            bridge_processes,
         };
 
         {
@@ -1112,17 +1256,29 @@ impl PtyManager {
 
     pub fn close_session(&self, session_id: &str) -> Result<(), String> {
         let sandbox_info: Option<(PathBuf, String)>;
+        let bridge_processes: Vec<std::process::Child>;
         {
             let mut sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
-            let session = sessions.remove(session_id)
+            let mut session = sessions.remove(session_id)
                 .ok_or_else(|| format!("Session not found: {}", session_id))?;
+            
             sandbox_info = session.sandbox_root.as_ref().map(|_sb| {
                 let project_root = session.metadata.cwd.as_ref()
                     .map(PathBuf::from)
                     .unwrap_or_else(|| PathBuf::from("."));
                 (project_root, session_id.to_string())
             });
+
+            // Take bridge processes to kill them outside the lock
+            bridge_processes = std::mem::take(&mut session.bridge_processes);
         }
+
+        // Kill all associated bridge processes
+        for mut child in bridge_processes {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
         // SPEC-036: Clean up sandbox directory after session closes
         if let Some((project_root, sid)) = sandbox_info {
             cleanup_sandbox(&project_root, &sid);
@@ -1248,14 +1404,14 @@ mod tests {
     }
 
     #[test]
-    fn test_bwrap_args_no_unshare_net() {
-        // Phase B bwrap args must NOT include --unshare-net (breaks DTTP)
+    fn test_bwrap_args_has_unshare_net() {
+        // Phase B bwrap args must include --unshare-net
         let project = PathBuf::from("/tmp/test-project");
         let framework = PathBuf::from("/home/test/adt-framework");
         let args = build_bwrap_args(&project, 5002, "/usr/bin/claude", &framework);
 
-        assert!(!args.contains(&"--unshare-net".to_string()),
-            "bwrap args must NOT include --unshare-net (breaks DTTP localhost access)");
+        assert!(args.contains(&"--unshare-net".to_string()),
+            "bwrap args must include --unshare-net for Phase B isolation");
         assert!(args.contains(&"--die-with-parent".to_string()));
         assert!(args.contains(&"--chdir".to_string()));
     }
