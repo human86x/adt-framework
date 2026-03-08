@@ -11,10 +11,10 @@ BINARY="$CONSOLE_DIR/src-tauri/target/debug/adt-console"
 
 if [ -f "$BINARY" ]; then
     echo "[+] Running compiled binary..."
-    GDK_BACKEND=x11 RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 "$BINARY"
+    RUST_LOG=info "$BINARY"
 else
     echo "[+] Starting Tauri dev environment..."
-    cd "$CONSOLE_DIR" && GDK_BACKEND=x11 RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 cargo tauri dev
+    cd "$CONSOLE_DIR" && RUST_LOG=info cargo tauri dev
 fi
 
 echo "---------------------------------------"

@@ -60,14 +60,23 @@ fi
 
 # 3. Start Operator Console (Tauri)
 echo "[+] Starting ADT Operator Console (Tauri)..."
-CONSOLE_BIN="$PROJECT_ROOT/adt-console/src-tauri/target/release/adt-console"
-if [ ! -x "$CONSOLE_BIN" ]; then
-    CONSOLE_BIN="$PROJECT_ROOT/adt-console/src-tauri/target/debug/adt-console"
-fi
-if [ -x "$CONSOLE_BIN" ]; then
-    GDK_BACKEND=x11 WEBKIT_DISABLE_COMPOSITING_MODE=1 "$CONSOLE_BIN" > "$LOG_DIR/console.log" 2>&1 &
+CONSOLE_BIN=""
+# Check in order: release build, debug build, install.sh bin/, system-installed (.deb)
+for candidate in \
+    "$PROJECT_ROOT/adt-console/src-tauri/target/release/adt-console" \
+    "$PROJECT_ROOT/adt-console/src-tauri/target/debug/adt-console" \
+    "$PROJECT_ROOT/bin/adt-console.AppImage" \
+    "$(which adt-console 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        CONSOLE_BIN="$candidate"
+        break
+    fi
+done
+if [ -n "$CONSOLE_BIN" ]; then
+    echo "    Using: $CONSOLE_BIN"
+    "$CONSOLE_BIN" > "$LOG_DIR/console.log" 2>&1 &
 else
-    echo "[!] Console binary not found. Build with: cd adt-console && cargo tauri build"
+    echo "[!] Console binary not found. Run 'bash install.sh' or 'bash console.sh' to install."
 fi
 
 echo "--------------------------------"
