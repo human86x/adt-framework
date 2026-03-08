@@ -2078,12 +2078,61 @@
     },
     {
       "id": "task_168",
-      "title": "Update jurisdictions and specs for capability paths",
+      "title": "SPEC-038: Grant SA access to capabilities",
       "description": "Update config/jurisdictions.json and config/specs.json to grant access to _cortex/capabilities/.",
       "spec_ref": "SPEC-038",
       "assigned_to": "Systems_Architect",
       "status": "pending",
       "priority": "medium"
+    },
+    {
+      "id": "task_169",
+      "title": "SPEC-039: Hierarchical Sidebar Refactor",
+      "description": "Refactor index.html to support nested hierarchy in Hive Tracker (Intent -> Spec -> Task).",
+      "spec_ref": "SPEC-039",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_170",
+      "title": "SPEC-039: Implement human_steering ADS event",
+      "description": "Add human_steering action type to ADSEventSchema and normalize for orchestration.",
+      "spec_ref": "SPEC-039",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented human_steering in ADSEventSchema.",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-03-07T12:33:56.035880Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_171",
+      "title": "SPEC-039: PTY Command Injection",
+      "description": "Implement PTY injection logic in pty.rs to send hints/priorities to active agents.",
+      "spec_ref": "SPEC-039",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_172",
+      "title": "SPEC-039: ADS Pulse Synchronization",
+      "description": "Map real-time ADS events to UI sidebar pulses for 'thinking' feedback.",
+      "spec_ref": "SPEC-039",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_173",
+      "title": "SPEC-039: Interactive Prioritization Buttons",
+      "description": "Add 'Prioritize' buttons to task list in Sidebar for bi-directional steering.",
+      "spec_ref": "SPEC-039",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high"
     }
   ]
 }
