@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(pip:*)",
+      "WebSearch",
+      "Bash(find:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/human/Projects/adt-framework/adt_sdk/hooks/claude_pretool.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

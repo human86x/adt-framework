@@ -661,7 +661,8 @@ dialog label {
 }
 
 dialog select,
-dialog input[type="text"] {
+dialog input[type="text"],
+dialog textarea {
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -673,6 +674,11 @@ dialog input[type="text"] {
   font-size: 15px;
   -webkit-appearance: none;
   appearance: none;
+  font-family: inherit;
+}
+
+dialog textarea {
+  resize: vertical;
 }
 
 dialog select {
@@ -804,6 +810,32 @@ dialog select option {
 .dot-yellow { background: var(--accent-yellow); }
 .dot-red { background: var(--accent-red); }
 .dot-grey { background: var(--text-muted); }
+
+.text-adt-success { color: var(--accent-green); }
+.text-adt-accent { color: var(--accent-blue); }
+
+.btn-mini-action {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.btn-mini-action:hover {
+  background: var(--border);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
 
 .status-escalations.has-escalations {
   color: var(--accent-yellow);
@@ -2210,3 +2242,44 @@ input:checked + .slider:before {
 .badge-adt.badge-pending { color: var(--accent-yellow) !important; border-color: var(--accent-yellow) !important; }
 .badge-adt.badge-in-progress { color: var(--accent-blue) !important; border-color: var(--accent-blue) !important; }
 .badge-adt.badge-completed { color: var(--accent-green) !important; border-color: var(--accent-green) !important; }
+
+/* SPEC-035: Completion Buttons in Hive Tracker */
+.btn-complete-tracker {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-complete-tracker:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.btn-complete-tracker.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn-complete-tracker.loading::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

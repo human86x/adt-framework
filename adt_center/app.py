@@ -64,6 +64,18 @@ def create_app():
     app.spec_registry = SpecRegistry(SPECS_DIR)
     app.task_manager = TaskManager(TASKS_PATH, project_name=app.config["PROJECT_NAME"])
 
+    # SPEC-020 Amendment B: Load canonical roles for normalization
+    try:
+        from adt_core.ads.schema import ADSEventSchema
+        import json
+        jurisdictions_path = os.path.join(PROJECT_ROOT, "config", "jurisdictions.json")
+        if os.path.exists(jurisdictions_path):
+            with open(jurisdictions_path) as f:
+                jur_data = json.load(f)
+                ADSEventSchema.CANONICAL_ROLES = list(jur_data.get("jurisdictions", {}).keys())
+    except Exception as e:
+        app.logger.warning(f"Failed to load canonical roles for normalization: {e}")
+
     # Register Jinja2 filter for markdown
     @app.template_filter('markdown')
     def markdown_filter(text):
@@ -186,51 +198,51 @@ def create_app():
         projects = app.project_registry.list_projects()
         return render_template("projects.html", projects=projects)
 
-    @app.route("/api/projects")
-    def api_list_projects():
+    def _get_enriched_projects(project_dict):
         from adt_core.cli import is_port_in_use
-        projects = app.project_registry.list_projects()
         enriched = {}
-        
-        for name, config in projects.items():
-            project_root = config["path"]
+        for name, config in project_dict.items():
             paths = get_project_paths(name)
-            
-            # 1. DTTP Status
             port = config.get("dttp_port")
             dttp_running = is_port_in_use(port) if port else False
-            
-            # 2. Stats
             stats = {"specs": 0, "tasks": 0, "ads_events": 0}
-            
-            # Specs
             if os.path.exists(paths["specs"]):
                 stats["specs"] = len([f for f in os.listdir(paths["specs"]) if f.endswith(".md")])
-                
-            # Tasks
             if os.path.exists(paths["tasks"]):
                 try:
                     with open(paths["tasks"], "r") as f:
                         data = json.load(f)
                         stats["tasks"] = len(data.get("tasks", []))
-                except:
-                    pass
-                    
-            # ADS Events
+                except: pass
             if os.path.exists(paths["ads"]):
                 try:
                     with open(paths["ads"], "r") as f:
                         stats["ads_events"] = sum(1 for _ in f)
-                except:
-                    pass
-            
-            enriched[name] = {
-                **config,
-                "dttp_running": dttp_running,
-                "stats": stats
-            }
-            
-        return jsonify(enriched)
+                except: pass
+            enriched[name] = {**config, "dttp_running": dttp_running, "stats": stats}
+        return enriched
+
+    @app.route("/api/projects")
+    def api_list_governed_projects():
+        """SPEC-031 Amendment A: Return only governed projects."""
+        projects = app.project_registry.list_governed_projects()
+        return jsonify(_get_enriched_projects(projects))
+
+    @app.route("/api/forge")
+    def api_get_forge():
+        """SPEC-031 Amendment A: Return forge (framework) metadata."""
+        forge = app.project_registry.get_forge()
+        if not forge:
+            return jsonify({"error": "Forge not found"}), 404
+        # Wrap in dict matching projects format
+        name = forge.pop("name")
+        return jsonify(_get_enriched_projects({name: forge}))
+
+    @app.route("/api/projects/all")
+    def api_list_all_projects():
+        """SPEC-031 Amendment A: Return all projects including forge."""
+        projects = app.project_registry.list_projects()
+        return jsonify(_get_enriched_projects(projects))
 
     @app.route("/dttp")
     def dttp_monitor():
@@ -264,4 +276,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="::", port=5001, debug=False)

@@ -182,6 +182,11 @@ const GovernancePanel = (() => {
       ? `<span class="card-blocked">blocked by ${task.depends_on.join(', ')}</span>`
       : '';
 
+    // SPEC-035: Add Mark Complete button if not completed
+    const completeBtn = task.status !== 'completed' 
+      ? `<button class="btn-complete-tracker" style="margin-top: 8px; width: 100%;" onclick="event.stopPropagation(); GovernancePanel._markComplete('${task.id}', this)">✓ Mark Complete</button>`
+      : '';
+
     return `
       <div class="task-card ${priorityClass}" title="${(task.description || task.title || '').replace(/"/g, '&quot;')}" onclick="GovernancePanel._showTaskDetail('${task.id}')">
         <div class="task-card-header">
@@ -194,6 +199,7 @@ const GovernancePanel = (() => {
           ${delegationBadge}
         </div>
         ${blockedBadge}
+        ${completeBtn}
       </div>
     `;
   }
@@ -607,6 +613,52 @@ const GovernancePanel = (() => {
 
   function _showTaskDetail(taskId) { showTaskDetail(taskId); }
 
+  async function markComplete(taskId, btn) {
+    const role = SessionManager.getActive()?.role;
+    const agent = SessionManager.getActive()?.agent || 'GEMINI';
+    
+    if (!role) {
+      ToastManager.show('denial', 'Error', 'No active session role');
+      return;
+    }
+
+    const evidence = prompt(`Mark task ${taskId} as complete?\nEvidence:`);
+    if (evidence === null) return;
+
+    if (btn) {
+      btn.classList.add('loading');
+      btn.disabled = true;
+    }
+
+    try {
+      const res = await fetch(`${API_URL()}/api/tasks/${taskId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'completed',
+          role: role,
+          agent: agent,
+          evidence: evidence || 'Completed via Console Governance'
+        })
+      });
+
+      if (res.ok) {
+        ToastManager.show('completion', 'Task Completed', taskId);
+        refresh();
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Failed', data.error || 'Unknown error');
+      }
+    } catch (e) {
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+    } finally {
+      if (btn) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+  }
+
   return {
     toggle: toggle,
     isActive: isActiveState,
@@ -617,5 +669,6 @@ const GovernancePanel = (() => {
     _filterMatrix: _filterMatrix,
     _clearFilter: _clearFilter,
     _showTaskDetail: _showTaskDetail,
+    _markComplete: markComplete,
   };
 })();

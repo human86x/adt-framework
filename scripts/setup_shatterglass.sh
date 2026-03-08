@@ -55,6 +55,33 @@ else
     echo "Platform: Linux/WSL"
 fi
 
+# --- 1b. Install Phase B dependencies (SPEC-036) ---
+echo "Checking Phase B sandbox dependencies..."
+if ! $IS_MAC; then
+    if ! command -v bwrap &>/dev/null; then
+        echo "Installing bubblewrap for Phase B namespace isolation..."
+        if command -v apt-get &>/dev/null; then
+            apt-get install -y bubblewrap 2>/dev/null || echo "WARNING: Failed to install bubblewrap (apt)"
+        elif command -v dnf &>/dev/null; then
+            dnf install -y bubblewrap 2>/dev/null || echo "WARNING: Failed to install bubblewrap (dnf)"
+        elif command -v pacman &>/dev/null; then
+            pacman -S --noconfirm bubblewrap 2>/dev/null || echo "WARNING: Failed to install bubblewrap (pacman)"
+        else
+            echo "WARNING: Could not install bubblewrap. Please install manually for Phase B sandboxing."
+        fi
+    else
+        echo "bubblewrap already installed: $(which bwrap)"
+    fi
+    # Check user namespace support
+    if unshare --user --map-root-user true 2>/dev/null; then
+        echo "User namespaces: supported"
+    else
+        echo "User namespaces: NOT supported (bubblewrap will be used as fallback)"
+    fi
+else
+    echo "Note: Phase B OS-level sandboxing is Linux-only. macOS uses Phase A (app-layer) only."
+fi
+
 # --- 2. Create Users and Groups ---
 echo "Configuring OS users..."
 if $IS_MAC; then

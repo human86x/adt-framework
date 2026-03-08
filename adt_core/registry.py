@@ -37,7 +37,17 @@ class ProjectRegistry:
         """Loads the registry from disk."""
         try:
             with open(self.registry_path, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                # Backward compatibility: populate project_type if missing
+                projects = data.get("projects", {})
+                updated = False
+                for name, config in projects.items():
+                    if "project_type" not in config:
+                        config["project_type"] = "forge" if config.get("is_framework") else "governed"
+                        updated = True
+                if updated:
+                    self._save_registry(data)
+                return data
         except (json.JSONDecodeError, OSError) as e:
             logger.error(f"Error loading registry from {self.registry_path}: {e}")
             return {"projects": {}, "next_dttp_port": 5003}
@@ -54,7 +64,8 @@ class ProjectRegistry:
                          name: str, 
                          path: str, 
                          port: Optional[int] = None, 
-                         is_framework: bool = False) -> Dict[str, Any]:
+                         is_framework: bool = False,
+                         project_type: Optional[str] = None) -> Dict[str, Any]:
         """Registers a new project or updates an existing one."""
         data = self._load_registry()
         projects = data.get("projects", {})
@@ -65,18 +76,40 @@ class ProjectRegistry:
             port = data.get("next_dttp_port", 5003)
             data["next_dttp_port"] = port + 1
 
+        if not project_type:
+            project_type = "forge" if is_framework else "governed"
+
         projects[name] = {
             "path": path,
             "dttp_port": port,
             "panel_port": 5001 if is_framework else None,
             "status": "active",
             "registered_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-            "is_framework": is_framework
+            "is_framework": is_framework,
+            "project_type": project_type
         }
         
         data["projects"] = projects
         self._save_registry(data)
         return projects[name]
+
+    def list_governed_projects(self) -> Dict[str, Any]:
+        """Returns only governed (external) projects."""
+        projects = self.list_projects()
+        return {name: cfg for name, cfg in projects.items() if cfg.get("project_type") == "governed"}
+
+    def get_forge(self) -> Optional[Dict[str, Any]]:
+        """Returns the framework (forge) project metadata."""
+        projects = self.list_projects()
+        for name, cfg in projects.items():
+            if cfg.get("project_type") == "forge":
+                return {**cfg, "name": name}
+        return None
+
+    def is_forge(self, name: str) -> bool:
+        """Returns True if the named project is the forge."""
+        project = self.get_project(name)
+        return project.get("project_type") == "forge" if project else False
 
     def deregister_project(self, name: str) -> bool:
         """Removes a project from the registry."""

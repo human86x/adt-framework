@@ -396,7 +396,10 @@ def _parse_requests(file_path):
 @governance_bp.route("/git/status", methods=["GET"])
 def get_git_status():
     """SPEC-023: Get current git branch and uncommitted changes count."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     try:
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root).decode().strip()
         status_porcelain = subprocess.check_output(["git", "status", "--porcelain"], cwd=root).decode().strip()
@@ -410,7 +413,7 @@ def get_git_status():
             "status": "clean" if changes_count == 0 else "dirty"
         })
     except Exception as e:
-        current_app.logger.error(f"Failed to get git status: {e}")
+        current_app.logger.error(f"Failed to get git status for {project_name or 'framework'}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -449,6 +452,7 @@ def session_start():
     res = _get_project_resources(project_name)
     
     session_id = data.get("session_id", "unknown")
+    sandbox = data.get("sandbox", False)
     event_id = ADSEventSchema.generate_id("session_start")
     event = ADSEventSchema.create_event(
         event_id=event_id,
@@ -457,11 +461,22 @@ def session_start():
         action_type="session_start",
         description=f"Session started: {session_id} for agent {data['agent']} as {data['role']}.",
         spec_ref=data["spec_id"],
-        session_id=session_id
+        session_id=session_id,
+        action_data={"sandbox": sandbox}
     )
     res["logger"].log(event)
     return jsonify({"status": "success", "event_id": event_id})
 
+
+@governance_bp.route("/sessions", methods=["GET"])
+def list_active_sessions():
+    """SPEC-036: Return list of active sessions with sandbox status."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    sessions = res["query"].get_active_sessions_details()
+    return jsonify({"sessions": sessions})
+    
+    
 @governance_bp.route("/sessions/end", methods=["POST"])
 def session_end():
     data = request.get_json()
@@ -676,6 +691,66 @@ def submit_request():
     return jsonify({"status": "success", "request_id": req_id, "event_id": event_id}), 201
 
 
+@governance_bp.route("/governance/requests", methods=["POST"])
+def api_file_request():
+    """SPEC-037: Governed API for filing cross-role requests."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["from_role", "to_role", "title"]):
+        return jsonify({"error": "from_role, to_role, and title are required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
+
+    from_role = data["from_role"]
+    from_agent = data.get("from_agent", "AGENT")
+    to_role = data["to_role"]
+    title = data["title"]
+    description = data.get("description", "")
+    priority = data.get("priority", "MEDIUM")
+    req_type = data.get("type", "SPEC_REQUEST")
+    related_specs = data.get("related_specs", [])
+
+    # Generate REQ-ID
+    next_num = 1
+    if os.path.exists(requests_path):
+        with open(requests_path, "r") as f:
+            existing = f.read()
+            nums = re.findall(r"## REQ-(\d+)", existing)
+            if nums:
+                next_num = max(int(n) for n in nums) + 1
+    req_id = f"REQ-{next_num:03d}"
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    
+    # Format entry
+    entry = f"\n\n---\n\n## {req_id}: {title}\n\n"
+    entry += f"**From:** {from_role} ({from_agent})\n"
+    entry += f"**To:** @{to_role}\n"
+    entry += f"**Date:** {timestamp}\n"
+    entry += f"**Type:** {req_type}\n"
+    entry += f"**Priority:** {priority}\n"
+    if related_specs:
+        entry += f"**Related Specs:** {', '.join(related_specs)}\n"
+    entry += f"\n### Description\n\n{description}\n\n### Status\n\n**OPEN**\n"
+
+    os.makedirs(os.path.dirname(requests_path), exist_ok=True)
+    with open(requests_path, "a") as f:
+        f.write(entry)
+
+    # Log to ADS
+    event_id = ADSEventSchema.generate_id("req_filed")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent=from_agent, role=from_role, action_type="request_filed",
+        description=f"Filed {req_id}: {title} targeting {to_role}.",
+        spec_ref="SPEC-037", authorized=True, tier=3,
+        action_data={"req_id": req_id, "to_role": to_role, "title": title}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "req_id": req_id, "event_id": event_id}), 201
+
+
 @governance_bp.route("/governance/roles", methods=["GET"])
 def get_governance_roles():
     """SPEC-026: Unified view of role jurisdictions and spec bindings."""
@@ -767,6 +842,69 @@ def update_task_status(task_id):
     return jsonify({"error": "Failed to update task"}), 500
 
 
+@governance_bp.route("/governance/requests/<req_id>/status", methods=["PUT"])
+@governance_bp.route("/requests/<req_id>/status", methods=["PUT"])
+def update_request_status(req_id):
+    """SPEC-035: Agent self-service request status update."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    requests_path = os.path.join(res["paths"]["root"], "_cortex", "requests.md")
+
+    new_status = data.get("status", "COMPLETED").upper()
+    agent = data.get("agent")
+    role = data.get("role")
+
+    if not agent or not role:
+        return jsonify({"error": "agent and role are required"}), 400
+
+    if not os.path.exists(requests_path):
+        return jsonify({"error": "requests.md not found"}), 404
+
+    with open(requests_path, "r") as f:
+        content = f.read()
+
+    # Find the REQ block
+    pattern = rf"## ({req_id}):.*?\n(.*?)\n### Status\n\n\*\*(.*?)\*\*"
+    match = re.search(pattern, content, re.DOTALL)
+    
+    if not match:
+        return jsonify({"error": f"Request {req_id} not found or status section missing"}), 404
+
+    # Extract metadata to check 'To:'
+    metadata = match.group(2)
+    to_match = re.search(r"\*\*To:\*\* (.*)", metadata)
+    to_role = to_match.group(1).strip().lstrip("@") if to_match else "ALL"
+
+    if to_role != "ALL" and to_role.lower() != role.lower():
+        return jsonify({"error": f"Request {req_id} is addressed to {to_role}, not {role}"}), 403
+
+    # Update the status
+    # We replace the captured status group
+    start_of_status = match.start(3)
+    end_of_status = match.end(3)
+    
+    updated_content = content[:start_of_status] + new_status + content[end_of_status:]
+
+    with open(requests_path, "w") as f:
+        f.write(updated_content)
+
+    event_id = ADSEventSchema.generate_id("req_upd")
+    event = ADSEventSchema.create_event(
+        event_id=event_id, agent=agent, role=role, action_type="request_status_updated",
+        description=f"Request {req_id} marked as {new_status} by {role}.",
+        spec_ref="SPEC-035",
+        authorized=True, tier=3,
+        action_data={"req_id": req_id, "status": new_status}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "req_id": req_id, "new_status": new_status, "event_id": event_id})
+
+
 @governance_bp.route("/tasks/<task_id>/override", methods=["PUT"])
 def override_task_status(task_id):
     """SPEC-026: Human override of task status (reject/approve/reassign/reopen)."""
@@ -778,11 +916,14 @@ def override_task_status(task_id):
     if request.headers.get("X-Agent"):
         return jsonify({"error": "Override endpoint is human-only"}), 403
 
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+
     action = data.get("action")
     reason = data.get("reason", "")
     reassign_to = data.get("reassign_to")
     
-    task = current_app.task_manager.get_task(task_id)
+    task = res["task_manager"].get_task(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
 
@@ -819,7 +960,7 @@ def override_task_status(task_id):
     else:
         return jsonify({"error": f"Unknown action: {action}"}), 400
 
-    if current_app.task_manager.update_task(task_id, updates):
+    if res["task_manager"].update_task(task_id, updates):
         event_id = ADSEventSchema.generate_id("task_ovr")
         event = ADSEventSchema.create_event(
             event_id=event_id, agent="HUMAN", role="Collaborator", action_type=event_type,
@@ -827,7 +968,7 @@ def override_task_status(task_id):
             authorized=True, tier=1,
             action_data={"task_id": task_id, "action": action, "reason": reason}
         )
-        current_app.ads_logger.log(event)
+        res["logger"].log(event)
         return jsonify({"status": "success", "task_id": task_id, "event_id": event_id})
     
     return jsonify({"error": "Failed to update task"}), 500
@@ -836,7 +977,16 @@ def override_task_status(task_id):
 @governance_bp.route("/governance/enforcement", methods=["GET"])
 def get_enforcement_status():
     """SPEC-026: DTTP state and recent denials."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
     dttp_url = current_app.config.get("DTTP_URL", "http://localhost:5002")
+    if project_name:
+        registry = ProjectRegistry()
+        project = registry.get_project(project_name)
+        if project and project.get("dttp_port"):
+            dttp_url = f"http://localhost:{project['dttp_port']}"
+    
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
         resp = http_client.get(f"{dttp_url}/status", timeout=2)
@@ -854,7 +1004,7 @@ def get_enforcement_status():
     except:
         pass
         
-    events = current_app.ads_query.get_all_events()
+    events = res["query"].get_all_events()
     denials = [e for e in events if not e.get("authorized", True)][-10:]
     status["recent_denials"] = denials
     return jsonify(status)
@@ -866,7 +1016,10 @@ def update_role_jurisdiction(role_name):
     if not data:
         return jsonify({"error": "No JSON body"}), 400
 
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     jur_path = os.path.join(root, "config", "jurisdictions.json")
     jurisdictions_data = _load_json(jur_path)
     jurisdictions = jurisdictions_data.get("jurisdictions", {})
@@ -903,7 +1056,7 @@ def update_role_jurisdiction(role_name):
         description=f"Updated jurisdiction for {role_name}.", spec_ref="SPEC-026",
         authorized=True, tier=1, action_data={"before": old_config, "after": jurisdictions[role_name]}
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "role": role_name, "event_id": event_id})
 
 @governance_bp.route("/governance/specs/<spec_id>/roles", methods=["PUT"])
@@ -913,7 +1066,10 @@ def update_spec_roles(spec_id):
     if not data:
         return jsonify({"error": "No JSON body"}), 400
 
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     specs_path = os.path.join(root, "config", "specs.json")
     specs_config = _load_json(specs_path)
     specs = specs_config.get("specs", {})
@@ -936,13 +1092,16 @@ def update_spec_roles(spec_id):
         description=f"Updated role bindings for {spec_id}.", spec_ref="SPEC-026",
         authorized=True, tier=1, action_data={"before": old_spec, "after": specs[spec_id]}
     )
-    current_app.ads_logger.log(event)
+    res["logger"].log(event)
     return jsonify({"status": "success", "spec_id": spec_id, "event_id": event_id})
 
 @governance_bp.route("/governance/conflicts", methods=["GET"])
 def get_governance_conflicts():
     """SPEC-026: Detect and return jurisdiction conflicts."""
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    root = res["paths"]["root"]
+    
     jur_path = os.path.join(root, "config", "jurisdictions.json")
     specs_path = os.path.join(root, "config", "specs.json")
     jurisdictions = _load_json(jur_path).get("jurisdictions", {})
@@ -1167,8 +1326,10 @@ def list_sovereign_requests():
     status_filter = request.args.get("status")
     if status_filter:
         filtered = [r for r in scrs["requests"] if r["status"] == status_filter]
+        filtered.sort(key=lambda x: x["ts"], reverse=True)
         return jsonify({"requests": filtered})
         
+    scrs["requests"].sort(key=lambda x: x["ts"], reverse=True)
     return jsonify(scrs)
 
 @governance_bp.route("/governance/sovereign-requests/<scr_id>", methods=["PUT"])

@@ -24,7 +24,7 @@ NC='\033[0m'
 
 echo -e "${BOLD}${CYAN}--- ADT Framework Activation ---${NC}"
 echo -e "ADT Framework: Specification-Driven Governance"
-echo "Version: 0.3.2 | SPEC-029 Compliance"
+echo "Version: 0.3.4 | SPEC-029 Compliance"
 echo "--------------------------------------------"
 
 # 1. Detect Platform
@@ -71,14 +71,28 @@ setup_repo() {
     if [ -d "$INSTALL_DIR/.git" ]; then
         echo -e "${GREEN}[*]${NC} Existing installation found at $INSTALL_DIR. Updating..."
         cd "$INSTALL_DIR"
-        git pull origin main --quiet
+
+        # Snapshot install.sh before pull to detect self-update
+        local SCRIPT_HASH_BEFORE=""
+        if [ -f "install.sh" ]; then
+            SCRIPT_HASH_BEFORE=$(md5sum install.sh 2>/dev/null | cut -d' ' -f1)
+        fi
+
+        git pull --quiet origin main
+
+        # If install.sh changed, re-exec the updated version
+        local SCRIPT_HASH_AFTER=$(md5sum install.sh 2>/dev/null | cut -d' ' -f1)
+        if [ -n "$SCRIPT_HASH_BEFORE" ] && [ "$SCRIPT_HASH_BEFORE" != "$SCRIPT_HASH_AFTER" ]; then
+            echo -e "${YELLOW}[*]${NC} install.sh was updated. Re-launching with new version..."
+            exec bash "$INSTALL_DIR/install.sh"
+        fi
     else
         echo -e "${YELLOW}[*]${NC} Fresh install. Preparing $INSTALL_DIR..."
         # If directory exists but no .git, remove it to avoid 'directory not empty' error
         if [ -d "$INSTALL_DIR" ]; then
             rm -rf "$INSTALL_DIR"
         fi
-        git clone "$REPO_URL" "$INSTALL_DIR" --quiet
+        git clone --quiet "$REPO_URL" "$INSTALL_DIR"
         cd "$INSTALL_DIR"
     fi
 }
@@ -118,16 +132,53 @@ install_console() {
     echo -e "${YELLOW}[*]${NC} Checking for latest Console binary..."
 
     # Try to fetch latest release version from GitHub API
-    local LATEST_TAG=$(curl -s https://api.github.com/repos/human86x/adt-framework/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    local LATEST_TAG=$(curl -sS https://api.github.com/repos/human86x/adt-framework/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
-    if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
-        local DOWNLOAD_URL="https://github.com/human86x/adt-framework/releases/download/$LATEST_TAG/adt-console.AppImage"
-        echo -e "${GREEN}[*]${NC} Found release $LATEST_TAG. Downloading Console..."
-        curl -L "$DOWNLOAD_URL" -o "$CONSOLE_BIN" --quiet
-        chmod +x "$CONSOLE_BIN"
-    else
+    if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
         echo -e "${YELLOW}[!]${NC} No pre-built release found. Console must be built from source if needed."
         echo -e "    (Run 'bash console.sh' to build locally)"
+        return 0
+    fi
+
+    # Strip leading 'v' for version number (v0.3.3 -> 0.3.3)
+    local VER="${LATEST_TAG#v}"
+    echo -e "${GREEN}[*]${NC} Found release $LATEST_TAG."
+
+    if $IS_WSL || $IS_MAC; then
+        # WSL/macOS: install .deb package (WSL Ubuntu) or skip (macOS)
+        if $IS_WSL; then
+            local DEB_URL="https://github.com/human86x/adt-framework/releases/download/$LATEST_TAG/ADT.Console_${VER}_amd64.deb"
+            local DEB_FILE="/tmp/adt-console_${VER}.deb"
+            echo -e "${YELLOW}[*]${NC} Downloading Console .deb for WSL..."
+            if curl -fSL "$DEB_URL" -o "$DEB_FILE" 2>/dev/null; then
+                echo -e "${YELLOW}[*]${NC} Installing Console .deb (requires sudo)..."
+                sudo dpkg -i "$DEB_FILE" 2>/dev/null || sudo apt-get install -f -y -qq 2>/dev/null
+                rm -f "$DEB_FILE"
+                # Link the installed binary into our bin/ for consistency
+                local INSTALLED_BIN=$(which adt-console 2>/dev/null || echo "/usr/bin/adt-console")
+                if [ -x "$INSTALLED_BIN" ]; then
+                    ln -sf "$INSTALLED_BIN" "$CONSOLE_BIN" 2>/dev/null || true
+                    echo -e "${GREEN}[*]${NC} Console installed via .deb"
+                fi
+            else
+                echo -e "${YELLOW}[!]${NC} Console .deb download failed."
+                echo -e "    (Run 'bash console.sh' to build locally)"
+            fi
+        else
+            echo -e "${YELLOW}[!]${NC} No macOS binary available yet."
+            echo -e "    (Run 'bash console.sh' to build locally)"
+        fi
+    else
+        # Native Linux: use AppImage
+        local DOWNLOAD_URL="https://github.com/human86x/adt-framework/releases/download/$LATEST_TAG/ADT.Console_${VER}_amd64.AppImage"
+        echo -e "${YELLOW}[*]${NC} Downloading Console AppImage..."
+        if curl -fSL "$DOWNLOAD_URL" -o "$CONSOLE_BIN" 2>/dev/null; then
+            chmod +x "$CONSOLE_BIN"
+            echo -e "${GREEN}[*]${NC} Console AppImage installed"
+        else
+            echo -e "${YELLOW}[!]${NC} Console download failed (asset may not exist for this platform)."
+            echo -e "    (Run 'bash console.sh' to build locally)"
+        fi
     fi
 }
 

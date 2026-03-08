@@ -76,7 +76,8 @@
         "adt_core/dttp/policy.py",
         "adt_core/ads/logger.py",
         "adt_core/ads/integrity.py",
-        "adt_core/ads/crypto.py"
+        "adt_core/ads/crypto.py",
+        ".gitignore"
       ]
     },
     "SPEC-018": {
@@ -264,7 +265,8 @@
       "roles": [
         "DevOps_Engineer",
         "Backend_Engineer",
-        "Frontend_Engineer"
+        "Frontend_Engineer",
+        "Systems_Architect"
       ],
       "action_types": [
         "git_commit",
@@ -408,6 +410,65 @@
         "adt_core/cli.py",
         "_cortex/specs/",
         "_cortex/"
+      ]
+    },
+    "SPEC-035": {
+      "title": "Unified Status Management API",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/api/",
+        "adt_sdk/",
+        "adt_core/",
+        "tests/"
+      ]
+    },
+    "SPEC-036": {
+      "title": "Agent Filesystem Sandbox",
+      "status": "approved",
+      "roles": [
+        "DevOps_Engineer",
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "write"
+      ],
+      "paths": [
+        "adt-console/src-tauri/",
+        "adt_sdk/hooks/",
+        "adt_core/cli.py",
+        "scripts/",
+        "tests/"
+      ]
+    },
+    "SPEC-037": {
+      "title": "Cross-Role Request Access",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/api/",
+        "adt_sdk/",
+        "adt_sdk/hooks/",
+        "tests/"
       ]
     }
   }

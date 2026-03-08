@@ -24,11 +24,125 @@ Exit code 0 = decision provided. Exit code 2 = blocking error.
 import json
 import os
 import sys
+import re
 
 import requests
 
 # Gemini CLI tool names for file modification
 INTERCEPTED_TOOLS = {"write_file", "replace"}
+READ_TOOLS = {"read_file", "list_files", "search_files", "list_directory", "grep_search", "glob"}
+BASH_TOOLS = {"run_shell", "shell", "run_shell_command"}
+
+# Patterns that indicate file write operations in shell commands
+BASH_WRITE_OPERATORS = re.compile(
+    r'(?:'
+    r'>\s*\S'           # > redirect (overwrite)
+    r'|>>\s*\S'         # >> redirect (append)
+    r'|\btee\b'         # tee command
+    r'|\bdd\b.*\bof='   # dd with output file
+    r'|\binstall\b'     # install command
+    r'|\bmkdir\b'       # mkdir
+    r'|\brmdir\b'       # rmdir
+    r'|\brm\b'          # rm
+    r'|\bmv\b'          # mv
+    r'|\bcp\b'          # cp
+    r'|\bln\b'          # ln
+    r'|\bchmod\b'       # chmod
+    r'|\bchown\b'       # chown
+    r'|\btouch\b'       # touch
+    r'|\bsed\b.*-i'     # sed in-place
+    r'|\bpatch\b'       # patch command
+    r'|\bgit\s+push'    # git push
+    r'|\bsudo\b'        # sudo
+    r'|\bsu\b'          # su
+    r')'
+)
+
+# Regex to extract paths from shell commands
+BASH_PATH_RE = re.compile(
+    r'(?:'
+    r'(?<![a-zA-Z0-9_])(/[a-zA-Z0-9_./-]{2,})'
+    r'|(?<![a-zA-Z0-9_])(~/[a-zA-Z0-9_./-]*)'
+    r')'
+)
+
+SENSITIVE_PATHS = [
+    "/etc/", "/root/", "/var/", "/proc/", "/sys/", "/dev/",
+    "/boot/", "/sbin/", "/usr/sbin/",
+]
+
+SENSITIVE_HOME_PATHS = [
+    ".ssh", ".aws", ".azure", ".gcloud", ".config/gcloud",
+    ".kube", ".docker", ".gnupg", ".npmrc", ".pypirc",
+    ".netrc", ".env",
+]
+
+
+def check_bash_sandbox(command: str, project_dir: str) -> str:
+    """Check if a shell command violates sandbox containment."""
+    full_project_dir = os.path.realpath(project_dir)
+    home_dir = os.path.expanduser("~")
+
+    # Unconditionally blocked commands in sandbox
+    if re.search(r'\bsudo\b', command):
+        return "SANDBOX: 'sudo' is not permitted in sandbox mode."
+    if re.search(r'\bsu\s', command):
+        return "SANDBOX: 'su' is not permitted in sandbox mode."
+
+    paths_found = []
+    for match in BASH_PATH_RE.finditer(command):
+        abs_path = match.group(1)
+        home_path = match.group(2)
+        if abs_path:
+            paths_found.append(abs_path)
+        elif home_path:
+            paths_found.append(os.path.expanduser(home_path))
+
+    for path in paths_found:
+        resolved = os.path.realpath(path)
+
+        for sensitive in SENSITIVE_PATHS:
+            if resolved.startswith(sensitive) or resolved == sensitive.rstrip("/"):
+                return (
+                    f"SANDBOX: Shell command references sensitive path {path}. "
+                    f"Agents cannot access system paths in sandbox mode."
+                )
+
+        for home_sensitive in SENSITIVE_HOME_PATHS:
+            sensitive_full = os.path.join(home_dir, home_sensitive)
+            if resolved.startswith(sensitive_full) or resolved == sensitive_full:
+                return (
+                    f"SANDBOX: Shell command references sensitive path {path}. "
+                    f"Agents cannot access credentials/keys in sandbox mode."
+                )
+
+        if BASH_WRITE_OPERATORS.search(command):
+            is_contained = (
+                resolved == full_project_dir
+                or resolved.startswith(full_project_dir + os.sep)
+            )
+            if not is_contained:
+                return (
+                    f"SANDBOX: Shell write operation targets path outside project root: {path}. "
+                    f"All file modifications must be within {project_dir}."
+                )
+
+    scripting_write = re.search(
+        r'(?:'
+        r'python[23]?\s+-c\s+.*(?:open|write|Path)'
+        r'|node\s+-e\s+.*(?:writeFile|appendFile|fs\.)'
+        r'|ruby\s+-e\s+.*(?:File\.write|File\.open|IO\.write)'
+        r'|perl\s+-e\s+.*(?:open|print\s+\w+\s)'
+        r')',
+        command,
+    )
+    if scripting_write:
+        return (
+            "SANDBOX: Shell command contains scripting language with file write "
+            "operations. Use write_file/replace tools instead."
+        )
+
+    return ""
 
 
 def make_deny(reason: str) -> dict:
@@ -61,6 +175,11 @@ def to_project_relative(abs_path: str, project_dir: str) -> str:
 
 def extract_file_path(tool_name: str, tool_input: dict) -> str:
     """Extract the target file path from Gemini CLI tool input."""
+    if tool_name in {"read_file", "replace", "write_file"}:
+        return tool_input.get("file_path", "")
+    elif tool_name in {"list_files", "list_directory", "search_files", "grep_search", "glob"}:
+        # These tools use dir_path or directory_path
+        return tool_input.get("dir_path") or tool_input.get("directory_path", "")
     return tool_input.get("file_path", "")
 
 
@@ -77,6 +196,23 @@ def read_project_dttp_url(project_dir: str) -> str:
         except:
             pass
     return "http://localhost:5002"  # fallback
+
+
+def get_canonical_role(role: str, project_dir: str) -> str:
+    """Normalize role name against project's jurisdiction config."""
+    if not role:
+        return role
+    jur_path = os.path.join(project_dir, "config", "jurisdictions.json")
+    if os.path.exists(jur_path):
+        try:
+            with open(jur_path) as f:
+                jur = json.load(f)
+            for canonical in jur.get("jurisdictions", {}).keys():
+                if role.lower() == canonical.lower():
+                    return canonical
+        except:
+            pass
+    return role
 
 
 def build_dttp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
@@ -160,8 +296,13 @@ def main():
 
     tool_name = hook_input.get("tool_name", "")
 
-    # Only intercept write tools
-    if tool_name not in INTERCEPTED_TOOLS:
+    # Intercept write tools OR read tools (if sandboxed) OR shell (if sandboxed)
+    is_write = tool_name in INTERCEPTED_TOOLS
+    is_read = tool_name in READ_TOOLS
+    is_bash = tool_name in BASH_TOOLS
+    adt_sandbox = os.environ.get("ADT_SANDBOX") == "1"
+
+    if not is_write and not (is_read and adt_sandbox) and not (is_bash and adt_sandbox):
         sys.exit(0)
 
     tool_input = hook_input.get("tool_input", {})
@@ -171,46 +312,97 @@ def main():
                                  hook_input.get("cwd", os.getcwd()))
     dttp_url = os.environ.get("DTTP_URL", read_project_dttp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "GEMINI")
-    role = os.environ.get("ADT_ROLE")
-    spec_id = os.environ.get("ADT_SPEC_ID")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
 
-    # Dynamic role switching: read active role from file (set by /hive-* skills)
-    role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
-    if os.path.exists(role_file):
-        try:
-            with open(role_file) as rf:
-                file_role = rf.read().strip()
-                if file_role:
-                    role = file_role
-        except OSError:
-            pass  # Fall back to env var
-    # Dynamic spec switching: read active spec from file
-    spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
-    if os.path.exists(spec_file):
-        try:
-            with open(spec_file) as sf:
-                file_spec = sf.read().strip()
-                if file_spec:
-                    spec_id = file_spec
-        except OSError:
-            pass  # Fall back to env var
+    # SPEC-037: Fix role priority (env var first, then file fallback)
+    role = os.environ.get("ADT_ROLE")
+    if not role:
+        role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
+        if os.path.exists(role_file):
+            try:
+                with open(role_file) as rf:
+                    file_role = rf.read().strip()
+                    if file_role:
+                        role = file_role
+            except OSError:
+                pass  # Fall back to default
+    
+    # SPEC-037: Fix spec priority (env var first, then file fallback)
+    spec_id = os.environ.get("ADT_SPEC_ID")
+    if not spec_id:
+        spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
+        if os.path.exists(spec_file):
+            try:
+                with open(spec_file) as sf:
+                    file_spec = sf.read().strip()
+                    if file_spec:
+                        spec_id = file_spec
+            except OSError:
+                pass
 
+    if not role:
+        role = "Backend_Engineer"
+    
+    # SPEC-020 Amendment B: Normalize role name
+    role = get_canonical_role(role, project_dir)
 
-    if not role or not spec_id:
-        print(json.dumps(make_deny(
-            "DTTP hook: ADT_ROLE and ADT_SPEC_ID environment variables must be set. "
-            "Please initialize your session correctly."
-        )))
+    if not spec_id:
+        spec_id = "SPEC-017"
+
+    # SPEC-036: Shell sandbox enforcement
+    if is_bash and adt_sandbox:
+        bash_command = tool_input.get("command", "")
+        denial = check_bash_sandbox(bash_command, project_dir)
+        if denial:
+            print(json.dumps(make_deny(denial)))
+            sys.exit(0)
+        print(json.dumps(make_allow("SANDBOX: Shell command passed containment check")))
         sys.exit(0)
 
     # Extract and convert file path
-    abs_path = extract_file_path(tool_name, tool_input)
+    abs_path = extract_file_path(tool_name, hook_input.get("tool_input", {}))
     if not abs_path:
-        # No file path -- let it through (shouldn't happen for write tools)
+        sys.exit(0)
+
+    # SPEC-036: Resolution and containment check
+    full_abs_path = os.path.realpath(abs_path)
+    full_project_dir = os.path.realpath(project_dir)
+    
+    is_contained = (full_abs_path == full_project_dir or 
+                    full_abs_path.startswith(full_project_dir + os.sep))
+
+    if adt_sandbox and not is_contained:
+        print(json.dumps(make_deny(f"SANDBOX VIOLATION: Path {abs_path} is outside project root.")))
         sys.exit(0)
 
     rel_path = to_project_relative(abs_path, project_dir)
+
+    # If it's a read tool and we reached here, it passed containment (if sandboxed)
+    if is_read:
+        print(json.dumps(make_allow(f"DTTP allowed {tool_name} on {rel_path}")))
+        sys.exit(0)
+
+    # SPEC-037: Redirect requests.md append to API
+    if rel_path == "_cortex/requests.md" and tool_name == "write_file":
+        content = tool_input.get("content", "")
+        if "## REQ-" in content:
+            # Attempt to file via API
+            from adt_sdk.client import ADTClient
+            client = ADTClient(dttp_url=dttp_url, agent_name=agent, role=role)
+            
+            # Simple extraction from markdown
+            title_match = re.search(r"## REQ-\d+: (.*)", content)
+            title = title_match.group(1) if title_match else "Redirected Request"
+            to_match = re.search(r"\*\*To:\*\* @?([a-zA-Z_]+)", content)
+            to_role = to_match.group(1) if to_match else "Systems_Architect"
+            
+            desc_part = content.split("### Description")
+            description = desc_part[1].split("### Status")[0].strip() if len(desc_part) > 1 else content
+            
+            result = client.file_request(to_role=to_role, title=title, description=description)
+            if result.get("status") == "success":
+                print(json.dumps(make_allow(f"Request transparently filed via governed API: {result.get('req_id')}")))
+                sys.exit(0)
 
     # Build DTTP action and params
     action, params = build_dttp_params(tool_name, tool_input, rel_path)

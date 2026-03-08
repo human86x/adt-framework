@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% set active_page = "capabilities" %}
+
+{% block title %}Capabilities - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="display-6 fw-bold text-adt-accent">Organizational Capabilities</h2>
+        <p class="text-adt-muted">Traceability from business purpose to technical production. SPEC-038 compliant.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Strategic Map -->
+    <div class="col-lg-8">
+        <div class="card card-adt h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-diagram-3-fill me-2"></i>Strategic Map (Intents)</span>
+                <button class="btn btn-sm btn-adt-primary" id="btn-new-intent">
+                    <i class="bi bi-plus-lg me-1"></i>New Intent
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="intents-container" class="row g-3">
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-adt-accent" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-adt-muted">Loading strategic intents...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Dashboard -->
+    <div class="col-lg-4">
+        <div class="card card-adt h-100">
+            <div class="card-header">
+                <span><i class="bi bi-graph-up-arrow me-2"></i>Value Realization</span>
+            </div>
+            <div class="card-body">
+                <div class="stat-card mb-3">
+                    <div class="stat-label">Realized Maturity</div>
+                    <div class="stat-value text-purple" id="realized-maturity">0%</div>
+                    <div class="progress mt-2" style="height: 6px; background-color: var(--adt-border);">
+                        <div class="progress-bar bg-purple" role="progressbar" style="width: 0%" id="maturity-progress"></div>
+                    </div>
+                </div>
+                <div id="impact-stats">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-adt-muted small">Efficiency</span>
+                        <span class="text-adt-green small">0%</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-adt-muted small">Risk Reduction</span>
+                        <span class="text-adt-amber small">0%</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-adt-muted small">Innovation</span>
+                        <span class="text-adt-accent small">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Event Feed -->
+    <div class="col-lg-4">
+        <div class="card card-adt">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-lightning-charge-fill me-2"></i>Organizational Events</span>
+                <button class="btn btn-sm btn-adt-secondary" id="btn-refresh-events">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="event-feed-container" class="timeline-container" style="max-height: 400px;">
+                    <p class="text-center text-adt-muted py-4">No events captured.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Traceability Explorer -->
+    <div class="col-lg-8">
+        <div class="card card-adt">
+            <div class="card-header">
+                <span><i class="bi bi-search me-2"></i>Traceability Explorer</span>
+            </div>
+            <div class="card-body">
+                <div id="traceability-view">
+                    <div class="text-center py-5">
+                        <i class="bi bi-box-arrow-in-right display-1 text-adt-muted opacity-25"></i>
+                        <p class="mt-3 text-adt-muted">Select an Intent or Event to explore the causal chain.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Intent -->
+<div class="modal fade modal-adt" id="modal-new-intent" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Define Capability Intent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-intent">
+                    <div class="mb-3">
+                        <label class="form-label-adt">Title</label>
+                        <input type="text" class="form-control form-control-adt" name="title" required placeholder="e.g. Improve ECU Tuning Accuracy">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label-adt">Type</label>
+                            <select class="form-control form-control-adt" name="type">
+                                <option value="Innovation">Innovation</option>
+                                <option value="Enhancement">Enhancement</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Risk Mitigation">Risk Mitigation</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label-adt">Value Category</label>
+                            <select class="form-control form-control-adt" name="value_category">
+                                <option value="Revenue">Revenue</option>
+                                <option value="Efficiency">Efficiency</option>
+                                <option value="Risk Reduction">Risk Reduction</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-adt">Target Maturity</label>
+                        <select class="form-control form-control-adt" name="target_maturity">
+                            <option value="Initial">Initial</option>
+                            <option value="Developing">Developing</option>
+                            <option value="Defined">Defined</option>
+                            <option value="Managed">Managed</option>
+                            <option value="Optimized">Optimized</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-adt">Description</label>
+                        <textarea class="form-control form-control-adt" name="description" rows="3" required placeholder="Describe the desired organizational outcome..."></textarea>
+                    </div>
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-adt-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-adt-primary">Define Intent</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src=\"{{ url_for("static", filename="js/capabilities.js") }}\"></script>
+{% endblock %}
