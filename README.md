@@ -127,9 +127,7 @@ A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can a
 ## 7. Proving Ground
 ADT is being proven through [OceanPulse](https://oceanpulse.pt) -- an autonomous marine monitoring buoy governed entirely by the ADT Framework. Real incidents, real enforcement, real lessons.
 
-## License
-AGPL-3.0. See [LICENSE](LICENSE).
-
-## Author
-Paul Sheridan, Director, Advanced Digital Transformation (ADT)
-Based on the ADT Whitepaper (Sheridan, 2026). See [docs/adt.pdf](docs/adt.pdf).
+---
+**License:** AGPL-3.0 (See LICENSE file in repository root)
+**Author:** Paul Sheridan, Director, Advanced Digital Transformation (ADT)
+**Reference:** ADT Whitepaper (Sheridan, 2026) - docs/adt.pdf
