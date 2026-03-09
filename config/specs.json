@@ -55,7 +55,8 @@
       "status": "approved",
       "roles": [
         "Overseer",
-        "Systems_Architect"
+        "Systems_Architect",
+        "DevOps_Engineer"
       ],
       "action_types": [
         "edit",
@@ -80,7 +81,8 @@
         "adt-console/",
         "adt-console/src/",
         "README.md",
-        "LICENSE"
+        "LICENSE",
+        "install.sh"
       ]
     },
     "SPEC-018": {
