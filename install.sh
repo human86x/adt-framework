@@ -124,6 +124,18 @@ setup_venv() {
     source "$VENV/bin/activate"
     echo -e "${YELLOW}[*]${NC} Installing/Updating framework dependencies..."
     pip install -e . --quiet
+
+    # Create symlink in ~/.local/bin for global access
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$VENV/bin/adt" "$HOME/.local/bin/adt"
+    echo -e "${GREEN}[*]${NC} Linked 'adt' command to ${BOLD}$HOME/.local/bin/adt${NC}"
+
+    # Verify PATH
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo -e "${YELLOW}[!]${NC} Warning: ${BOLD}$HOME/.local/bin${NC} is not in your PATH."
+        echo -e "    Add this to your .bashrc or .zshrc:"
+        echo -e "    ${CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+    fi
 }
 
 # 6. Install Console Binary (SPEC-029 R4)
