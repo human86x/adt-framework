@@ -61,6 +61,11 @@ AI agents (Claude, Gemini, GPT, etc.) are increasingly used for real engineering
 - **Shatterglass Protocol:** Time-limited, audited emergency maintenance mode.
 - **Agent Sandboxing:** Filesystem and network isolation per session.
 
+## Documentation
+
+- **Full Manual:** [docs/MANUAL.md](docs/MANUAL.md) — Core principles, roles, and security protocols.
+- **Whitepaper:** [docs/adt.pdf](docs/adt.pdf) — Original framework architectural vision.
+
 ## Quick Start
 
 ```bash

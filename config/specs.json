@@ -80,7 +80,8 @@
         "adt-console/",
         "adt-console/src/",
         "README.md",
-        "LICENSE"
+        "LICENSE",
+        "docs/MANUAL.md"
       ]
     },
     "SPEC-018": {
