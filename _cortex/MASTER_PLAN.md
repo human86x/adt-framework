@@ -1,74 +1,56 @@
 # ADT Framework: Master Plan
 
-**Phase:** 2.1 (Collaborative Governance)
-**Status:** Active Development
-**Task Tracking:** See `_cortex/tasks.json`
-**Parent Spec:** SPEC-017 (from OceanPulse proving ground)
-
-## Mission
-
-Build the ADT Framework as a standalone, open-source governance system for AI agents.
-OceanPulse is the first governed project (reference implementation).
-The framework governs its own development -- recursive self-improvement through governance.
-
-## Phase 2.1: Capability & Context (SPEC-038)
+**Version:** 2.2
 **Status:** ACTIVE
+**Milestone:** v0.4.0 (Capability & Orchestration)
 
-*   **[COMPLETED] Intent Definition API:** Capability Change Intents can be registered and traced.
-*   **[COMPLETED] Triggering Event Capture:** External organizational signals can be linked to intents.
-*   **[COMPLETED] Causal Traceability Engine:** Trace intents through triggering events, ADS audit trails, and tasks.
-*   **[COMPLETED] Operator Console Integration:** Hive Tracker displays active Intent/Event context (SPEC-038 visual link).
-*   **[IN PROGRESS] Automated Maturity Tracking:** Real-time calculation of intent maturity based on code/ADS evidence.
+## 1. Vision
 
-## Phase 2.2: Interactive Orchestration (SPEC-039)
-**Status:** ACTIVE
+Build the ADT Framework as a standalone, open-source governance system for AI agents. The framework governs its own development -- recursive self-improvement through structural enforcement.
 
-*   **[COMPLETED] human_steering event:** ADS support for manual steering actions.
-*   **[COMPLETED] PTY Command Injection:** Console can send hints/priorities to active agents.
-*   **[IN PROGRESS] Hierarchical Sidebar:** Tree view visualization (Intent -> Spec -> Task).
-*   **[IN PROGRESS] Real-time Pulse:** UI visual feedback synchronized with ADS tool-call stream.
+## 2. Completed Milestones
 
-## Current Objectives (Core)
+- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTTP Gateway.
+- **v0.2.0 (Operational Center):** Flask Web UI, Agent SDK, Tiered Path Protection, SCR Queue.
+- **v0.3.0 (Operator Console):** Tauri Desktop Command Center, Multi-Project Registry, Shatterglass Protocol.
+- **v0.3.5 (Hardening):** Agent Sandboxing (Filesystem/Network), Windows Installer, Remote Share.
 
-1. **ADS Engine:** Extract and generalize Safe Logger from OceanPulse. (Status: COMPLETED)
-2. **SDD Engine:** Spec lifecycle management. (Status: COMPLETED)
-3. **DTTP Engine:** Privilege-separated enforcement gateway. (Status: COMPLETED)
-4. **Operational Center:** Flask web app -- human UI + agent API. (Status: COMPLETED)
-5. **Agent SDK:** Client library for AI agents. (Status: COMPLETED)
-6. **Phase 1 Hardening:** Security fixes, deduplication, config population. (Status: COMPLETED -- SPEC-018)
-7. **DTTP Standalone Service:** Standalone HTTP service on :5002. (Status: COMPLETED -- SPEC-019)
-8. **Self-Governance Integrity:** Tiered path protection, break-glass, anti-self-modification. (Status: COMPLETED -- SPEC-020)
-9. **Operator Console:** Cross-platform Tauri desktop app -- human command center for multi-agent governance. (Status: ACTIVE -- SPEC-021)
-10. **Collaborative Bootstrap:** One-command setup for remote collaborators. Send framework, receive specs. (Status: DRAFT -- SPEC-025)
+## 3. Current Phase: v0.4.0 (Capability & Orchestration)
 
-## Active Specifications
+**Status:** ACTIVE (SPEC-038, SPEC-039, SPEC-040)
 
-| Spec | Name | Status | Origin |
-|------|------|--------|--------|
-| SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |
-| SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |
-| SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |
-| SPEC-017 | ADT Framework Repository | APPROVED | OceanPulse |
-| SPEC-018 | Phase 1 Hardening | APPROVED | ADT Framework |
-| SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |
-| SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |
-| SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |
-| SPEC-038 | Organizational Capability Governance | APPROVED | ADT Framework |
-| SPEC-039 | Interactive Governance Orchestration | APPROVED | ADT Framework |
+*   **Capability Governance (SPEC-038):** Strategic alignment through Intents and Triggering Events. Full traceability from business purpose to technical action.
+*   **7-Stage Gate Workflow:** Governance of capability evolution (Validation -> Strategy -> Transformation -> Value).
+*   **Interactive Orchestration (SPEC-039):** Bi-directional communication. Human steering, task injection, and real-time pulse feedback.
+*   **Unified UI (SPEC-040):** Redesigned Capabilities Tab and integrated Console Sidebar.
 
-## Version Roadmap
+## 4. Current Objectives
 
-| Version | Milestone |
-|---------|-----------|
-| v0.1.0 | Core engines (ADS, SDD, DTTP) |
-| v0.2.0 | Operational Center + Agent SDK + Self-Governance |
-| v0.3.0 | Operator Console + Collaborative Bootstrap |
-| v0.4.0 | Capability Governance & Interactive Orchestration |
+1.  **Automated Maturity Tracking:** Real-time calculation of realized maturity based on task evidence and intent alignment.
+2.  **Interactive Steering V2:** Advanced command injection for multi-agent coordination.
+3.  **Namespace Sandboxing:** Full OS-level isolation for agent sessions (bwrap/unshare).
+4.  **Audit Automation:** Autonomous Overseer audits for Tier 2 and Break-Glass events.
 
-## Role Assignments
+## 5. Active Specifications
 
-* **Systems_Architect:** Specs, coordination, architectural decisions.
-* **Backend_Engineer:** Flask app, API routes, DTTP engine, ADS engine.
-* **Frontend_Engineer:** Operational Center UI, templates, Help page.
-* **DevOps_Engineer:** DTTP privilege separation, Linux user setup, deployment.
-* **Overseer:** ADS compliance, audit trail integrity.
+| Spec | Name | Status |
+|------|------|--------|
+| SPEC-017 | ADT Framework Repository | COMPLETED |
+| SPEC-021 | ADT Operator Console | COMPLETED |
+| SPEC-027 | Shatterglass Protocol | COMPLETED |
+| SPEC-031 | External Project Governance | COMPLETED |
+| SPEC-033 | Sovereign Change Requests | COMPLETED |
+| SPEC-036 | Agent Filesystem Sandbox | IN PROGRESS |
+| SPEC-038 | Capability Governance | ACTIVE |
+| SPEC-039 | Interactive Orchestration | ACTIVE |
+| SPEC-040 | Capability Governance UI | ACTIVE |
+
+## 6. Roadmap
+
+- **v0.5.0:** Enterprise DTTP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.
+- **v0.6.0:** Advance Visual Analytics, Causal Impact Dashboards.
+- **v1.0.0:** Production Stable Release.
+
+---
+
+*"Traceability from purpose to production."*
