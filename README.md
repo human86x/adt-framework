@@ -6,32 +6,100 @@
 
 ---
 
-## What is ADT?
+## 1. What is ADT?
 
-ADT (Advanced Digital Transformation) is a governance framework for AI agent systems. It shifts governance upstream -- embedding compliance, accountability, and auditability into the process of execution itself, rather than applying them after the fact.
+ADT (Advanced Digital Transformation) is a governance framework designed from the ground up for AI agent systems. It shifts governance upstream, embedding compliance, accountability, and auditability into the process of execution itself, rather than applying them after the fact as an overlay.
 
-> *"Digital transformation initiatives frequently fail not due to lack of technology, but because governance is applied after systems are operational."*
-> -- ADT Whitepaper (Sheridan, 2026)
+> "Digital transformation initiatives frequently fail not due to lack of technology, but because governance is applied after systems are operational."
+> -- Paul Sheridan, Director, ADT
 
-## The Problem
+### 1.1 The Problem
+AI agents (Claude, Gemini, GPT, etc.) are increasingly used for real engineering work—writing code, deploying systems, managing infrastructure. However, traditional prompts and instructions rely on *behavioral compliance*. Agents can, and do, violate prompt instructions.
 
-AI agents (Claude, Gemini, GPT, etc.) are increasingly used for real engineering work -- writing code, deploying systems, managing infrastructure. But:
+Without ADT:
+- **Authorization** is voluntary.
+- **Auditing** lacks a cryptographic, immutable record.
+- **Enforcement** is circumventable.
+- **Business Purpose** (the "Why") is disconnected from the technical action (the "How").
 
-- **Who authorises what an agent does?** Prompt instructions are voluntary. Agents can and do violate them.
-- **Who audits what happened?** Without an immutable record, there is no accountability.
-- **Who enforces the rules?** Behavioural compliance is insufficient. Structural enforcement is required.
-- **What is the business purpose?** Technical changes often lack organizational context (the "Why").
+### 1.2 The Four Pillars (Evolved)
+1. **Capability Governance:** Bridges the gap between strategy and execution. Captures high-level **Intents** and **Triggering Events** to provide causal traceability.
+2. **DTTP Enforcement:** Structural enforcement of spec-authorized actions via OS-level privilege separation. Agents physically cannot bypass rules.
+3. **Digital Black Box (ADS):** An immutable, SHA-256 hash-chained Authoritative Data Source (ADS) log providing a full causal traceability chain.
+4. **Interactive Orchestration:** A bi-directional command center (Operator Console) for human-agent collaboration, real-time steering, and feedback.
 
-## The Solution: Four Pillars (Evolved)
+---
 
-| Pillar | What It Does |
-|--------|-------------|
-| **Capability Governance** | Traceability from organizational **Intent** and **Triggering Events** to technical action. |
-| **DTTP** (Transfer Protocol) | Structural enforcement via Level 3 OS-level privilege separation. |
-| **Digital Black Box** (ADS) | Immutable, SHA-256 hash-chained audit trail of all intentions and actions. |
-| **Interactive Orchestration** | Real-time human steering and hierarchical task visualization (Intent → Spec → Task). |
+## 2. Core Governance Mechanisms
 
-## Architecture
+### 2.1 Specification-Driven Development (SDD)
+The fundamental rule of ADT is **"No Spec, No Code"**. Every technical change must trace to an approved specification. Only a human can approve a specification. If an agent attempts to act without an active, approved specification covering their role and target file, the action is blocked.
+
+### 2.2 Authoritative Data Source (ADS) & Integrity Chain
+The ADS (`events.jsonl`) is the single source of truth. It is an append-only log. Every ADS event contains a SHA-256 hash of the previous event, forming an unbroken, cryptographically verifiable chain. Any unauthorized modification to past events breaks the chain and is immediately flagged.
+
+### 2.3 Tiered Path Protections
+To prevent the framework from corrupting itself, all file paths are classified into three tiers:
+- **Tier 1: Sovereign (Human-Only):** Config files, Constitution, and Master Plan. Proposal changes become **Sovereign Change Requests (SCR)** requiring explicit human authorization.
+- **Tier 2: Constitutional (Elevated):** Core enforcement logic. Requires a dedicated hardening spec.
+- **Tier 3: Operational (Standard):** Regular application code and assets.
+
+---
+
+## 3. Structural Enforcement (DTTP)
+
+The Digital Transformation Transfer Protocol (DTTP) replaces honor-system prompts with **Level 3 OS-level privilege separation**.
+
+### 3.1 Three-User Privilege Model
+- **HUMAN (user `human`):** Full access. The root of trust. Approves specs and configures the forge.
+- **AGENT (user `agent`):** Restricted user. Read-only access to the project. Network access (SSH/FTP) blocked. Must route all writes through the DTTP service.
+- **DTTP (user `dttp`):** Privileged worker. Write access to the project. Validates agent requests, executes them, and logs them to the ADS atomically.
+
+### 3.2 Multi-Project Isolation
+- **Forge:** The ADT Framework itself. Possesses Tier 1/Tier 2 concepts and Shatterglass capabilities.
+- **Governed (External Projects):** tenant projects (e.g., web apps). Operate strictly at Tier 3 with isolated `_cortex/` directories and DTTP instances.
+
+---
+
+## 4. ADT Command Line Interface (`adt`)
+
+The framework includes a powerful CLI for managing governance and projects.
+
+### 4.1 Quick Start
+```bash
+# Clone the repository
+git clone https://github.com/human86x/adt-framework.git
+cd adt-framework
+
+# Install
+./install.sh
+
+# Initialize a project
+adt init /path/to/your/project --detect
+```
+
+### 4.2 Core Commands
+| Command | Description |
+|---------|-------------|
+| `adt init` | Scaffold governance in a new directory with auto-detection. |
+| `adt projects list` | List all registered projects and their DTTP status. |
+| `adt connect share` | Expose local instance via Cloudflare Tunnel for remote access. |
+| `adt shatterglass` | Emergency privilege escalation for manual framework repair. |
+| `adt tasks complete` | Mark a task as completed with evidence directly from CLI. |
+
+---
+
+## 5. Security & Defense in Depth
+
+### 5.1 Agent Sandboxing
+Agents are restricted via application-layer hook sandboxing and OS-level namespace isolation using `bwrap` (bubblewrap) to block unauthorized network egress and filesystem traversal.
+
+### 5.2 The Shatterglass Protocol
+A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can activate Shatterglass to temporarily escalate OS privileges, bypass DTTP, and repair the framework. This mode is time-limited and mandates an audit.
+
+---
+
+## 6. Architecture
 
 ```
 ┌───────────────────────────────────────────┐
@@ -54,42 +122,14 @@ AI agents (Claude, Gemini, GPT, etc.) are increasingly used for real engineering
 └───────────────────────────────────────────┘
 ```
 
-## Enforcement & Security
+---
 
-- **Level 3 Enforcement:** Agents run as restricted OS users. DTTP runs as a privileged user. Bypassing rules is structurally impossible.
-- **Sovereign Change Requests (SCR):** High-risk framework changes require explicit human-in-the-loop authorization.
-- **Shatterglass Protocol:** Time-limited, audited emergency maintenance mode.
-- **Agent Sandboxing:** Filesystem and network isolation per session.
-
-## Documentation
-
-- **Full Manual:** [docs/MANUAL.md](docs/MANUAL.md) — Core principles, roles, and security protocols.
-- **Whitepaper:** [docs/adt.pdf](docs/adt.pdf) — Original framework architectural vision.
-
-## Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/human86x/adt-framework.git
-cd adt-framework
-
-# Install
-./install.sh
-
-# Govern a project
-adt init /path/to/your/project
-```
-
-## Proving Ground
-
+## 7. Proving Ground
 ADT is being proven through [OceanPulse](https://oceanpulse.pt) -- an autonomous marine monitoring buoy governed entirely by the ADT Framework. Real incidents, real enforcement, real lessons.
 
 ## License
-
 AGPL-3.0. See [LICENSE](LICENSE).
 
 ## Author
-
 Paul Sheridan, Director, Advanced Digital Transformation (ADT)
-
-Based on the ADT Whitepaper (Sheridan, 2026). See [docs/whitepaper.md](docs/whitepaper.md).
+Based on the ADT Whitepaper (Sheridan, 2026). See [docs/adt.pdf](docs/adt.pdf).
