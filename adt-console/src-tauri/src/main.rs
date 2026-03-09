@@ -48,6 +48,7 @@ fn main() {
             ipc::create_session,
             ipc::close_session,
             ipc::write_to_session,
+            ipc::inject_pty_command,
             ipc::resize_session,
             ipc::list_sessions,
             ipc::update_tray_status,

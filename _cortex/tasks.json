@@ -2091,8 +2091,11 @@
       "description": "Refactor index.html to support nested hierarchy in Hive Tracker (Intent -> Spec -> Task).",
       "spec_ref": "SPEC-039",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
-      "priority": "high"
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented hierarchical Orchestration Tree, real-time ADS pulse feedback, and prioritization steering buttons.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-03-07T13:00:00Z"
     },
     {
       "id": "task_170",
@@ -2102,6 +2105,7 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
+      "evidence": "Implemented human_steering in ADSEventSchema.",
       "evidence": "Implemented human_steering in ADSEventSchema.",
       "last_updated_by": "GEMINI (Backend_Engineer)",
       "last_updated_at": "2026-03-07T12:33:56.035880Z",
@@ -2114,7 +2118,8 @@
       "spec_ref": "SPEC-039",
       "assigned_to": "DevOps_Engineer",
       "status": "pending",
-      "priority": "high"
+      "priority": "high",
+      "evidence": "Implemented inject_command in pty.rs and registered IPC handler."
     },
     {
       "id": "task_172",
@@ -2122,8 +2127,11 @@
       "description": "Map real-time ADS events to UI sidebar pulses for 'thinking' feedback.",
       "spec_ref": "SPEC-039",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
-      "priority": "medium"
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented hierarchical Orchestration Tree, real-time ADS pulse feedback, and prioritization steering buttons.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-03-07T13:00:00Z"
     },
     {
       "id": "task_173",
@@ -2131,8 +2139,11 @@
       "description": "Add 'Prioritize' buttons to task list in Sidebar for bi-directional steering.",
       "spec_ref": "SPEC-039",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
-      "priority": "high"
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented hierarchical Orchestration Tree, real-time ADS pulse feedback, and prioritization steering buttons.",
+      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_at": "2026-03-07T13:00:00Z"
     }
   ]
 }

@@ -54,11 +54,11 @@ def create_app():
     app.config["PROJECT_NAME"] = os.environ.get("ADT_PROJECT_NAME", os.path.basename(PROJECT_ROOT))
     app.config["DTTP_URL"] = os.environ.get("DTTP_URL", "http://localhost:5002")
 
+    # Initialize engines (Legacy/Fallback)
     ADS_PATH = os.path.join(PROJECT_ROOT, "_cortex", "ads", "events.jsonl")
     SPECS_DIR = os.path.join(PROJECT_ROOT, "_cortex", "specs")
     TASKS_PATH = os.path.join(PROJECT_ROOT, "_cortex", "tasks.json")
 
-    # Initialize engines
     app.ads_query = ADSQuery(ADS_PATH)
     app.ads_logger = ADSLogger(ADS_PATH)
     app.spec_registry = SpecRegistry(SPECS_DIR)
@@ -97,6 +97,10 @@ def create_app():
             spec["name"] = name[1].replace("_", " ") if len(name) > 1 else spec["id"]
         return specs
 
+    @app.context_processor
+    def inject_project():
+        return dict(current_project=request.args.get("project"))
+
     @app.route("/")
     def dashboard():
         project_name = request.args.get("project")
@@ -118,8 +122,7 @@ def create_app():
                                tasks=tasks,
                                specs=specs,
                                active_sessions=active_sessions,
-                               denials=denials,
-                               current_project=project_name)
+                               denials=denials)
 
     @app.route("/ads")
     def ads_timeline():
@@ -127,7 +130,7 @@ def create_app():
         paths = get_project_paths(project_name)
         query = ADSQuery(paths["ads"])
         events = query.get_all_events()
-        return render_template("ads.html", events=events, current_project=project_name)
+        return render_template("ads.html", events=events)
 
     @app.route("/specs")
     def specs_page():
@@ -140,7 +143,7 @@ def create_app():
             detail = spec_registry.get_spec_detail(spec["id"])
             if detail:
                 spec["content"] = detail.get("content", "")
-        return render_template("specs.html", specs=specs, current_project=project_name)
+        return render_template("specs.html", specs=specs)
 
     @app.route("/tasks")
     def tasks_page():
@@ -148,7 +151,17 @@ def create_app():
         paths = get_project_paths(project_name)
         task_manager = TaskManager(paths["tasks"], project_name=paths["name"])
         tasks = task_manager.list_tasks()
-        return render_template("tasks.html", tasks=tasks, current_project=project_name)
+        return render_template("tasks.html", tasks=tasks)
+
+    @app.route("/capabilities")
+    def capabilities_page():
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        from adt_core.ads.capability import CapabilityManager
+        cm = CapabilityManager(paths["root"])
+        intents = cm.list_intents()
+        events = cm.list_events()
+        return render_template("capabilities.html", intents=intents, events=events)
 
     @app.route("/hierarchy")
     def hierarchy_page():
@@ -175,8 +188,7 @@ def create_app():
         return render_template("hierarchy.html", 
                                phases=phases, 
                                tasks=tasks, 
-                               specs=specs, 
-                               current_project=project_name)
+                               specs=specs)
 
     @app.route("/delegation")
     def delegation_page():
@@ -190,8 +202,7 @@ def create_app():
         
         return render_template("delegation.html", 
                                tasks=tasks, 
-                               specs=specs, 
-                               current_project=project_name)
+                               specs=specs)
 
     @app.route("/projects")
     def projects_page():
@@ -246,18 +257,30 @@ def create_app():
 
     @app.route("/dttp")
     def dttp_monitor():
-        events = app.ads_query.get_all_events()
+        project_name = request.args.get("project")
+        paths = get_project_paths(project_name)
+        query = ADSQuery(paths["ads"])
+        
+        events = query.get_all_events()
         dttp_actions = ['pending_edit', 'completed_edit', 'denied_edit']
         dttp_events = [e for e in events if e.get("action_type") in dttp_actions]
         dttp_denied = [e for e in dttp_events if not e.get("authorized", True)]
+        
         # Try to get DTTP service status
         dttp_status = None
+        dttp_url = app.config['DTTP_URL']
+        if project_name:
+            project = app.project_registry.get_project(project_name)
+            if project and project.get("dttp_port"):
+                dttp_url = f"http://localhost:{project['dttp_port']}"
+                
         try:
-            resp = http_client.get(f"{app.config['DTTP_URL']}/status", timeout=2)
+            resp = http_client.get(f"{dttp_url}/status", timeout=2)
             if resp.ok:
                 dttp_status = resp.json()
         except http_client.RequestException:
             pass
+            
         return render_template("dttp.html",
                                dttp_events=dttp_events,
                                dttp_denied=dttp_denied,

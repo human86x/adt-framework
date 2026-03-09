@@ -11,7 +11,7 @@ def heal_ads(file_path: str):
     Acknowledges gaps as a 'historical integrity reset'.
     """
     backup_path = file_path + ".bak"
-    shutil.copy2(file_path, backup_path)
+    shutil.copy(file_path, backup_path)
     print(f"Backup created at {backup_path}")
 
     healed_events = []

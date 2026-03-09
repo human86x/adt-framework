@@ -2283,3 +2283,313 @@ input:checked + .slider:before {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+/* ============================================
+   SPEC-039: INTERACTIVE ORCHESTRATION STYLES
+   ============================================ */
+
+.thinking-monitor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Pulsing States */
+.pulse-blue { background: var(--accent-blue); box-shadow: 0 0 10px var(--accent-blue); animation: adt-pulse-blue 1.5s infinite; }
+.pulse-amber { background: var(--accent-yellow); box-shadow: 0 0 10px var(--accent-yellow); animation: adt-pulse-amber 1.5s infinite; }
+.pulse-red { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); animation: adt-pulse-red 1.5s infinite; }
+.pulse-green { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+
+@keyframes adt-pulse-blue {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(107, 127, 215, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(107, 127, 215, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(107, 127, 215, 0); }
+}
+
+@keyframes adt-pulse-amber {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(210, 153, 34, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(210, 153, 34, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(210, 153, 34, 0); }
+}
+
+@keyframes adt-pulse-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(248, 81, 73, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+}
+
+.working-on-badge {
+  font-size: 9px;
+  background: var(--bg-tertiary);
+  color: var(--accent-yellow);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Orchestration Tree */
+.orchestration-tree {
+  font-size: 11px;
+  padding-left: 4px;
+}
+
+.tree-node {
+  margin-bottom: 4px;
+}
+
+.tree-header {
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+}
+
+.intent-node > .tree-header {
+  color: var(--accent-purple);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 10px;
+  background: rgba(188, 140, 255, 0.05);
+}
+
+.spec-node { margin-left: 8px; border-left: 1px solid var(--border); padding-left: 8px; }
+.spec-node > .tree-header { color: var(--accent-blue); font-weight: 600; }
+
+.task-node { margin-left: 12px; border-left: 1px solid var(--border); padding-left: 8px; }
+.task-node > .tree-header { color: var(--text-secondary); }
+
+.task-node.status-active > .tree-header {
+  color: var(--text-primary);
+  background: rgba(107, 127, 215, 0.1);
+  border-left: 2px solid var(--accent-blue);
+  margin-left: -10px;
+  padding-left: 8px;
+}
+
+.task-node.status-done > .tree-header {
+  opacity: 0.6;
+  text-decoration: line-through;
+  color: var(--accent-green);
+}
+
+.btn-prioritize {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-prioritize:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(76, 175, 80, 0.1);
+  transform: scale(1.1);
+}
+
+.tree-children {
+  margin-top: 4px;
+}
+
+/* ============================================
+   SPEC-040: CAPABILITY CONTEXT STYLES
+   ============================================ */
+
+#section-capability-context {
+  border-top: 1px solid var(--border);
+}
+
+.cap-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.cap-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 48px;
+  padding-top: 1px;
+  flex-shrink: 0;
+}
+
+.cap-value {
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.3;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* Gate Progress Bar */
+.cap-gate-bar {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.cap-gate-seg {
+  width: 14px;
+  height: 5px;
+  border-radius: 2px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.cap-gate-seg.gate-completed {
+  background-color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.cap-gate-seg.gate-refined {
+  background-color: var(--accent-yellow);
+  border-color: var(--accent-yellow);
+}
+
+.cap-gate-seg.gate-halted {
+  background-color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+.cap-gate-seg.gate-current {
+  background-color: var(--accent-blue);
+  border-color: var(--accent-blue);
+  animation: adt-pulse-blue 2s infinite;
+}
+
+/* Maturity Delta Bar */
+.cap-maturity-bar {
+  width: 80px;
+  height: 6px;
+  background-color: var(--bg-tertiary);
+  border-radius: 3px;
+  position: relative;
+  border: 1px solid var(--border);
+}
+
+.cap-maturity-fill {
+  height: 100%;
+  background-color: var(--accent-blue);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.cap-maturity-target {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background-color: var(--text-primary);
+  z-index: 2;
+  transition: left 0.5s ease;
+}
+
+/* Risk indicators */
+.cap-risk-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+.cap-risk-dot.risk-low { background-color: var(--accent-green); }
+.cap-risk-dot.risk-medium { background-color: var(--accent-yellow); }
+.cap-risk-dot.risk-high { background-color: var(--accent-red); }
+.cap-risk-dot.risk-critical {
+  background-color: var(--accent-red);
+  animation: adt-pulse-red 1.5s infinite;
+}
+
+/* Action buttons */
+.cap-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-cap-action {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  text-align: center;
+}
+
+.btn-cap-action:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+  background: rgba(107, 127, 215, 0.1);
+}
+
+.btn-cap-accent {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.btn-cap-accent:hover {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+/* Inline gate form */
+#cap-inline-gate {
+  margin-top: 6px;
+  padding: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+#cap-inline-gate label {
+  display: block;
+  font-size: 9px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  margin-top: 4px;
+}
+
+#cap-inline-gate select,
+#cap-inline-gate input[type="text"],
+#cap-inline-gate input[type="date"] {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+#cap-inline-gate select:focus,
+#cap-inline-gate input:focus,
+#cap-inline-gate textarea:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(107, 127, 215, 0.2);
+}

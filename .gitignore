@@ -43,3 +43,5 @@ bin/
 # Temp files
 *.tmp
 fix_logger.py
+.adt/
+adt-framework/

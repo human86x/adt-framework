@@ -56,7 +56,8 @@
       "roles": [
         "Backend_Engineer",
         "Systems_Architect",
-        "DevOps_Engineer"
+        "DevOps_Engineer",
+        "Frontend_Engineer"
       ],
       "action_types": [
         "edit",
@@ -77,7 +78,9 @@
         "adt_core/ads/logger.py",
         "adt_core/ads/integrity.py",
         "adt_core/ads/crypto.py",
-        ".gitignore"
+        ".gitignore",
+        "adt-console/",
+        "adt-console/src/"
       ]
     },
     "SPEC-018": {
@@ -469,6 +472,50 @@
         "adt_sdk/",
         "adt_sdk/hooks/",
         "tests/"
+      ]
+    },
+    "SPEC-038": {
+      "title": "Organizational Capability Governance",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Systems_Architect",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/ads/",
+        "adt_center/api/",
+        "adt_center/templates/",
+        "_cortex/capabilities/",
+        "config/",
+        "tests/"
+      ]
+    },
+    "SPEC-039": {
+      "title": "Interactive Governance Orchestration",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "execute"
+      ],
+      "paths": [
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "adt_center/api/",
+        "adt_core/ads/schema.py"
       ]
     }
   }

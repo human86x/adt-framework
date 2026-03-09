@@ -127,7 +127,10 @@ def check_bash_sandbox(command: str, project_dir: str) -> str:
                     f"Agents cannot access credentials/keys in sandbox mode."
                 )
 
-        # If command has write operators, check path containment
+        # If command has write operators, block it entirely in sandbox mode.
+        # Agents must use Edit/Write tools (routed through DTTP) for all file
+        # modifications. Allowing Bash writes — even inside the project dir —
+        # bypasses DTTP governance enforcement completely.
         if BASH_WRITE_OPERATORS.search(command):
             is_contained = (
                 resolved == full_project_dir
@@ -137,6 +140,11 @@ def check_bash_sandbox(command: str, project_dir: str) -> str:
                 return (
                     f"SANDBOX: Bash write operation targets path outside project root: {path}. "
                     f"All file modifications must be within {project_dir}."
+                )
+            else:
+                return (
+                    f"SANDBOX: Bash write operations are not permitted in sandbox mode. "
+                    f"Use Edit/Write tools instead — these are routed through DTTP for governance."
                 )
 
     # Check for scripting one-liners that can write anywhere (regardless of shell operators)
