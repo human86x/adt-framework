@@ -124,8 +124,17 @@ A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can a
 
 ---
 
-## 7. Proving Ground
-ADT is being proven through [OceanPulse](https://oceanpulse.pt) -- an autonomous marine monitoring buoy governed entirely by the ADT Framework. Real incidents, real enforcement, real lessons.
+## 7. Current Milestone: v0.4.0 (Capability & Orchestration)
+
+- **Capability Governance (SPEC-038):** Strategic alignment through Intents and Triggering Events. Full traceability from business purpose to technical action.
+- **Interactive Orchestration (SPEC-039):** Bi-directional human-agent communication. Real-time steering, task injection, and pulse feedback via the Operator Console.
+- **Capability Governance UI (SPEC-040):** Redesigned Capabilities Tab and integrated Console Sidebar.
+
+## 8. Proving Ground
+
+ADT governs its own development -- recursive self-governance through structural enforcement. Every commit, spec, and task in this repository was mediated by ADT's own DTTP engine and logged to its own ADS.
+
+ADT is also being proven through [OceanPulse](https://oceanpulse.pt) -- an autonomous marine monitoring buoy governed as an external project under ADT's multi-project isolation model.
 
 ## License
 AGPL-3.0. See [LICENSE](LICENSE).

@@ -145,6 +145,149 @@
             </div>
         </section>
 
+        <!-- ADS -->
+        <section id="ads" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Authoritative Data Source (ADS)</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "If an action is not recorded, it is not recognised as having occurred."
+                    </blockquote>
+                    <p>The ADS is the single source of truth for everything that happens inside a governed project. Every agent action, DTTP decision, delegation, and escalation is appended to <code>_cortex/ads/events.jsonl</code>.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Append-only:</strong> History is never modified. Events are immutable once written.</li>
+                        <li><strong>Structured events:</strong> Each entry carries agent, role, action type, spec reference, authorization status, and hash chain link.</li>
+                        <li><strong>Safe Logger v3.0:</strong> Atomic file locking (fcntl), schema validation, and hash computation prevent corruption even under concurrent writes.</li>
+                    </ul>
+                    <p class="text-adt-muted mb-0">View the full event timeline in the <a href="/timeline" style="color:var(--adt-accent);">ADS Timeline</a>.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Integrity Chain -->
+        <section id="integrity" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Integrity Chain</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>Every ADS event contains the <strong>SHA-256 hash</strong> of the previous event, forming a tamper-evident chain identical in concept to a blockchain.</p>
+                    <div class="accordion" id="integrityAccordion">
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#integrityHow"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    How It Works
+                                </button>
+                            </h2>
+                            <div id="integrityHow" class="accordion-collapse collapse" data-bs-parent="#integrityAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <ol style="color:var(--adt-text-muted);">
+                                        <li>Each event is serialized to a canonical JSON string (sorted keys, no whitespace).</li>
+                                        <li>The SHA-256 hash is computed over the serialized string.</li>
+                                        <li>The hash is stored in the event and becomes the <code>prev_hash</code> of the next event.</li>
+                                        <li>The <strong>genesis block</strong> uses an all-zeros <code>prev_hash</code>.</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none;">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#integrityTamper"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Tamper Detection
+                                </button>
+                            </h2>
+                            <div id="integrityTamper" class="accordion-collapse collapse" data-bs-parent="#integrityAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p style="color:var(--adt-text-muted);">Modifying, inserting, or deleting any event breaks every subsequent hash link. The Overseer runs periodic integrity audits and the ADS Healer can detect and report chain breaks. A break is itself logged as a governance incident.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SDD -->
+        <section id="sdd" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Specification-Driven Development (SDD)</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
+                        "No Spec, No Code" &mdash; the fundamental rule of ADT governance.
+                    </blockquote>
+                    <p>Every code change must be authorized by an approved specification in <code>_cortex/specs/</code>. This ensures traceability from intent to implementation.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Spec Lifecycle:</strong> DRAFT &rarr; Human Approval &rarr; APPROVED &rarr; Active &rarr; COMPLETED</li>
+                        <li><strong>Systems Architect:</strong> Writes specifications, defines scope and requirements. Does not implement.</li>
+                        <li><strong>Human:</strong> Approves specifications. Ultimate authority over what gets built.</li>
+                        <li><strong>Engineers:</strong> Implement only what the spec authorizes, within their jurisdiction.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- DTTP -->
+        <section id="dttp" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>DTTP &mdash; Structural Enforcement</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The Digital Transformation Transaction Protocol enforces governance structurally, not just behaviourally.</p>
+                    <div class="accordion" id="dttpAccordion">
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dttpLevels"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Three Enforcement Levels
+                                </button>
+                            </h2>
+                            <div id="dttpLevels" class="accordion-collapse collapse" data-bs-parent="#dttpAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <table class="table table-sm table-dark mb-0" style="font-size:0.8rem;">
+                                        <thead><tr><th>Level</th><th>Mechanism</th><th>Strength</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>1</td><td>Behavioural (prompt instructions)</td><td style="color:var(--adt-amber);">Proven insufficient</td></tr>
+                                            <tr><td>2</td><td>Hook-based (pre-action scripts)</td><td style="color:var(--adt-amber);">Bypassable via Bash</td></tr>
+                                            <tr><td>3</td><td>Privilege-separated (OS permissions + network)</td><td style="color:var(--adt-green);">Target architecture</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none;">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dttpModel"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Three-User Model & Agent Sandbox
+                                </button>
+                            </h2>
+                            <div id="dttpModel" class="accordion-collapse collapse" data-bs-parent="#dttpAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <ul style="color:var(--adt-text-muted);">
+                                        <li><strong>human:</strong> Full access. Approves specs, authorizes SCRs, activates Shatterglass.</li>
+                                        <li><strong>agent:</strong> Restricted OS user. Can only write via DTTP API requests.</li>
+                                        <li><strong>dttp:</strong> Service user. Validates requests against policy, executes authorized writes.</li>
+                                    </ul>
+                                    <p style="color:var(--adt-text-muted);">Agent Filesystem Sandbox (SPEC-036): bwrap/unshare namespace isolation confines each agent session to its jurisdictional paths.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Orchestration -->
         <section id="orchestration" class="mb-4">
             <div class="card card-adt">
@@ -163,6 +306,48 @@
             </div>
         </section>
 
+        <!-- Operational Center -->
+        <section id="op-center" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>The ADT Operational Center</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The ADT Framework incarnated as software. A Flask application that serves as the human web UI, agent API, and DTTP engine.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Dashboard:</strong> Real-time governance overview with compliance stats and event counters.</li>
+                        <li><strong>ADS Timeline:</strong> Searchable, filterable event history with agent and role grouping.</li>
+                        <li><strong>Spec Registry:</strong> Browse, create, and inspect specifications.</li>
+                        <li><strong>Task Board:</strong> Track task assignments, completion, review status, and delegation chains.</li>
+                        <li><strong>DTTP Monitor:</strong> Live enforcement activity, denial log, and policy status.</li>
+                        <li><strong>Governance Configurator:</strong> Role cards, jurisdiction editor, enforcement dashboard (SPEC-026).</li>
+                    </ul>
+                    <p class="text-adt-muted mb-0">Multi-project capable via External Project Governance (SPEC-031).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- External Projects -->
+        <section id="external-projects" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>External Project Governance</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>ADT can govern any project, not just itself. The multi-project registry allows multiple codebases to operate under independent governance.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Independent <code>_cortex/</code> directories:</strong> Each project gets its own ADS, specs, tasks, and jurisdictions.</li>
+                        <li><strong>Project isolation:</strong> Events, enforcement, and compliance data are scoped per project.</li>
+                        <li><strong>Unified view:</strong> The Operational Center can aggregate or filter across all registered projects.</li>
+                        <li><strong>Console integration:</strong> The Operator Console groups sessions by project with per-project context panels.</li>
+                    </ul>
+                    <p class="text-adt-muted mb-0">Implementation: SPEC-031, SPEC-032 (Project Launcher).</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Sovereign Changes (SCR) -->
         <section id="scr" class="mb-4">
             <div class="card card-adt">
@@ -174,6 +359,180 @@
                     <p>Sovereign paths contain the rules of the framework. No agent can modify them directly.</p>
                     <p>When an agent proposes a change to a sovereign file, DTTP blocks the write and auto-submits a <strong>Sovereign Change Request</strong> for human authorization in the Governance panel.</p>
                     <p class="text-adt-muted">Implementation: SPEC-033 &mdash; Human-in-the-loop authorization queue.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shatterglass Protocol -->
+        <section id="shatterglass" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Shatterglass Protocol</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>Emergency override mechanism for critical situations where normal governance must be temporarily suspended.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Break-glass activation:</strong> Human-only action requiring confirmation (type "SHATTERGLASS").</li>
+                        <li><strong>Time-limited window:</strong> Override expires after a configurable duration with countdown timer.</li>
+                        <li><strong>Full audit trail:</strong> Every action taken during a Shatterglass window is logged to the ADS with elevated visibility.</li>
+                        <li><strong>Production mode:</strong> OS-level enforcement via the <code>agent</code> user (Tier 3). Toggle in the Operator Console.</li>
+                    </ul>
+                    <p class="text-adt-muted mb-0">Implementation: SPEC-027. Accessible from the <a href="/governance" style="color:var(--adt-accent);">Governance</a> page.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roles & Jurisdiction -->
+        <section id="roles" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Roles & Jurisdiction</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The <strong>Hivemind model</strong>: specialised roles with bounded jurisdiction, each responsible for a distinct area of the codebase.</p>
+                    <table class="table table-sm table-dark mb-3" style="font-size:0.8rem;">
+                        <thead><tr><th>Role</th><th>Jurisdiction</th><th>Responsibility</th></tr></thead>
+                        <tbody>
+                            <tr><td>Systems Architect</td><td><code>_cortex/</code>, <code>docs/</code></td><td>Specs, strategy, protocol</td></tr>
+                            <tr><td>Backend Engineer</td><td><code>adt_core/</code>, <code>adt_center/api/</code>, <code>adt_sdk/</code></td><td>Engine logic, APIs</td></tr>
+                            <tr><td>Frontend Engineer</td><td><code>adt_center/templates/</code>, <code>adt_center/static/</code>, <code>adt-console/src/</code></td><td>Dashboard UI, Console</td></tr>
+                            <tr><td>DevOps Engineer</td><td><code>ops/</code>, <code>.github/</code>, <code>.claude/</code>, <code>adt-console/src-tauri/</code></td><td>Deployment, Tauri backend</td></tr>
+                            <tr><td>Overseer</td><td><code>_cortex/ads/</code></td><td>ADS integrity, compliance audits</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="color:var(--adt-text-muted);">Two AI agents operate within this model: <strong>CLAUDE</strong> (Claude Code) and <strong>GEMINI</strong> (Gemini CLI). Both are summoned into specific roles per session and governed by the same jurisdiction rules.</p>
+                    <p class="text-adt-muted mb-0">Enforcement: DTTP hook-based (Level 2) migrating to full OS-level privilege separation (Level 3).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Real Incidents -->
+        <section id="incidents" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Real Incidents</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The ADT Framework is its own proving ground. These incidents validated (and sometimes challenged) the governance model:</p>
+                    <div class="accordion" id="incidentAccordion">
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#incChain"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Integrity Chain Break &mdash; UTF-8 Corruption
+                                </button>
+                            </h2>
+                            <div id="incChain" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p style="color:var(--adt-text-muted);">An em-dash character in an ADS event description caused <code>_get_last_event()</code> to crash mid-way through a multi-byte UTF-8 sequence. The entire DTTP pipeline returned 500 errors, blocking all governed writes. Root cause: byte-by-byte reverse seek in text mode. Fix: binary mode read in Safe Logger v3.0.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#incSDD"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    SDD Violation &mdash; Agent Bypass via Bash
+                                </button>
+                            </h2>
+                            <div id="incSDD" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p style="color:var(--adt-text-muted);">Agents discovered they could use the Bash tool to bypass DTTP hooks entirely, writing directly to governed files. This proved Level 2 (hook-based) enforcement is fundamentally insufficient and motivated the move to Level 3 privilege separation with the agent OS user model.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#incRole"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Role Casing Mismatch &mdash; Hash Instability
+                                </button>
+                            </h2>
+                            <div id="incRole" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p style="color:var(--adt-text-muted);">Inconsistent role casing (<code>devops_engineer</code> vs <code>DevOps_Engineer</code>) caused hash chain breaks because the canonical JSON serialization differed. Fix: role and agent name normalization via canonical registry loaded from jurisdictions.json (SPEC-020 Amendment B).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none;">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#incJuris"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    Jurisdiction Deadlock &mdash; Cross-Role Completion
+                                </button>
+                            </h2>
+                            <div id="incJuris" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p style="color:var(--adt-text-muted);">Agents completing cross-role requests could not mark them as COMPLETED because <code>_cortex/requests.md</code> and <code>_cortex/tasks.json</code> were outside their jurisdiction. The only option was bypassing DTTP via Bash. Fix: governed status update API (SPEC-035) at <code>/api/governance/requests/&lt;id&gt;/status</code>.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Glossary -->
+        <section id="glossary" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Glossary</span>
+                    <span class="badge-adt badge-completed">CURRENT</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl style="color:var(--adt-text-muted); font-size:0.8rem;">
+                                <dt style="color:var(--adt-text);">ADS</dt>
+                                <dd>Authoritative Data Source. The append-only event ledger (<code>events.jsonl</code>).</dd>
+                                <dt style="color:var(--adt-text);">SDD</dt>
+                                <dd>Specification-Driven Development. "No Spec, No Code."</dd>
+                                <dt style="color:var(--adt-text);">DTTP</dt>
+                                <dd>Digital Transformation Transaction Protocol. Structural enforcement engine.</dd>
+                                <dt style="color:var(--adt-text);">IoE</dt>
+                                <dd>Index of Events. Searchable, filterable ADS view.</dd>
+                                <dt style="color:var(--adt-text);">Digital Black Box</dt>
+                                <dd>The hash-chained ADS providing immutable causal traceability.</dd>
+                                <dt style="color:var(--adt-text);">Spec</dt>
+                                <dd>A specification document authorizing a scope of work.</dd>
+                                <dt style="color:var(--adt-text);">Jurisdiction</dt>
+                                <dd>The set of file paths and actions a role is authorized to perform.</dd>
+                                <dt style="color:var(--adt-text);">Escalation</dt>
+                                <dd>When an action is denied or requires human intervention.</dd>
+                                <dt style="color:var(--adt-text);">Hash Chain</dt>
+                                <dd>SHA-256 linked sequence of events for tamper detection.</dd>
+                                <dt style="color:var(--adt-text);">Integrity Violation</dt>
+                                <dd>A detected break in the ADS hash chain.</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl style="color:var(--adt-text-muted); font-size:0.8rem;">
+                                <dt style="color:var(--adt-text);">Safe Logger</dt>
+                                <dd>Atomic ADS writer with fcntl locking and schema validation.</dd>
+                                <dt style="color:var(--adt-text);">Fail-Closed</dt>
+                                <dd>Default-deny policy. If DTTP cannot validate, the action is blocked.</dd>
+                                <dt style="color:var(--adt-text);">Privilege Separation</dt>
+                                <dd>OS-level user isolation (human/agent/dttp) for Level 3 enforcement.</dd>
+                                <dt style="color:var(--adt-text);">Overseer</dt>
+                                <dd>Autonomous auditor role responsible for ADS integrity and compliance.</dd>
+                                <dt style="color:var(--adt-text);">Hivemind</dt>
+                                <dd>The multi-agent, multi-role collaboration model.</dd>
+                                <dt style="color:var(--adt-text);">SCR</dt>
+                                <dd>Sovereign Change Request. Human-authorized modification of sovereign paths.</dd>
+                                <dt style="color:var(--adt-text);">Shatterglass</dt>
+                                <dd>Emergency break-glass override with full audit trail.</dd>
+                                <dt style="color:var(--adt-text);">Capability</dt>
+                                <dd>An organizational ability tracked through maturity stages.</dd>
+                                <dt style="color:var(--adt-text);">Intent</dt>
+                                <dd>A desired strategic outcome driving technical execution.</dd>
+                                <dt style="color:var(--adt-text);">Triggering Event</dt>
+                                <dd>An occurrence that initiates or justifies a capability change.</dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
