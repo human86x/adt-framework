@@ -4,8 +4,7 @@
       "title": "DTTP Implementation (Level 3)",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -22,8 +21,7 @@
       "title": "ADT Operational Center",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -39,11 +37,13 @@
       "title": "ADT Help & Principles Page",
       "status": "approved",
       "roles": [
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
-        "create"
+        "patch",
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/templates/",
@@ -54,10 +54,8 @@
       "title": "ADT Framework Repository",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Systems_Architect",
-        "DevOps_Engineer",
-        "Frontend_Engineer"
+        "Overseer",
+        "Systems_Architect"
       ],
       "action_types": [
         "edit",
@@ -80,14 +78,16 @@
         "adt_core/ads/crypto.py",
         ".gitignore",
         "adt-console/",
-        "adt-console/src/"
+        "adt-console/src/",
+        "README.md",
+        "LICENSE"
       ]
     },
     "SPEC-018": {
       "title": "Phase 1 Hardening",
       "status": "approved",
       "roles": [
-        "Backend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -107,7 +107,7 @@
       "title": "DTTP Standalone Service",
       "status": "approved",
       "roles": [
-        "Backend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -127,13 +127,13 @@
       "title": "Self-Governance Integrity",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_core/dttp/",
@@ -146,10 +146,7 @@
       "title": "ADT Operator Console",
       "status": "approved",
       "roles": [
-        "Frontend_Engineer",
-        "DevOps_Engineer",
-        "Backend_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -169,9 +166,7 @@
       "title": "ADT Collaborative Bootstrap",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "DevOps_Engineer",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -189,8 +184,7 @@
       "title": "DTTP Governance Configurator",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -208,13 +202,13 @@
       "title": "Shatterglass Protocol",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_core/dttp/",
@@ -229,14 +223,13 @@
       "title": "Console Hive Tracker Panel",
       "status": "approved",
       "roles": [
-        "Frontend_Engineer",
-        "Backend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt-console/",
@@ -250,12 +243,13 @@
       "title": "ADT Panel UI Refinements",
       "status": "approved",
       "roles": [
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/templates/",
@@ -266,18 +260,13 @@
       "title": "Git Persistence & Push Governance",
       "status": "approved",
       "roles": [
-        "DevOps_Engineer",
-        "Backend_Engineer",
-        "Frontend_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
-        "git_commit",
-        "git_push",
-        "git_tag",
-        "git_merge",
         "edit",
-        "patch"
+        "patch",
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_core/dttp/",
@@ -290,13 +279,12 @@
       "title": "Single-File WSL/Linux Installer",
       "status": "approved",
       "roles": [
-        "DevOps_Engineer",
-        "Backend_Engineer"
+        "Overseer"
       ],
       "action_types": [
-        "create",
         "edit",
         "patch",
+        "create",
         "delete"
       ],
       "paths": [
@@ -329,10 +317,7 @@
       "title": "External Project Governance",
       "status": "approved",
       "roles": [
-        "Systems_Architect",
-        "Backend_Engineer",
-        "Frontend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -357,13 +342,13 @@
       "title": "Console Project Launcher",
       "status": "approved",
       "roles": [
-        "Frontend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt-console/",
@@ -375,13 +360,13 @@
       "title": "Sovereign Change Requests",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/api/",
@@ -394,15 +379,13 @@
       "title": "Role-Aware Context Panel",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Frontend_Engineer",
-        "DevOps_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/api/",
@@ -419,13 +402,13 @@
       "title": "Unified Status Management API",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/api/",
@@ -438,14 +421,13 @@
       "title": "Agent Filesystem Sandbox",
       "status": "approved",
       "roles": [
-        "DevOps_Engineer",
-        "Backend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
         "create",
-        "write"
+        "delete"
       ],
       "paths": [
         "adt-console/src-tauri/",
@@ -459,13 +441,13 @@
       "title": "Cross-Role Request Access",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Systems_Architect"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_center/api/",
@@ -478,14 +460,13 @@
       "title": "Organizational Capability Governance",
       "status": "approved",
       "roles": [
-        "Backend_Engineer",
-        "Systems_Architect",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
-        "create"
+        "create",
+        "delete"
       ],
       "paths": [
         "adt_core/ads/",
@@ -500,16 +481,13 @@
       "title": "Interactive Governance Orchestration",
       "status": "approved",
       "roles": [
-        "Systems_Architect",
-        "Backend_Engineer",
-        "Frontend_Engineer",
-        "DevOps_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
         "patch",
         "create",
-        "execute"
+        "delete"
       ],
       "paths": [
         "adt-console/src/",

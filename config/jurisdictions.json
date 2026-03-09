@@ -3,6 +3,8 @@
     "Systems_Architect": {
       "paths": [
         ".",
+        "README.md",
+        "LICENSE",
         ".gitignore",
         "_cortex/",
         "docs/",
@@ -101,12 +103,21 @@
       ],
       "locked": false
     },
-    "Overseer": [
-      "_cortex/ads/",
-      "_cortex/docs/",
-      "_cortex/requests.md",
-      "_cortex/work_logs/",
-      "_cortex/capabilities/capability_events.jsonl"
-    ]
+    "Overseer": {
+      "paths": [
+        "_cortex/ads/",
+        "_cortex/docs/",
+        "_cortex/requests.md",
+        "_cortex/work_logs/",
+        "_cortex/capabilities/capability_events.jsonl"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "locked": false
+    }
   }
 }
