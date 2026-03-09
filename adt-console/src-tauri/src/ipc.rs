@@ -120,6 +120,18 @@ pub fn write_to_session(
 }
 
 #[tauri::command]
+pub fn inject_pty_command(
+    request: WriteRequest,
+    pty_manager: State<PtyManager>,
+) -> Result<(), String> {
+    log::info!(
+        "[IPC RECV] inject_pty_command: id={}, cmd={}",
+        request.session_id, request.data.trim()
+    );
+    pty_manager.inject_command(&request.session_id, &request.data)
+}
+
+#[tauri::command]
 pub fn resize_session(
     request: ResizeRequest,
     pty_manager: State<PtyManager>,

@@ -11,6 +11,7 @@ from adt_core.ads.query import ADSQuery
 from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.registry import SpecRegistry
 from adt_core.sdd.tasks import TaskManager
+from adt_core.ads.capability import CapabilityManager
 
 from adt_core.registry import ProjectRegistry
 
@@ -37,6 +38,7 @@ def _init_project(path, name=None, detect=True, port=None):
     os.makedirs(os.path.join(cortex_dir, "ads"), exist_ok=True)
     os.makedirs(os.path.join(cortex_dir, "specs"), exist_ok=True)
     os.makedirs(os.path.join(cortex_dir, "ops"), exist_ok=True)
+    os.makedirs(os.path.join(cortex_dir, "capabilities"), exist_ok=True)
     os.makedirs(config_dir, exist_ok=True)
     
     # 3. Generate files
@@ -306,7 +308,8 @@ def _get_project_resources(project_name):
         "query": ADSQuery(paths["ads"]),
         "logger": ADSLogger(paths["ads"]),
         "spec_registry": SpecRegistry(paths["specs"]),
-        "task_manager": TaskManager(paths["tasks"], project_name=paths["name"])
+        "task_manager": TaskManager(paths["tasks"], project_name=paths["name"]),
+        "capability_manager": CapabilityManager(paths["root"])
     }
 
 def _load_json(path):
@@ -1274,12 +1277,24 @@ def submit_sovereign_request():
     scrs = _load_scrs(project_root)
     scr_id = f"scr_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{len(scrs['requests']):03d}"
     
+    intent_id = data.get("intent_id")
+    if intent_id:
+        from adt_core.ads.capability import CapabilityManager
+        cm = CapabilityManager(project_root)
+        intent = cm.get_intent(intent_id)
+        if not intent:
+            return jsonify({"error": f"Intent {intent_id} not found"}), 400
+        # If the intent has a status field, it must not be 'Completed' or 'Cancelled'
+        if intent.get("status") in ["Completed", "Cancelled"]:
+             return jsonify({"error": f"Intent {intent_id} is already {intent.get('status')}"}), 400
+
     new_request = {
         "id": scr_id,
         "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "agent": data["agent"],
         "role": data["role"],
         "spec_ref": data.get("spec_ref"),
+        "intent_id": intent_id,
         "target_path": data["target_path"],
         "change_type": data["change_type"],
         "description": data.get("description", ""),
@@ -1306,7 +1321,7 @@ def submit_sovereign_request():
         spec_ref=data.get("spec_ref", "SPEC-033"),
         authorized=True,
         tier=3,
-        action_data={"scr_id": scr_id, "target_path": data["target_path"]}
+        action_data={"scr_id": scr_id, "target_path": data["target_path"], "intent_id": intent_id}
     )
     res["logger"].log(event)
     
@@ -1427,3 +1442,409 @@ def manage_sovereign_request(scr_id):
         
     _save_scrs(project_root, scrs)
     return jsonify({"status": "success", "scr_id": scr_id, "new_status": scr["status"]})
+
+
+# --- Capability Governance Routes (SPEC-038 + SPEC-038A + SPEC-040) ---
+
+@governance_bp.route("/governance/capabilities/intents", methods=["POST"])
+def api_add_intent():
+    """SPEC-038A: Capture a new Capability Change Intent with enriched schema."""
+    from adt_core.ads.capability import validate_intent
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    errors = validate_intent(data)
+    if errors:
+        return jsonify({"error": "Validation failed", "details": errors}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    role = data.get("role", "Architect")
+
+    intent_id = res["capability_manager"].add_intent(data)
+
+    event_id = ADSEventSchema.generate_id("cap_intent")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent=data.get("agent", "AGENT"),
+        role=role,
+        action_type="capability_intent_defined",
+        description=f"Defined capability intent {intent_id}: {data['title']}",
+        spec_ref="SPEC-038",
+        authorized=True,
+        tier=1,
+        action_data={"intent_id": intent_id, "title": data["title"]}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "intent_id": intent_id, "event_id": event_id}), 201
+
+@governance_bp.route("/governance/capabilities/events", methods=["POST"])
+def api_add_capability_event():
+    """SPEC-038A: Record a triggering organizational event with enriched schema."""
+    from adt_core.ads.capability import validate_event
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    errors = validate_event(data)
+    if errors:
+        return jsonify({"error": "Validation failed", "details": errors}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
+    event_id = res["capability_manager"].add_event(data)
+
+    ads_event_id = ADSEventSchema.generate_id("cap_event")
+    event = ADSEventSchema.create_event(
+        event_id=ads_event_id,
+        agent=data.get("agent", "AGENT"),
+        role=data.get("role", "Developer"),
+        action_type="capability_event_captured",
+        description=f"Captured capability event {event_id}: {data['description'][:100]}",
+        spec_ref="SPEC-038",
+        authorized=True,
+        tier=3,
+        action_data={"event_id": event_id, "intent_id": data.get("intent_id")}
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "event_id": event_id, "ads_event_id": ads_event_id}), 201
+
+@governance_bp.route("/governance/capabilities/intents", methods=["GET"])
+def api_list_intents():
+    """SPEC-038: List all capability change intents."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    return jsonify({"intents": res["capability_manager"].list_intents()})
+
+@governance_bp.route("/governance/capabilities/events", methods=["GET"])
+def api_list_capability_events():
+    """SPEC-038: List all triggering capability events."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    return jsonify({"events": res["capability_manager"].list_events()})
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>", methods=["PUT"])
+def api_update_intent(intent_id):
+    """SPEC-038A: Update intent fields (full partial update)."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
+    # Remove keys that shouldn't be overwritten directly
+    updates = {k: v for k, v in data.items() if k not in ("project", "intent_id")}
+
+    if res["capability_manager"].update_intent(intent_id, updates):
+        return jsonify({"status": "success", "intent_id": intent_id})
+    return jsonify({"error": "Intent not found"}), 404
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>/status", methods=["PUT"])
+def api_update_intent_status(intent_id):
+    """SPEC-038A: Update intent status with lifecycle validation."""
+    from adt_core.ads.capability import INTENT_STATUSES
+    data = request.get_json()
+    if not data or "status" not in data:
+        return jsonify({"error": "status is required"}), 400
+
+    new_status = data["status"]
+    if new_status not in INTENT_STATUSES:
+        return jsonify({"error": f"Invalid status. Must be one of: {INTENT_STATUSES}"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
+    if res["capability_manager"].update_intent_status(intent_id, new_status):
+        event_id = ADSEventSchema.generate_id("cap_status")
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=data.get("agent", "AGENT"),
+            role=data.get("role", "Architect"),
+            action_type="capability_intent_status_changed",
+            description=f"Intent {intent_id} status changed to {new_status}",
+            spec_ref="SPEC-038",
+            authorized=True,
+            tier=1,
+            action_data={"intent_id": intent_id, "status": new_status}
+        )
+        res["logger"].log(event)
+        return jsonify({"status": "success", "intent_id": intent_id, "new_status": new_status})
+
+    return jsonify({"error": "Intent not found"}), 404
+
+@governance_bp.route("/governance/capabilities/events/<event_id>/status", methods=["PUT"])
+def api_update_capability_event_status(event_id):
+    """SPEC-038: Update capability event status."""
+    data = request.get_json()
+    if not data or "status" not in data:
+        return jsonify({"error": "status is required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
+    if res["capability_manager"].update_event_status(event_id, data["status"]):
+        return jsonify({"status": "success", "event_id": event_id, "new_status": data["status"]})
+
+    return jsonify({"error": "Event not found"}), 404
+
+# --- Stage-Gate Endpoints (SPEC-038A) ---
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>/gates", methods=["GET"])
+def api_list_gates(intent_id):
+    """SPEC-038A: List all gate evaluations for an intent."""
+    from adt_core.ads.capability import GateManager
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    gate_mgr = GateManager(res["paths"]["root"])
+    gates = gate_mgr.get_gates(intent_id)
+    current = gate_mgr.get_current_gate(intent_id)
+    return jsonify({"intent_id": intent_id, "gates": gates, "current_gate": current})
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>/gates", methods=["POST"])
+def api_evaluate_gate(intent_id):
+    """SPEC-038A: Submit a gate evaluation for an intent."""
+    from adt_core.ads.capability import GateManager
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    required = ["gate_number", "decision", "actual_outcome"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {missing}"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    gate_mgr = GateManager(res["paths"]["root"])
+
+    result = gate_mgr.evaluate_gate(
+        intent_id=intent_id,
+        gate_number=data["gate_number"],
+        evaluator=data.get("evaluator", data.get("role", "HUMAN")),
+        decision_data=data.get("decision_data", {}),
+        desired_outcome=data.get("desired_outcome", ""),
+        actual_outcome=data["actual_outcome"],
+        decision=data["decision"],
+    )
+
+    if "error" in result:
+        return jsonify(result), 400
+
+    # Auto-transition intent status if gate dictates it
+    if result.get("new_status"):
+        res["capability_manager"].update_intent_status(intent_id, result["new_status"])
+
+    # Log to ADS
+    action_type = "capability_gate_refined" if data["decision"] == "Refine" else "capability_gate_evaluated"
+    ads_event_id = ADSEventSchema.generate_id("cap_gate")
+    event = ADSEventSchema.create_event(
+        event_id=ads_event_id,
+        agent=data.get("agent", "HUMAN"),
+        role=data.get("role", "Architect"),
+        action_type=action_type,
+        description=f"Gate {data['gate_number']} ({data['decision']}) for {intent_id}",
+        spec_ref="SPEC-038",
+        authorized=True,
+        tier=1,
+        action_data={
+            "intent_id": intent_id,
+            "gate_id": result["gate_id"],
+            "gate_number": data["gate_number"],
+            "decision": data["decision"],
+            "new_status": result.get("new_status"),
+        }
+    )
+    res["logger"].log(event)
+
+    result["ads_event_id"] = ads_event_id
+    return jsonify(result), 201
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>/gates/<int:gate_number>", methods=["GET"])
+def api_get_gate(intent_id, gate_number):
+    """SPEC-038A: Get a specific gate evaluation result."""
+    from adt_core.ads.capability import GateManager
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    gate_mgr = GateManager(res["paths"]["root"])
+    gate = gate_mgr.get_gate(intent_id, gate_number)
+    if gate:
+        return jsonify(gate)
+    return jsonify({"error": f"No evaluation found for gate {gate_number}"}), 404
+
+@governance_bp.route("/governance/capabilities/intents/<intent_id>/maturity-delta", methods=["GET"])
+def api_maturity_delta(intent_id):
+    """SPEC-038A: Current vs target maturity with completion percentage."""
+    from adt_core.ads.capability import MATURITY_LEVELS, GateManager
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    intent = res["capability_manager"].get_intent(intent_id)
+    if not intent:
+        return jsonify({"error": "Intent not found"}), 404
+
+    current = intent.get("capability", {}).get("current_maturity", "Initial")
+    target = intent.get("target_maturity", "Initial")
+    current_idx = MATURITY_LEVELS.index(current) if current in MATURITY_LEVELS else 0
+    target_idx = MATURITY_LEVELS.index(target) if target in MATURITY_LEVELS else 0
+    pct = int((current_idx / target_idx) * 100) if target_idx > 0 else 0
+
+    gate_mgr = GateManager(res["paths"]["root"])
+    current_gate = gate_mgr.get_current_gate(intent_id)
+
+    return jsonify({
+        "intent_id": intent_id,
+        "current_maturity": current,
+        "target_maturity": target,
+        "completion_pct": pct,
+        "gate_progress": current_gate - 1,
+        "total_gates": 7,
+    })
+
+# --- Summary Endpoint (SPEC-038A) ---
+
+@governance_bp.route("/governance/capabilities/summary", methods=["GET"])
+def api_capabilities_summary():
+    """SPEC-038A: Aggregate stats across all intents."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    return jsonify(res["capability_manager"].get_summary())
+
+# --- Steering (SPEC-039) ---
+
+@governance_bp.route("/governance/steer", methods=["POST"])
+def api_log_steering():
+    """SPEC-039: Log a human steering action to the ADS."""
+    data = request.get_json()
+    if not data or "description" not in data:
+        return jsonify({"error": "description is required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+
+    event_id = ADSEventSchema.generate_id("human_steer")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="HUMAN",
+        role="Operator",
+        action_type="human_steering",
+        description=data["description"],
+        spec_ref=data.get("spec_ref", "SPEC-039"),
+        authorized=True,
+        tier=1,
+        action_data=data.get("action_data", {})
+    )
+    res["logger"].log(event)
+
+    return jsonify({"status": "success", "event_id": event_id})
+
+# --- Trace Endpoints (SPEC-038 + SPEC-040) ---
+
+@governance_bp.route("/governance/capabilities/trace/active", methods=["GET"])
+def api_get_active_capability_trace():
+    """SPEC-040: Get active organizational context, with optional spec_ref resolution."""
+    from adt_core.ads.capability import GateManager
+    project_name = request.args.get("project")
+    spec_ref = request.args.get("spec_ref")
+    res = _get_project_resources(project_name)
+
+    active_intent_id = None
+    active_event_id = None
+
+    # SPEC-040 sec 7.3: resolve via spec_ref if provided
+    if spec_ref:
+        for intent in res["capability_manager"].list_intents():
+            trace = res["capability_manager"].get_trace(
+                intent["intent_id"], query=res["query"]
+            )
+            if spec_ref in trace.get("specs", []):
+                active_intent_id = intent["intent_id"]
+                break
+
+    # Fallback: scan ADS for most recent intent reference
+    if not active_intent_id:
+        ads_events = res["query"].get_all_events(limit=50)
+        ads_events.reverse()
+
+        for e in ads_events:
+            if e.get("action_data", {}).get("intent_id"):
+                active_intent_id = e["action_data"]["intent_id"]
+                break
+            if e.get("intent_id"):
+                active_intent_id = e["intent_id"]
+                break
+
+        if not active_intent_id:
+            for e in ads_events:
+                if e.get("action_type") == "capability_intent_defined":
+                    active_intent_id = e.get("action_data", {}).get("intent_id")
+                    break
+
+        # Find latest event captured
+        for e in (ads_events if not active_intent_id else ads_events):
+            if e.get("action_type") == "capability_event_captured":
+                active_event_id = e.get("action_data", {}).get("event_id")
+                break
+
+    if not active_intent_id:
+        return jsonify({"intent": None, "event": None, "realized_maturity": "0%", "gates": [], "current_gate": 1})
+
+    trace = res["capability_manager"].get_trace(
+        active_intent_id,
+        query=res["query"],
+        task_manager=res["task_manager"]
+    )
+
+    # Calculate realized maturity
+    completed_count = sum(1 for t in trace.get("tasks", []) if t.get("status") == "completed")
+    total_count = len(trace.get("tasks", []))
+    maturity = "0%"
+    if total_count > 0:
+        maturity = f"{int((completed_count / total_count) * 100)}%"
+    elif trace.get("intent", {}).get("status") in ("Active", "Intent Defined"):
+        maturity = "10%"
+
+    active_event = None
+    if active_event_id:
+        all_cap_events = res["capability_manager"].list_events()
+        active_event = next((e for e in all_cap_events if e.get("event_id") == active_event_id), None)
+    elif trace.get("triggering_events"):
+        active_event = trace["triggering_events"][0]
+
+    gate_mgr = GateManager(res["paths"]["root"])
+    gates = gate_mgr.get_gates(active_intent_id)
+    current_gate = gate_mgr.get_current_gate(active_intent_id)
+
+    return jsonify({
+        "intent": trace.get("intent"),
+        "event": active_event,
+        "realized_maturity": maturity,
+        "ads_count": len(trace.get("ads_events", [])),
+        "gates": gates,
+        "current_gate": current_gate,
+    })
+
+@governance_bp.route("/governance/capabilities/trace/<intent_id>", methods=["GET"])
+def api_get_capability_trace(intent_id):
+    """SPEC-038A: Get the full causal chain for an intent or event, including gates."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+
+    # Check if intent_id is actually an event_id
+    all_events = res["capability_manager"].list_events()
+    event = next((e for e in all_events if e.get("event_id") == intent_id), None)
+
+    actual_intent_id = intent_id
+    if event and event.get("intent_id"):
+        actual_intent_id = event["intent_id"]
+
+    trace = res["capability_manager"].get_trace(
+        actual_intent_id,
+        query=res["query"],
+        task_manager=res["task_manager"]
+    )
+    return jsonify(trace)
+

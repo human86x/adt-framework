@@ -44,15 +44,167 @@ const ContextPanel = (() => {
     }
 
     await fetchSpecs();
+    await fetchIntents();
     await fetchTaskData(session);
     await fetchADSEvents(session);
     await fetchRequests();
     await fetchDelegations();
     await fetchDTTPStatus();
+    await fetchCapabilityContext(session);
 
     // If Tauri, try reading local files as fallback
     if (window.__TAURI__) {
       fetchLocalData(session);
+    }
+  }
+
+  let currentIntents = [];
+  let currentTasks = [];
+
+  async function fetchIntents() {
+    try {
+      const projectName = currentSession?.project;
+      let url = projectName 
+        ? `${getCenterUrl()}/api/governance/capabilities/intents?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/capabilities/intents`;
+      
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      currentIntents = data.intents || [];
+    } catch {
+      currentIntents = [];
+    }
+  }
+
+  function renderOrchestrationTree() {
+    const container = document.getElementById('ctx-orchestration-tree');
+    if (!container) return;
+
+    if (currentTasks.length === 0) {
+      container.innerHTML = '<div class="ctx-empty">Aggregating hierarchy...</div>';
+      return;
+    }
+
+    // Group tasks by Spec, then Spec by Intent
+    const specsWithTasks = {};
+    currentTasks.forEach(task => {
+      if (!specsWithTasks[task.spec_ref]) {
+        specsWithTasks[task.spec_ref] = [];
+      }
+      specsWithTasks[task.spec_ref].push(task);
+    });
+
+    const intentsWithSpecs = {};
+    // Add intents from active tasks
+    Object.keys(specsWithTasks).forEach(specId => {
+      const spec = allSpecs[specId];
+      const intent = currentIntents.find(i => i.intent_id === spec?.intent_id) || {
+        intent_id: 'GLOBAL',
+        title: 'General Framework Evolution'
+      };
+
+      if (!intentsWithSpecs[intent.intent_id]) {
+        intentsWithSpecs[intent.intent_id] = {
+          data: intent,
+          specs: {}
+        };
+      }
+      intentsWithSpecs[intent.intent_id].specs[specId] = specsWithTasks[specId];
+    });
+
+    container.innerHTML = Object.values(intentsWithSpecs).map(intent => `
+      <div class="tree-node intent-node">
+        <div class="tree-header"><i class="bi bi-diamond-fill me-1"></i>${intent.data.title}</div>
+        <div class="tree-children">
+          ${Object.entries(intent.specs).map(([specId, tasks]) => {
+            const spec = allSpecs[specId] || { title: specId };
+            return `
+              <div class="tree-node spec-node" id="node-spec-${specId}">
+                <div class="tree-header"><i class="bi bi-file-earmark-medical me-1"></i>${spec.title}</div>
+                <div class="tree-children">
+                  ${tasks.map(task => {
+                    const statusClass = task.status === 'in_progress' ? 'status-active' : (task.status === 'completed' ? 'status-done' : '');
+                    const isCompleted = task.status === 'completed';
+                    return `
+                      <div class="tree-node task-node ${statusClass}" id="node-task-${task.id}">
+                        <div class="tree-header d-flex justify-content-between align-items-center">
+                          <span><strong class="me-1">${task.id}:</strong> ${task.title}</span>
+                          ${!isCompleted ? `<button class="btn-prioritize" onclick="ContextPanel.prioritizeTask('${task.id}')" title="Prioritize Task">&#9654;</button>` : ''}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function prioritizeTask(taskId) {
+    if (!currentSession) return;
+    
+    ToastManager.show('info', 'Prioritizing', `Sending steer signal for ${taskId}...`);
+    
+    try {
+      if (window.__TAURI__) {
+        // Fix command name to match Rust ipc.rs: inject_pty_command
+        await window.__TAURI__.core.invoke('inject_pty_command', {
+          sessionId: currentSession.id,
+          data: `User hint: Focus on Task ID: ${taskId} immediately.`
+        });
+      }
+      
+      // Also log to ADS via the new steering endpoint (SPEC-039)
+      const projectName = currentSession?.project;
+      let url = projectName 
+        ? `${getCenterUrl()}/api/governance/steer?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/steer`;
+
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: 'HUMAN',
+          role: 'Operator',
+          action_type: 'human_steering',
+          description: `Human prioritized task ${taskId} via Console UI.`,
+          spec_ref: 'SPEC-039',
+          authorized: true,
+          action_data: { task_id: taskId }
+        })
+      });
+    } catch (e) {
+      console.error("Prioritize error:", e);
+    }
+  }
+
+  function handleADSFeedback(event) {
+    const pulseEl = document.getElementById('thinking-pulse');
+    const workingOn = document.getElementById('ctx-working-on');
+    
+    if (!pulseEl) return;
+
+    pulseEl.className = 'thinking-monitor';
+    
+    if (event.action_type.startsWith('pending_read')) {
+      pulseEl.classList.add('pulse-blue');
+    } else if (event.action_type.startsWith('pending_edit')) {
+      pulseEl.classList.add('pulse-amber');
+      if (event.params?.file && workingOn) {
+        workingOn.textContent = `Working on: ${event.params.file.split('/').pop()}`;
+        workingOn.style.display = 'block';
+      }
+    } else if (event.action_type.includes('denied')) {
+      pulseEl.classList.add('pulse-red');
+      if (workingOn) workingOn.style.display = 'none';
+    } else if (event.action_type.includes('complete') || event.action_type.includes('success')) {
+      pulseEl.classList.add('pulse-green');
+      if (workingOn) workingOn.style.display = 'none';
+      setTimeout(() => pulseEl.classList.remove('pulse-green'), 2000);
     }
   }
 
@@ -74,6 +226,348 @@ const ContextPanel = (() => {
       filterEl.style.display = 'flex';
       roleEl.textContent = currentSession.role.replace(/_/g, ' ');
       btn.textContent = 'Show all';
+    }
+  }
+
+  // SPEC-040: Capability context state
+  let activeCapIntent = null;
+  let activeCapGates = [];
+  let activeCapCurrentGate = 1;
+
+  const GATE_NAMES_CTX = [
+    "Validation & Classification",
+    "Concept Development",
+    "Strategic Feasibility",
+    "Governance & Quality Review",
+    "Portfolio Planning",
+    "Investment Decision",
+    "Transformation Initiation"
+  ];
+
+  const GATE_FIELDS_CTX = {
+    1: [
+      { name: "classification", label: "Classification", type: "select", options: ["Innovation", "Enhancement", "Maintenance", "Risk Mitigation", "Regulatory", "Operational"] },
+      { name: "priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] },
+      { name: "validator", label: "Validator", type: "text" }
+    ],
+    2: [
+      { name: "concept_id", label: "Concept ID", type: "text" },
+      { name: "prototype_required", label: "Prototype Required", type: "select", options: ["Yes", "No"] },
+      { name: "architecture_concept", label: "Architecture", type: "text" },
+      { name: "concept_owner", label: "Owner", type: "text" }
+    ],
+    3: [
+      { name: "financial_feasibility", label: "Financial", type: "select", options: ["Positive", "Marginal", "Negative"] },
+      { name: "operational_feasibility", label: "Operational", type: "select", options: ["Feasible", "Requires Change", "Not Feasible"] },
+      { name: "technical_feasibility", label: "Technical", type: "select", options: ["Feasible", "Complex", "Not Feasible"] },
+      { name: "strategic_alignment", label: "Strategic", type: "select", options: ["High", "Moderate", "Low"] }
+    ],
+    4: [
+      { name: "architecture_review", label: "Arch Review", type: "select", options: ["Approved", "Conditional", "Rejected"] },
+      { name: "risk_rating", label: "Risk", type: "select", options: ["Low", "Medium", "High", "Critical"] },
+      { name: "compliance_status", label: "Compliance", type: "select", options: ["Compliant", "Review Required", "Non-Compliant"] },
+      { name: "review_board", label: "Review Board", type: "text" }
+    ],
+    5: [
+      { name: "portfolio_priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Strategic"] },
+      { name: "portfolio_manager", label: "Manager", type: "text" },
+      { name: "estimated_resources", label: "Resources", type: "text" }
+    ],
+    6: [
+      { name: "investment_decision", label: "Decision", type: "select", options: ["Approved", "Deferred", "Rejected", "Further Investigation"] },
+      { name: "investment_board", label: "Board", type: "text" },
+      { name: "approved_budget", label: "Budget", type: "text" }
+    ],
+    7: [
+      { name: "program_id", label: "Program ID", type: "text" },
+      { name: "program_manager", label: "Manager", type: "text" },
+      { name: "start_date", label: "Start Date", type: "date" }
+    ]
+  };
+
+  async function fetchCapabilityContext(session) {
+    try {
+      const projectName = session?.project;
+      let url = projectName
+        ? `${getCenterUrl()}/api/governance/capabilities/trace/active?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/governance/capabilities/trace/active`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        renderCapabilityEmpty();
+        return;
+      }
+      const data = await res.json();
+
+      const intent = data.intent;
+      const event = data.event;
+      activeCapIntent = intent;
+
+      const intentVal = document.getElementById("ctx-intent-value");
+      const eventVal = document.getElementById("ctx-event-value");
+      const statusVal = document.getElementById("ctx-intent-status");
+      const riskVal = document.getElementById("ctx-risk-value");
+      const maturityBadge = document.getElementById("ctx-maturity-badge");
+
+      if (intent) {
+        intentVal.innerHTML = `<strong style="color:var(--accent-blue);">${intent.intent_id}</strong>: ${intent.title}`;
+
+        // Status
+        if (statusVal) {
+          const status = intent.status || "Intent Defined";
+          statusVal.innerHTML = `<span style="color:var(--accent-blue); font-weight:600;">${status}</span>`;
+        }
+
+        // Risk
+        if (riskVal) {
+          const risk = intent.risk_level || intent.risk?.level || "--";
+          const riskLower = risk.toLowerCase();
+          const dotClass = riskLower === "critical" ? "risk-critical" : riskLower === "high" ? "risk-high" : riskLower === "medium" ? "risk-medium" : "risk-low";
+          riskVal.innerHTML = risk !== "--" ? `<span class="cap-risk-dot ${dotClass}"></span>${risk}` : "--";
+        }
+
+        // Maturity
+        const currentM = parseInt(intent.current_maturity) || 1;
+        const targetM = parseInt(intent.target_maturity) || 3;
+        const fillEl = document.getElementById("ctx-maturity-fill");
+        const targetEl = document.getElementById("ctx-maturity-target-marker");
+        if (fillEl) fillEl.style.width = `${(currentM / 5) * 100}%`;
+        if (targetEl) targetEl.style.left = `${(targetM / 5) * 100}%`;
+        if (maturityBadge) maturityBadge.textContent = data.realized_maturity || `${currentM}/${targetM}`;
+
+        // Fetch gate data
+        await fetchGateProgress(intent.intent_id);
+      } else {
+        renderCapabilityEmpty();
+      }
+
+      if (event) {
+        const typeIcon = event.type || event.event_type || "";
+        eventVal.innerHTML = `<strong style="color:var(--accent-yellow);">${event.event_id}</strong>: ${truncate(event.description || event.title || typeIcon, 50)}`;
+      } else {
+        eventVal.textContent = "None detected";
+      }
+    } catch (e) {
+      console.error("fetchCapabilityContext error:", e);
+      renderCapabilityEmpty();
+    }
+  }
+
+  function renderCapabilityEmpty() {
+    const intentVal = document.getElementById("ctx-intent-value");
+    const eventVal = document.getElementById("ctx-event-value");
+    const statusVal = document.getElementById("ctx-intent-status");
+    const riskVal = document.getElementById("ctx-risk-value");
+    const maturityBadge = document.getElementById("ctx-maturity-badge");
+    const gateLabel = document.getElementById("ctx-gate-label");
+    const evalBtn = document.getElementById("btn-cap-eval-gate");
+
+    if (intentVal) intentVal.textContent = "No active intent";
+    if (eventVal) eventVal.textContent = "None detected";
+    if (statusVal) statusVal.textContent = "--";
+    if (riskVal) riskVal.textContent = "--";
+    if (maturityBadge) maturityBadge.textContent = "--";
+    if (gateLabel) gateLabel.textContent = "--";
+    if (evalBtn) evalBtn.style.display = "none";
+
+    // Reset gate segments
+    document.querySelectorAll(".cap-gate-seg").forEach(seg => {
+      seg.className = "cap-gate-seg";
+    });
+
+    // Reset status bar gate
+    updateStatusBarGate(null);
+    activeCapIntent = null;
+    activeCapGates = [];
+  }
+
+  async function fetchGateProgress(intentId) {
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/capabilities/intents/${intentId}/gates`);
+      if (!res.ok) return;
+      const data = await res.json();
+      activeCapGates = data.gates || [];
+      activeCapCurrentGate = data.current_gate || 1;
+
+      // Render gate segments
+      const gatesMap = {};
+      activeCapGates.forEach(g => { gatesMap[g.gate_number] = g; });
+
+      document.querySelectorAll(".cap-gate-seg").forEach(seg => {
+        const gateNum = parseInt(seg.dataset.gate);
+        const gate = gatesMap[gateNum];
+        seg.className = "cap-gate-seg";
+
+        if (gate) {
+          if (gate.decision === "Proceed") seg.classList.add("gate-completed");
+          else if (gate.decision === "Refine") seg.classList.add("gate-refined");
+          else if (gate.decision === "Halt") seg.classList.add("gate-halted");
+        } else if (gateNum === activeCapCurrentGate) {
+          seg.classList.add("gate-current");
+        }
+      });
+
+      // Gate label
+      const gateLabel = document.getElementById("ctx-gate-label");
+      if (gateLabel) gateLabel.textContent = `${activeCapCurrentGate}/7`;
+
+      // Show/hide evaluate gate button
+      const evalBtn = document.getElementById("btn-cap-eval-gate");
+      const currentGateEvaluated = gatesMap[activeCapCurrentGate];
+      if (evalBtn) {
+        evalBtn.style.display = (!currentGateEvaluated && activeCapCurrentGate <= 7) ? "" : "none";
+      }
+
+      // Update status bar gate indicator
+      updateStatusBarGate(activeCapCurrentGate);
+    } catch (e) {
+      console.error("fetchGateProgress error:", e);
+    }
+  }
+
+  function updateStatusBarGate(gateNum) {
+    const el = document.getElementById("status-gate");
+    const dot = document.getElementById("gate-status-dot");
+    if (!el) return;
+
+    if (gateNum === null || gateNum === undefined) {
+      el.innerHTML = '<span class="status-dot dot-grey" id="gate-status-dot"></span> Gate: --';
+      return;
+    }
+
+    // Determine color based on state
+    let dotColor = "dot-green";
+    const haltedGate = activeCapGates.find(g => g.decision === "Halt");
+    const refinedGate = activeCapGates.find(g => g.decision === "Refine");
+    if (haltedGate) dotColor = "dot-red";
+    else if (refinedGate) dotColor = "dot-yellow";
+
+    el.innerHTML = `<span class="status-dot ${dotColor}" id="gate-status-dot"></span> Gate: ${gateNum}/7`;
+  }
+
+  function openCapInPanel() {
+    if (!activeCapIntent) return;
+    // Try to open Panel Capabilities tab via the existing Panel iframe
+    const panelBtn = document.getElementById("btn-adt-panel");
+    if (panelBtn) panelBtn.click();
+    // Navigate iframe to capabilities page
+    setTimeout(() => {
+      const iframe = document.getElementById("adt-panel-iframe");
+      if (iframe) {
+        const baseUrl = getCenterUrl();
+        iframe.src = `${baseUrl}/capabilities`;
+      }
+    }, 100);
+  }
+
+  function openInlineGateEval() {
+    if (!activeCapIntent || activeCapCurrentGate > 7) return;
+
+    const gateNum = activeCapCurrentGate;
+    const body = document.getElementById("cap-context-body");
+    const inlineForm = document.getElementById("cap-inline-gate");
+    const headerEl = document.getElementById("cap-inline-gate-header");
+    const fieldsEl = document.getElementById("cap-inline-gate-fields");
+
+    if (!inlineForm || !fieldsEl) return;
+
+    // Hide main context, show form
+    if (body) body.style.display = "none";
+    inlineForm.style.display = "block";
+
+    headerEl.textContent = `Gate ${gateNum}: ${GATE_NAMES_CTX[gateNum - 1]}`;
+
+    // Render gate-specific fields
+    const fields = GATE_FIELDS_CTX[gateNum] || [];
+    fieldsEl.innerHTML = fields.map(f => {
+      let control = "";
+      if (f.type === "select") {
+        control = `<select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join("")}</select>`;
+      } else if (f.type === "date") {
+        control = `<input type="date" name="${f.name}">`;
+      } else {
+        control = `<input type="text" name="${f.name}" placeholder="${f.label}">`;
+      }
+      return `<div><label>${f.label}</label>${control}</div>`;
+    }).join("");
+
+    // Reset outcome
+    const outcomeEl = document.getElementById("cap-gate-outcome");
+    if (outcomeEl) outcomeEl.value = "";
+
+    // Reset decision
+    const proceedRadio = inlineForm.querySelector('input[value="Proceed"]');
+    if (proceedRadio) proceedRadio.checked = true;
+  }
+
+  function cancelInlineGate() {
+    const body = document.getElementById("cap-context-body");
+    const inlineForm = document.getElementById("cap-inline-gate");
+    if (body) body.style.display = "";
+    if (inlineForm) inlineForm.style.display = "none";
+  }
+
+  async function submitInlineGate() {
+    if (!activeCapIntent) return;
+
+    const gateNum = activeCapCurrentGate;
+    const form = document.getElementById("cap-inline-gate-form");
+    const outcomeEl = document.getElementById("cap-gate-outcome");
+    const outcome = outcomeEl?.value?.trim();
+
+    if (!outcome) {
+      if (outcomeEl) outcomeEl.focus();
+      return;
+    }
+
+    const decision = form.querySelector('input[name="cap_decision"]:checked')?.value || "Proceed";
+
+    // Collect gate-specific field values
+    const decisionData = {};
+    const fields = GATE_FIELDS_CTX[gateNum] || [];
+    fields.forEach(f => {
+      const el = form.querySelector(`[name="${f.name}"]`);
+      if (el && el.value) decisionData[f.name] = el.value;
+    });
+
+    const payload = {
+      gate_number: gateNum,
+      decision: decision,
+      actual_outcome: outcome,
+      evaluator: "HUMAN",
+      role: "Operator",
+      agent: "HUMAN"
+    };
+    if (Object.keys(decisionData).length > 0) payload.decision_data = decisionData;
+
+    const projectName = currentSession?.project;
+    if (projectName) payload.project = projectName;
+
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/capabilities/intents/${activeCapIntent.intent_id}/gates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        cancelInlineGate();
+        if (typeof ToastManager !== "undefined") {
+          ToastManager.show("completion", "Gate Evaluated", `Gate ${gateNum} ${decision} for ${activeCapIntent.title}`);
+        }
+        // Refresh
+        if (currentSession) await fetchCapabilityContext(currentSession);
+      } else {
+        const err = await res.json();
+        if (typeof ToastManager !== "undefined") {
+          ToastManager.show("denial", "Gate Error", err.error || "Evaluation failed");
+        }
+      }
+    } catch (e) {
+      console.error("Inline gate submit error:", e);
+      if (typeof ToastManager !== "undefined") {
+        ToastManager.show("denial", "Error", "ADT Center unreachable");
+      }
     }
   }
 
@@ -234,7 +728,9 @@ const ContextPanel = (() => {
       if (!res.ok) return;
       const data = await res.json();
 
-      const tasks = data.tasks || [];
+      currentTasks = data.tasks || [];
+      const tasks = currentTasks;
+      renderOrchestrationTree();
 
       // Find active task for this role
       // Note: If backend already filtered by assigned_to, session.role check is redundant but safe
@@ -616,6 +1112,7 @@ const ContextPanel = (() => {
     lastKnownEventCount = events.length;
 
     newEvents.forEach(event => {
+      handleADSFeedback(event);
       if (event.action_type?.includes('denied') || event.action_type?.includes('violation')) {
         ToastManager.show('denial', 'DENIED', truncate(event.description, 80));
       } else if (event.action_type?.includes('escalation') || event.action_type?.includes('break_glass')) {
@@ -636,6 +1133,7 @@ const ContextPanel = (() => {
     }
 
     events.forEach(event => {
+      if (events.indexOf(event) === 0) handleADSFeedback(event);
       const li = document.createElement('li');
       const typeClass = getEventTypeClass(event.action_type);
       const time = event.ts ? new Date(event.ts).toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' }) : '';
@@ -836,6 +1334,9 @@ const ContextPanel = (() => {
         }
       }
     
-      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest };
+      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest, prioritizeTask, openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate };
     })();
+    
+    // Global alias for onclick handlers
+    window.ContextPanel = ContextPanel;
     

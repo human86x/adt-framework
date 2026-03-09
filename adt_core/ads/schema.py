@@ -28,6 +28,21 @@ class ADSEventSchema:
         "task_reopened"         # Human reopen
     ]
 
+    # SPEC-038 + SPEC-038A: Capability Governance Event Types
+    CAPABILITY_EVENTS = [
+        "capability_intent_defined",
+        "capability_event_captured",
+        "capability_maturity_updated",
+        "capability_gate_evaluated",
+        "capability_intent_status_changed",
+        "capability_gate_refined",
+    ]
+
+    # SPEC-039: Orchestration and Steering Event Types
+    ORCHESTRATION_EVENTS = [
+        "human_steering"
+    ]
+
     # SPEC-020 Amendment B: Canonical values for normalization
     CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN", "SYSTEM"]
     CANONICAL_ROLES: Optional[List[str]] = None  # Loaded at startup

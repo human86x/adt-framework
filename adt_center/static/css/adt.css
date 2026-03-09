@@ -42,10 +42,11 @@ body {
 }
 .navbar-adt .nav-link {
     color: var(--adt-text-muted) !important;
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8125rem;
+    padding: 0.4rem 0.5rem !important;
     border-radius: 6px;
     transition: all 0.15s ease;
+    white-space: nowrap;
 }
 .navbar-adt .nav-link:hover {
     color: var(--adt-text) !important;
@@ -56,8 +57,24 @@ body {
     background-color: var(--adt-bg-hover);
 }
 .navbar-adt .nav-link .nav-icon {
-    margin-right: 0.35rem;
+    margin-right: 0.2rem;
     font-size: 0.8rem;
+}
+
+.navbar-adt .navbar-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.navbar-adt .navbar-nav::-webkit-scrollbar {
+    display: none;
+}
+
+@media (min-width: 1200px) and (max-width: 1439px) {
+    .navbar-adt .nav-link .nav-icon {
+        display: none;
+    }
 }
 
 /* Cards */

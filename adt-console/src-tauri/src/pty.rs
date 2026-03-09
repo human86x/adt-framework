@@ -1235,6 +1235,26 @@ impl PtyManager {
         Ok(())
     }
 
+    pub fn inject_command(&self, session_id: &str, command: &str) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
+        let session = sessions.get_mut(session_id)
+            .ok_or_else(|| format!("Session {} not found", session_id))?;
+
+        // Ensure command ends with a newline for execution
+        let mut full_cmd = command.to_string();
+        if !full_cmd.ends_with('\n') {
+            full_cmd.push('\n');
+        }
+
+        session.writer.write_all(full_cmd.as_bytes())
+            .map_err(|e| format!("Failed to inject command: {}", e))?;
+        session.writer.flush()
+            .map_err(|e| format!("Failed to flush injected command: {}", e))?;
+
+        log::info!("[PTY STEER] Injected command into {}: {}", session_id, command.trim());
+        Ok(())
+    }
+
     pub fn resize_session(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), String> {
         let sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
         let session = sessions

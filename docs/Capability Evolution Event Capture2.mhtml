@@ -1,0 +1,564 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://itgis.org/dcp010/Capability%20Evolution%20Governance.html
+Subject: Capability Evolution Event Capture
+Date: Sat, 7 Mar 2026 16:49:38 -0000
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78----"
+
+
+------MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78----
+Content-Type: text/html
+Content-ID: <frame-642B97DBD4FA1147788DD2B3456E7FFB@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://itgis.org/dcp010/Capability%20Evolution%20Governance.html
+
+<!DOCTYPE html><html lang=3D"en"><head><meta http-equiv=3D"Content-Type" co=
+ntent=3D"text/html; charset=3DUTF-8"><link rel=3D"stylesheet" type=3D"text/=
+css" href=3D"cid:css-4605206a-55dd-499d-82bd-2ad1cb445183@mhtml.blink" /><l=
+ink rel=3D"stylesheet" type=3D"text/css" href=3D"cid:css-abf4b6cc-afb3-4b72=
+-96b9-974c11b1470a@mhtml.blink" /><link rel=3D"stylesheet" type=3D"text/css=
+" href=3D"cid:css-50bf92f6-138b-41ed-9753-e55aa8077541@mhtml.blink" />
+
+<meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1.=
+0">
+<title>Capability Evolution Event Capture</title>
+
+</head>
+<body>
+
+<h1>Capability Evolution Workflow</h1>
+
+<p class=3D"small">
+This form captures the workflow of events that evaluate and progress a <str=
+ong>Capability Change Intent</strong> following the detection of system cha=
+nges. Each event represents either a trigger or a structured decision point=
+, guiding the progression of the proposed capability change to ensure it is=
+ viable, strategically aligned and capable of delivering value.
+</p>
+
+<p class=3D"small">
+<strong>Capability Change Intent:</strong> A clearly defined desired organi=
+sational outcome or transformation that the enterprise aims to achieve. It =
+represents the objective or goal that drives the workflow.
+</p>
+
+<p class=3D"small">
+<strong>Event:</strong> An observable and measurable occurrence in the syst=
+em or environment that can trigger activity or serve as a decision point fo=
+r evaluating and progressing a Capability Change Intent. Events are the fun=
+damental units that enable workflows to progress, refine or halt proposed c=
+hanges. Depending on their role, events are classified as:
+</p>
+
+<ul class=3D"small">
+    <li><strong>Triggering Event:</strong> A detectable change in system st=
+ate that initiates a workflow, alert or action =E2=80=94 it starts the eval=
+uation process, whether for automatic remediation or human consideration.</=
+li>
+    <li><strong>Controlling Event:</strong> A structured decision point wit=
+hin a workflow that evaluates a Capability Change Intent to determine wheth=
+er it should proceed, be refined or be halted =E2=80=94 it guides the workf=
+low and may trigger the next stage.</li>
+</ul>
+
+<p class=3D"small">
+In the ADT model, <strong>capability change intents</strong> define the tar=
+get outcomes, while <strong>events</strong> are the observable occurrences =
+that drive evaluation and progression. This distinction ensures that workfl=
+ows remain transparent, accountable and strategically aligned, allowing ent=
+erprises to allocate resources effectively across their transformation init=
+iatives.
+</p>
+
+<form>
+
+<!-- Event 1 -->
+<section>
+<div class=3D"event-title">Intent for Event 1 =E2=80=94 Capability Change I=
+ntent Validation &amp; Classification</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"intent_id">Intent ID</label>
+        <input type=3D"text" id=3D"intent_id" name=3D"intent_id" placeholde=
+r=3D"Enter Intent ID">
+    </div>
+    <div>
+        <label for=3D"validation_date">Validation Date</label>
+        <input type=3D"date" id=3D"validation_date" name=3D"validation_date=
+">
+    </div>
+    <div>
+        <label for=3D"classification">Intent Classification</label>
+        <select id=3D"classification" name=3D"classification">
+            <option>Innovation</option>
+            <option>Enhancement</option>
+            <option>Maintenance</option>
+            <option>Risk Mitigation</option>
+            <option>Compliance</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"validator">Responsible Evaluator</label>
+        <input type=3D"text" id=3D"validator" name=3D"validator" placeholde=
+r=3D"Enter evaluator name">
+    </div>
+</div>
+
+<label for=3D"initial_impact">Desired Outcome for Initial Impact Assessment=
+</label>
+<textarea id=3D"initial_impact" name=3D"initial_impact" rows=3D"3" placehol=
+der=3D"Describe what should happen during this validation.">Confirm that th=
+e capability change is valid, correctly classified and ready for evaluation=
+ (e.g., classified as Innovation and assigned a priority).</textarea>
+
+<label for=3D"actual_outcome_1">Actual Outcome</label>
+<textarea id=3D"actual_outcome_1" name=3D"actual_outcome_1" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 2 -->
+<section>
+<div class=3D"event-title">Intent for Event 2 =E2=80=94 Concept Development=
+ / Prototyping</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"concept_id">Concept ID</label>
+        <input type=3D"text" id=3D"concept_id" name=3D"concept_id">
+    </div>
+    <div>
+        <label for=3D"prototype">Prototype Required</label>
+        <select id=3D"prototype" name=3D"prototype">
+            <option>Yes</option>
+            <option>No</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"architecture_concept">Architecture Concept</label>
+        <input type=3D"text" id=3D"architecture_concept" name=3D"architectu=
+re_concept">
+    </div>
+    <div>
+        <label for=3D"concept_owner">Lead Architect / Designer</label>
+        <input type=3D"text" id=3D"concept_owner" name=3D"concept_owner">
+    </div>
+</div>
+
+<label for=3D"concept_description">Desired Outcome for Concept Description<=
+/label>
+<textarea id=3D"concept_description" name=3D"concept_description" rows=3D"3=
+" placeholder=3D"Describe the intended outcome of concept development.">Det=
+ermine if the proposed concept is feasible and aligns with the intent (e.g.=
+, prototype demonstrates the feature successfully; architectural concept ap=
+proved).</textarea>
+
+<label for=3D"actual_outcome_2">Actual Outcome</label>
+<textarea id=3D"actual_outcome_2" name=3D"actual_outcome_2" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 3 -->
+<section>
+<div class=3D"event-title">Intent for Event 3 =E2=80=94 Strategic Feasibili=
+ty Evaluation</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"financial_feasibility">Financial Feasibility</label>
+        <select id=3D"financial_feasibility" name=3D"financial_feasibility"=
+>
+            <option>Positive</option>
+            <option>Marginal</option>
+            <option>Negative</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"operational_feasibility">Operational Feasibility</lab=
+el>
+        <select id=3D"operational_feasibility" name=3D"operational_feasibil=
+ity">
+            <option>Feasible</option>
+            <option>Requires Change</option>
+            <option>Not Feasible</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"technical_feasibility">Technical Feasibility</label>
+        <select id=3D"technical_feasibility" name=3D"technical_feasibility"=
+>
+            <option>Feasible</option>
+            <option>Complex</option>
+            <option>Not Feasible</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"strategic_alignment">Strategic Alignment</label>
+        <select id=3D"strategic_alignment" name=3D"strategic_alignment">
+            <option>High</option>
+            <option>Moderate</option>
+            <option>Low</option>
+        </select>
+    </div>
+</div>
+
+<label for=3D"feasibility_summary">Desired Outcome for Feasibility Summary<=
+/label>
+<textarea id=3D"feasibility_summary" name=3D"feasibility_summary" rows=3D"3=
+" placeholder=3D"Summarise what a successful feasibility evaluation looks l=
+ike.">Decide whether financial, operational and technical conditions suppor=
+t proceeding (e.g., financially viable, technically feasible, aligned with =
+strategic objectives).</textarea>
+
+<label for=3D"actual_outcome_3">Actual Outcome</label>
+<textarea id=3D"actual_outcome_3" name=3D"actual_outcome_3" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 4 -->
+<section>
+<div class=3D"event-title">Intent for Event 4 =E2=80=94 Governance &amp; Qu=
+ality Review</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"architecture_review">Architecture Review Status</labe=
+l>
+        <select id=3D"architecture_review" name=3D"architecture_review">
+            <option>Approved</option>
+            <option>Conditional</option>
+            <option>Rejected</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"risk_rating">Risk Rating</label>
+        <select id=3D"risk_rating" name=3D"risk_rating">
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+            <option>Critical</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"compliance_status">Compliance Status</label>
+        <select id=3D"compliance_status" name=3D"compliance_status">
+            <option>Compliant</option>
+            <option>Review Required</option>
+            <option>Non-Compliant</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"review_board">Review Board</label>
+        <input type=3D"text" id=3D"review_board" name=3D"review_board" plac=
+eholder=3D"Enter review board name">
+    </div>
+</div>
+
+<label for=3D"governance_notes">Desired Outcome for Governance and Quality<=
+/label>
+<textarea id=3D"governance_notes" name=3D"governance_notes" rows=3D"3" plac=
+eholder=3D"Describe the expected governance outcomes.">Confirm initiative m=
+eets quality, risk and compliance standards (e.g., architecture review appr=
+oved, risk manageable, initiative cleared for portfolio planning).</textare=
+a>
+
+<label for=3D"actual_outcome_4">Actual Outcome</label>
+<textarea id=3D"actual_outcome_4" name=3D"actual_outcome_4" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 5 -->
+<section>
+<div class=3D"event-title">Intent for Event 5 =E2=80=94 Portfolio Planning<=
+/div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"portfolio_priority">Portfolio Priority</label>
+        <select id=3D"portfolio_priority" name=3D"portfolio_priority">
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+            <option>Strategic</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"portfolio_manager">Portfolio Manager</label>
+        <input type=3D"text" id=3D"portfolio_manager" name=3D"portfolio_man=
+ager" placeholder=3D"Enter portfolio manager name">
+    </div>
+    <div>
+        <label for=3D"resources">Estimated Resources</label>
+        <input type=3D"text" id=3D"resources" name=3D"resources" placeholde=
+r=3D"Enter resource estimates">
+    </div>
+    <div>
+        <label for=3D"delivery_window">Target Delivery Window</label>
+        <input type=3D"text" id=3D"delivery_window" name=3D"delivery_window=
+" placeholder=3D"Enter timeframe for delivery">
+    </div>
+</div>
+
+<label for=3D"dependencies">Desired Outcome for Planning Intent</label>
+<textarea id=3D"dependencies" name=3D"dependencies" rows=3D"3" placeholder=
+=3D"Describe what a successful planning outcome looks like.">Determine prio=
+rity, resource allocation and dependencies within the enterprise portfolio =
+(e.g., initiative assigned high priority, resources allocated, dependencies=
+ mapped).</textarea>
+
+<label for=3D"actual_outcome_5">Actual Outcome</label>
+<textarea id=3D"actual_outcome_5" name=3D"actual_outcome_5" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 6 -->
+<section>
+<div class=3D"event-title">Intent for Event 6 =E2=80=94 Investment Decision=
+</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"investment_decision">Investment Decision</label>
+        <select id=3D"investment_decision" name=3D"investment_decision">
+            <option>Approved</option>
+            <option>Deferred</option>
+            <option>Rejected</option>
+            <option>Further Investigation</option>
+        </select>
+    </div>
+    <div>
+        <label for=3D"investment_board">Investment Board</label>
+        <input type=3D"text" id=3D"investment_board" name=3D"investment_boa=
+rd" placeholder=3D"Enter investment board name">
+    </div>
+    <div>
+        <label for=3D"decision_date">Decision Date</label>
+        <input type=3D"date" id=3D"decision_date" name=3D"decision_date">
+    </div>
+    <div>
+        <label for=3D"budget">Approved Budget</label>
+        <input type=3D"text" id=3D"budget" name=3D"budget" placeholder=3D"E=
+nter budget amount">
+    </div>
+</div>
+
+<label for=3D"decision_rationale">Desired Outcome for Decision Rationale</l=
+abel>
+<textarea id=3D"decision_rationale" name=3D"decision_rationale" rows=3D"3" =
+placeholder=3D"Describe expected rationale for investment decision.">Decide=
+ whether to invest, defer or reject the initiative (e.g., investment approv=
+ed with budget allocation, ready for transformation).</textarea>
+
+<label for=3D"actual_outcome_6">Actual Outcome</label>
+<textarea id=3D"actual_outcome_6" name=3D"actual_outcome_6" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<!-- Event 7 -->
+<section>
+<div class=3D"event-title">Intent for Event 7 =E2=80=94 Transformation Init=
+iation</div>
+<div class=3D"grid">
+    <div>
+        <label for=3D"program_id">Program / Project ID</label>
+        <input type=3D"text" id=3D"program_id" name=3D"program_id" placehol=
+der=3D"Enter program/project ID">
+    </div>
+    <div>
+        <label for=3D"program_manager">Program Manager</label>
+        <input type=3D"text" id=3D"program_manager" name=3D"program_manager=
+" placeholder=3D"Enter program manager name">
+    </div>
+    <div>
+        <label for=3D"start_date">Transformation Start Date</label>
+        <input type=3D"date" id=3D"start_date" name=3D"start_date">
+    </div>
+    <div>
+        <label for=3D"delivery_org">Delivery Organisation</label>
+        <input type=3D"text" id=3D"delivery_org" name=3D"delivery_org" plac=
+eholder=3D"Enter responsible delivery organisation">
+    </div>
+</div>
+
+<label for=3D"implementation_overview">Desired Outcome for Transformation I=
+ntent</label>
+<textarea id=3D"implementation_overview" name=3D"implementation_overview" r=
+ows=3D"3" placeholder=3D"Describe expected outcomes of transformation.">Del=
+iver the intended capability successfully while tracking progress and outco=
+mes (e.g., transformation program starts on schedule, delivery organisation=
+ ready, KPIs defined).</textarea>
+
+<label for=3D"actual_outcome_7">Actual Outcome</label>
+<textarea id=3D"actual_outcome_7" name=3D"actual_outcome_7" rows=3D"2" plac=
+eholder=3D"Record what actually occurred during this event."></textarea>
+</section>
+
+<button type=3D"submit">Submit Governance Workflow Record</button>
+
+</form>
+
+
+</body></html>
+------MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: cid:css-4605206a-55dd-499d-82bd-2ad1cb445183@mhtml.blink
+
+@charset "utf-8";
+
+body { font-family: Arial, Helvetica, sans-serif; margin: 40px; background:=
+ rgb(244, 246, 251); line-height: 1.5; }
+
+section { background: rgb(255, 255, 255); padding: 22px; margin-bottom: 22p=
+x; border-radius: 10px; box-shadow: rgba(0, 0, 0, 0.08) 0px 2px 10px; }
+
+h2 { margin-top: 0px; }
+
+label { display: block; margin-top: 10px; font-weight: bold; }
+
+input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; borde=
+r: 1px solid rgb(204, 204, 204); border-radius: 6px; box-sizing: border-box=
+; }
+
+textarea { resize: vertical; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px=
+, 1fr)); gap: 16px; }
+
+button { margin-top: 25px; padding: 12px 22px; border: none; border-radius:=
+ 8px; background: rgb(45, 108, 223); color: rgb(255, 255, 255); font-size: =
+16px; cursor: pointer; }
+
+button:hover { background: rgb(27, 74, 191); }
+
+.small { font-size: 13px; color: rgb(85, 85, 85); }
+
+.event-title { font-size: 18px; color: rgb(45, 108, 223); margin-bottom: 10=
+px; font-weight: bold; }
+------MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: cid:css-abf4b6cc-afb3-4b72-96b9-974c11b1470a@mhtml.blink
+
+@charset "utf-8";
+
+.block-sponsor, [id^=3D"div-gpt-ad"], .topads, .Adsense, .ad-160-600, .ad_t=
+op, .advertiser, .advertorial, .adhide, .adHolder, .adshome, #stickyads, .m=
+odule_ad, .column-ad, #ads-wrapper, .adwords, a[href^=3D"https://ndt5.net/"=
+], #related_ads, .adsText, [data-ad-name], #adcontainer1, .sponsored-articl=
+e, .ads_ad_box, #topAd, #adsContainer, .adlink, .ad_spot, .product-ads, #ba=
+nner-ad, .tnt-dmp-reactive, #adv-text, .ad_div, .home-ad, [href^=3D"http://=
+www.mypillow.com/"] > img, .adsense_wrapper, .promoAd, .top-banner-ad, .ad_=
+item, .ad_global_header, #right_ads, .ad-label, .ad-click, .header-ad-row, =
+.ad_bg, #ad_link, .adthrive-video-player, .ad_left, .ad_bottom, .node-ad, .=
+ads_box, #side-ad, .article_ad, .ad336, [href^=3D"https://mypillow.com/"] >=
+ img, .adhesion:not(body), .ads_wrapper, .top-ad, [href^=3D"https://www.her=
+banomic.com/"] > img, .c-ads, .ad_frame, .adResult, .adcard, #footer_ad, .c=
+ontentAds, .footer-ad, .adText, #topbannerad, ins.adsbygoogle[data-ad-clien=
+t], .ad-widget, .nativead, .ads-box-border, .adplaceholder, .ad_btn, .adver=
+t_area, .ad__item, .ad-box:not(#ad-banner):not(:empty), #ad-carousel, a[hre=
+f^=3D"https://www.privateinternetaccess.com/"] > img, .adtitle, div[aria-la=
+bel=3D"Ads"], .ad_title, .ad-popup, .vertical-ads, .body-top-ads, .ad-cente=
+r, .adban, #rightad, .ad-text, #header-ad, .page_ad, #prerollAd, .middlead,=
+ .ads-inline, .publicidade, .top-ads, .advert2, .ads-block, .adActive, #adb=
+ar, #ad_3, .videos-ad, #footer-ads, #ad-wrapper, .ad-bottom, .adsninja-ad-z=
+one, .ad_caption, .rightAds, .content_ads, .leftAds, .ads-border, .ad-stick=
+yhero-enable-mobile, .adwidget, .ac-widget-placeholder, .ads-title, .greyAd=
+, .mainAd, #page_ad, .ad-notice, .ad-links, .after-post-ad, .ProductAd, .in=
+line-ad, .advBox, .video-ad-container, .ad_box:not(.text-ad), .full-ad, .ad=
+vert-container, .ad-outside, a[href^=3D"https://ad.doubleclick.net/"], .ad-=
+button, .ad_block, #ads-header, .ad_container, div[id^=3D"ad_position_"], #=
+adModal, #taboola-below-article-1, .adChoicesLogo, #ad_1, #adcontainer, .ad=
+table, .adsBlock, .adtag, .ads.widget, .article-advert, div[id^=3D"dfp-ad-"=
+], .p-ad, .ad-list-item, .ad-point, .textad, .ads-image, .ad-cover, .custom=
+-ad, #ad-top, .ad728x90, .sidebar_advert, #adtop, .adsList, .adsleft, .foot=
+er_ads, .ad-stickyhero, .container-ads, #outbrain_widget_0, .ad-root, .topA=
+d, .has-fixed-bottom-ad, .sponsor-box, #adv-top, .ads-row, div[data-ad-targ=
+eting], .advert_list, .anyClipWrapper, #ad_2, #adhesion, .native-ad, .ads_r=
+ight, #mplayer-embed, .adsbygoogle-noablate, .adsbottombox, .primis-wrapper=
+, .adWrap, .adrow, .gallery-ad, .boxAds, .ads-header, a[href^=3D"https://na=
+tour.naughtyamerica.com/track/"], .adv-banner, .mntl-leaderboard-spacer, .h=
+eader_ad, .adLink, .adscontainer, .smallads, .ads1, #ads-left, .sponsoredIt=
+em, .large-advert, .ad_main, div[id^=3D"div-gpt-"], .fixed_ad, .adverttext,=
+ [href^=3D"https://mypatriotsupply.com/"] > img, .box_ads, .w-adsninja-vide=
+o-player, .ad-stickyhero--standard, #sidebar-ad, #leftad, #advertise, .adve=
+rtisement-block, .ad-section, #adbox, [href^=3D"https://www.restoro.com/"],=
+ div[id^=3D"ezoic-pub-ad-"], .side-ad, #headerAd, .ad-icon, .adImg, .adslot=
+, .ad-sidebar, .adverts, .advads-widget, .ad-padding, .ad_middle, .ad-hero,=
+ .wps-player-wrap, #adsensewide, .ad_banner, .ad-enabled, .adthrive-content=
+, [href^=3D"https://mystore.com/"] > img, #header_ad, .is-sponsored, #cente=
+rads, #article_ad, #fwdevpDiv0, .ad-area:not(.text-ad), .adrect, #ad_4, .ba=
+nner-ad-container, .bottom_ad, .sidebar-ad:not(.adsbygoogle), a[href^=3D"ht=
+tps://adclick.g.doubleclick.net/"], .ad-source, .nav_ad, .ad_body, #ad_top,=
+ [href^=3D"https://www.mypillow.com/"] > img, .has-ad, .advert-detail, .foo=
+ter_ad, .cnx-player-wrapper, .ad-wrap:not(#google_ads_iframe_checktag), .ad=
+s-banner, .adcenter, .adMiddle, .ad-current, .bottom_ad_block, [href^=3D"ht=
+tp://mypillow.com/"] > img, a[href^=3D"https://www.sheetmusicplus.com/"][hr=
+ef*=3D"?aff_id=3D"], [href^=3D"https://zstacklife.com/"] img, .reklama, .ad=
+-title, .ads-loaded, .region-ad-top, .display_ad, #google-ads, .ad-zone-con=
+tainer, ins.adsbygoogle[data-ad-slot], .video-ads, .small_ad, .ads-left, .b=
+lock-ad, .product-ad, .small-ads, .logo-ad, .adv-box, .adbutton, #ad-rotato=
+r, .ads-mobile, .ads-core-placer, .sponsor_post, .ad-content, #ad_banner, .=
+advertSlider { display: none !important; }
+------MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: cid:css-50bf92f6-138b-41ed-9753-e55aa8077541@mhtml.blink
+
+@charset "utf-8";
+
+.block-sponsor, [id^=3D"div-gpt-ad"], .topads, .Adsense, .ad-160-600, .ad_t=
+op, .advertiser, .advertorial, .adhide, .adHolder, .adshome, #stickyads, .m=
+odule_ad, .column-ad, #ads-wrapper, .adwords, a[href^=3D"https://ndt5.net/"=
+], #related_ads, .adsText, [data-ad-name], #adcontainer1, .sponsored-articl=
+e, .ads_ad_box, #topAd, #adsContainer, .adlink, .ad_spot, .product-ads, #ba=
+nner-ad, .tnt-dmp-reactive, #adv-text, .ad_div, .home-ad, [href^=3D"http://=
+www.mypillow.com/"] > img, .adsense_wrapper, .promoAd, .top-banner-ad, .ad_=
+item, .ad_global_header, #right_ads, .ad-label, .ad-click, .header-ad-row, =
+.ad_bg, #ad_link, .adthrive-video-player, .ad_left, .ad_bottom, .node-ad, .=
+ads_box, #side-ad, .article_ad, .ad336, [href^=3D"https://mypillow.com/"] >=
+ img, .adhesion:not(body), .ads_wrapper, .top-ad, [href^=3D"https://www.her=
+banomic.com/"] > img, .c-ads, .ad_frame, .adResult, .adcard, #footer_ad, .c=
+ontentAds, .footer-ad, .adText, #topbannerad, ins.adsbygoogle[data-ad-clien=
+t], .ad-widget, .nativead, .ads-box-border, .adplaceholder, .ad_btn, .adver=
+t_area, .ad__item, .ad-box:not(#ad-banner):not(:empty), #ad-carousel, a[hre=
+f^=3D"https://www.privateinternetaccess.com/"] > img, .adtitle, div[aria-la=
+bel=3D"Ads"], .ad_title, .ad-popup, .vertical-ads, .body-top-ads, .ad-cente=
+r, .adban, #rightad, .ad-text, #header-ad, .page_ad, #prerollAd, .middlead,=
+ .ads-inline, .publicidade, .top-ads, .advert2, .ads-block, .adActive, #adb=
+ar, #ad_3, .videos-ad, #footer-ads, #ad-wrapper, .ad-bottom, .adsninja-ad-z=
+one, .ad_caption, .rightAds, .content_ads, .leftAds, .ads-border, .ad-stick=
+yhero-enable-mobile, .adwidget, .ac-widget-placeholder, .ads-title, .greyAd=
+, .mainAd, #page_ad, .ad-notice, .ad-links, .after-post-ad, .ProductAd, .in=
+line-ad, .advBox, .video-ad-container, .ad_box:not(.text-ad), .full-ad, .ad=
+vert-container, .ad-outside, a[href^=3D"https://ad.doubleclick.net/"], .ad-=
+button, .ad_block, #ads-header, .ad_container, div[id^=3D"ad_position_"], #=
+adModal, #taboola-below-article-1, .adChoicesLogo, #ad_1, #adcontainer, .ad=
+table, .adsBlock, .adtag, .ads.widget, .article-advert, div[id^=3D"dfp-ad-"=
+], .p-ad, .ad-list-item, .ad-point, .textad, .ads-image, .ad-cover, .custom=
+-ad, #ad-top, .ad728x90, .sidebar_advert, #adtop, .adsList, .adsleft, .foot=
+er_ads, .ad-stickyhero, .container-ads, #outbrain_widget_0, .ad-root, .topA=
+d, .has-fixed-bottom-ad, .sponsor-box, #adv-top, .ads-row, div[data-ad-targ=
+eting], .advert_list, .anyClipWrapper, #ad_2, #adhesion, .native-ad, .ads_r=
+ight, #mplayer-embed, .adsbygoogle-noablate, .adsbottombox, .primis-wrapper=
+, .adWrap, .adrow, .gallery-ad, .boxAds, .ads-header, a[href^=3D"https://na=
+tour.naughtyamerica.com/track/"], .adv-banner, .mntl-leaderboard-spacer, .h=
+eader_ad, .adLink, .adscontainer, .smallads, .ads1, #ads-left, .sponsoredIt=
+em, .large-advert, .ad_main, div[id^=3D"div-gpt-"], .fixed_ad, .adverttext,=
+ [href^=3D"https://mypatriotsupply.com/"] > img, .box_ads, .w-adsninja-vide=
+o-player, .ad-stickyhero--standard, #sidebar-ad, #leftad, #advertise, .adve=
+rtisement-block, .ad-section, #adbox, [href^=3D"https://www.restoro.com/"],=
+ div[id^=3D"ezoic-pub-ad-"], .side-ad, #headerAd, .ad-icon, .adImg, .adslot=
+, .ad-sidebar, .adverts, .advads-widget, .ad-padding, .ad_middle, .ad-hero,=
+ .wps-player-wrap, #adsensewide, .ad_banner, .ad-enabled, .adthrive-content=
+, [href^=3D"https://mystore.com/"] > img, #header_ad, .is-sponsored, #cente=
+rads, #article_ad, #fwdevpDiv0, .ad-area:not(.text-ad), .adrect, #ad_4, .ba=
+nner-ad-container, .bottom_ad, .sidebar-ad:not(.adsbygoogle), a[href^=3D"ht=
+tps://adclick.g.doubleclick.net/"], .ad-source, .nav_ad, .ad_body, #ad_top,=
+ [href^=3D"https://www.mypillow.com/"] > img, .has-ad, .advert-detail, .foo=
+ter_ad, .cnx-player-wrapper, .ad-wrap:not(#google_ads_iframe_checktag), .ad=
+s-banner, .adcenter, .adMiddle, .ad-current, .bottom_ad_block, [href^=3D"ht=
+tp://mypillow.com/"] > img, a[href^=3D"https://www.sheetmusicplus.com/"][hr=
+ef*=3D"?aff_id=3D"], [href^=3D"https://zstacklife.com/"] img, .reklama, .ad=
+-title, .ads-loaded, .region-ad-top, .display_ad, #google-ads, .ad-zone-con=
+tainer, ins.adsbygoogle[data-ad-slot], .video-ads, .small_ad, .ads-left, .b=
+lock-ad, .product-ad, .small-ads, .logo-ad, .adv-box, .adbutton, #ad-rotato=
+r, .ads-mobile, .ads-core-placer, .sponsor_post, .ad-content, #ad_banner, .=
+advertSlider { display: none !important; }
+------MultipartBoundary--4MavWASOC467GzVeFVv5KTokTizeZ0C7oAk2s4sO78------

@@ -65,9 +65,9 @@
       <div id="governance-view" class="governance-view" style="display:none">
         <div class="gov-header">
           <div class="gov-tabs">
-            <button class="gov-tab-btn active" data-tab="taskboard" onclick="GovernancePanel.switchTab('taskboard')">Task Board</button>
-            <button class="gov-tab-btn" data-tab="hierarchy" onclick="GovernancePanel.switchTab('hierarchy')">Hierarchy</button>
-            <button class="gov-tab-btn" data-tab="delegation" onclick="GovernancePanel.switchTab('delegation')">Delegation</button>
+            <button class="gov-tab-btn active" data-tab="taskboard" onclick="GovernancePanel.switchTab('taskboard\')">Task Board</button>
+            <button class="gov-tab-btn" data-tab="hierarchy" onclick="GovernancePanel.switchTab('hierarchy\')">Hierarchy</button>
+            <button class="gov-tab-btn" data-tab="delegation" onclick="GovernancePanel.switchTab('delegation\')">Delegation</button>
           </div>
           <button class="gov-refresh-btn" onclick="GovernancePanel.refresh()" title="Refresh data">&#8635;</button>
         </div>
@@ -99,8 +99,12 @@
            <span>Showing: <span id="ctx-filter-role" style="font-weight:700"></span></span>
            <button id="btn-show-all-roles" style="background:none; border:none; color:var(--accent-blue); cursor:pointer; font-size:10px; padding:0">Show all</button>
         </div>
+        
         <section class="context-section">
-          <h3>Active Session</h3>
+          <div class="section-header-row">
+            <h3>Active Session</h3>
+            <div id="thinking-pulse" class="thinking-monitor" title="Thinking feedback (ADS synchronized)"></div>
+          </div>
           <div class="session-info-grid" style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
             <div><strong style="color:var(--text-muted)">Role:</strong> <span id="ctx-role">—</span></div>
             <div><strong style="color:var(--text-muted)">Agent:</strong> <span id="ctx-agent">—</span></div>
@@ -113,17 +117,108 @@
             <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Current Task</div>
             <div id="ctx-task" class="ctx-value" style="font-size: 0.85rem; margin-top: 2px;">—</div>
             <div id="ctx-task-priority" class="ctx-priority"></div>
+            <div id="ctx-working-on" class="working-on-badge" style="display:none"></div>
           </div>
 
           <div id="ctx-preflight" class="preflight-check" style="margin-top: 8px;">
             <span class="preflight-status"></span>
             <span class="preflight-label">Alignment: Offline</span>
           </div>
-          <div id="ctx-alignment-details" class="ctx-meta" style="margin-top: 4px; font-size: 10px;"></div>
+          <div id="ctx-event-count" class="ctx-meta" style="margin-top: 4px; font-size: 0.65rem;"></div>
+          <div id="ctx-alignment-details" class="ctx-meta" style="font-size: 0.65rem;"></div>
+        </section>
 
-          <div id="ctx-delegation-container" style="margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;">
-            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Delegation Chain</div>
-            <div id="ctx-delegation" class="delegation-chain"></div>
+        <!-- SPEC-040: Capability Context -->
+        <section class="context-section" id="section-capability-context">
+          <div class="section-header-row">
+            <h3>Capability Context</h3>
+            <span class="ctx-badge badge-blue" style="font-size: 8px;">SPEC-040</span>
+          </div>
+          <div id="cap-context-body">
+            <!-- Intent -->
+            <div id="cap-intent-row" class="cap-row">
+              <div class="cap-label">Intent</div>
+              <div id="ctx-intent-value" class="cap-value">No active intent</div>
+            </div>
+            <!-- Status -->
+            <div id="cap-status-row" class="cap-row">
+              <div class="cap-label">Status</div>
+              <div id="ctx-intent-status" class="cap-value">--</div>
+            </div>
+            <!-- Gate Progress Bar -->
+            <div id="cap-gate-row" class="cap-row">
+              <div class="cap-label">Gate</div>
+              <div class="cap-value" style="display: flex; align-items: center; gap: 6px;">
+                <div id="ctx-gate-bar" class="cap-gate-bar">
+                  <div class="cap-gate-seg" data-gate="1"></div>
+                  <div class="cap-gate-seg" data-gate="2"></div>
+                  <div class="cap-gate-seg" data-gate="3"></div>
+                  <div class="cap-gate-seg" data-gate="4"></div>
+                  <div class="cap-gate-seg" data-gate="5"></div>
+                  <div class="cap-gate-seg" data-gate="6"></div>
+                  <div class="cap-gate-seg" data-gate="7"></div>
+                </div>
+                <span id="ctx-gate-label" style="font-size: 9px; color: var(--text-secondary);">--</span>
+              </div>
+            </div>
+            <!-- Maturity Delta -->
+            <div id="cap-maturity-row" class="cap-row">
+              <div class="cap-label">Maturity</div>
+              <div class="cap-value" style="display: flex; align-items: center; gap: 6px;">
+                <div id="ctx-maturity-bar" class="cap-maturity-bar">
+                  <div id="ctx-maturity-fill" class="cap-maturity-fill"></div>
+                  <div id="ctx-maturity-target-marker" class="cap-maturity-target"></div>
+                </div>
+                <span id="ctx-maturity-badge" style="font-size: 9px; color: var(--text-secondary);">0%</span>
+              </div>
+            </div>
+            <!-- Trigger Event -->
+            <div id="cap-event-row" class="cap-row">
+              <div class="cap-label">Trigger</div>
+              <div id="ctx-event-value" class="cap-value">None detected</div>
+            </div>
+            <!-- Risk -->
+            <div id="cap-risk-row" class="cap-row">
+              <div class="cap-label">Risk</div>
+              <div id="ctx-risk-value" class="cap-value">--</div>
+            </div>
+            <!-- Action buttons -->
+            <div id="cap-actions" class="cap-actions" style="margin-top: 6px;">
+              <button id="btn-cap-view-panel" class="btn-cap-action" title="View in ADT Panel" onclick="ContextPanel.openCapInPanel()">View in Panel</button>
+              <button id="btn-cap-eval-gate" class="btn-cap-action btn-cap-accent" title="Evaluate Gate" style="display: none;" onclick="ContextPanel.openInlineGateEval()">Evaluate Gate</button>
+            </div>
+          </div>
+          <!-- Inline Gate Evaluation Form (hidden by default) -->
+          <div id="cap-inline-gate" style="display: none;">
+            <div id="cap-inline-gate-header" style="font-size: 10px; font-weight: 700; margin-bottom: 6px; color: var(--accent-blue);"></div>
+            <form id="cap-inline-gate-form">
+              <div id="cap-inline-gate-fields"></div>
+              <div style="margin-top: 6px;">
+                <label style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">Actual Outcome</label>
+                <textarea id="cap-gate-outcome" rows="2" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; padding: 4px; font-size: 11px; resize: vertical;" required placeholder="Evidence or rationale..."></textarea>
+              </div>
+              <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+                <label style="font-size: 9px; color: var(--text-secondary);">Decision:</label>
+                <label style="font-size: 10px;"><input type="radio" name="cap_decision" value="Proceed" checked> <span style="color: var(--accent-green);">Proceed</span></label>
+                <label style="font-size: 10px;"><input type="radio" name="cap_decision" value="Refine"> <span style="color: var(--accent-yellow);">Refine</span></label>
+                <label style="font-size: 10px;"><input type="radio" name="cap_decision" value="Halt"> <span style="color: var(--accent-red);">Halt</span></label>
+              </div>
+              <div style="margin-top: 8px; display: flex; gap: 6px;">
+                <button type="button" class="btn-cap-action" onclick="ContextPanel.cancelInlineGate()">Cancel</button>
+                <button type="button" class="btn-cap-action btn-cap-accent" onclick="ContextPanel.submitInlineGate()">Submit Gate</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- SPEC-039: Hierarchical Orchestration Tree -->
+        <section class="context-section" id="section-orchestration">
+          <div class="section-header-row">
+            <h3>Orchestration Tree</h3>
+            <span id="orchestration-status" class="ctx-badge badge-blue">SPEC-039</span>
+          </div>
+          <div id="ctx-orchestration-tree" class="orchestration-tree">
+            <div class="ctx-empty">Aggregating hierarchy...</div>
           </div>
         </section>
 
@@ -137,36 +232,6 @@
           </div>
           <ul id="ctx-requests-list" class="tracker-list">
             <li class="ctx-empty">Loading requests...</li>
-          </ul>
-        </section>
-
-        <section class="context-section">
-          <div class="section-header-row">
-            <h3>Tasks To-Do</h3>
-            <span id="count-todo" class="ctx-badge">0</span>
-          </div>
-          <ul id="ctx-tasks-todo" class="tracker-list">
-            <li class="ctx-empty">Awaiting tasks...</li>
-          </ul>
-        </section>
-
-        <section class="context-section">
-          <div class="section-header-row">
-            <h3>Completed Tasks</h3>
-            <span id="count-completed" class="ctx-badge">0</span>
-          </div>
-          <ul id="ctx-tasks-completed" class="tracker-list">
-            <li class="ctx-empty">No completions</li>
-          </ul>
-        </section>
-
-        <section class="context-section">
-          <div class="section-header-row">
-            <h3>Sent Tasks (Delegation)</h3>
-            <span id="count-sent" class="ctx-badge">0</span>
-          </div>
-          <ul id="ctx-tasks-sent" class="tracker-list">
-            <li class="ctx-empty">No delegations</li>
           </ul>
         </section>
 
@@ -197,6 +262,9 @@
       <span class="status-dot dot-grey"></span> <span class="remote-label">Go Remote</span>
     </span>
     <span id="status-escalations" class="status-item status-escalations">Escalations: 0</span>
+    <span id="status-gate" class="status-item" title="Capability Gate Progress" onclick="document.getElementById('section-capability-context')?.scrollIntoView({behavior:'smooth'})">
+      <span class="status-dot dot-grey" id="gate-status-dot"></span> Gate: --
+    </span>
     <span id="status-dttp" class="status-item">DTTP: --</span>
     <span id="status-git" class="status-item" title="Git Status">
       <span class="status-dot dot-grey" id="git-dot"></span> <span id="git-branch">—</span> <span id="git-changes"></span>

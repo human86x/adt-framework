@@ -1,6 +1,6 @@
 # ADT Framework: Master Plan
 
-**Phase:** 2.0 (Collaborative Governance)
+**Phase:** 2.1 (Collaborative Governance)
 **Status:** Active Development
 **Task Tracking:** See `_cortex/tasks.json`
 **Parent Spec:** SPEC-017 (from OceanPulse proving ground)
@@ -11,7 +11,24 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 OceanPulse is the first governed project (reference implementation).
 The framework governs its own development -- recursive self-improvement through governance.
 
-## Current Objectives
+## Phase 2.1: Capability & Context (SPEC-038)
+**Status:** ACTIVE
+
+*   **[COMPLETED] Intent Definition API:** Capability Change Intents can be registered and traced.
+*   **[COMPLETED] Triggering Event Capture:** External organizational signals can be linked to intents.
+*   **[COMPLETED] Causal Traceability Engine:** Trace intents through triggering events, ADS audit trails, and tasks.
+*   **[COMPLETED] Operator Console Integration:** Hive Tracker displays active Intent/Event context (SPEC-038 visual link).
+*   **[IN PROGRESS] Automated Maturity Tracking:** Real-time calculation of intent maturity based on code/ADS evidence.
+
+## Phase 2.2: Interactive Orchestration (SPEC-039)
+**Status:** ACTIVE
+
+*   **[COMPLETED] human_steering event:** ADS support for manual steering actions.
+*   **[COMPLETED] PTY Command Injection:** Console can send hints/priorities to active agents.
+*   **[IN PROGRESS] Hierarchical Sidebar:** Tree view visualization (Intent -> Spec -> Task).
+*   **[IN PROGRESS] Real-time Pulse:** UI visual feedback synchronized with ADS tool-call stream.
+
+## Current Objectives (Core)
 
 1. **ADS Engine:** Extract and generalize Safe Logger from OceanPulse. (Status: COMPLETED)
 2. **SDD Engine:** Spec lifecycle management. (Status: COMPLETED)
@@ -23,21 +40,11 @@ The framework governs its own development -- recursive self-improvement through 
 8. **Self-Governance Integrity:** Tiered path protection, break-glass, anti-self-modification. (Status: COMPLETED -- SPEC-020)
 9. **Operator Console:** Cross-platform Tauri desktop app -- human command center for multi-agent governance. (Status: ACTIVE -- SPEC-021)
 10. **Collaborative Bootstrap:** One-command setup for remote collaborators. Send framework, receive specs. (Status: DRAFT -- SPEC-025)
-11. **Governance Configurator:** Visual UI for human to configure DTTP roles, jurisdictions, and permissions. (Status: DRAFT -- SPEC-026)
-12. **Shatterglass Protocol:** OS-level file permission enforcement with time-limited privilege escalation. (Status: APPROVED -- SPEC-027)
-13. **External Project Governance:** Multi-project support -- govern external codebases with per-project DTTP isolation, project registry, and unified visibility. (Status: APPROVED -- SPEC-031)
-14. **Console Project Launcher:** Startup launcher with Forge Mode, Create/Import wizards, and guided setup. (Status: APPROVED -- SPEC-032)
-15. **Sovereign Change Requests:** Agent-proposed sovereign path changes queued for human review in Panel. (Status: APPROVED -- SPEC-033)
-16. **Role-Aware Context Panel:** Console Hive Tracker filters tasks/requests by active session role, fixes CWD bug, absolute hook paths, agent flag checkboxes. (Status: COMPLETED -- SPEC-034)
-17. **Unified Status Management API:** DTTP-mediated API for agents to update tasks/requests status without governance friction. (Status: APPROVED -- SPEC-035)
-18. **Agent Filesystem Sandbox:** Defense-in-depth agent isolation -- app-layer sandbox (Phase A) and OS-level namespaces (Phase B). (Status: APPROVED -- SPEC-036)
-19. **Cross-Role Request Access:** Governed API for filing cross-role requests, per-session role identity fix. (Status: APPROVED -- SPEC-037)
 
 ## Active Specifications
 
 | Spec | Name | Status | Origin |
 |------|------|--------|--------|
-| SPEC-013 | ADT Panel UI Refinements | COMPLETED | ADT Framework |
 | SPEC-014 | DTTP Implementation (Level 3) | APPROVED | OceanPulse |
 | SPEC-015 | ADT Operational Center | APPROVED | OceanPulse |
 | SPEC-016 | ADT Help & Principles Page | APPROVED | OceanPulse |
@@ -46,44 +53,8 @@ The framework governs its own development -- recursive self-improvement through 
 | SPEC-019 | DTTP Standalone Service | APPROVED | ADT Framework (REQ-001) |
 | SPEC-020 | Self-Governance Integrity | COMPLETED | ADT Framework |
 | SPEC-021 | ADT Operator Console | ACTIVE | ADT Framework |
-| SPEC-022 | Windows Ready Installer | DRAFT | ADT Framework |
-| SPEC-023 | Git Governance | APPROVED | ADT Framework |
-| SPEC-024 | ADT Connect (Remote Access) | DRAFT | ADT Framework |
-| SPEC-025 | Collaborative Bootstrap | APPROVED | ADT Framework |
-| SPEC-026 | DTTP Governance Configurator | COMPLETED | ADT Framework |
-| SPEC-027 | Shatterglass Protocol | APPROVED | ADT Framework |
-| SPEC-028 | Hive Tracker Panel | COMPLETED | ADT Framework |
-| SPEC-029 | Single-File Installer | APPROVED | ADT Framework |
-| SPEC-030 | Overseer Operational Authorization | APPROVED | ADT Framework |
-| SPEC-031 | External Project Governance | APPROVED | ADT Framework |
-| SPEC-032 | Console Project Launcher | APPROVED | ADT Framework |
-| SPEC-033 | Sovereign Change Requests | APPROVED | ADT Framework |
-| SPEC-034 | Role-Aware Context Panel | COMPLETED | ADT Framework |
-| SPEC-035 | Unified Status Management API | APPROVED | ADT Framework |
-| SPEC-036 | Agent Filesystem Sandbox | APPROVED | ADT Framework (REQ-026) |
-| SPEC-037 | Cross-Role Request Access | APPROVED | ADT Framework (REQ-027) |
-
-> Specs SPEC-014 through SPEC-017 originated in OceanPulse `_cortex/specs/`.
-> Specs SPEC-018+ are native to the ADT Framework -- the framework is now generating
-> its own governance artifacts. Self-governance milestone reached.
-
-## Implementation Order
-
-```
-SPEC-018 Phase A (Security)       DONE: path traversal, path matching
-SPEC-018 Phase B (Architecture)   DONE: shared hash, hardcoded names, configs
-SPEC-019 (DTTP Service)           DONE: standalone service, refactored integrations
-SPEC-020 (Self-Governance)        DONE: tiered paths, break-glass, anti-self-mod
-SPEC-021 (Operator Console)       DONE: Phases A-E, Hive View, Panel embed, UI polish
-SPEC-025 (Collaborative Bootstrap) <- bootstrap.sh DONE, API endpoints + UI pending
-SPEC-018 Phase C (Robustness)     <- Caching, locking, logging, validation
-SPEC-018 Phase D (Confidence)     <- Test coverage expansion
-SPEC-024 (ADT Connect)            <- Remote access via Cloudflare tunnels
-SPEC-026 (Governance Configurator) <- Visual DTTP rule configuration UI
-SPEC-027 (Shatterglass Protocol)    <- OS-level enforcement, privilege escalation
-SPEC-022 (Windows Installer)      <- Inno Setup bundled distribution
-SPEC-031 (External Projects)       <- adt init, registry, multi-project DTTP, TaskFlow sample
-```
+| SPEC-038 | Organizational Capability Governance | APPROVED | ADT Framework |
+| SPEC-039 | Interactive Governance Orchestration | APPROVED | ADT Framework |
 
 ## Version Roadmap
 
@@ -92,8 +63,7 @@ SPEC-031 (External Projects)       <- adt init, registry, multi-project DTTP, Ta
 | v0.1.0 | Core engines (ADS, SDD, DTTP) |
 | v0.2.0 | Operational Center + Agent SDK + Self-Governance |
 | v0.3.0 | Operator Console + Collaborative Bootstrap |
-| v0.4.0 | External Project Governance + Multi-project DTTP |
-| v0.5.0 | *Driven by external project findings from v0.4* |
+| v0.4.0 | Capability Governance & Interactive Orchestration |
 
 ## Role Assignments
 
