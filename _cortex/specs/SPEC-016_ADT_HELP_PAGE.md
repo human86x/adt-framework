@@ -33,7 +33,7 @@ The page is organized into sections accessible via a sticky sidebar navigation. 
 **Status: IMPLEMENTED**
 
 - Author: Paul Sheridan, Director, Advanced Digital Transformation (ADT)
-- Core problem (from whitepaper): "Digital transformation initiatives frequently fail not due to lack of technology, but because governance is applied after systems are operational."
+- Core problem (from whitepaper): "Digital transformation initiatives frequently fail not due to a lack of technology, but because governance is introduced too late, applied inconsistently or not applied at all—leaving organisations to confront complex, fragmented challenges without a coherent framework for accountability, coordination and control."
 - Core thesis: ADT shifts governance upstream, embedding it into process creation
 - UN governance principles: Direction, Performance, Accountability, Transparency, Legitimacy
 - The Issues Taxonomy: reference Appendix A from the whitepaper

@@ -10,7 +10,7 @@
 
 ADT (Advanced Digital Transformation) is a governance framework designed from the ground up for AI agent systems. It shifts governance upstream, embedding compliance, accountability, and auditability into the process of execution itself, rather than applying them after the fact as an overlay.
 
-> "Digital transformation initiatives frequently fail not due to lack of technology, but because governance is applied after systems are operational."
+> "Digital transformation initiatives frequently fail not due to a lack of technology, but because governance is introduced too late, applied inconsistently or not applied at all—leaving organisations to confront complex, fragmented challenges without a coherent framework for accountability, coordination and control."
 > -- Paul Sheridan, Director, ADT
 
 ### 1.1 The Problem
