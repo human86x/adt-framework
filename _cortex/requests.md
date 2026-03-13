@@ -859,3 +859,46 @@ Capabilities UI (task_167) is implemented but requires backend endpoints (/api/g
 ### Status
 
 **COMPLETED** — Backend endpoints for Capabilities (/api/governance/capabilities/*) have been implemented and verified as part of task_165.
+
+
+---
+
+## REQ-043: Implement Missing Help Page Sections (SPEC-016)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-03-09
+**Priority:** HIGH
+**Related Specs:** SPEC-016 (v2.0), SPEC-015
+
+### Description
+
+The Help & Principles page (`adt_center/templates/about.html`) has a sidebar navigation with 16 section links, but only 6 sections are actually implemented in the page body. The remaining 10 sections are dead anchors.
+
+**Implemented (6):**
+- `#what-is-adt` -- What is ADT?
+- `#four-pillars` -- The Four Pillars (Evolved)
+- `#capabilities` -- Capability Governance
+- `#orchestration` -- Interactive Orchestration
+- `#scr` -- Sovereign Change Requests
+- `#roadmap` -- Roadmap
+
+**Missing (10):**
+1. `#ads` -- Authoritative Data Source (ADS): single source of truth, append-only, event stats, link to timeline
+2. `#integrity` -- Integrity Chain: SHA-256 hash linking, tamper detection, genesis block, Safe Logger v3.0
+3. `#sdd` -- Specification-Driven Development: "No Spec No Code", spec lifecycle, architect/human roles
+4. `#dttp` -- DTTP Enforcement: three enforcement levels, three-user model, privilege separation, agent sandbox (SPEC-036)
+5. `#op-center` -- Operational Center: Flask app, dashboard/timeline/spec registry/task board/DTTP monitor, multi-project
+6. `#external-projects` -- External Project Governance: multi-project registry, independent _cortex directories, project isolation
+7. `#shatterglass` -- Shatterglass Protocol: emergency override, break-glass with full ADS audit trail (SPEC-027)
+8. `#roles` -- Roles & Jurisdiction: Hivemind model, role table with jurisdiction paths (SA/BE/FE/DO/OV), two agents (CLAUDE/GEMINI)
+9. `#incidents` -- Real Incidents: document proving-ground evidence (chain break, SDD violation, ADS data loss, etc.)
+10. `#glossary` -- Glossary: all ADT terms (ADS, SDD, DTTP, IoE, SCR, Shatterglass, Capability, Intent, etc.)
+
+**Design:** Follow the existing card style (`card card-adt` with header containing section name + status badge). Use expandable accordions where content is dense. Keep consistent `font-size: 0.85rem`. Status badges should be `badge-completed` for operational sections. See SPEC-016 v2.0 for full content requirements per section.
+
+**File:** `adt_center/templates/about.html`
+
+### Status
+
+**OPEN** -- Awaiting Frontend_Engineer implementation.
