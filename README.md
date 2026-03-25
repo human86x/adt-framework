@@ -8,25 +8,32 @@
 
 ## 1. What is ADT?
 
-ADT (Advanced Digital Transformation) is a governance framework designed from the ground up for AI agent systems. It shifts governance upstream, embedding compliance, accountability, and auditability into the process of execution itself, rather than applying them after the fact as an overlay.
+ADT (Advanced Digital Transformation) is a governance framework designed from the ground up for AI agent systems. By shifting governance upstream, it embeds compliance, accountability, and auditability directly into the process of execution rather than applying them afterward as an overlay. This approach addresses a key challenge in digital transformation: as Paul Sheridan, Director of ADT, observes:
 
-> "Digital transformation initiatives frequently fail not due to a lack of technology, but because governance is introduced too late, applied inconsistently or not applied at all—leaving organisations to confront complex, fragmented challenges without a coherent framework for accountability, coordination and control."
-> -- Paul Sheridan, Director, ADT
+> "Digital transformation initiatives frequently fail not due to a lack of technology, but because governance is introduced too late, applied inconsistently, or not applied at all -- leaving organisations to confront complex, fragmented challenges without a coherent framework for accountability, coordination, and control."
 
-### 1.1 The Problem
-AI agents (Claude, Gemini, GPT, etc.) are increasingly used for real engineering work—writing code, deploying systems, managing infrastructure. However, traditional prompts and instructions rely on *behavioral compliance*. Agents can, and do, violate prompt instructions.
+What distinguishes ADT from conventional governance approaches is structural enforcement. Governance is not advisory -- it is embedded in the execution pipeline itself. The framework operates on four core pillars:
 
-Without ADT:
-- **Authorization** is voluntary.
-- **Auditing** lacks a cryptographic, immutable record.
-- **Enforcement** is circumventable.
-- **Business Purpose** (the "Why") is disconnected from the technical action (the "How").
+- **ADS (Audit & Decision System)** -- an immutable, SHA-256-chained event ledger that records every agent action, creating a tamper-evident audit trail from intent to outcome.
+- **SDD (Specification-Driven Development)** -- a strict "no spec, no code" discipline where every change must be authorized by an approved specification before execution.
+- **DTTP (Digital Trust Transfer Protocol)** -- a privilege-separated enforcement gateway that validates agent actions against role jurisdictions, spec authorizations, and tiered protections in real time. Unauthorized actions are denied, not just logged.
+- **Capability Governance** -- a strategic alignment layer that traces every technical action back to a business intent and triggering event, ensuring full causal traceability from organisational purpose to production outcome through a structured 7-stage gate workflow.
 
-### 1.2 The Four Pillars (Evolved)
-1. **Capability Governance:** Bridges the gap between strategy and execution. Captures high-level **Intents** and **Triggering Events** to provide causal traceability.
-2. **DTTP Enforcement:** Structural enforcement of spec-authorized actions via OS-level privilege separation. Agents physically cannot bypass rules.
-3. **Digital Black Box (ADS):** An immutable, SHA-256 hash-chained Authoritative Data Source (ADS) log providing a full causal traceability chain.
-4. **Interactive Orchestration:** A bi-directional command center (Operator Console) for human-agent collaboration, real-time steering, and feedback.
+Together, these pillars ensure that governance is an intrinsic system property, not an external overlay.
+
+### 1.1 Configurable Roles
+
+ADT organises work around configurable, structurally enforced roles. Each project defines its own roles and jurisdictions to match its domain -- a software project might use Engineers, Architects, and DevOps; a publishing project might define Editors, Writers, and Designers. What remains constant is the enforcement model: every role operates within a defined jurisdiction enforced by the DTTP gateway. An agent cannot act outside its boundaries, regardless of the domain.
+
+As an example, the ADT Framework itself -- which governs its own development -- uses the following roles:
+
+- **Systems Architect** -- defines system design, specifications, and technical strategy, ensuring the architecture aligns with organisational objectives and governance requirements.
+- **Frontend Engineer** -- designs and develops user interfaces and interactions for seamless access to AI services and governance dashboards.
+- **Backend Engineer** -- builds and maintains the underlying engines, databases, and server logic that power AI agents and enforcement pipelines.
+- **DevOps Engineer** -- manages deployment, automation, and continuous integration to ensure reliability, scalability, and agent sandboxing.
+- **Overseer** -- provides governance monitoring and compliance validation to ensure AI agents operate within specifications, ethical standards, and organisational policies.
+
+This ensures that accountability and transparency are maintained at every stage of innovation and creative change, across any domain where AI agents operate.
 
 ---
 
