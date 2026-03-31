@@ -823,6 +823,111 @@
       "authorized_by": null,
       "authorized_at": null,
       "content": "# ADT Framework: Master Plan\n\n**Version:** 2.2\n**Status:** ACTIVE\n**Milestone:** v0.4.0 (Capability & Orchestration)\n\n## 1. Vision\n\nBuild the ADT Framework as a standalone, open-source governance system for AI agents. The framework governs its own development -- recursive self-improvement through structural enforcement.\n\n## 2. Completed Milestones\n\n- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTTP Gateway.\n- **v0.2.0 (Operational Center):** Flask Web UI, Agent SDK, Tiered Path Protection, SCR Queue.\n- **v0.3.0 (Operator Console):** Tauri Desktop Command Center, Multi-Project Registry, Shatterglass Protocol.\n- **v0.3.5 (Hardening):** Agent Sandboxing (Filesystem/Network), Windows Installer, Remote Share.\n\n## 3. Current Phase: v0.4.0 (Capability & Orchestration)\n\n**Status:** ACTIVE (SPEC-038, SPEC-039, SPEC-040)\n\n*   **Capability Governance (SPEC-038):** Strategic alignment through Intents and Triggering Events. Full traceability from business purpose to technical action.\n*   **7-Stage Gate Workflow:** Governance of capability evolution (Validation -> Strategy -> Transformation -> Value).\n*   **Interactive Orchestration (SPEC-039):** Bi-directional communication. Human steering, task injection, and real-time pulse feedback.\n*   **Unified UI (SPEC-040):** Redesigned Capabilities Tab and integrated Console Sidebar.\n\n## 4. Current Objectives\n\n1.  **Automated Maturity Tracking:** Real-time calculation of realized maturity based on task evidence and intent alignment.\n2.  **Interactive Steering V2:** Advanced command injection for multi-agent coordination.\n3.  **Namespace Sandboxing:** Full OS-level isolation for agent sessions (bwrap/unshare).\n4.  **Audit Automation:** Autonomous Overseer audits for Tier 2 and Break-Glass events.\n\n## 5. Active Specifications\n\n| Spec | Name | Status |\n|------|------|--------|\n| SPEC-017 | ADT Framework Repository | COMPLETED |\n| SPEC-021 | ADT Operator Console | COMPLETED |\n| SPEC-027 | Shatterglass Protocol | COMPLETED |\n| SPEC-031 | External Project Governance | COMPLETED |\n| SPEC-033 | Sovereign Change Requests | COMPLETED |\n| SPEC-036 | Agent Filesystem Sandbox | IN PROGRESS |\n| SPEC-038 | Capability Governance | ACTIVE |\n| SPEC-039 | Interactive Orchestration | ACTIVE |\n| SPEC-040 | Capability Governance UI | ACTIVE |\n\n## 6. Roadmap\n\n- **v0.5.0:** Enterprise DTTP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.\n- **v0.6.0:** Advance Visual Analytics, Causal Impact Dashboards.\n- **v1.0.0:** Production Stable Release.\n\n---\n\n*\"Traceability from purpose to production.\"*\n"
+    },
+    {
+      "id": "scr_20260330_211933_038",
+      "ts": "2026-03-30T21:19:33.730503Z",
+      "agent": "GEMINI",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-038",
+      "intent_id": null,
+      "target_path": "config/specs.json",
+      "change_type": "json_merge",
+      "description": "Authorize Systems_Architect, Backend_Engineer, and Frontend_Engineer for SPEC-038. Register SPEC-038A and SPEC-040.",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "merge_data": {
+        "specs": {
+          "SPEC-038": {
+            "roles": [
+              "Overseer",
+              "Systems_Architect",
+              "Backend_Engineer",
+              "Frontend_Engineer"
+            ]
+          },
+          "SPEC-038A": {
+            "title": "Capability Data Model Enrichment and Stage-Gate Engine",
+            "status": "approved",
+            "roles": [
+              "Systems_Architect",
+              "Backend_Engineer",
+              "Overseer"
+            ],
+            "action_types": [
+              "edit",
+              "patch",
+              "create",
+              "delete"
+            ],
+            "paths": [
+              "_cortex/capabilities/",
+              "adt_core/ads/capability.py",
+              "adt_center/api/governance_routes.py",
+              "adt_core/ads/schema.py",
+              "config/jurisdictions.json"
+            ]
+          },
+          "SPEC-040": {
+            "title": "Capability Governance UI Integration",
+            "status": "approved",
+            "roles": [
+              "Systems_Architect",
+              "Frontend_Engineer",
+              "Backend_Engineer",
+              "DevOps_Engineer",
+              "Overseer"
+            ],
+            "action_types": [
+              "edit",
+              "patch",
+              "create",
+              "delete"
+            ],
+            "paths": [
+              "adt_center/templates/",
+              "adt_center/static/",
+              "adt-console/src/",
+              "adt-console/src-tauri/",
+              "adt_center/api/governance_routes.py"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "scr_20260331_135451_039",
+      "ts": "2026-03-31T13:54:51.507727Z",
+      "agent": "GEMINI_CLI",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-038",
+      "intent_id": null,
+      "target_path": "config/jurisdictions.json",
+      "change_type": "json_merge",
+      "description": "Grant access to capabilities directory for Backend, Frontend, and Overseer roles.",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "merge_data": {
+        "jurisdictions": {
+          "Backend_Engineer": {
+            "paths": [
+              "_cortex/capabilities/"
+            ]
+          },
+          "Frontend_Engineer": {
+            "paths": [
+              "_cortex/capabilities/"
+            ]
+          },
+          "Overseer": {
+            "paths": [
+              "_cortex/capabilities/"
+            ]
+          }
+        }
+      }
     }
   ]
 }

@@ -2082,8 +2082,11 @@
       "description": "Update config/jurisdictions.json and config/specs.json to grant access to _cortex/capabilities/.",
       "spec_ref": "SPEC-038",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
-      "priority": "medium"
+      "status": "in_progress",
+      "priority": "medium",
+      "evidence": "SCR scr_20260330_211933_038 (specs) and scr_20260331_135451_039 (jurisdictions) submitted.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-03-31T13:56:21.757310Z"
     },
     {
       "id": "task_169",
@@ -2105,7 +2108,6 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "evidence": "Implemented human_steering in ADSEventSchema.",
       "evidence": "Implemented human_steering in ADSEventSchema.",
       "last_updated_by": "GEMINI (Backend_Engineer)",
       "last_updated_at": "2026-03-07T12:33:56.035880Z",
@@ -2144,17 +2146,279 @@
       "evidence": "Implemented hierarchical Orchestration Tree, real-time ADS pulse feedback, and prioritization steering buttons.",
       "last_updated_by": "GEMINI (Frontend_Engineer)",
       "last_updated_at": "2026-03-07T13:00:00Z"
-    }
-  ],
+    },
+    {
+      "id": "task_174",
+      "title": "SPEC-038A: Enrich intent schema validation in capability.py",
+      "description": "Enrich intent schema validation in capability.py",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_175",
+      "title": "SPEC-038A: Enrich event schema validation in capability.py",
+      "description": "Enrich event schema validation in capability.py",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_176",
+      "title": "SPEC-038A: Implement GateManager class with hash-chained gate records",
+      "description": "Implement GateManager class with hash-chained gate records",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_177",
+      "title": "SPEC-038A: Add new capability ADS event types to schema.py",
+      "description": "Add new capability ADS event types to schema.py",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_178",
+      "title": "SPEC-038A: Implement gate API endpoints in governance_routes.py",
+      "description": "Implement gate API endpoints in governance_routes.py",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_179",
+      "title": "SPEC-038A: Update POST /intents and POST /events for enriched schemas",
+      "description": "Update POST /intents and POST /events for enriched schemas",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_180",
+      "title": "SPEC-038A: Update GET /trace/<id> to include gate chain in causal trace",
+      "description": "Update GET /trace/<id> to include gate chain in causal trace",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_181",
+      "title": "SPEC-038A: Implement /capabilities/summary aggregate endpoint",
+      "description": "Implement /capabilities/summary aggregate endpoint",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_182",
+      "title": "SPEC-038A: Add gates.jsonl initialisation to project scaffold",
+      "description": "Add gates.jsonl initialisation to project scaffold",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "low",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_183",
+      "title": "SPEC-038A: Update config/jurisdictions.json for gate access control",
+      "description": "Update config/jurisdictions.json for gate access control",
+      "spec_ref": "SPEC-038A",
+      "assigned_to": "Systems_Architect",
+      "status": "in_progress",
+      "priority": "low",
+      "evidence": "SCR scr_20260331_135451_039 submitted to grant gate access control.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-03-31T13:56:21.830290Z"
+    },
+    {
+      "id": "task_184",
+      "title": "SPEC-040: Redesign Capabilities tab with Kanban (Strategic Pipeline)",
+      "description": "Redesign Capabilities tab with Kanban (Strategic Pipeline)",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_185",
+      "title": "SPEC-040: Implement Stage-Gate Visualiser component in Panel",
+      "description": "Implement Stage-Gate Visualiser component in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_186",
+      "title": "SPEC-040: Implement New Intent Wizard (8-step) in Panel",
+      "description": "Implement New Intent Wizard (8-step) in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_187",
+      "title": "SPEC-040: Implement Event Capture Modal (5-step wizard) in Panel",
+      "description": "Implement Event Capture Modal (5-step wizard) in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_188",
+      "title": "SPEC-040: Implement Gate Evaluation Modal with dynamic field rendering in Panel",
+      "description": "Implement Gate Evaluation Modal with dynamic field rendering in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_189",
+      "title": "SPEC-040: Implement Intent Detail Drawer (8-section accordion) in Panel",
+      "description": "Implement Intent Detail Drawer (8-section accordion) in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_190",
+      "title": "SPEC-040: Implement Portfolio Summary dashboard (charts) in Panel",
+      "description": "Implement Portfolio Summary dashboard (charts) in Panel",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_191",
+      "title": "SPEC-040: Add Capability Context section to Console right sidebar",
+      "description": "Add Capability Context section to Console right sidebar",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_220500_001_impl"
+    },
+    {
+      "id": "task_192",
+      "title": "SPEC-040: Add inline Gate Evaluation form to Console sidebar",
+      "description": "Add inline Gate Evaluation form to Console sidebar",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_220500_001_impl"
+    },
+    {
+      "id": "task_193",
+      "title": "SPEC-040: Extend Console orchestration tree with intent/gate/maturity decorations",
+      "description": "Extend Console orchestration tree with intent/gate/maturity decorations",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_220500_001_impl"
+    },
+    {
+      "id": "task_194",
+      "title": "SPEC-040: Add Gate progress indicator to Console status bar",
+      "description": "Add Gate progress indicator to Console status bar",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "low",
+      "evidence": "Implemented in evt_20260308_220500_001_impl"
+    },
+    {
+      "id": "task_195",
+      "title": "SPEC-040: Add capability-related Tauri event emissions (file watchers)",
+      "description": "Add capability-related Tauri event emissions (file watchers)",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_196",
+      "title": "SPEC-040: Implement gate API endpoints and active trace resolution in governance_routes.py",
+      "description": "Implement gate API endpoints and active trace resolution in governance_routes.py",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_201414_002_impl"
+    },
+    {
+      "id": "task_197",
+      "title": "SPEC-040: Add Panel CSS for gate stepper, maturity bars, kanban, risk badges",
+      "description": "Add Panel CSS for gate stepper, maturity bars, kanban, risk badges",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented in evt_20260308_214500_001_impl"
+    },
+    {
+      "id": "task_198",
+      "title": "SPEC-040: Add Console CSS for capability context, inline gate form",
+      "description": "Add Console CSS for capability context, inline gate form",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in evt_20260308_220500_001_impl"
+    },
+    {
+      "id": "task_199",
+      "title": "SPEC-040: Implement native notifications for gate events via Tauri IPC",
+      "description": "Implement native notifications for gate events via Tauri IPC",
+      "spec_ref": "SPEC-040",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "low"
+    },
     {
       "id": "task_200",
       "title": "SPEC-016/017: Documentation Alignment (Phase 2.1/2.2)",
       "description": "Align README.md, AI_PROTOCOL.md, MASTER_PLAN.md, and about.html with Capability Governance (SPEC-038) and Interactive Orchestration (SPEC-039).",
       "spec_ref": "SPEC-017",
       "assigned_to": "Systems_Architect",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "high",
-      "evidence": "Audit complete. about.html updated and pushed. SCRs submitted for README.md, AI_PROTOCOL.md, and MASTER_PLAN.md."
+      "evidence": "Verified README.md, AI_PROTOCOL.md, MASTER_PLAN.md, and about.html are all updated to v2.2/v0.4.0 standards including SPEC-038/039/040 alignment.",
+      "last_updated_by": "CLI (Systems_Architect)",
+      "last_updated_at": "2026-03-31T13:52:23.621108Z",
+      "review_status": "pending"
     }
   ]
 }
