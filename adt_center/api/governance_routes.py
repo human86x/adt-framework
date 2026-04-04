@@ -14,6 +14,9 @@ from adt_core.sdd.tasks import TaskManager
 from adt_core.ads.capability import CapabilityManager
 
 from adt_core.registry import ProjectRegistry
+from adt_core.context.manager import TieredContextManager
+from adt_core.cost.tracker import CostTracker
+
 
 governance_bp = Blueprint("governance", __name__)
 
@@ -445,6 +448,37 @@ def get_spec_detail(spec_id):
         return jsonify({"error": "Spec not found"}), 404
     return jsonify(detail)
 
+@governance_bp.route("/context", methods=["GET"])
+def get_compacted_context():
+    """SPEC-041: Get compacted governance context for a role and spec."""
+    project_name = request.args.get("project")
+    role = request.args.get("role")
+    spec_id = request.args.get("spec_id")
+    session_id = request.args.get("session_id")
+
+    if not role:
+        return jsonify({"error": "Missing role parameter"}), 400
+
+    res = _get_project_resources(project_name)
+    manager = TieredContextManager(res["paths"]["root"])
+    context = manager.get_compacted_context(role, spec_id, session_id)
+    
+    return jsonify(context)
+
+@governance_bp.route("/governance/summaries", methods=["GET"])
+def get_intent_summaries():
+    """SPEC-041: Get high-level intent summaries for all ADS events."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
+    from adt_core.ads.summarizer import IntentSummarizer
+    summarizer = IntentSummarizer(res["paths"]["ads"])
+    
+    events = res["query"].get_all_events()
+    summaries = summarizer.group_by_intent(events)
+    
+    return jsonify({"summaries": summaries})
+
 @governance_bp.route("/sessions/start", methods=["POST"])
 def session_start():
     data = request.get_json()
@@ -455,7 +489,9 @@ def session_start():
     res = _get_project_resources(project_name)
     
     session_id = data.get("session_id", "unknown")
+    parent_session_id = data.get("parent_session_id")
     sandbox = data.get("sandbox", False)
+    
     event_id = ADSEventSchema.generate_id("session_start")
     event = ADSEventSchema.create_event(
         event_id=event_id,
@@ -465,6 +501,7 @@ def session_start():
         description=f"Session started: {session_id} for agent {data['agent']} as {data['role']}.",
         spec_ref=data["spec_id"],
         session_id=session_id,
+        parent_session_id=parent_session_id,
         action_data={"sandbox": sandbox}
     )
     res["logger"].log(event)
@@ -1848,3 +1885,170 @@ def api_get_capability_trace(intent_id):
     )
     return jsonify(trace)
 
+
+@governance_bp.route("/session/<session_id>/cost", methods=["GET"])
+def get_session_cost(session_id):
+    """SPEC-041: Get estimated cost for a session."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
+    pricing_path = os.path.join(res["paths"]["root"], "config", "pricing.json")
+    tracker = CostTracker(res["paths"]["ads"], pricing_path)
+    
+    return jsonify(tracker.get_session_cost(session_id))
+
+@governance_bp.route("/path-tier", methods=["GET"])
+def get_path_tier():
+    """SPEC-041: Get jurisdiction tier for a path and role."""
+    path = request.args.get("path")
+    role = request.args.get("role")
+    project_name = request.args.get("project")
+    
+    if not path or not role:
+        return jsonify({"error": "Missing path or role"}), 400
+        
+    res = _get_project_resources(project_name)
+    
+    # We use the internal DTTP constants for tiers (hardcoded in gateway.py)
+    # Ideally these would be in a shared config, but we will mirror the logic here
+    # for SPEC-041 visual feedback.
+    
+    from adt_core.dttp.gateway import SOVEREIGN_PATHS, CONSTITUTIONAL_PATHS
+    
+    normalized_path = os.path.normpath(path)
+    
+    tier = 3
+    if normalized_path in SOVEREIGN_PATHS:
+        tier = 1
+    elif normalized_path in CONSTITUTIONAL_PATHS:
+        tier = 2
+        
+    return jsonify({"path": path, "role": role, "tier": tier})
+
+@governance_bp.route("/governance/sessions/spawn", methods=["POST"])
+def api_spawn_session():
+    """SPEC-042: Spawn a child agent session."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["parent_session_id", "child_role", "child_harness", "task_id", "spec_ref"]):
+        return jsonify({"error": "Missing required fields for spawning"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    
+    # 1. DTTP Authorization (delegate action)
+    dttp_url = current_app.config.get("DTTP_URL", "http://localhost:5002")
+    if project_name:
+        registry = ProjectRegistry()
+        project = registry.get_project(project_name)
+        if project and project.get("dttp_port"):
+            dttp_url = f"http://localhost:{project['dttp_port']}"
+
+    parent_session = res["query"].get_session_details(data["parent_session_id"])
+    if not parent_session:
+        return jsonify({"error": f"Parent session {data['parent_session_id']} not found"}), 404
+    
+    parent_role = parent_session.get("role")
+    parent_agent = parent_session.get("agent")
+
+    dttp_payload = {
+        "agent": parent_agent,
+        "role": parent_role,
+        "spec_id": data["spec_ref"],
+        "action": "delegate",
+        "params": {
+            "child_role": data["child_role"],
+            "task_id": data["task_id"],
+            "spec_ref": data["spec_ref"]
+        },
+        "rationale": data.get("context_hint", f"Spawning sub-agent for {data['task_id']}")
+    }
+    
+    try:
+        resp = http_client.post(f"{dttp_url}/request", json=dttp_payload, timeout=5)
+        if not resp.ok:
+            return jsonify(resp.json()), resp.status_code
+    except Exception as e:
+        return jsonify({"error": f"DTTP service error: {e}"}), 500
+
+    # 2. Approved! Log session_delegated to ADS
+    import uuid
+    child_session_id = f"evt_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+
+    event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("session_del"),
+        agent=parent_agent,
+        role=parent_role,
+        action_type="session_delegated",
+        description=f"Delegated {data['task_id']} to {data['child_role']} ({data['child_harness']}).",
+        spec_ref=data["spec_ref"],
+        session_id=data["parent_session_id"],
+        action_data={
+            "child_session_id": child_session_id,
+            "child_role": data["child_role"],
+            "child_harness": data["child_harness"],
+            "task_id": data["task_id"],
+            "strategy": data.get("strategy", "serial"),
+            "skip_permissions": data.get("skip_permissions", False)
+        }
+    )
+    res["logger"].log(event)
+
+    return jsonify({
+        "status": "spawned",
+        "child_session_id": child_session_id,
+        "ads_event_id": event["event_id"]
+    })
+
+@governance_bp.route("/governance/sessions/tree", methods=["GET"])
+def get_session_tree():
+    """SPEC-042: Reconstruct parent-child session hierarchy."""
+    project_name = request.args.get("project")
+    res = _get_project_resources(project_name)
+    
+    events = res["query"].get_all_events()
+    
+    sessions = {}
+    
+    for e in events:
+        if e.get("action_type") == "session_start":
+            sid = e.get("session_id")
+            if sid:
+                sessions[sid] = {
+                    "session_id": sid,
+                    "role": e.get("role"),
+                    "agent": e.get("agent"),
+                    "status": "active",
+                    "parent_session_id": e.get("parent_session_id"),
+                    "task_id": e.get("action_data", {}).get("task_id"),
+                    "children": []
+                }
+        elif e.get("action_type") == "session_end":
+            sid = e.get("session_id")
+            if sid in sessions:
+                sessions[sid]["status"] = "completed"
+        elif e.get("action_type") == "session_delegated":
+            child_id = e.get("action_data", {}).get("child_session_id")
+            parent_id = e.get("session_id")
+            if child_id and child_id not in sessions:
+                sessions[child_id] = {
+                    "session_id": child_id,
+                    "role": e.get("action_data", {}).get("child_role"),
+                    "agent": e.get("action_data", {}).get("child_harness"),
+                    "status": "spawning",
+                    "parent_session_id": parent_id,
+                    "task_id": e.get("action_data", {}).get("task_id"),
+                    "children": []
+                }
+            elif child_id and child_id in sessions:
+                sessions[child_id]["parent_session_id"] = parent_id
+                sessions[child_id]["task_id"] = e.get("action_data", {}).get("task_id")
+
+    root_sessions = []
+    for sid, s in sessions.items():
+        parent_id = s.get("parent_session_id")
+        if parent_id and parent_id in sessions:
+            sessions[parent_id]["children"].append(s)
+        else:
+            root_sessions.append(s)
+            
+    return jsonify({"sessions": root_sessions})
