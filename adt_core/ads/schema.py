@@ -19,6 +19,20 @@ class ADSEventSchema:
         "authorized"
     ]
 
+    # SPEC-041: Swarm Governance / Session Tracking
+    OPTIONAL_FIELDS = [
+        "session_id",
+        "parent_session_id",
+        "tier",
+        "action_data",
+        "prev_hash",
+        "hash",
+        "execution_result",
+        "escalation",
+        "intent_id",
+        "gate_id"
+    ]
+
     # SPEC-026: Task Lifecycle Event Types
     TASK_EVENTS = [
         "task_status_updated",  # Agent self-service
@@ -41,6 +55,13 @@ class ADSEventSchema:
     # SPEC-039: Orchestration and Steering Event Types
     ORCHESTRATION_EVENTS = [
         "human_steering"
+    ]
+
+    # SPEC-042: Swarm Spawning Event Types
+    SWARM_EVENTS = [
+        "session_delegated",
+        "session_delegation_complete",
+        "session_group_created"
     ]
 
     # SPEC-020 Amendment B: Canonical values for normalization
@@ -111,6 +132,8 @@ class ADSEventSchema:
         spec_ref: str,
         authorized: bool = True,
         tier: Optional[int] = None,
+        session_id: Optional[str] = None,
+        parent_session_id: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Helper to create a standard event dictionary."""
@@ -126,5 +149,10 @@ class ADSEventSchema:
         }
         if tier is not None:
             event["tier"] = tier
+        if session_id:
+            event["session_id"] = session_id
+        if parent_session_id:
+            event["parent_session_id"] = parent_session_id
+        
         event.update(kwargs)
         return event
