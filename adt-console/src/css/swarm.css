@@ -1,9 +1,11 @@
 /* SPEC-042: Swarm CSS */
-.sessions-tree { font-size: 11px; color: var(--text-secondary); }
-.session-node { margin-top: 4px; }
-.session-node-content { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+.sessions-tree { font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+.session-node { margin-top: 4px; position: relative; }
+.session-node-content { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
 .session-node-content:hover { background: var(--bg-tertiary); }
-.harness-badge { font-size: 8px; font-weight: 800; padding: 0 3px; border-radius: 3px; border: 1px solid currentColor; }
+.session-node-content.active-tab { background: rgba(107, 127, 215, 0.1); border-left: 2px solid var(--accent-blue); }
+.session-children { margin-left: 10px; border-left: 1px solid var(--border); padding-left: 8px; margin-top: 2px; }
+.harness-badge { font-size: 8px; font-weight: 800; padding: 0 3px; border-radius: 3px; border: 1px solid currentColor; min-width: 15px; display: flex; align-items: center; justify-content: center; }
 .badge-claude { color: var(--accent-blue); border-color: var(--accent-blue); }
 .badge-gemini { color: var(--accent-purple); border-color: var(--accent-purple); }
-.pulse-active { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); }
+.pulse-active { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); }
