@@ -51,6 +51,7 @@ const ContextPanel = (() => {
     await fetchDelegations();
     await fetchDTTPStatus();
     await fetchCapabilityContext(session);
+    if (typeof fetchSessionTree === "function") await fetchSessionTree();
 
     // If Tauri, try reading local files as fallback
     if (window.__TAURI__) {
@@ -126,11 +127,25 @@ const ContextPanel = (() => {
                   ${tasks.map(task => {
                     const statusClass = task.status === 'in_progress' ? 'status-active' : (task.status === 'completed' ? 'status-done' : '');
                     const isCompleted = task.status === 'completed';
+                    
+                    // SPEC-041: Find sessions for this task (if session_id mapping exists in tasks)
+                    // For now, we mock/check if task has session data
+                    const sessionInfo = task.active_sessions || [];
+                    
                     return `
                       <div class="tree-node task-node ${statusClass}" id="node-task-${task.id}">
                         <div class="tree-header d-flex justify-content-between align-items-center">
                           <span><strong class="me-1">${task.id}:</strong> ${task.title}</span>
                           ${!isCompleted ? `<button class="btn-prioritize" onclick="ContextPanel.prioritizeTask('${task.id}')" title="Prioritize Task">&#9654;</button>` : ''}
+                        </div>
+                        <div class="tree-children">
+                          ${sessionInfo.map(s => `
+                            <div class="tree-node session-node">
+                              <div class="tree-header" style="font-size: 9px; opacity: 0.8;">
+                                <i class="bi bi-cpu me-1"></i>Session: ${s.session_id.substring(0,8)}... (${s.agent})
+                              </div>
+                            </div>
+                          `).join('')}
                         </div>
                       </div>
                     `;
@@ -205,6 +220,39 @@ const ContextPanel = (() => {
       pulseEl.classList.add('pulse-green');
       if (workingOn) workingOn.style.display = 'none';
       setTimeout(() => pulseEl.classList.remove('pulse-green'), 2000);
+    }
+  }
+
+
+  async function fetchCostData(session) {
+    try {
+      const projectName = session?.project;
+      const sessionId = session?.id;
+      if (!sessionId) return;
+
+      const url = `${getCenterUrl()}/api/governance/session/${sessionId}/cost?project=${encodeURIComponent(projectName || "")}`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      updateCostMonitor(data.cost_usd, data.input_tokens + data.output_tokens);
+    } catch (e) {
+      console.error("fetchCostData error:", e);
+    }
+  }
+
+  function updateCostMonitor(cost, tokens) {
+    const costEl = document.getElementById("ctx-cost-value");
+    const tokenEl = document.getElementById("ctx-token-value");
+    
+    if (costEl) {
+      const costStr = cost < 0.01 && cost > 0 ? "<$0.01" : `$${cost.toFixed(2)}`;
+      costEl.textContent = costStr;
+    }
+    if (tokenEl) {
+      const tokenStr = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + "M" : 
+                       (tokens >= 1000 ? (tokens / 1000).toFixed(1) + "K" : tokens);
+      tokenEl.textContent = tokenStr;
     }
   }
 
@@ -926,6 +974,7 @@ const ContextPanel = (() => {
           .slice(-10)
           .reverse();
         renderADSFeed(agentEvents);
+      fetchCostData(session);
         updateADSCount(allEvents.length);
         document.getElementById('ctx-event-count').textContent =
           agentEvents.length + ' agent events';
@@ -1039,6 +1088,7 @@ const ContextPanel = (() => {
         .reverse();
 
       renderADSFeed(agentEvents);
+      fetchCostData(session);
       updateADSCount(allEvents.length);
 
       // Count this session's events
@@ -1123,31 +1173,96 @@ const ContextPanel = (() => {
     });
   }
 
+
   function renderADSFeed(events) {
-    const feed = document.getElementById('ctx-ads-feed');
-    feed.innerHTML = '';
+    const feed = document.getElementById("ctx-ads-feed");
+    feed.innerHTML = "";
 
     if (events.length === 0) {
       feed.innerHTML = '<li style="color:var(--text-muted)">No events</li>';
       return;
     }
 
-    events.forEach(event => {
-      if (events.indexOf(event) === 0) handleADSFeedback(event);
-      const li = document.createElement('li');
-      const typeClass = getEventTypeClass(event.action_type);
-      const time = event.ts ? new Date(event.ts).toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' }) : '';
-      li.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="event-type ${typeClass}" style="font-size:9px; font-weight:800;">${event.action_type.toUpperCase()}</span>
-          <span style="color:var(--text-muted); font-size:10px;">${time}</span>
-        </div>
-        <div style="margin-top:2px; line-height:1.2;">${truncate(event.description, 100)}</div>
-        <div class="ctx-meta" style="font-size:9px; opacity:0.7;">${event.spec_ref || ''}</div>
-      `;
-      li.title = event.description || '';
-      feed.appendChild(li);
+    // Group events into "Intent Clusters" (rule-based for now)
+    const clusters = [];
+    let currentCluster = null;
+
+    // Use reverse() because events passed in are already reversed (latest first)
+    // We want to process them chronologically for clustering, then show latest cluster first
+    const chronoEvents = [...events].reverse();
+
+    chronoEvents.forEach(event => {
+      const ts = new Date(event.ts).getTime();
+      const isNewCluster = !currentCluster || 
+                           event.spec_ref !== currentCluster.spec_ref || 
+                           (ts - currentCluster.lastTs) > 60000;
+
+      if (isNewCluster) {
+        currentCluster = {
+          spec_ref: event.spec_ref,
+          role: event.role,
+          startTs: ts,
+          lastTs: ts,
+          events: [event],
+          description: event.description
+        };
+        clusters.push(currentCluster);
+      } else {
+        currentCluster.events.push(event);
+        currentCluster.lastTs = ts;
+      }
     });
+
+    // Render clusters (latest first)
+    clusters.reverse().forEach(cluster => {
+      const latestEvent = cluster.events[cluster.events.length - 1];
+      if (clusters.indexOf(cluster) === 0) handleADSFeedback(latestEvent);
+
+      const successes = cluster.events.filter(e => e.authorized).length;
+      const denied = cluster.events.filter(e => !e.authorized).length;
+      
+      const node = document.createElement("div");
+      const statusClass = denied > 0 ? "denied" : "success";
+      node.className = `timeline-node ${statusClass}`;
+      
+      const time = new Date(cluster.lastTs).toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" });
+      
+      // Check for exit codes in cluster events
+      let exitBadge = "";
+      cluster.events.forEach(e => {
+        if (e.execution_result && e.execution_result.exit_code !== undefined) {
+          const code = e.execution_result.exit_code;
+          const badgeClass = code === 0 ? "exit-0" : "exit-err";
+          exitBadge += `<span class="exit-badge ${badgeClass}">${code}</span>`;
+        }
+      });
+
+      // Jurisdiction visual feedback (SPEC-041 Phase 3)
+      const firstPath = cluster.events.find(e => e.params?.file || e.params?.path)?.params?.file;
+      let tierBadge = "";
+      if (firstPath && typeof JurisdictionUI !== "undefined") {
+        const tier = JurisdictionUI.getPathTierSync(firstPath, cluster.role);
+        tierBadge = JurisdictionUI.renderTierBadge(tier);
+        node.classList.add(JurisdictionUI.getTierClass(tier));
+      }
+
+      node.innerHTML = `
+        <div class="node-header">
+          <span class="node-title">${tierBadge}${cluster.spec_ref || "UNSPECIFIED"}</span>
+          <span class="node-time">${time}</span>
+        </div>
+        <div class="node-summary">${truncate(cluster.description, 80)}${exitBadge}</div>
+        <div class="node-stats">
+          <span style="color:var(--accent-green)">● ${successes}</span>
+          ${denied > 0 ? `<span style="color:var(--accent-red)">● ${denied}</span>` : ""}
+          <span style="opacity:0.5">${cluster.events.length} events</span>
+        </div>
+      `;
+      
+      feed.appendChild(node);
+    });
+  }
+
   }
 
   function getEventTypeClass(actionType) {
