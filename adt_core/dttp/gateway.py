@@ -109,7 +109,7 @@ class DTTPGateway:
 
         # 1. Sovereign Path Check (Tier 1) - SPEC-020 Section 2.1
         # Skip for external projects (SPEC-031)
-        if False: # TEMP BYPASS FOR EMERGENCY RECOVERY: if self.is_framework and normalized_path in SOVEREIGN_PATHS:
+        if self.is_framework and normalized_path in SOVEREIGN_PATHS:
             event_id = ADSEventSchema.generate_id("sovereign_violation")
             self.logger.log(ADSEventSchema.create_event(
                 event_id=event_id,
