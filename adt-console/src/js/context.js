@@ -1361,6 +1361,7 @@ const ContextPanel = (() => {
             fetchDelegations();
             fetchRequests();
             fetchDTTPStatus();
+            fetchSessionTree();
           }
         }, 10000);
       }
