@@ -78,6 +78,13 @@ class ADSEventSchema:
         "session_group_created"
     ]
 
+    # SPEC-042: Swarm Spawning Event Types
+    SWARM_EVENTS = [
+        "session_delegated",
+        "session_delegation_complete",
+        "session_group_created"
+    ]
+
     # SPEC-020 Amendment B: Canonical values for normalization
     CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN", "SYSTEM"]
     CANONICAL_ROLES: Optional[List[str]] = None  # Loaded at startup
