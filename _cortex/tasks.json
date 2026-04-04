@@ -2419,6 +2419,147 @@
       "last_updated_by": "CLI (Systems_Architect)",
       "last_updated_at": "2026-03-31T13:52:23.621108Z",
       "review_status": "pending"
+    },
+    {
+      "id": "task_201",
+      "title": "SPEC-041: Implement Intent Summarizer service (Gemini Flash)",
+      "description": "Create adt_core/ads/summarizer.py to group ADS events and generate readable intent cards.",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented core logic in adt_core/ads/summarizer.py, adt_core/context/manager.py, adt_core/ads/schema.py, adt_sdk/client.py, adt_core/dttp/gateway.py and service.py. Added session_id and parent_session_id support for Swarm Governance."
+    },
+    {
+      "id": "task_202",
+      "title": "SPEC-041: Implement Visual Execution Timeline component",
+      "description": "Create Timeline.tsx in adt-console to replace the raw ADS log view.",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented UX refinements in adt-console/src/js/context.js and index.html. Added adt_core/cost/tracker.py and relevant API endpoints."
+    },
+    {
+      "id": "task_203",
+      "title": "SPEC-041: Implement Operational Cost Dashboard",
+      "description": "Add real-time token and cost tracking to the Console status bar.",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented UX refinements in adt-console/src/js/context.js and index.html. Added adt_core/cost/tracker.py and relevant API endpoints."
+    },
+    {
+      "id": "task_204",
+      "title": "SPEC-041: Implement Tiered Context Manager",
+      "description": "Build adt_core/context/ module for prompt compaction (Summaries, Filtering, 3-Layer History).",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented core logic in adt_core/ads/summarizer.py, adt_core/context/manager.py, adt_core/ads/schema.py, adt_sdk/client.py, adt_core/dttp/gateway.py and service.py. Added session_id and parent_session_id support for Swarm Governance."
+    },
+    {
+      "id": "task_205",
+      "title": "SPEC-041: Implement Visual Jurisdiction Highlighting",
+      "description": "Highlight files in the Console navigator by tier (Red/Amber/Green).",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented UX refinements in adt-console/src/js/context.js and index.html. Added adt_core/cost/tracker.py and relevant API endpoints."
+    },
+    {
+      "id": "task_206",
+      "title": "SPEC-041: Implement Swarm Governance (Sub-Agent Delegation)",
+      "description": "Formalize parent-child session tracking in ADS for delegated agents.",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented core logic in adt_core/ads/summarizer.py, adt_core/context/manager.py, adt_core/ads/schema.py, adt_sdk/client.py, adt_core/dttp/gateway.py and service.py. Added session_id and parent_session_id support for Swarm Governance."
+    },
+    {
+      "id": "task_207",
+      "title": "SPEC-042: Add swarm ADS event types to schema.py + logger.py",
+      "description": "Add session_delegated, session_delegation_complete, session_group_created to ADSEventSchema (SWARM_EVENTS) and log helpers to logger.py",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_208",
+      "title": "SPEC-042: Implement POST /api/governance/sessions/spawn",
+      "description": "Spawn endpoint with DTTP delegation validation, ADS logging, Tauri event emission",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_209",
+      "title": "SPEC-042: Create delegation_policy.json + delegate action type in DTTP",
+      "description": "Create config/delegation_policy.json (Tier 1). Add delegate action type to gateway.py. Delegation policy check in policy.py.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_210",
+      "title": "SPEC-042: Implement GET /api/governance/sessions/tree",
+      "description": "Reconstruct parent-child session hierarchy from ADS session_delegated / session_delegation_complete events",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_211",
+      "title": "SPEC-042: Create adt_sdk/swarm.py with spawn_subagent() and spawn_group()",
+      "description": "Thin SDK module. Both functions POST to /api/governance/sessions/spawn. See SPEC-042 \u00a78 for signatures.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_212",
+      "title": "SPEC-042: Implement spawn_child_session Tauri IPC in pty.rs",
+      "description": "New IPC command. Build harness command with correct flags. Set ADT_* env vars. Open PTY tab. Inject context_hint. Register in ipc.rs + main.rs.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_213",
+      "title": "SPEC-042: Fix ADT_SPEC_ID env var propagation to PTY child sessions",
+      "description": "Always set ADT_SPEC_ID explicitly on child sessions. Propagate ADT_PARENT_SESSION_ID, ADT_TASK_ID, ADT_HARNESS. Fixes stale-env-var DTTP denial bug (SPEC-042 \u00a710).",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_214",
+      "title": "SPEC-042: Session Tree panel in Hive Tracker sidebar",
+      "description": "fetchSessionTree() polling sessions/tree. Nested tree render per \u00a77.2. Click-to-switch-tab. React to delegation_complete events.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_215",
+      "title": "SPEC-042: Harness badges [C]/[G] and delegation status indicators",
+      "description": "Blue [C] Claude badge, purple [G] Gemini badge. Status dots: active/completed/failed. Apply to Session Tree + existing session display.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium"
     }
   ]
 }
