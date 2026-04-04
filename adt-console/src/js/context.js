@@ -1449,7 +1449,63 @@ const ContextPanel = (() => {
         }
       }
     
-      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest, prioritizeTask, openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate };
+
+  async function fetchSessionTree() {
+    try {
+      const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
+      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/tree`);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderSessionTree(data.tree || []);
+    } catch (e) {
+      console.error("fetchSessionTree error:", e);
+    }
+  }
+
+  function renderSessionTree(tree) {
+    const container = document.getElementById("ctx-sessions-tree");
+    if (!container) return;
+
+    if (!tree || tree.length === 0) {
+      container.innerHTML = "<div class=\"ctx-empty\">No active swarm</div>";
+      return;
+    }
+
+    const renderNode = (node) => {
+      const isClaude = (node.agent || "").toLowerCase().includes("claude");
+      const isGemini = (node.agent || "").toLowerCase().includes("gemini");
+      const badgeClass = isClaude ? "badge-claude" : (isGemini ? "badge-gemini" : "");
+      const badgeChar = isClaude ? "C" : (isGemini ? "G" : "?");
+      const isActive = currentSession && node.session_id === currentSession.id;
+      const activeClass = isActive ? "active-tab" : "";
+      
+      const roleParts = (node.role || "??").split("_");
+      const roleAbbr = roleParts.map(word => word[0]).join("").toUpperCase();
+
+      let html = `<div class=\"session-node\">
+          <div class=\"session-node-content ${activeClass}\" onclick=\"SessionManager.switchTo('${node.session_id}')\">
+            <span class=\"pulse-active\"></span>
+            <span class=\"harness-badge ${badgeClass}\">${badgeChar}</span>
+            <span class=\"session-role-abbr\" title=\"${node.role}\">${roleAbbr}</span>
+            <span class=\"session-task-id\">${node.task_id || ""}</span>
+          </div>`;
+      
+      if (node.children && node.children.length > 0) {
+        html += `<div class=\"session-children\">`;
+        node.children.forEach(child => {
+          html += renderNode(child);
+        });
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+      return html;
+    };
+
+    container.innerHTML = tree.map(node => renderNode(node)).join("");
+  }
+
+      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest, prioritizeTask, openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, fetchSessionTree };
     })();
     
     // Global alias for onclick handlers
