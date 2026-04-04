@@ -89,6 +89,14 @@ class ADSEventSchema:
         "delegation_denied"
     ]
 
+    # SPEC-042: Swarm Governance Event Types
+    SWARM_EVENTS = [
+        "session_delegated",
+        "session_delegation_complete",
+        "session_group_created",
+        "delegation_denied"
+    ]
+
     # SPEC-042: Swarm Spawning Event Types
     SWARM_EVENTS = [
         "session_delegated",
