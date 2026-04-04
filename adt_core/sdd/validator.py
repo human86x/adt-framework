@@ -48,6 +48,18 @@ class SpecValidator:
 
         return True
 
+    def is_authorized_for_role(self, spec_id: str, role: str) -> bool:
+        """Checks if the role is authorized under the spec (regardless of action)."""
+        self._reload_config()
+        spec_info = self._config.get("specs", {}).get(spec_id)
+        if not spec_info:
+            return False
+        
+        if spec_info.get("status") not in ("approved", "active"):
+            return False
+        
+        return role in spec_info.get("roles", [])
+
     def get_authorized_paths(self, spec_id: str) -> List[str]:
         """Returns the list of paths authorized by the spec."""
         self._reload_config()
