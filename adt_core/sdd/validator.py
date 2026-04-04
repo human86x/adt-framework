@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Restart Trigger
 
 
 class SpecValidator:
