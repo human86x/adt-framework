@@ -126,6 +126,26 @@ class DTTPGateway:
             ))
             return {"status": "denied", "reason": "sovereign_path_violation"}
 
+
+        # SPEC-042: Delegate Action Handling
+        if action == "delegate":
+            child_role = params.get("child_role")
+            task_id = params.get("task_id")
+            spec_ref = params.get("spec_ref")
+            
+            allowed, reason = self.policy_engine.validate_delegation(role, child_role, task_id, spec_ref)
+            if not allowed:
+                event_id = ADSEventSchema.generate_id("denied_delegate")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="denied_delegate",
+                    description=f"DENIED: Delegation to {child_role} for task {task_id} failed. Reason: {reason}",
+                    spec_ref=spec_id, authorized=False, tier=3, escalation=True,
+                    session_id=session_id, parent_session_id=parent_session_id))
+                return {"status": "denied", "reason": reason}
+            
+            # Delegation is virtual, it doesn't have an execution result in ActionHandler
+            return {"status": "allowed", "result": {"status": "success", "message": "Delegation authorized"}}
+
         # 2. Constitutional Path Check (Tier 2) - SPEC-020 Section 2.2
         tier = 3
         is_tier2 = False
