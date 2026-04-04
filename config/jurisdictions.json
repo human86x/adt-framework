@@ -40,7 +40,7 @@
         "tests/integration/",
         "adt_center/api/governance_routes.py",
         "_cortex/work_logs/",
-        "_cortex/capabilities/capability_events.jsonl",
+        "_cortex/capabilities/",
         "adt_core/ads/schema.py"
       ],
       "action_types": [
@@ -59,7 +59,7 @@
         "adt-console/src/",
         "install.sh",
         "_cortex/work_logs/",
-        "_cortex/capabilities/capability_events.jsonl"
+        "_cortex/capabilities/"
       ],
       "action_types": [
         "edit",
@@ -89,7 +89,7 @@
         "adt_sdk/",
         "_cortex/work_logs/",
         "install.sh",
-        "_cortex/capabilities/capability_events.jsonl"
+        "_cortex/capabilities/"
       ],
       "action_types": [
         "edit",
@@ -109,7 +109,7 @@
         "_cortex/docs/",
         "_cortex/requests.md",
         "_cortex/work_logs/",
-        "_cortex/capabilities/capability_events.jsonl"
+        "_cortex/capabilities/"
       ],
       "action_types": [
         "edit",
