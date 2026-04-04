@@ -33,10 +33,16 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
     app.config["DTTP"] = config
 
     # Initialize engines
+    from adt_core.sdd.tasks import TaskManager
+    tasks_path = os.path.join(config.project_root, "_cortex", "tasks.json")
+    task_manager = TaskManager(tasks_path, project_name=config.project_name)
+    
+    delegation_policy_path = os.path.join(config.project_root, "config", "delegation_policy.json")
+
     ads_logger = ADSLogger(config.ads_path)
     validator = SpecValidator(config.specs_config)
     jurisdictions = JurisdictionManager(config.jurisdictions_config)
-    policy_engine = PolicyEngine(validator, jurisdictions)
+    policy_engine = PolicyEngine(validator, jurisdictions, task_manager=task_manager, delegation_policy_path=delegation_policy_path)
     action_handler = ActionHandler(config.project_root)
     gateway = DTTPGateway(policy_engine, action_handler, ads_logger, is_framework=config.is_framework_project)
 
@@ -78,6 +84,8 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
         app.dttp_stats["total_requests"] += 1
 
         dry_run = bool(data.get("dry_run", False))
+        session_id = data.get("session_id")
+        parent_session_id = data.get("parent_session_id")
 
         result = app.dttp_gateway.request(
             agent=data["agent"],
@@ -87,6 +95,8 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
             params=data["params"],
             rationale=data["rationale"],
             dry_run=dry_run,
+            session_id=session_id,
+            parent_session_id=parent_session_id
         )
 
         if result["status"] == "denied":
