@@ -64,6 +64,14 @@ fn resolve_command(command: &str, user_path: &str) -> String {
 
 /// Environment variables that must NEVER be passed to sandboxed agent sessions.
 /// These could leak sensitive credentials or paths outside the sandbox.
+
+/// Environment variables that are EXPLICITLY allowed to pass into sandboxed sessions.
+const SANDBOX_ENV_ALLOWLIST: &[&str] = &[
+    "GEMINI_API_KEY",
+    "CLAUDE_CONFIG_DIR",
+    "GEMINI_CONFIG_DIR",
+];
+
 const SANDBOX_ENV_DENYLIST: &[&str] = &[
     "SSH_AUTH_SOCK", "SSH_AGENT_PID",
     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
@@ -280,6 +288,13 @@ fn apply_sandbox_env(
         cmd.env("ADT_SANDBOX_ROOT", &project_str);
         cmd.env("ADT_PROJECT_DIR", &project_str);
         cmd.env("DTTP_URL", dttp_url);
+    }
+
+    // Pass through allowed variables from the host environment
+    for var in SANDBOX_ENV_ALLOWLIST {
+        if let Ok(val) = std::env::var(var) {
+            cmd.env(var, val);
+        }
     }
 
     // Remove sensitive environment variables
@@ -620,8 +635,12 @@ fn build_bridge_wrapper(
 
     // The wrapper starts background socat bridges inside the namespace (Unix Socket -> TCP)
     // then execs the agent command.
+    // The wrapper starts background socat bridges inside the namespace (Unix Socket -> TCP)
+    // then execs the agent command.
+    // We also bring up the loopback interface (lo) inside the new network namespace.
     let script = format!(
-        "socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
+        "/usr/sbin/ip link set lo up || true; \
+         socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          exec {}",
         dttp_port, dttp_sock,
@@ -692,6 +711,7 @@ fn wrap_with_namespace(
                 "/usr/bin/unshare".to_string(),
                 vec![
                     "--mount".to_string(),
+                    "--net".to_string(),
                     "--map-root-user".to_string(),
                     "--fork".to_string(),
                     "--".to_string(),
@@ -722,6 +742,8 @@ pub struct SessionInfo {
     pub agent_user: Option<String>,
     pub sandboxed: Option<bool>,
     pub sandbox_tier: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -734,6 +756,8 @@ pub struct PersistentSession {
     pub command: String,
     pub args: Vec<String>,
     pub cwd: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
 }
 
 struct PtySession {
@@ -870,6 +894,8 @@ impl PtyManager {
         command: &str,
         args: &[String],
         cwd: Option<String>,
+        parent_session_id: Option<String>,
+        task_id: Option<String>,
         cols: u16,
         rows: u16,
         app_handle: tauri::AppHandle<R>,
@@ -1035,10 +1061,35 @@ impl PtyManager {
                         ) {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
-                        // Note: Do NOT inject --sandbox flag. Gemini's --sandbox requires
-                        // docker/podman for container isolation. Our sandbox is DTTP-based
-                        // (hook enforcement + env isolation), not container-based.
-                        log::info!("[SANDBOX] Gemini DTTP hook sandbox configured (no --sandbox flag)");
+                        
+                        // Credential Inheritance: Copy global credentials from host home to sandbox home
+                        if let Some(host_home) = dirs::home_dir() {
+                            let host_gemini_dir = host_home.join(".gemini");
+                            let sandbox_gemini_dir = sb_root.join("home").join(".gemini");
+                            fs::create_dir_all(&sandbox_gemini_dir).map_err(|e| format!("Failed to create sandbox .gemini dir: {}", e))?;
+                            
+                            if let Ok(entries) = fs::read_dir(&host_gemini_dir) {
+                                for entry in entries.flatten() {
+                                    let path = entry.path();
+                                    if path.is_file() {
+                                        let file_name = path.file_name().unwrap();
+                                        let dest = sandbox_gemini_dir.join(file_name);
+                                        if let Ok(_) = fs::copy(&path, &dest) {
+                                            let _ = Command::new("/bin/chmod")
+                                                .args(["666", &dest.to_string_lossy()])
+                                                .output();
+                                        }
+                                    }
+                                }
+                            }
+                            // Ensure the .gemini directory itself is writable
+                            let _ = Command::new("/bin/chmod")
+                                .args(["777", &sandbox_gemini_dir.to_string_lossy()])
+                                .output();
+                            log::info!("[SANDBOX] Gemini credentials inherited from host");
+                        }
+
+                        log::info!("[SANDBOX] Gemini DTTP hook sandbox configured");
                     }
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
@@ -1083,6 +1134,14 @@ impl PtyManager {
         cmd.env("ADT_AGENT", agent);
         cmd.env("ADT_ROLE", role);
         cmd.env("ADT_SPEC_ID", spec_id);
+        cmd.env("ADT_HARNESS", agent);
+        cmd.env("ADT_SESSION_ID", &session_id);
+        if let Some(pid) = &parent_session_id {
+            cmd.env("ADT_PARENT_SESSION_ID", pid);
+        }
+        if let Some(tid) = &task_id {
+            cmd.env("ADT_TASK_ID", tid);
+        }
         if sandbox_root.is_none() {
             // Only set DTTP_URL here if not already set by sandbox env
             cmd.env("DTTP_URL", &dttp_url);
@@ -1128,6 +1187,8 @@ impl PtyManager {
             } else {
                 None
             },
+            parent_session_id: parent_session_id.clone(),
+            task_id: task_id.clone(),
         };
 
         let metadata = PersistentSession {
@@ -1139,6 +1200,8 @@ impl PtyManager {
             command: command.to_string(),
             args: args.to_vec(),
             cwd: cwd.clone(),
+            parent_session_id: parent_session_id,
+            task_id: task_id,
         };
 
         // Start reader thread — forwards PTY output to frontend via events
@@ -1348,6 +1411,8 @@ impl PtyManager {
                 &s.command,
                 &s.args,
                 s.cwd,
+                s.parent_session_id,
+                s.task_id,
                 120, // Default cols
                 30,  // Default rows
                 app_handle.clone(),
@@ -1371,6 +1436,8 @@ mod tests {
             command: "bash".to_string(),
             args: vec!["-c".to_string(), "ls".to_string()],
             cwd: Some("/tmp".to_string()),
+            parent_session_id: None,
+            task_id: None,
         };
 
         let json = serde_json::to_string(&session).unwrap();
@@ -1392,6 +1459,8 @@ mod tests {
             agent_user: Some("agent".to_string()),
             sandboxed: Some(true),
             sandbox_tier: Some("phase_b".to_string()),
+            parent_session_id: None,
+            task_id: None,
         };
 
         let json = serde_json::to_string(&info).unwrap();

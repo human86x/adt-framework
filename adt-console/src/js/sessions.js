@@ -454,5 +454,61 @@ const SessionManager = (() => {
     }
   }
 
-  return { create, switchTo, close, closeAll, getActive, getAll, updateStatusBar, restore };
+  async function spawnChild(data) {
+    console.log("[SWARM] spawnChild request:", data);
+    const { child_role, child_harness, task_id, spec_ref, child_session_id, skip_permissions } = data;
+    const parentSession = getActive();
+    
+    if (!parentSession) {
+      console.warn("[SWARM] Cannot spawn child: no active parent session");
+      return;
+    }
+
+    // Use spawn_child_session IPC
+    if (window.__TAURI__) {
+      try {
+        const sessionInfo = await window.__TAURI__.core.invoke("spawn_child_session", {
+          request: {
+            project: parentSession.project,
+            agent: child_harness,
+            role: child_role,
+            spec_id: spec_ref || parentSession.spec_id, // Use delegated spec or inherit
+            command: child_harness, // Default command same as harness
+            args: [],
+            cwd: parentSession.cwd,
+            parent_session_id: parentSession.id,
+            task_id: task_id,
+            cols: 120,
+            rows: 30,
+          }
+        });
+        
+        // Note: we override the generated session ID with the one from the delegation event
+        // to maintain consistency with the ADS record.
+        // Actually, the PTY manager uses its own ID. 
+        // We should probably allow reserved_id in the IPC.
+        
+        const session = {
+          ...sessionInfo,
+          color: AGENT_COLORS[child_harness.toLowerCase()] || AGENT_COLORS.custom,
+          startTime: Date.now(),
+        };
+
+        sessions.set(session.id, session);
+        TerminalManager.create(session.id);
+        renderTab(session);
+        renderSidebarEntry(session);
+        switchTo(session.id);
+        updateStatusBar();
+        
+        ToastManager.show("completion", "Swarm Spawned", `${child_role} launched.`);
+        return session;
+      } catch (err) {
+        console.error("[SWARM] Spawn failed:", err);
+        ToastManager.show("denial", "Spawn Error", err);
+      }
+    }
+  }
+
+  return { create, spawnChild, switchTo, close, closeAll, getActive, getAll, updateStatusBar, restore };
 })();

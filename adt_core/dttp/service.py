@@ -188,7 +188,7 @@ def main():
 
     logger.info("Starting DTTP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
     app = create_dttp_app(config)
-    app.run(host="::", port=config.port, debug=(config.mode == "development"))
+    app.run(host="::", port=config.port, debug=(config.mode == "development"), use_reloader=False)
 
 
 if __name__ == "__main__":

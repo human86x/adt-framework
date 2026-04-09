@@ -1151,6 +1151,7 @@ const ContextPanel = (() => {
   }
 
   let lastKnownEventCount = 0;
+  const spawnedSessions = new Set();
 
   function checkForNotifiableEvents(events) {
     if (lastKnownEventCount === 0) {
@@ -1169,6 +1170,15 @@ const ContextPanel = (() => {
         ToastManager.show('escalation', 'ESCALATION', truncate(event.description, 80));
       } else if (event.action_type?.includes('task_complete')) {
         ToastManager.show('completion', 'Completed', truncate(event.description, 80));
+      } else if (event.action_type === 'session_delegated') {
+        const data = event.action_data;
+        if (data && data.child_session_id && !spawnedSessions.has(data.child_session_id)) {
+          // If the parent session is the active one, trigger automatic spawn
+          if (currentSession && event.session_id === currentSession.id) {
+            spawnedSessions.add(data.child_session_id);
+            SessionManager.spawnChild(data);
+          }
+        }
       }
     });
   }

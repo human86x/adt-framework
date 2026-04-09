@@ -18,6 +18,8 @@ pub struct CreateSessionRequest {
     pub command: String,
     pub args: Vec<String>,
     pub cwd: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
     pub cols: u16,
     pub rows: u16,
 }
@@ -92,6 +94,43 @@ pub fn create_session<R: Runtime>(
         &request.command,
         &request.args,
         request.cwd,
+        request.parent_session_id,
+        request.task_id,
+        request.cols,
+        request.rows,
+        app_handle,
+    )
+}
+
+#[tauri::command]
+pub fn spawn_child_session<R: Runtime>(
+    request: CreateSessionRequest,
+    pty_manager: State<PtyManager>,
+    app_handle: tauri::AppHandle<R>,
+) -> Result<SessionInfo, String> {
+    log::info!(
+        "[SWARM] Spawning child session: agent={}, role={}, parent={:?}",
+        request.agent, request.role, request.parent_session_id
+    );
+    
+    // For child sessions, we enforce the parent_session_id exists
+    if request.parent_session_id.is_none() {
+        return Err("parent_session_id required for child spawning".to_string());
+    }
+
+    let project_name = request.project.as_deref().unwrap_or("adt-framework");
+    
+    pty_manager.create_session(
+        None,
+        project_name,
+        &request.agent,
+        &request.role,
+        &request.spec_id,
+        &request.command,
+        &request.args,
+        request.cwd,
+        request.parent_session_id,
+        request.task_id,
         request.cols,
         request.rows,
         app_handle,

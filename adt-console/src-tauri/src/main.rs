@@ -46,6 +46,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             ipc::create_session,
+            ipc::spawn_child_session,
             ipc::close_session,
             ipc::write_to_session,
             ipc::inject_pty_command,

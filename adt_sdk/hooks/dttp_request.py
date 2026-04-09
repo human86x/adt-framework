@@ -18,7 +18,7 @@ from adt_sdk.client import ADTClient
 
 def main():
     parser = argparse.ArgumentParser(description="DTTP Request Hook")
-    parser.add_argument("--action", required=True, help="Action type (edit, create, delete, deploy, etc.)")
+    parser.add_argument("--action", required=True, help="Action type (edit, create, delete, deploy, delegate, etc.)")
     parser.add_argument("--file", help="Target file path")
     parser.add_argument("--spec", required=True, help="Spec reference ID")
     parser.add_argument("--rationale", required=True, help="Rationale for the action")
@@ -30,6 +30,11 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Validate only, do not execute")
     parser.add_argument("--agent", default=os.environ.get("ADT_AGENT", "CLI"), help="Agent name")
     parser.add_argument("--role", default=os.environ.get("ADT_ROLE", "unknown"), help="Agent role")
+    
+    # SPEC-042: Swarm Delegation parameters
+    parser.add_argument("--child-role", help="Child role to spawn (for delegate action)")
+    parser.add_argument("--task-id", help="Task ID assigned to the child (for delegate action)")
+    parser.add_argument("--spec-ref", help="Authorizing spec for the child (for delegate action)")
 
     args = parser.parse_args()
 
@@ -52,6 +57,14 @@ def main():
         params["tier2_justification"] = args.justification
     if args.target:
         params["target"] = args.target
+        
+    # SPEC-042: Swarm Delegation parameters
+    if args.child_role:
+        params["child_role"] = args.child_role
+    if args.task_id:
+        params["task_id"] = args.task_id
+    if args.spec_ref:
+        params["spec_ref"] = args.spec_ref
 
     mode = "dry-run" if args.dry_run else "live"
     print(f"Submitting {args.action} request to DTTP ({mode})...", file=sys.stderr)
@@ -71,6 +84,30 @@ def main():
                 params=params,
                 rationale=args.rationale
             )
+        
+        # In development mode, the DTTP service only validates. 
+        # If it returned 'allowed' but didn't execute, we do it here.
+        if response.get("status") == "allowed" and not args.dry_run:
+            # result might have message [Errno 13] or similar if dev mode tried but failed
+            # OR it might just have "DTTP allowed (development mode)"
+            exec_needed = True
+            if "result" in response and "status" in response["result"] and response["result"]["status"] == "success":
+                # For action=delegate, it just returns status=success but no actual execution is needed here
+                if args.action == "delegate":
+                    exec_needed = False
+                else:
+                    exec_needed = False # If DTTP already executed it (e.g. production mode)
+                
+            if exec_needed:
+                from adt_core.dttp.actions import ActionHandler
+                handler = ActionHandler(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+                local_result = handler.execute(args.action, params, agent=args.agent, role=args.role)
+                response["local_execution"] = local_result
+                if local_result.get("status") == "success":
+                    print("Local execution successful.", file=sys.stderr)
+                else:
+                    print(f"Local execution failed: {local_result.get('message')}", file=sys.stderr)
+                    response["status"] = "error" # Mark as error if execution failed
         
         print(json.dumps(response, indent=2))
         
