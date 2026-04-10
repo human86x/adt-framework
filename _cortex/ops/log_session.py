@@ -24,13 +24,14 @@ def main():
     logger = ADSLogger("_cortex/ads/events.jsonl")
     
     if args.action == "session_start":
-        sid = args.session_id or f"sess_{datetime.datetime.now().strftime(\"%Y%m%d_%H%M%S\")}_{uuid.uuid4().hex[:4]}"
+        now = datetime.datetime.now()
+        sid = args.session_id or f"sess_{now.strftime(\"%Y%m%d_%H%M%S\")}_{uuid.uuid4().hex[:4]}"
     else:
         sid = args.session_id or os.environ.get("ADT_SESSION_ID", "unknown")
         
     event = {
         "event_id": ADSEventSchema.generate_id(args.action),
-        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat().replace(\"+00:00\", \"Z\"),
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
         "agent": args.agent,
         "role": args.role,
         "action_type": args.action,
