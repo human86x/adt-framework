@@ -1213,9 +1213,9 @@
         "task_092"
       ],
       "evidence": "Implemented 8 integration tests in tests/test_multi_project.py covering adt init, project registry, API filtering, ADS isolation, and DTTP isolation. All tests passed.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-18T11:35:55.684161Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_104",
@@ -1227,9 +1227,9 @@
       "priority": "critical",
       "depends_on": [],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.232698Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_105",
@@ -1243,9 +1243,9 @@
         "task_104"
       ],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.306242Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_106",
@@ -1259,9 +1259,9 @@
         "task_104"
       ],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.366627Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_107",
@@ -1275,9 +1275,9 @@
         "task_105"
       ],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.427474Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_108",
@@ -1291,9 +1291,9 @@
         "task_105"
       ],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.492739Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_109",
@@ -1307,9 +1307,9 @@
         "task_105"
       ],
       "evidence": "Backend implementation for SPEC-033 Phase A & B completed and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:22:23.557513Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_110",
@@ -1324,9 +1324,9 @@
         "task_107"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.425575Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_111",
@@ -1340,9 +1340,9 @@
         "task_110"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.464821Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_112",
@@ -1356,9 +1356,9 @@
         "task_107"
       ],
       "evidence": "Integration tests implemented in tests/test_scr_system.py. All 4 tests passed.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:23:03.535164Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_113",
@@ -1370,9 +1370,9 @@
       "priority": "high",
       "depends_on": [],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.503230Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_114",
@@ -1386,9 +1386,9 @@
         "task_113"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.546649Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_115",
@@ -1402,9 +1402,9 @@
         "task_114"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.585866Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_116",
@@ -1416,9 +1416,9 @@
       "priority": "high",
       "depends_on": [],
       "evidence": "Added init_project, list_projects, start_project_dttp, stop_project_dttp IPC commands to ipc.rs. Registered in main.rs. Cargo check passes.",
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:10:00Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_117",
@@ -1433,9 +1433,9 @@
         "task_116"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.626288Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_118",
@@ -1450,9 +1450,9 @@
         "task_116"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.667393Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_119",
@@ -1466,9 +1466,9 @@
         "task_117"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.711618Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_120",
@@ -1482,9 +1482,9 @@
         "task_119"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.767602Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_121",
@@ -1498,9 +1498,9 @@
         "task_119"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.805997Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_122",
@@ -1514,9 +1514,9 @@
         "task_115"
       ],
       "evidence": "Implemented according to SPEC-032 and SPEC-033. All UI components integrated and wired to API.",
-      "last_updated_by": "GEMINI (Frontend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:16:11.853891Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_123",
@@ -1527,9 +1527,9 @@
       "status": "completed",
       "priority": "critical",
       "depends_on": [],
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:00:00Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "evidence": "Added is_production_mode() to pty.rs, agent_user field to SessionInfo, sudo -u agent wrapping in create_session(). Cargo check passes."
     },
     {
@@ -1541,9 +1541,9 @@
       "status": "completed",
       "priority": "critical",
       "depends_on": [],
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:00:00Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "evidence": "Added sudoers rules for agent spawning, DTTP service, PATH restriction, visudo validation to setup_shatterglass.sh."
     },
     {
@@ -1556,9 +1556,9 @@
       "priority": "high",
       "depends_on": [],
       "evidence": "Implemented adt shatterglass status command. Verified it detects missing users and permissions.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T21:23:48.906198Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_126",
@@ -1571,9 +1571,9 @@
       "depends_on": [
         "task_124"
       ],
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:00:00Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "evidence": "Updated start.sh, install.sh, governance_routes.py with production mode detection and sudo -u dttp for DTTP launch."
     },
     {
@@ -1587,9 +1587,9 @@
       "depends_on": [
         "task_124"
       ],
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:00:00Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "evidence": "Added _apply_shatterglass_permissions() to governance_routes.py, called from _init_project(). Updated cli.py init_command()."
     },
     {
@@ -1606,9 +1606,9 @@
         "task_125",
         "task_126"
       ],
-      "last_updated_by": "CLAUDE (DevOps_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-20T22:00:00Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "evidence": "Created tests/test_shatterglass_enforcement.py with 20 tests across 6 classes. All 20 pass."
     },
     {
@@ -1700,9 +1700,9 @@
       "priority": "high",
       "depends_on": [],
       "evidence": "Implementation verified via CLI test.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T20:55:21.368658Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_136",
@@ -1716,9 +1716,9 @@
         "task_135"
       ],
       "evidence": "SDK methods for status update implemented and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T20:55:26.727632Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_137",
@@ -1732,9 +1732,9 @@
         "task_136"
       ],
       "evidence": "CLI commands for status management implemented and verified.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T20:55:27.625036Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_138",
@@ -1781,9 +1781,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Claude hook extended to intercept Read/Glob/Grep.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:48.154569Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_143",
@@ -1794,9 +1794,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Gemini hook extended to intercept read tools.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:48.779488Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_144",
@@ -1807,9 +1807,9 @@
       "status": "completed",
       "priority": "medium",
       "evidence": "GET /api/sessions added with sandbox status.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:49.379877Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_145",
@@ -1883,9 +1883,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "POST /api/governance/requests implemented.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:50.038045Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_153",
@@ -1896,9 +1896,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "SDK methods for requests and git persistence added.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:50.613769Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_154",
@@ -1909,9 +1909,9 @@
       "status": "completed",
       "priority": "critical",
       "evidence": "Claude hook role priority fixed.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:51.270467Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_155",
@@ -1922,9 +1922,9 @@
       "status": "completed",
       "priority": "critical",
       "evidence": "Gemini hook role priority fixed.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:51.891655Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_156",
@@ -1935,9 +1935,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Hook redirect for requests.md append implemented.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:52.562324Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_157",
@@ -1948,9 +1948,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Integration tests for request API and role priority passing.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:53.153703Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_158",
@@ -1961,9 +1961,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Registry project_type field and helpers implemented.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:53.752209Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_159",
@@ -1974,9 +1974,9 @@
       "status": "completed",
       "priority": "critical",
       "evidence": "Gateway Tier 3 lock for external projects implemented.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:54.307135Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_160",
@@ -1987,9 +1987,9 @@
       "status": "completed",
       "priority": "critical",
       "evidence": "Gateway path containment check implemented.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:54.886893Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_161",
@@ -2000,9 +2000,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "API separated into forge and governed endpoints.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:55.445612Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_162",
@@ -2013,9 +2013,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "API requests and delegations now project-aware.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-02-25T21:41:56.003187Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_163",
@@ -2062,9 +2062,9 @@
       "status": "completed",
       "priority": "medium",
       "evidence": "Implemented intent_id linking in SCR model (governance_routes.py) and DTTP Gateway (gateway.py).",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-03-06T22:59:12.052481Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_167",
@@ -2109,9 +2109,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Implemented human_steering in ADSEventSchema.",
-      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-03-07T12:33:56.035880Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_171",
@@ -2416,9 +2416,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Verified README.md, AI_PROTOCOL.md, MASTER_PLAN.md, and about.html are all updated to v2.2/v0.4.0 standards including SPEC-038/039/040 alignment.",
-      "last_updated_by": "CLI (Systems_Architect)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-03-31T13:52:23.621108Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_201",
@@ -2489,9 +2489,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Added log_delegation, log_delegation_complete, and log_group_created helpers to adt_core/ads/logger.py.",
-      "last_updated_by": "GEMINI_CLI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-04T22:07:30.985328Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_208",
@@ -2502,9 +2502,9 @@
       "status": "completed",
       "priority": "high",
       "evidence": "Implemented POST /api/governance/sessions/spawn in adt_center/api/governance_routes.py.",
-      "last_updated_by": "GEMINI_CLI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-04T22:07:31.090173Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_209",
@@ -2527,9 +2527,9 @@
       "status": "completed",
       "priority": "medium",
       "evidence": "Implemented GET /api/governance/sessions/tree in adt_center/api/governance_routes.py.",
-      "last_updated_by": "GEMINI_CLI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-04T22:07:31.178957Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_211",
@@ -2540,9 +2540,9 @@
       "status": "completed",
       "priority": "medium",
       "evidence": "Created adt_sdk/swarm.py with spawn_subagent() and spawn_group() helpers.",
-      "last_updated_by": "GEMINI_CLI (Backend_Engineer)",
+      "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-04T22:07:31.262169Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_212",
