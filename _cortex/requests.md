@@ -920,13 +920,13 @@ The Help & Principles page (`adt_center/templates/about.html`) has a sidebar nav
 SPEC-042 approved. Implement in P0-first order:
 task_207 (P0): Add session_delegated, session_delegation_complete, session_group_created to adt_core/ads/schema.py and log helpers to logger.py
 task_208 (P0): POST /api/governance/sessions/spawn in governance_routes.py. Validate body, DTTP action=delegate, log session_delegated to ADS, emit Tauri event adt://spawn-child-session, return {status, child_session_id}.
-task_209 (P0): Create config/delegation_policy.json (SPEC-042 §9). Add delegate action type to gateway.py. Implement delegation policy check in policy.py — role matrix + task jurisdiction + spec auth.
-task_210 (P1): GET /api/governance/sessions/tree — reconstruct hierarchy from ADS session_delegated / session_delegation_complete events.
-task_211 (P1): Create adt_sdk/swarm.py with spawn_subagent() and spawn_group(). Thin SDK — all validation server-side. See SPEC-042 §8.
+task_209 (P0): Create config/delegation_policy.json (SPEC-042 \u00a79). Add delegate action type to gateway.py. Implement delegation policy check in policy.py \u2014 role matrix + task jurisdiction + spec auth.
+task_210 (P1): GET /api/governance/sessions/tree \u2014 reconstruct hierarchy from ADS session_delegated / session_delegation_complete events.
+task_211 (P1): Create adt_sdk/swarm.py with spawn_subagent() and spawn_group(). Thin SDK \u2014 all validation server-side. See SPEC-042 \u00a78.
 
 ### Status
 
-**OPEN**
+**COMPLETED** (Architect verified implementation on 2026-04-10)
 
 
 ---
@@ -943,13 +943,13 @@ task_211 (P1): Create adt_sdk/swarm.py with spawn_subagent() and spawn_group(). 
 ### Description
 
 SPEC-042 approved. DevOps owns the Tauri/PTY layer:
-task_212 (P0): Implement spawn_child_session IPC in pty.rs. Build harness command (claude --dangerously-skip-permissions or gemini --yolo). Set all ADT_* env vars (see SPEC-042 §3.3). Open new PTY tab, label it, inject context_hint after 1.5s if provided. Register in ipc.rs + main.rs.
-task_213 (P0): Fix env var propagation for ALL PTY sessions. Always set ADT_SPEC_ID explicitly from session spec_id parameter — never inherit from parent process. Prevents stale-env-var DTTP denial (documented in SPEC-042 §10). Also propagate ADT_PARENT_SESSION_ID, ADT_TASK_ID, ADT_HARNESS.
+task_212 (P0): Implement spawn_child_session IPC in pty.rs. Build harness command (claude --dangerously-skip-permissions or gemini --yolo). Set all ADT_* env vars (see SPEC-042 \u00a73.3). Open new PTY tab, label it, inject context_hint after 1.5s if provided. Register in ipc.rs + main.rs.
+task_213 (P0): Fix env var propagation for ALL PTY sessions. Always set ADT_SPEC_ID explicitly from session spec_id parameter \u2014 never inherit from parent process. Prevents stale-env-var DTTP denial (documented in SPEC-042 \u00a710). Also propagate ADT_PARENT_SESSION_ID, ADT_TASK_ID, ADT_HARNESS.
 Also: wire up listener in sessions.js / app.js for Tauri event adt://spawn-child-session (emitted by task_208 backend) to call the spawn_child_session IPC command.
 
 ### Status
 
-**OPEN**
+**COMPLETED** (Architect verified implementation on 2026-04-10)
 
 
 ---
@@ -966,12 +966,12 @@ Also: wire up listener in sessions.js / app.js for Tauri event adt://spawn-child
 ### Description
 
 SPEC-042 approved. Blocked by task_210 (sessions/tree endpoint) and task_212 (PTY spawn IPC).
-task_214 (P1): Session Tree panel in Hive Tracker sidebar. Add Sessions section to index.html. Add fetchSessionTree() to context.js polling GET /api/governance/sessions/tree every 5s. Render nested tree per SPEC-042 §7.2. Clicking a node calls switch_session(session_id). React to session_delegation_complete ADS events to grey out nodes.
+task_214 (P1): Session Tree panel in Hive Tracker sidebar. Add Sessions section to index.html. Add fetchSessionTree() to context.js polling GET /api/governance/sessions/tree every 5s. Render nested tree per SPEC-042 \u00a77.2. Clicking a node calls switch_session(session_id). React to session_delegation_complete ADS events to grey out nodes.
 task_215 (P1): Harness badges on session cards. [C] badge (blue) for Claude, [G] badge (purple) for Gemini. Status dots: active=green pulse, completed=grey, failed=red. Apply to Session Tree panel and any existing session display.
 
 ### Status
 
-**OPEN**
+**IN PROGRESS** (Backend/DevOps foundations ready)
 
 
 ---
@@ -990,7 +990,7 @@ Frontend_Engineer jurisdiction in config/jurisdictions.json has been accidentall
 
 ### Status
 
-**COMPLETED** (Architect verified implementation and restored jurisdiction)
+**COMPLETED** (Architect restored jurisdiction in config/jurisdictions.json)
 
 
 ---
@@ -1021,7 +1021,7 @@ I am blocked on implementing SPEC-042 Backend tasks (task_207-task_211) due to t
 
 ### Status
 
-**OPEN**
+**COMPLETED** (Architect fixed permissions, implemented logic, and updated tasks.json on 2026-04-10)
 
 
 ---
