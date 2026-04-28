@@ -300,6 +300,34 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.environ.get("ADC_PORT", 5001))
-    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(host="::", port=port, debug=debug)
+    unix_socket = os.environ.get("ADC_UNIX_SOCKET")
+    
+    if unix_socket:
+        # SPEC-045: Run on Unix socket for privilege separation
+        import socket
+        from werkzeug.serving import run_simple
+        
+        # Ensure directory exists
+        socket_dir = os.path.dirname(unix_socket)
+        if socket_dir and not os.path.exists(socket_dir):
+            os.makedirs(socket_dir, exist_ok=True)
+            
+        # Clean up existing socket if any
+        if os.path.exists(unix_socket):
+            os.remove(unix_socket)
+            
+        print(f"Starting Operational Center on Unix socket: {unix_socket}")
+        # We need to use a custom socket to set permissions
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(unix_socket)
+        
+        # Set permissions: 0660 (rw-rw----)
+        # This allows the bridge (running as adt_human) to connect,
+        # but blocks adt_agent (not in group).
+        os.chmod(unix_socket, 0o660)
+        
+        run_simple("unix", 0, app, fd=sock.fileno(), debug=(os.environ.get("FLASK_DEBUG") == "1"))
+    else:
+        port = int(os.environ.get("ADC_PORT", 5001))
+        debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+        app.run(host="::", port=port, debug=debug)
