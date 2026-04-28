@@ -164,5 +164,95 @@ const TerminalManager = (() => {
     return { cols: 80, rows: 24 };
   }
 
-  return { create, show, destroy, get, getSize };
+  // SPEC-048 §4.2: Register PTY listeners BEFORE invoking spawn_child_session so the
+  // first bytes of the child's banner are not dropped.  xterm.write() is safe before
+  // term.open() — the data is buffered and flushed when activate() calls term.open().
+  function prepare(sessionId) {
+    const term = new Terminal({
+      theme: THEME,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+      fontSize: 16,
+      lineHeight: 1.2,
+      cursorBlink: true,
+      cursorStyle: 'block',
+      scrollback: 10000,
+      allowProposedApi: true,
+    });
+    term.options.focusReport = false;
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    const wrapper = document.createElement('div');
+    wrapper.id = `terminal-${sessionId}`;
+    wrapper.className = 'terminal-wrapper';
+
+    if (window.__TAURI__) {
+      window.__TAURI__.event.listen(`pty-output-${sessionId}`, (event) => {
+        term.write(event.payload);
+      });
+      window.__TAURI__.event.listen(`pty-closed-${sessionId}`, () => {
+        term.write('\r\n\x1b[90m[Session ended]\x1b[0m\r\n');
+      });
+    }
+
+    terminals.set(sessionId, { term, fitAddon, wrapper, resizeObserver: null, _prepared: true });
+    return term;
+  }
+
+  // Mount a previously prepare()d terminal to the DOM and open it.
+  // If preparedId differs from sessionId (Rust used its own id), renames the map entry.
+  function activate(sessionId, preparedId) {
+    const lookupId = preparedId || sessionId;
+    const entry = terminals.get(lookupId);
+
+    if (!entry || !entry._prepared) {
+      return create(sessionId);
+    }
+
+    if (lookupId !== sessionId) {
+      terminals.delete(lookupId);
+      entry.wrapper.id = `terminal-${sessionId}`;
+      terminals.set(sessionId, entry);
+    }
+
+    const { term, fitAddon, wrapper } = entry;
+
+    document.querySelectorAll('#terminal-container .terminal-wrapper.active').forEach(w => {
+      w.classList.remove('active');
+    });
+    wrapper.classList.add('active');
+    document.getElementById('terminal-container').appendChild(wrapper);
+
+    term.open(wrapper);
+
+    term.onData((data) => {
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke('write_to_session', {
+          request: { sessionId, data }
+        }).catch(err => {
+          term.write(`\r\n\x1b[31m[IPC Write Error: ${err}]\x1b[0m\r\n`);
+        });
+      }
+    });
+
+    requestAnimationFrame(() => {
+      fitAddon.fit();
+      syncSize(sessionId, term);
+      term.focus();
+    });
+
+    let resizeTimer = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { fitAddon.fit(); syncSize(sessionId, term); }, 50);
+    });
+    resizeObserver.observe(wrapper);
+    entry.resizeObserver = resizeObserver;
+    entry._prepared = false;
+
+    return term;
+  }
+
+  return { create, prepare, activate, show, destroy, get, getSize };
 })();

@@ -7,10 +7,10 @@ from adt_core.ads.schema import ADSEventSchema
 from adt_core.ads.integrity import ADSIntegrity
 from adt_core.ads.query import ADSQuery
 from adt_core.sdd.validator import SpecValidator
-from adt_core.dttp.jurisdictions import JurisdictionManager
-from adt_core.dttp.policy import PolicyEngine
-from adt_core.dttp.actions import ActionHandler
-from adt_core.dttp.gateway import DTTPGateway
+from adt_core.dtcp.jurisdictions import JurisdictionManager
+from adt_core.dtcp.policy import PolicyEngine
+from adt_core.dtcp.actions import ActionHandler
+from adt_core.dtcp.gateway import DTCPGateway
 
 @pytest.fixture
 def full_setup(tmp_path):
@@ -53,7 +53,7 @@ def full_setup(tmp_path):
     jurisdictions = JurisdictionManager(str(juris_path))
     policy_engine = PolicyEngine(validator, jurisdictions)
     action_handler = ActionHandler(str(project_root))
-    gateway = DTTPGateway(policy_engine, action_handler, logger)
+    gateway = DTCPGateway(policy_engine, action_handler, logger)
     
     return gateway, project_root, ads_path, query
 

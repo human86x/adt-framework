@@ -8,9 +8,9 @@ const ContextPanel = (() => {
   let pollInterval = null;
   let allSpecs = {};
   let showAllRoles = false;
+  const spawnedSessions = new Set();
 
-  async function update(session) {
-    currentSession = session;
+  async function update(session) {    currentSession = session;
 
     document.getElementById('ctx-role').textContent = session.role || '--';
 
@@ -49,7 +49,7 @@ const ContextPanel = (() => {
     await fetchADSEvents(session);
     await fetchRequests();
     await fetchDelegations();
-    await fetchDTTPStatus();
+    await fetchDTCPStatus();
     await fetchCapabilityContext(session);
     if (typeof fetchSessionTree === "function") await fetchSessionTree();
 
@@ -1151,7 +1151,6 @@ const ContextPanel = (() => {
   }
 
   let lastKnownEventCount = 0;
-  const spawnedSessions = new Set();
 
   function checkForNotifiableEvents(events) {
     if (lastKnownEventCount === 0) {
@@ -1170,6 +1169,13 @@ const ContextPanel = (() => {
         ToastManager.show('escalation', 'ESCALATION', truncate(event.description, 80));
       } else if (event.action_type?.includes('task_complete')) {
         ToastManager.show('completion', 'Completed', truncate(event.description, 80));
+      } else if (event.action_type?.startsWith('capability_gate_')) {
+        const decision = event.action_data?.decision || "Evaluated";
+        const msg = truncate(event.description, 80);
+        ToastManager.show('info', `Gate ${decision}`, msg);
+        if (typeof NativeNotify !== 'undefined') {
+          NativeNotify.send(`Gate ${decision}`, msg);
+        }
       } else if (event.action_type === 'session_delegated') {
         const data = event.action_data;
         if (data && data.child_session_id && !spawnedSessions.has(data.child_session_id)) {
@@ -1273,8 +1279,6 @@ const ContextPanel = (() => {
     });
   }
 
-  }
-
   function getEventTypeClass(actionType) {
     if (!actionType) return '';
     if (actionType.includes('complete') || actionType.includes('success')) return 'completion';
@@ -1310,24 +1314,24 @@ const ContextPanel = (() => {
     }
   }
 
-  async function fetchDTTPStatus() {
+  async function fetchDTCPStatus() {
     try {
       const projectName = currentSession?.project;
       const url = projectName 
-        ? `${getCenterUrl()}/api/dttp/status?project=${encodeURIComponent(projectName)}`
-        : `${getCenterUrl()}/api/dttp/status`;
+        ? `${getCenterUrl()}/api/dtcp/status?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/dtcp/status`;
       const res = await fetch(url);
       if (!res.ok) {
-        document.getElementById('status-dttp').innerHTML =
-          '<span class="status-dot dot-grey"></span> DTTP: offline';
+        document.getElementById('status-dtcp').innerHTML =
+          '<span class="status-dot dot-grey"></span> DTCP: offline';
         return;
       }
       const data = await res.json();
-      document.getElementById('status-dttp').innerHTML =
-        `<span class="status-dot dot-green"></span> DTTP: ${data.status || 'active'}`;
+      document.getElementById('status-dtcp').innerHTML =
+        `<span class="status-dot dot-green"></span> DTCP: ${data.status || 'active'}`;
     } catch {
-      document.getElementById('status-dttp').innerHTML =
-        '<span class="status-dot dot-grey"></span> DTTP: --';
+      document.getElementById('status-dtcp').innerHTML =
+        '<span class="status-dot dot-grey"></span> DTCP: --';
     }
   }
 
@@ -1350,7 +1354,13 @@ const ContextPanel = (() => {
           fetchADSEvents(currentSession);
           fetchRoleRequests(currentSession);
           fetchDelegations();
+          fetchCapabilityContext(currentSession);
         }
+        fetchSessionTree(); // SPEC-042: refresh swarm tree on any ADS update
+      });
+
+      window.__TAURI__.event.listen('capabilities-updated', () => {
+        if (currentSession) fetchCapabilityContext(currentSession);
       });
 
       window.__TAURI__.event.listen('tasks-updated', () => {
@@ -1370,7 +1380,7 @@ const ContextPanel = (() => {
             fetchRoleRequests(currentSession);
             fetchDelegations();
             fetchRequests();
-            fetchDTTPStatus();
+            fetchDTCPStatus();
             fetchSessionTree();
           }
         }, 10000);
@@ -1424,14 +1434,14 @@ const ContextPanel = (() => {
           ToastManager.show('denial', 'Error', 'No active session role');
           return;
         }
-    
+
         if (!confirm(`Mark request ${reqId} as COMPLETED?`)) return;
-    
+
         if (btn) {
           btn.classList.add('loading');
           btn.disabled = true;
         }
-    
+
         try {
           const res = await fetch(`${getCenterUrl()}/api/governance/requests/${reqId}/status`, {
             method: 'PUT',
@@ -1442,7 +1452,7 @@ const ContextPanel = (() => {
               agent: currentSession.agent || 'GEMINI'
             })
           });
-    
+
           if (res.ok) {
             ToastManager.show('completion', 'Request Completed', reqId);
             await fetchRequests();
@@ -1459,65 +1469,102 @@ const ContextPanel = (() => {
           }
         }
       }
-    
 
-  async function fetchSessionTree() {
-    try {
-      const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
-      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/tree`);
-      if (!res.ok) return;
-      const data = await res.json();
-      renderSessionTree(data.tree || []);
-    } catch (e) {
-      console.error("fetchSessionTree error:", e);
-    }
-  }
-
-  function renderSessionTree(tree) {
-    const container = document.getElementById("ctx-sessions-tree");
-    if (!container) return;
-
-    if (!tree || tree.length === 0) {
-      container.innerHTML = "<div class=\"ctx-empty\">No active swarm</div>";
-      return;
-    }
-
-    const renderNode = (node) => {
-      const isClaude = (node.agent || "").toLowerCase().includes("claude");
-      const isGemini = (node.agent || "").toLowerCase().includes("gemini");
-      const badgeClass = isClaude ? "badge-claude" : (isGemini ? "badge-gemini" : "");
-      const badgeChar = isClaude ? "C" : (isGemini ? "G" : "?");
-      const isActive = currentSession && node.session_id === currentSession.id;
-      const activeClass = isActive ? "active-tab" : "";
-      
-      const roleParts = (node.role || "??").split("_");
-      const roleAbbr = roleParts.map(word => word[0]).join("").toUpperCase();
-
-      let html = `<div class=\"session-node\">
-          <div class=\"session-node-content ${activeClass}\" onclick=\"SessionManager.switchTo('${node.session_id}')\">
-            <span class=\"pulse-active\"></span>
-            <span class=\"harness-badge ${badgeClass}\">${badgeChar}</span>
-            <span class=\"session-role-abbr\" title=\"${node.role}\">${roleAbbr}</span>
-            <span class=\"session-task-id\">${node.task_id || ""}</span>
-          </div>`;
-      
-      if (node.children && node.children.length > 0) {
-        html += `<div class=\"session-children\">`;
-        node.children.forEach(child => {
-          html += renderNode(child);
-        });
-        html += `</div>`;
+      async function fetchSessionTree() {
+        try {
+          const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
+          const res = await fetch(`${getCenterUrl()}/api/governance/sessions/tree`);
+          if (!res.ok) return;
+          const data = await res.json();
+          renderSessionTree(data.sessions || []);
+          // SPEC-042: Auto-spawn PTYs for children that appear in tree but don't have a local session
+          const allSessionIds = new Set((window.SessionManager ? window.SessionManager.getAll() : []).map(s => s.id));
+          function walkAndSpawn(nodes) {
+            for (const node of (nodes || [])) {
+              if (node.session_id && !spawnedSessions.has(node.session_id) && !allSessionIds.has(node.session_id)) {
+                spawnedSessions.add(node.session_id);
+                if (window.SessionManager && window.SessionManager.spawnChild) {
+                  window.SessionManager.spawnChild({
+                    child_role: node.role,
+                    child_harness: node.agent || 'claude',
+                    task_id: node.task_id || '',
+                    spec_ref: node.spec_ref || 'SPEC-042',
+                    child_session_id: node.session_id,
+                    skip_permissions: true,
+                    context_hint: node.context_hint || null
+                  }).catch(e => console.warn('[SWARM] Auto-spawn failed:', e));
+                }
+              }
+              walkAndSpawn(node.children);
+            }
+          }
+          walkAndSpawn(data.sessions || []);
+        } catch (e) {
+          console.error("fetchSessionTree error:", e);
+        }
       }
-      
-      html += `</div>`;
-      return html;
-    };
 
-    container.innerHTML = tree.map(node => renderNode(node)).join("");
-  }
+      function renderSessionTree(tree) {
+        const container = document.getElementById("ctx-sessions-tree");
+        if (!container) return;
 
-      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest, prioritizeTask, openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, fetchSessionTree };
-    })();
+        if (!tree || tree.length === 0) {
+          container.innerHTML = "<div class=\"ctx-empty\">No active swarm</div>";
+          return;
+        }
+
+        const renderNode = (node) => {
+          const isClaude = (node.agent || "").toLowerCase().includes("claude");
+          const isGemini = (node.agent || "").toLowerCase().includes("gemini");
+          const badgeClass = isClaude ? "badge-claude" : (isGemini ? "badge-gemini" : "");
+          const badgeChar = isClaude ? "C" : (isGemini ? "G" : "?");
+          const isActive = currentSession && node.session_id === currentSession.id;
+          const activeClass = isActive ? "active-tab" : "";
+
+          const roleParts = (node.role || "??").split("_");
+          const roleAbbr = roleParts.map(word => word[0]).join("").toUpperCase();
+
+          const status = node.status || "active";
+          const pulseClass = status === "spawning" ? "pulse-spawning"
+                           : status === "completed" ? "pulse-done"
+                           : "pulse-active";
+          const isForge = !!(node.context_hint?.includes("forge_mode") || node.spec_ref === "SPEC-043");
+          const hasChildren = node.children && node.children.length > 0;
+
+          let html = `<div class="session-node">
+              <div class="session-node-content ${activeClass}" onclick="SessionManager.switchTo('${node.session_id}')">
+                <span class="${pulseClass}"></span>
+                <span class="harness-badge ${badgeClass}">${badgeChar}</span>
+                <span class="session-role-abbr" title="${node.role}">${roleAbbr}</span>
+                ${node.task_id ? `<span class="session-task-id">${node.task_id}</span>` : ""}
+                ${isForge ? '<span class="forge-badge">FORGE</span>' : ""}
+                ${node.spec_ref ? `<span class="session-spec-ref">${node.spec_ref.replace("SPEC-", "")}</span>` : ""}
+              </div>
+              ${hasChildren ? `<div class="swarm-causal-indicator" title="${node.children.length} child session${node.children.length > 1 ? "s" : ""}">&#8627; ${node.children.length}</div>` : ""}`;
+
+          if (hasChildren) {
+            html += `<div class="session-children">`;
+            node.children.forEach(child => {
+              html += renderNode(child);
+            });
+            html += `</div>`;
+          }
+
+          html += `</div>`;
+          return html;
+        };
+
+        container.innerHTML = tree.map(node => renderNode(node)).join("");
+      }
+
+      return { 
+        update, initWatchers, updateUptime, toggleFilter, 
+        completeTask, completeRequest, prioritizeTask, 
+        openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, 
+        fetchSessionTree, renderSessionTree 
+      };
+      })();
+
     
     // Global alias for onclick handlers
     window.ContextPanel = ContextPanel;

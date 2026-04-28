@@ -262,10 +262,11 @@ fn apply_sandbox_env(
     sandbox_root: &Path,
     project_root: &Path,
     agent: &str,
-    dttp_url: &str,
+    dtcp_url: &str,
     namespace_mode: bool,
     session_id: &str,
 ) {
+
     if namespace_mode {
         // Inside bwrap: project is at /project, framework at /adt-framework
         let ns_sandbox_home = format!("/project/.adt/sandbox/{}/home", session_id);
@@ -274,7 +275,8 @@ fn apply_sandbox_env(
         cmd.env("ADT_SANDBOX", "1");
         cmd.env("ADT_SANDBOX_ROOT", "/project");
         cmd.env("ADT_PROJECT_DIR", "/project");
-        cmd.env("DTTP_URL", dttp_url);
+        cmd.env("DTCP_URL", dtcp_url);
+        cmd.env("DTTP_URL", dtcp_url); // Fallback
         cmd.env("PYTHONPATH", "/adt-framework");
     } else {
         // Phase A only: host absolute paths
@@ -287,7 +289,8 @@ fn apply_sandbox_env(
         cmd.env("ADT_SANDBOX", "1");
         cmd.env("ADT_SANDBOX_ROOT", &project_str);
         cmd.env("ADT_PROJECT_DIR", &project_str);
-        cmd.env("DTTP_URL", dttp_url);
+        cmd.env("DTCP_URL", dtcp_url);
+        cmd.env("DTTP_URL", dtcp_url); // Fallback
     }
 
     // Pass through allowed variables from the host environment
@@ -325,6 +328,13 @@ fn apply_sandbox_env(
 fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
     // Only sandbox agent sessions, not human shell sessions
     if agent == "shell" || agent == "human" {
+        return false;
+    }
+
+    // SPEC-045: Support developer-mode escape hatch.
+    // If ADT_DEV_MODE=1 is set in the environment, disable all sandboxing.
+    if std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false) {
+        log::warn!("[SANDBOX] Sandboxing DISABLED via ADT_DEV_MODE=1 (SPEC-045 escape hatch)");
         return false;
     }
 
@@ -401,11 +411,12 @@ fn has_user_namespaces() -> bool {
 /// This creates a minimal filesystem view containing only the project root
 /// and essential system directories (read-only).
 /// NOTE: --unshare-net is enabled in Phase B (SPEC-036 task_148).
-/// Network communication to host DTTP (localhost:5002) and ADT Panel (localhost:5001)
+/// Network communication to host DTCP (localhost:5002) and ADT Panel (localhost:5001)
 /// is bridged via socat.
 fn build_bwrap_args(
     project_root: &Path,
-    _dttp_port: u16,
+    _dtcp_port: u16,
+
     agent_binary_path: &str,
     framework_root: &Path,
 ) -> Vec<String> {
@@ -523,7 +534,7 @@ fn build_bwrap_args(
 /// This is the preferred method when user namespaces are available.
 fn build_unshare_script(
     project_root: &Path,
-    _dttp_port: u16,
+    _dtcp_port: u16,
     framework_root: &Path,
     agent_binary_path: &str,
 ) -> String {
@@ -572,7 +583,7 @@ fn build_unshare_script(
     )
 }
 
-/// Spawn socat background processes to bridge DTTP/Panel ports from host into the namespace.
+/// Spawn socat background processes to bridge DTCP/Panel ports from host into the namespace.
 /// Since bwrap's --unshare-net creates a new network namespace with only loopback,
 /// the agent cannot reach localhost:5002 on the host.
 /// We use a two-step bridge:
@@ -580,25 +591,25 @@ fn build_unshare_script(
 /// 2. Namespace Host-Port (localhost) -> Namespace Unix-Socket (in sandbox)
 fn spawn_network_bridges(
     sandbox_root: &Path,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
 ) -> Vec<std::process::Child> {
     let mut bridges = Vec::new();
 
-    let dttp_sock = sandbox_root.join("dttp.sock");
+    let dtcp_sock = sandbox_root.join("dtcp.sock");
     let panel_sock = sandbox_root.join("panel.sock");
 
-    // 1. DTTP Bridge (Host Side: TCP -> Unix Socket)
-    // socat UNIX-LISTEN:/path/to/dttp.sock,fork TCP:127.0.0.1:5002
+    // 1. DTCP Bridge (Host Side: TCP -> Unix Socket)
+    // socat UNIX-LISTEN:/path/to/dtcp.sock,fork TCP:127.0.0.1:5002
     match Command::new("/usr/bin/socat")
         .args([
-            &format!("UNIX-LISTEN:{},fork,reuseaddr", dttp_sock.to_string_lossy()),
-            &format!("TCP:127.0.0.1:{}", dttp_port),
+            &format!("UNIX-LISTEN:{},fork,reuseaddr", dtcp_sock.to_string_lossy()),
+            &format!("TCP:127.0.0.1:{}", dtcp_port),
         ])
         .spawn()
     {
         Ok(child) => bridges.push(child),
-        Err(e) => log::error!("[SANDBOX] Failed to spawn host DTTP bridge: {}", e),
+        Err(e) => log::error!("[SANDBOX] Failed to spawn host DTCP bridge: {}", e),
     }
 
     // 2. ADT Panel Bridge (Host Side: TCP -> Unix Socket)
@@ -621,10 +632,10 @@ fn build_bridge_wrapper(
     command: &str,
     args: &[String],
     session_id: &str,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
 ) -> (String, Vec<String>) {
-    let dttp_sock = format!("/project/.adt/sandbox/{}/dttp.sock", session_id);
+    let dtcp_sock = format!("/project/.adt/sandbox/{}/dtcp.sock", session_id);
     let panel_sock = format!("/project/.adt/sandbox/{}/panel.sock", session_id);
 
     let agent_cmd = if args.is_empty() {
@@ -643,7 +654,7 @@ fn build_bridge_wrapper(
          socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          exec {}",
-        dttp_port, dttp_sock,
+        dtcp_port, dtcp_sock,
         panel_port, panel_sock,
         agent_cmd
     );
@@ -669,7 +680,7 @@ fn wrap_with_namespace(
     command: &str,
     args: &[String],
     project_root: &Path,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
     framework_root: &Path,
     session_id: &str,
@@ -678,10 +689,10 @@ fn wrap_with_namespace(
 
     match method {
         "bwrap" => {
-            let mut bwrap_args = build_bwrap_args(project_root, dttp_port, command, framework_root);
+            let mut bwrap_args = build_bwrap_args(project_root, dtcp_port, command, framework_root);
             
             // Wrap the agent command with the network bridge script
-            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dtcp_port, panel_port);
             bwrap_args.push(bridge_cmd);
             bwrap_args.extend(bridge_args);
 
@@ -695,10 +706,10 @@ fn wrap_with_namespace(
         }
         "unshare" => {
             // unshare with mount namespace
-            let setup_script = build_unshare_script(project_root, dttp_port, framework_root, command);
+            let setup_script = build_unshare_script(project_root, dtcp_port, framework_root, command);
             
             // Wrap the agent command with the network bridge script
-            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dtcp_port, panel_port);
             let agent_script = format!("{} {}", bridge_cmd, bridge_args.join(" "));
             
             let full_script = format!("{}; {}", setup_script, agent_script);
@@ -944,11 +955,14 @@ impl PtyManager {
             id
         };
 
-        // Determine DTTP and Panel ports
-        let dttp_port_num = if let Some(path) = &cwd {
-            let config_path = PathBuf::from(path).join("config").join("dttp.json");
-            if config_path.exists() {
-                fs::read_to_string(&config_path).ok()
+        // Determine DTCP and Panel ports
+        let dtcp_port_num = if let Some(path) = &cwd {
+            let config_path = PathBuf::from(path).join("config").join("dtcp.json");
+            let old_config_path = PathBuf::from(path).join("config").join("dttp.json");
+            let final_path = if config_path.exists() { config_path } else { old_config_path };
+
+            if final_path.exists() {
+                fs::read_to_string(&final_path).ok()
                     .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
                     .and_then(|j| j.get("port").and_then(|p| p.as_u64()))
                     .map(|p| p as u16)
@@ -964,7 +978,9 @@ impl PtyManager {
         // SPEC-036 Phase B: Determine if namespace isolation applies
         // Must be decided before building CommandBuilder
         let framework_root = get_framework_root();
-        let phase_b_wrap: Option<(String, Vec<String>)> = if production_mode && is_agent_session {
+        let sandbox_disabled = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
+
+        let phase_b_wrap: Option<(String, Vec<String>)> = if is_agent_session && !sandbox_disabled {
             if let Some(ref cwd_path) = cwd {
                 let project_root = PathBuf::from(cwd_path);
                 let is_fw = is_framework_project(&project_root, &framework_root);
@@ -973,7 +989,7 @@ impl PtyManager {
                         &command_to_run,
                         args,
                         &project_root,
-                        dttp_port_num,
+                        dtcp_port_num,
                         panel_port_num,
                         &framework_root,
                         &session_id,
@@ -1024,8 +1040,8 @@ impl PtyManager {
             }
         }
 
-        // Determine DTTP_URL for SDK communication
-        let dttp_url = format!("http://localhost:{}", dttp_port_num);
+        // Determine DTCP_URL for SDK communication
+        let dtcp_url = format!("http://localhost:{}", dtcp_port_num);
 
         // SPEC-036: Set up sandbox for agent sessions
         let namespace_mode = phase_b_wrap.is_some();
@@ -1062,34 +1078,44 @@ impl PtyManager {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
                         
-                        // Credential Inheritance: Copy global credentials from host home to sandbox home
+                        // Credential Inheritance: Link global credentials and npm-global from host home to sandbox home
                         if let Some(host_home) = dirs::home_dir() {
-                            let host_gemini_dir = host_home.join(".gemini");
-                            let sandbox_gemini_dir = sb_root.join("home").join(".gemini");
-                            fs::create_dir_all(&sandbox_gemini_dir).map_err(|e| format!("Failed to create sandbox .gemini dir: {}", e))?;
+                            let sandbox_home_dir = sb_root.join("home");
                             
-                            if let Ok(entries) = fs::read_dir(&host_gemini_dir) {
-                                for entry in entries.flatten() {
-                                    let path = entry.path();
-                                    if path.is_file() {
-                                        let file_name = path.file_name().unwrap();
-                                        let dest = sandbox_gemini_dir.join(file_name);
-                                        if let Ok(_) = fs::copy(&path, &dest) {
-                                            let _ = Command::new("/bin/chmod")
-                                                .args(["666", &dest.to_string_lossy()])
-                                                .output();
-                                        }
+                            // 1. .gemini directory (auth tokens)
+                            let host_gemini_dir = host_home.join(".gemini");
+                            let sandbox_gemini_dir = sandbox_home_dir.join(".gemini");
+                            
+                            if host_gemini_dir.exists() {
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::symlink;
+                                    if let Err(e) = symlink(&host_gemini_dir, &sandbox_gemini_dir) {
+                                        log::warn!("[SANDBOX] Failed to symlink .gemini: {}", e);
+                                    } else {
+                                        log::info!("[SANDBOX] Gemini credentials symlinked from host");
                                     }
                                 }
                             }
-                            // Ensure the .gemini directory itself is writable
-                            let _ = Command::new("/bin/chmod")
-                                .args(["777", &sandbox_gemini_dir.to_string_lossy()])
-                                .output();
-                            log::info!("[SANDBOX] Gemini credentials inherited from host");
+
+                            // 2. .npm-global directory (Gemini CLI binaries)
+                            let host_npm_dir = host_home.join(".npm-global");
+                            let sandbox_npm_dir = sandbox_home_dir.join(".npm-global");
+                            
+                            if host_npm_dir.exists() {
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::symlink;
+                                    if let Err(e) = symlink(&host_npm_dir, &sandbox_npm_dir) {
+                                        log::warn!("[SANDBOX] Failed to symlink .npm-global: {}", e);
+                                    } else {
+                                        log::info!("[SANDBOX] npm-global symlinked from host");
+                                    }
+                                }
+                            }
                         }
 
-                        log::info!("[SANDBOX] Gemini DTTP hook sandbox configured");
+                        log::info!("[SANDBOX] Gemini DTCP hook sandbox configured");
                     }
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
@@ -1098,7 +1124,7 @@ impl PtyManager {
                     // because sudo -u agent sets HOME=/home/agent which may not exist
                     if !is_framework {
                         apply_sandbox_env(
-                            &mut cmd, &sb_root, &project_root, agent, &dttp_url,
+                            &mut cmd, &sb_root, &project_root, agent, &dtcp_url,
                             namespace_mode, &session_id,
                         );
                     } else if production_mode && is_agent_session {
@@ -1108,7 +1134,8 @@ impl PtyManager {
                         let sandbox_tmp = sb_root.join("tmp");
                         cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
                         cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
-                        cmd.env("DTTP_URL", &dttp_url);
+                        cmd.env("DTCP_URL", &dtcp_url);
+                        cmd.env("DTTP_URL", &dtcp_url); // Fallback
                         log::info!(
                             "[SANDBOX] Framework project production mode: HOME={:?}, TMPDIR={:?}",
                             sandbox_home, sandbox_tmp
@@ -1143,8 +1170,9 @@ impl PtyManager {
             cmd.env("ADT_TASK_ID", tid);
         }
         if sandbox_root.is_none() {
-            // Only set DTTP_URL here if not already set by sandbox env
-            cmd.env("DTTP_URL", &dttp_url);
+            // Only set DTCP_URL here if not already set by sandbox env
+            cmd.env("DTCP_URL", &dtcp_url);
+            cmd.env("DTTP_URL", &dtcp_url); // Fallback
         }
         cmd.env("TERM", "xterm-256color");
         cmd.env("PATH", &user_path);
@@ -1247,7 +1275,7 @@ impl PtyManager {
         let mut bridge_processes = Vec::new();
         if namespace_mode {
             if let Some(ref sb_root) = sandbox_root {
-                bridge_processes = spawn_network_bridges(sb_root, dttp_port_num, panel_port_num);
+                bridge_processes = spawn_network_bridges(sb_root, dtcp_port_num, panel_port_num);
             }
         }
 

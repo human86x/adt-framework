@@ -19,7 +19,7 @@ const GuideSystem = (() => {
     { id: 2, title: "Set Up Folder", desc: "Initialize directory and ADT scaffold." },
     { id: 3, title: "Configure Governance", desc: "Define roles and jurisdictions." },
     { id: 4, title: "Write First Spec", desc: "Create SPEC-001 to start building." },
-    { id: 5, title: "Start Services", desc: "Launch DTTP enforcement." },
+    { id: 5, title: "Start Services", desc: "Launch DTCP enforcement." },
     { id: 6, title: "Launch Agent", desc: "Start your first governed session." },
     { id: 7, title: "Governing", desc: "Project setup complete." }
   ];
@@ -183,7 +183,7 @@ const GuideSystem = (() => {
         <p>ADT scaffolding will create the following in <code class="text-accent">${projectContext.path}</code>:</p>
         <ul class="small text-adt-muted">
           <li>_cortex/ (ADS, Specs, Tasks)</li>
-          <li>config/ (Jurisdictions, DTTP policy)</li>
+          <li>config/ (Jurisdictions, DTCP policy)</li>
           <li>.claude/ & .gemini/ (Agent hooks)</li>
         </ul>
       </div>

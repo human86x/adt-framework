@@ -112,7 +112,7 @@ kill_service_on_port() {
 stop_services() {
     echo -e "${YELLOW}[*]${NC} Ensuring clean state (no duplicate processes)..."
     kill_service_on_port 5001 # ADT Panel
-    kill_service_on_port 5002 # DTTP Gateway
+    kill_service_on_port 5002 # DTCP Gateway
 }
 
 # 5. Setup Python Environment
@@ -207,14 +207,14 @@ start_services() {
         echo -e "${GREEN}[*]${NC} Production mode detected (Shatterglass active)"
     fi
 
-    # Start DTTP Gateway
+    # Start DTCP Gateway
     if $PROD_MODE; then
-        echo -e "${GREEN}[*]${NC} DTTP running as OS user 'dttp'"
-        nohup sudo -u dttp "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
+        echo -e "${GREEN}[*]${NC} DTCP running as OS user 'dttp'"
+        nohup sudo -u dttp "$VENV/bin/python3" -m adt_core.dtcp.service > "$LOG_DIR/dtcp.log" 2>&1 &
     else
-        nohup "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
+        nohup "$VENV/bin/python3" -m adt_core.dtcp.service > "$LOG_DIR/dtcp.log" 2>&1 &
     fi
-    echo $! > "$LOG_DIR/dttp.pid"
+    echo $! > "$LOG_DIR/dtcp.pid"
 
     # Start ADT Panel
     nohup "$VENV/bin/python3" -m adt_center.app > "$LOG_DIR/adt_center.log" 2>&1 &
@@ -311,7 +311,7 @@ echo -e "${BOLD}${GREEN}  ADT Framework installation successful!${NC}"
 echo -e "${BOLD}${GREEN}============================================${NC}"
 echo ""
 echo -e "  ${CYAN}ADT Panel:${NC}    http://localhost:5001"
-echo -e "  ${CYAN}DTTP Gateway:${NC} http://localhost:5002"
+echo -e "  ${CYAN}DTCP Gateway:${NC} http://localhost:5002"
 
 if [ -f "$CONSOLE_BIN" ]; then
     echo -e "  ${CYAN}Console:${NC}      $CONSOLE_BIN"
@@ -319,7 +319,7 @@ fi
 
 echo ""
 echo -e "  ${BOLD}Logs:${NC}  tail -f $LOG_DIR/*.log"
-echo -e "  ${BOLD}Stop:${NC}  pkill -f 'adt_core.dttp.service'; pkill -f 'adt_center.app'"
+echo -e "  ${BOLD}Stop:${NC}  pkill -f 'adt_core.dtcp.service'; pkill -f 'adt_center.app'"
 echo ""
 echo -e "  ${BOLD}Governance is active. All agent writes will be audited.${NC}"
 echo ""

@@ -4,7 +4,7 @@ import time
 import pytest
 
 BASE_URL = "http://localhost:5001/api/governance"
-DTTP_URL = "http://localhost:5002/request"
+DTCP_URL = "http://localhost:5002/request"
 
 def test_full_causal_traceability():
     print("\n--- Testing Full Causal Traceability (SPEC-038) ---")
@@ -36,10 +36,10 @@ def test_full_causal_traceability():
     # 3. Create a Task (for later linking via ADS)
     # We'll use an existing task or assume one is created during the session
     # Actually, TaskManager doesn't have a direct API to create tasks from agents yet (human UI only or via adt_core)
-    # But we can find a task ID and use it in a DTTP request
+    # But we can find a task ID and use it in a DTCP request
     
-    # 4. Submit a DTTP Request linked to the Intent
-    dttp_payload = {
+    # 4. Submit a DTCP Request linked to the Intent
+    dtcp_payload = {
         "agent": "GEMINI",
         "role": "Backend_Engineer",
         "spec_id": "SPEC-017",
@@ -53,10 +53,10 @@ def test_full_causal_traceability():
         "rationale": "Fulfilling traceability test intent",
         "dry_run": False # Execute to create ADS events
     }
-    resp = requests.post(DTTP_URL, json=dttp_payload)
+    resp = requests.post(DTCP_URL, json=dtcp_payload)
     assert resp.status_code == 200
     assert resp.json().get("status") == "allowed"
-    print("Executed DTTP request linked to intent.")
+    print("Executed DTCP request linked to intent.")
 
     # 5. Verify Traceability API
     print(f"Fetching trace for {intent_id}...")
@@ -69,7 +69,7 @@ def test_full_causal_traceability():
     assert trace["intent"]["intent_id"] == intent_id
     assert any(e["event_id"] == event_id for e in trace["triggering_events"])
     assert len(trace["ads_events"]) >= 2 # pending_edit and completed_edit
-    # DTTP uses SPEC-017, ADS intent events use SPEC-038 -- either may appear
+    # DTCP uses SPEC-017, ADS intent events use SPEC-038 -- either may appear
     assert "SPEC-017" in trace["specs"] or "SPEC-038" in trace["specs"]
     # SPEC-038A: trace now includes gate chain
     assert "gates" in trace

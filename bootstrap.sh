@@ -96,18 +96,18 @@ echo -e "${GREEN}[+]${NC} ADT Framework installed"
 # -------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
 
-# DTTP Enforcement Service (:5002)
+# DTCP Enforcement Service (:5002)
 if curl -s http://localhost:5002/status > /dev/null 2>&1; then
-    echo -e "${GREEN}[+]${NC} DTTP Service already running on :5002"
+    echo -e "${GREEN}[+]${NC} DTCP Service already running on :5002"
 else
-    echo -e "${YELLOW}[*]${NC} Starting DTTP Enforcement Service..."
-    nohup "$VENV/bin/python3" -m adt_core.dttp.service > "$LOG_DIR/dttp.log" 2>&1 &
-    DTTP_PID=$!
+    echo -e "${YELLOW}[*]${NC} Starting DTCP Enforcement Service..."
+    nohup "$VENV/bin/python3" -m adt_core.dtcp.service > "$LOG_DIR/dtcp.log" 2>&1 &
+    DTCP_PID=$!
 
     # Wait for healthy
     for i in $(seq 1 15); do
         if curl -s http://localhost:5002/status > /dev/null 2>&1; then
-            echo -e "${GREEN}[+]${NC} DTTP Service running on :5002 (PID $DTTP_PID)"
+            echo -e "${GREEN}[+]${NC} DTCP Service running on :5002 (PID $DTCP_PID)"
             break
         fi
         sleep 1
@@ -135,27 +135,27 @@ fi
 # 6. Verify
 # -------------------------------------------------------------------
 echo ""
-DTTP_OK=false
+DTCP_OK=false
 PANEL_OK=false
 
 if curl -s http://localhost:5002/status > /dev/null 2>&1; then
-    DTTP_OK=true
+    DTCP_OK=true
 fi
 if curl -s http://localhost:5001/ > /dev/null 2>&1; then
     PANEL_OK=true
 fi
 
-if $DTTP_OK && $PANEL_OK; then
+if $DTCP_OK && $PANEL_OK; then
     echo -e "${GREEN}${BOLD}============================================${NC}"
     echo -e "${GREEN}${BOLD}  ADT Framework is running!${NC}"
     echo -e "${GREEN}${BOLD}============================================${NC}"
     echo ""
     echo -e "  ${CYAN}ADT Panel:${NC}    http://localhost:5001"
-    echo -e "  ${CYAN}DTTP Gateway:${NC} http://localhost:5002"
+    echo -e "  ${CYAN}DTCP Gateway:${NC} http://localhost:5002"
     echo ""
     echo -e "  ${BOLD}What you can do:${NC}"
     echo -e "    - View all specs, tasks, and ADS audit trail"
-    echo -e "    - Monitor DTTP enforcement decisions"
+    echo -e "    - Monitor DTCP enforcement decisions"
     echo -e "    - Create new specs (Specs page)"
     echo -e "    - Submit feedback (Dashboard)"
     echo ""
@@ -163,7 +163,7 @@ if $DTTP_OK && $PANEL_OK; then
     echo -e "    git add _cortex/ && git commit -m 'Paul: new spec' && git push"
     echo ""
     echo -e "  ${BOLD}Logs:${NC}  tail -f _cortex/ops/*.log"
-    echo -e "  ${BOLD}Stop:${NC}  pkill -f 'adt_core.dttp.service'; pkill -f 'adt_center.app'"
+    echo -e "  ${BOLD}Stop:${NC}  pkill -f 'adt_core.dtcp.service'; pkill -f 'adt_center.app'"
     echo ""
 
     # Try to open browser
@@ -178,7 +178,7 @@ if $DTTP_OK && $PANEL_OK; then
     fi
 else
     echo -e "${RED}${BOLD}[!] Something went wrong.${NC}"
-    $DTTP_OK || echo -e "${RED}    DTTP Service failed to start. Check: $LOG_DIR/dttp.log${NC}"
+    $DTCP_OK || echo -e "${RED}    DTCP Service failed to start. Check: $LOG_DIR/dtcp.log${NC}"
     $PANEL_OK || echo -e "${RED}    ADT Panel failed to start. Check: $LOG_DIR/adt_center.log${NC}"
     exit 1
 fi

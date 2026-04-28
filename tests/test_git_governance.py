@@ -2,8 +2,8 @@ import json
 import os
 import subprocess
 import pytest
-from adt_core.dttp.config import DTTPConfig
-from adt_core.dttp.service import create_dttp_app
+from adt_core.dtcp.config import DTCPConfig
+from adt_core.dtcp.service import create_dtcp_app
 
 @pytest.fixture
 def git_repo(tmp_path):
@@ -28,8 +28,8 @@ def git_repo(tmp_path):
     return repo_dir
 
 @pytest.fixture
-def dttp_app(git_repo):
-    """Create a test DTTP service with git repo."""
+def dtcp_app(git_repo):
+    """Create a test DTCP service with git repo."""
     project_root = git_repo
     
     # ADS log
@@ -61,7 +61,7 @@ def dttp_app(git_repo):
         }
     }))
 
-    config = DTTPConfig(
+    config = DTCPConfig(
         port=5003,
         mode="development",
         ads_path=str(ads_path),
@@ -71,13 +71,13 @@ def dttp_app(git_repo):
         project_name="git-test",
     )
 
-    app = create_dttp_app(config)
+    app = create_dtcp_app(config)
     app.config["TESTING"] = True
     return app
 
 @pytest.fixture
-def client(dttp_app):
-    return dttp_app.test_client()
+def client(dtcp_app):
+    return dtcp_app.test_client()
 
 def test_git_commit_allowed(client, git_repo):
     # Modify a file

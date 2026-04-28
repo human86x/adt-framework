@@ -2,7 +2,7 @@ import os
 
 import requests as http_client
 import markdown
-from flask import Flask, render_template, request, abort, jsonify
+from flask import Flask, render_template, request, abort, jsonify, session
 from flask_cors import CORS
 from markupsafe import Markup
 
@@ -15,7 +15,8 @@ from adt_core.registry import ProjectRegistry
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, origins=["tauri://localhost", "http://localhost:*", "http://127.0.0.1:*"])
+    app.secret_key = os.environ.get("ADT_SECRET_KEY", "adt-framework-governance-secret-777")
+    CORS(app, origins=["tauri://localhost", "http://localhost:*", "http://127.0.0.1:*"], supports_credentials=True)
     
     # 1. Project Registry Initialization
     app.project_registry = ProjectRegistry()
@@ -52,7 +53,7 @@ def create_app():
 
     # Configuration
     app.config["PROJECT_NAME"] = os.environ.get("ADT_PROJECT_NAME", os.path.basename(PROJECT_ROOT))
-    app.config["DTTP_URL"] = os.environ.get("DTTP_URL", "http://localhost:5002")
+    app.config["DTCP_URL"] = os.environ.get("DTCP_URL", "http://localhost:5002")
 
     # Initialize engines (Legacy/Fallback)
     ADS_PATH = os.path.join(PROJECT_ROOT, "_cortex", "ads", "events.jsonl")
@@ -84,10 +85,10 @@ def create_app():
         return Markup(markdown.markdown(text, extensions=['fenced_code', 'tables']))
 
     # Register Blueprints
-    from adt_center.api.dttp_routes import dttp_bp
+    from adt_center.api.dtcp_routes import dtcp_bp
     from adt_center.api.ads_routes import ads_bp
     from adt_center.api.governance_routes import governance_bp
-    app.register_blueprint(dttp_bp, url_prefix="/api/dttp")
+    app.register_blueprint(dtcp_bp, url_prefix="/api/dtcp")
     app.register_blueprint(ads_bp, url_prefix="/api/ads")
     app.register_blueprint(governance_bp, url_prefix="/api")
 
@@ -214,8 +215,8 @@ def create_app():
         enriched = {}
         for name, config in project_dict.items():
             paths = get_project_paths(name)
-            port = config.get("dttp_port")
-            dttp_running = is_port_in_use(port) if port else False
+            port = config.get("dtcp_port")
+            dtcp_running = is_port_in_use(port) if port else False
             stats = {"specs": 0, "tasks": 0, "ads_events": 0}
             if os.path.exists(paths["specs"]):
                 stats["specs"] = len([f for f in os.listdir(paths["specs"]) if f.endswith(".md")])
@@ -230,7 +231,7 @@ def create_app():
                     with open(paths["ads"], "r") as f:
                         stats["ads_events"] = sum(1 for _ in f)
                 except: pass
-            enriched[name] = {**config, "dttp_running": dttp_running, "stats": stats}
+            enriched[name] = {**config, "dtcp_running": dtcp_running, "stats": stats}
         return enriched
 
     @app.route("/api/projects")
@@ -255,36 +256,36 @@ def create_app():
         projects = app.project_registry.list_projects()
         return jsonify(_get_enriched_projects(projects))
 
-    @app.route("/dttp")
-    def dttp_monitor():
+    @app.route("/dtcp")
+    def dtcp_monitor():
         project_name = request.args.get("project")
         paths = get_project_paths(project_name)
         query = ADSQuery(paths["ads"])
         
         events = query.get_all_events()
-        dttp_actions = ['pending_edit', 'completed_edit', 'denied_edit']
-        dttp_events = [e for e in events if e.get("action_type") in dttp_actions]
-        dttp_denied = [e for e in dttp_events if not e.get("authorized", True)]
+        dtcp_actions = ['pending_edit', 'completed_edit', 'denied_edit']
+        dtcp_events = [e for e in events if e.get("action_type") in dtcp_actions]
+        dtcp_denied = [e for e in dtcp_events if not e.get("authorized", True)]
         
-        # Try to get DTTP service status
-        dttp_status = None
-        dttp_url = app.config['DTTP_URL']
+        # Try to get DTCP service status
+        dtcp_status = None
+        dtcp_url = app.config['DTCP_URL']
         if project_name:
             project = app.project_registry.get_project(project_name)
-            if project and project.get("dttp_port"):
-                dttp_url = f"http://localhost:{project['dttp_port']}"
+            if project and project.get("dtcp_port"):
+                dtcp_url = f"http://localhost:{project['dtcp_port']}"
                 
         try:
-            resp = http_client.get(f"{dttp_url}/status", timeout=2)
+            resp = http_client.get(f"{dtcp_url}/status", timeout=2)
             if resp.ok:
-                dttp_status = resp.json()
+                dtcp_status = resp.json()
         except http_client.RequestException:
             pass
             
-        return render_template("dttp.html",
-                               dttp_events=dttp_events,
-                               dttp_denied=dttp_denied,
-                               dttp_status=dttp_status)
+        return render_template("dtcp.html",
+                               dtcp_events=dtcp_events,
+                               dtcp_denied=dtcp_denied,
+                               dtcp_status=dtcp_status)
 
     @app.route("/governance")
     def governance_page():
@@ -299,4 +300,6 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="::", port=5001, debug=False)
+    port = int(os.environ.get("ADC_PORT", 5001))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="::", port=port, debug=debug)

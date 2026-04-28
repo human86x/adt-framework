@@ -146,6 +146,7 @@ const SessionManager = (() => {
       ...sessionInfo,
       color: color,
       startTime: Date.now(),
+      cwd: projectPath || project || null,
     };
 
     sessions.set(session.id, session);
@@ -232,9 +233,11 @@ const SessionManager = (() => {
     const size = TerminalManager.getSize(sessionId);
     if (window.__TAURI__ && size) {
       window.__TAURI__.core.invoke('resize_session', {
-        sessionId: sessionId,
-        cols: size.cols,
-        rows: size.rows,
+        request: {
+          sessionId: sessionId,
+          cols: size.cols,
+          rows: size.rows,
+        }
       }).catch(() => {});
     }
 
@@ -456,7 +459,7 @@ const SessionManager = (() => {
 
   async function spawnChild(data) {
     console.log("[SWARM] spawnChild request:", data);
-    const { child_role, child_harness, task_id, spec_ref, child_session_id, skip_permissions } = data;
+    const { child_role, child_harness, task_id, spec_ref, child_session_id, skip_permissions, context_hint: contextHint } = data;
     const parentSession = getActive();
     
     if (!parentSession) {
@@ -464,30 +467,55 @@ const SessionManager = (() => {
       return;
     }
 
-    // Use spawn_child_session IPC
+    let command = AGENT_COMMANDS[child_harness.toLowerCase()] || child_harness;
+    let args = [];
+
+    if (child_harness.toLowerCase() === 'gemini' || command === 'gemini') {
+      command = 'gemini';
+      args = ['-i', `/summon ${child_role.toLowerCase()}`, '--yolo'];
+    } else if (child_harness.toLowerCase() === 'claude' || command === 'claude') {
+      command = 'claude';
+      const roleSuffix = child_role.replace('_Engineer', '').replace('Systems_', '').toLowerCase();
+      args = [`/hive-${roleSuffix}`];
+      if (skip_permissions) args.push('--dangerously-skip-permissions');
+    }
+
+    // Resolve cwd: stored on session object (from create()), or look up from project registry
+    let cwd = parentSession.cwd;
+    if (!cwd && parentSession.project && window.__TAURI__) {
+      try {
+        const projectsJson = await window.__TAURI__.core.invoke('list_projects');
+        const registry = JSON.parse(projectsJson);
+        const projectData = (registry.projects || {})[parentSession.project];
+        if (projectData?.path) cwd = projectData.path;
+      } catch {}
+    }
+
+    // SPEC-048 §4.2: Subscribe to PTY output BEFORE invoking spawn_child_session so
+    // the child's first banner bytes are never dropped.
     if (window.__TAURI__) {
+      const reservedId = crypto.randomUUID();
+      TerminalManager.prepare(reservedId);
+
       try {
         const sessionInfo = await window.__TAURI__.core.invoke("spawn_child_session", {
           request: {
             project: parentSession.project,
             agent: child_harness,
             role: child_role,
-            spec_id: spec_ref || parentSession.spec_id, // Use delegated spec or inherit
-            command: child_harness, // Default command same as harness
-            args: [],
-            cwd: parentSession.cwd,
+            spec_id: spec_ref || parentSession.spec_id,
+            command: command,
+            args: args,
+            cwd: cwd || null,
             parent_session_id: parentSession.id,
             task_id: task_id,
             cols: 120,
             rows: 30,
+            skip_permissions: !!skip_permissions,
+            reserved_session_id: reservedId,
           }
         });
-        
-        // Note: we override the generated session ID with the one from the delegation event
-        // to maintain consistency with the ADS record.
-        // Actually, the PTY manager uses its own ID. 
-        // We should probably allow reserved_id in the IPC.
-        
+
         const session = {
           ...sessionInfo,
           color: AGENT_COLORS[child_harness.toLowerCase()] || AGENT_COLORS.custom,
@@ -495,15 +523,33 @@ const SessionManager = (() => {
         };
 
         sessions.set(session.id, session);
-        TerminalManager.create(session.id);
+        // activate() mounts the prepared terminal to DOM and opens xterm.
+        // If Rust didn't honour reserved_session_id yet, it transfers the prepared
+        // entry from reservedId to session.id before opening.
+        TerminalManager.activate(session.id, reservedId);
         renderTab(session);
         renderSidebarEntry(session);
         switchTo(session.id);
         updateStatusBar();
-        
+
         ToastManager.show("completion", "Swarm Spawned", `${child_role} launched.`);
+
+        // SPEC-042 §7.1: inject context_hint into PTY stdin after 1.5s startup delay
+        if (contextHint) {
+          setTimeout(async () => {
+            try {
+              await window.__TAURI__.core.invoke("write_to_session", {
+                request: { sessionId: session.id, data: contextHint + "\n" }
+              });
+            } catch (e) {
+              console.warn("[SWARM] context_hint injection failed:", e);
+            }
+          }, 1500);
+        }
+
         return session;
       } catch (err) {
+        TerminalManager.destroy(reservedId);
         console.error("[SWARM] Spawn failed:", err);
         ToastManager.show("denial", "Spawn Error", err);
       }

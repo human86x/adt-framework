@@ -43,13 +43,13 @@
         
         <div class="card card-adt mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span>DTTP Status</span>
+                <span>DTCP Status</span>
                 <span id="enforcement-mode-badge" class="badge-adt">--</span>
             </div>
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
-                    <div id="dttp-indicator" class="status-dot me-2"></div>
-                    <span id="dttp-status-text">Checking DTTP service...</span>
+                    <div id="dtcp-indicator" class="status-dot me-2"></div>
+                    <span id="dtcp-status-text">Checking DTCP service...</span>
                 </div>
                 
                 <div class="mb-2">
@@ -238,11 +238,11 @@ async function loadEnforcement() {
         badge.innerText = (data.mode || '--').toUpperCase();
         badge.className = 'badge-adt ' + (data.mode === 'production' ? 'badge-completed' : 'badge-pending');
         
-        const indicator = document.getElementById('dttp-indicator');
+        const indicator = document.getElementById('dtcp-indicator');
         indicator.className = 'status-dot ' + (data.status === 'active' ? 'dot-green' : 'dot-red');
         
-        document.getElementById('dttp-status-text').innerText = data.status === 'active' ? 
-            'DTTP Service Active on :5002' : 'DTTP Service OFFLINE';
+        document.getElementById('dtcp-status-text').innerText = data.status === 'active' ? 
+            'DTCP Service Active on :5002' : 'DTCP Service OFFLINE';
             
         // Protected paths
         const pathsList = document.getElementById('protected-paths-list');

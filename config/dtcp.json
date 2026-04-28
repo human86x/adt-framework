@@ -1,0 +1,7 @@
+{
+  "port": 5002,
+  "mode": "development",
+  "enforcement_mode": "production",
+  "project_name": "adt-framework",
+  "service": "dtcp"
+}

@@ -45,6 +45,10 @@ const ProjectLauncher = (() => {
           <h3>IMPORT PROJECT</h3>
           <p>Add ADT to an existing codebase.</p>
         </div>
+        <div class="launcher-card forge-app" id="card-forge-app">
+          <h3>FORGE APPLICATION</h3>
+          <p>Describe a vision. The Architect builds it autonomously.</p>
+        </div>
       </div>
 
       <div class="launcher-section-title">Governed Projects</div>
@@ -65,6 +69,7 @@ const ProjectLauncher = (() => {
     document.getElementById("card-forge-mode").onclick = () => openProject("adt-framework");
     document.getElementById("card-create-project").onclick = openCreateWizard;
     document.getElementById("card-import-project").onclick = openImportWizard;
+    document.getElementById("card-forge-app").onclick = openForgeWizard;
 
     // EVENT DELEGATION: Click handler for the project list
     document.getElementById("launcher-project-list").onclick = (e) => {
@@ -138,7 +143,7 @@ const ProjectLauncher = (() => {
             </div>
             <div class="project-meta">
               <div class="project-status">
-                <span class="status-dot dot-${p.dttp_running ? "green" : "grey"}"></span>
+                <span class="status-dot dot-${p.dtcp_running ? "green" : "grey"}"></span>
                 <span>:${p.port}</span>
               </div>
             </div>
@@ -279,7 +284,7 @@ const ProjectLauncher = (() => {
     try {
       if (window.__TAURI__) {
         await window.__TAURI__.core.invoke("init_project", {
-          request: { path, name, detect: true, start_dttp: true }
+          request: { path, name, detect: true, start_dtcp: true }
         });
         closeWizard();
         await refresh();
@@ -300,7 +305,7 @@ const ProjectLauncher = (() => {
     try {
       if (window.__TAURI__) {
         await window.__TAURI__.core.invoke("init_project", {
-          request: { path, name, detect: true, start_dttp: true }
+          request: { path, name, detect: true, start_dtcp: true }
         });
         closeWizard();
         await refresh();
@@ -308,6 +313,95 @@ const ProjectLauncher = (() => {
       }
     } catch (err) {
       alert("Backend Error: " + err.toString());
+    }
+  }
+
+  function openForgeWizard() {
+    showWizard(`
+      <h2>Forge Application</h2>
+      <p class="wiz-subtitle">Describe your vision. The Architect will formalize a specification and build the foundation autonomously.</p>
+      <div class="wizard-field">
+        <label>Your Wish</label>
+        <textarea id="wiz-forge-wish" rows="4" placeholder="A governed REST API for tracking software releases, with automated test coverage and a CI/CD pipeline..."></textarea>
+      </div>
+      <div class="wizard-field">
+        <label>Project Path <span class="wiz-required">*</span></label>
+        <input type="text" id="wiz-forge-path" placeholder="/home/human/Projects/my-new-app">
+      </div>
+      <div class="wizard-field">
+        <label>Project Name <span class="wiz-optional">(auto-detected from path)</span></label>
+        <input type="text" id="wiz-forge-name" placeholder="my-new-app">
+      </div>
+      <div class="wizard-actions">
+        <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
+        <button class="primary forge-submit" id="btn-wiz-forge">Forge Application</button>
+      </div>
+    `);
+    document.getElementById("btn-wiz-cancel").onclick = closeWizard;
+    document.getElementById("btn-wiz-forge").onclick = submitForge;
+    setTimeout(() => {
+      const el = document.getElementById("wiz-forge-wish");
+      if (el) el.focus();
+    }, 100);
+  }
+
+  async function submitForge() {
+    const wish = (document.getElementById("wiz-forge-wish")?.value || "").trim();
+    const path = (document.getElementById("wiz-forge-path")?.value || "").trim();
+    const name = (document.getElementById("wiz-forge-name")?.value || "").trim() || null;
+
+    if (!wish) { alert("Please describe your wish."); return; }
+    if (!path) { alert("Project path is required."); return; }
+
+    const btn = document.getElementById("btn-wiz-forge");
+    if (btn) { btn.disabled = true; btn.textContent = "Forging..."; }
+
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/forge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, intent_description: wish, name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Forge failed.");
+
+      const modal = document.querySelector(".wizard-modal");
+      if (modal) {
+        const projectName = data.project?.name || name || path.split("/").pop();
+        modal.innerHTML = `
+          <h2 style="color:#4CAF50;margin-top:0;">Forge Initiated</h2>
+          <p style="color:#8b949e;margin-bottom:20px;">The Architect has been summoned.</p>
+          <div class="forge-result">
+            <div class="forge-result-row">
+              <span class="forge-result-label">Project</span>
+              <span>${projectName}</span>
+            </div>
+            <div class="forge-result-row">
+              <span class="forge-result-label">Session</span>
+              <span style="font-family:monospace;font-size:0.82rem">${data.session_id}</span>
+            </div>
+            <div class="forge-result-row">
+              <span class="forge-result-label">Intent</span>
+              <span style="font-family:monospace;font-size:0.82rem">${data.intent_id}</span>
+            </div>
+          </div>
+          <p style="color:#8b949e;font-size:0.9rem;margin-top:16px;">The Architect is formalizing your specification. Monitor progress in the ADT Panel.</p>
+          <div class="wizard-actions" style="margin-top:24px;">
+            <button class="btn-prev" id="btn-forge-close">Close</button>
+            <button class="primary" id="btn-forge-open">Open Project</button>
+          </div>
+        `;
+        document.getElementById("btn-forge-close").onclick = closeWizard;
+        document.getElementById("btn-forge-open").onclick = () => {
+          closeWizard();
+          toggle();
+          openProject(projectName);
+        };
+      }
+      await refresh();
+    } catch (err) {
+      alert("Forge Error: " + err.toString());
+      if (btn) { btn.disabled = false; btn.textContent = "Forge Application"; }
     }
   }
 
@@ -320,5 +414,5 @@ const ProjectLauncher = (() => {
     return `${Math.floor(seconds / 86400)}d ago`;
   }
 
-  return { init, toggle, refresh, isActive: () => active, openProject, reopenSession, closeWizard, submitCreate, submitImport };
+  return { init, toggle, refresh, isActive: () => active, openProject, reopenSession, closeWizard, submitCreate, submitImport, openForgeWizard, submitForge };
 })();

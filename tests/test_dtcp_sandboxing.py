@@ -1,17 +1,17 @@
-"""Tests for DTTP sandboxing features: dry_run, patch action, enforcement_mode,
+"""Tests for DTCP sandboxing features: dry_run, patch action, enforcement_mode,
 and Claude Code PreToolUse hook (SPEC-021 Section 8)."""
 import json
 import os
 import py_compile
 import pytest
 
-from adt_core.dttp.config import DTTPConfig
-from adt_core.dttp.service import create_dttp_app
+from adt_core.dtcp.config import DTCPConfig
+from adt_core.dtcp.service import create_dtcp_app
 
 
 @pytest.fixture
-def dttp_app(tmp_path):
-    """Create a test DTTP service with patch-capable config."""
+def dtcp_app(tmp_path):
+    """Create a test DTCP service with patch-capable config."""
     project_root = tmp_path / "project"
     project_root.mkdir()
     (project_root / "data").mkdir()
@@ -45,7 +45,7 @@ def dttp_app(tmp_path):
         }
     }))
 
-    config = DTTPConfig(
+    config = DTCPConfig(
         port=5002,
         mode="development",
         ads_path=str(ads_path),
@@ -56,18 +56,18 @@ def dttp_app(tmp_path):
         enforcement_mode="development",
     )
 
-    app = create_dttp_app(config)
+    app = create_dtcp_app(config)
     app.config["TESTING"] = True
     return app
 
 
 @pytest.fixture
-def client(dttp_app):
-    return dttp_app.test_client()
+def client(dtcp_app):
+    return dtcp_app.test_client()
 
 
 def _valid_request(**overrides):
-    """Build a valid DTTP request payload."""
+    """Build a valid DTCP request payload."""
     payload = {
         "agent": "TEST",
         "role": "tester",
@@ -83,7 +83,7 @@ def _valid_request(**overrides):
 # === Dry Run ===
 
 class TestDryRun:
-    def test_dry_run_allowed_does_not_write(self, client, dttp_app):
+    def test_dry_run_allowed_does_not_write(self, client, dtcp_app):
         """dry_run=True should validate but NOT write the file."""
         resp = client.post("/request", json=_valid_request(dry_run=True))
         assert resp.status_code == 200
@@ -92,7 +92,7 @@ class TestDryRun:
         assert data["dry_run"] is True
 
         # File must NOT exist
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         written_file = os.path.join(project_root, "data", "test.txt")
         assert not os.path.exists(written_file)
 
@@ -105,17 +105,17 @@ class TestDryRun:
         data = resp.get_json()
         assert data["status"] == "denied"
 
-    def test_dry_run_logged_to_ads(self, client, dttp_app):
+    def test_dry_run_logged_to_ads(self, client, dtcp_app):
         """dry_run should log a dry_run_validated event to ADS."""
         client.post("/request", json=_valid_request(dry_run=True))
-        ads_path = dttp_app.config["DTTP"].ads_path
+        ads_path = dtcp_app.config["DTCP"].ads_path
         with open(ads_path) as f:
             events = [json.loads(line) for line in f if line.strip()]
         dry_events = [e for e in events if "dry_run" in e.get("action_type", "")]
         assert len(dry_events) == 1
         assert dry_events[0]["authorized"] is True
 
-    def test_dry_run_default_false_backward_compat(self, client, dttp_app):
+    def test_dry_run_default_false_backward_compat(self, client, dtcp_app):
         """Without dry_run field, request should execute normally (backward compat)."""
         resp = client.post("/request", json=_valid_request())
         assert resp.status_code == 200
@@ -125,7 +125,7 @@ class TestDryRun:
         assert "result" in data
 
         # File SHOULD exist
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         written_file = os.path.join(project_root, "data", "test.txt")
         assert os.path.exists(written_file)
 
@@ -133,9 +133,9 @@ class TestDryRun:
 # === Patch Action ===
 
 class TestPatchAction:
-    def test_patch_success(self, client, dttp_app):
+    def test_patch_success(self, client, dtcp_app):
         """Patch should replace old_string with new_string."""
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         target = os.path.join(project_root, "data", "patch_test.txt")
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w") as f:
@@ -153,9 +153,9 @@ class TestPatchAction:
         with open(target) as f:
             assert f.read() == "Hello ADT"
 
-    def test_patch_old_string_not_found(self, client, dttp_app):
+    def test_patch_old_string_not_found(self, client, dtcp_app):
         """Patch should error if old_string not in file."""
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         target = os.path.join(project_root, "data", "patch_nf.txt")
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w") as f:
@@ -170,9 +170,9 @@ class TestPatchAction:
         assert data["result"]["status"] == "error"
         assert "not found" in data["result"]["message"]
 
-    def test_patch_ambiguous_match(self, client, dttp_app):
+    def test_patch_ambiguous_match(self, client, dtcp_app):
         """Patch should error if old_string matches more than once."""
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         target = os.path.join(project_root, "data", "patch_amb.txt")
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w") as f:
@@ -210,19 +210,19 @@ class TestEnforcementMode:
         assert data["enforcement_mode"] == "development"
 
     def test_enforcement_mode_from_env(self, tmp_path, monkeypatch):
-        """enforcement_mode should read from DTTP_ENFORCEMENT_MODE env var."""
-        monkeypatch.setenv("DTTP_ENFORCEMENT_MODE", "production")
-        config = DTTPConfig.from_env()
+        """enforcement_mode should read from DTCP_ENFORCEMENT_MODE env var."""
+        monkeypatch.setenv("DTCP_ENFORCEMENT_MODE", "production")
+        config = DTCPConfig.from_env()
         assert config.enforcement_mode == "production"
 
     def test_enforcement_mode_default(self):
         """enforcement_mode should default to 'development'."""
-        config = DTTPConfig()
+        config = DTCPConfig()
         assert config.enforcement_mode == "development"
 
     def test_enforcement_mode_from_project_root(self, tmp_path):
         """from_project_root should set enforcement_mode to development."""
-        config = DTTPConfig.from_project_root(str(tmp_path))
+        config = DTCPConfig.from_project_root(str(tmp_path))
         assert config.enforcement_mode == "development"
 
 
@@ -273,7 +273,7 @@ class TestClaudePreToolHook:
         result = mod.to_project_relative("/etc/passwd", "/home/user/project")
         assert result == "/etc/passwd"
 
-    def test_build_dttp_params_write(self):
+    def test_build_dtcp_params_write(self):
         """Write tool should map to 'edit' action."""
         import importlib.util
         hook_path = os.path.join(
@@ -284,12 +284,12 @@ class TestClaudePreToolHook:
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
-        action, params = mod.build_dttp_params("Write", {"content": "hello"}, "src/file.py")
+        action, params = mod.build_dtcp_params("Write", {"content": "hello"}, "src/file.py")
         assert action == "edit"
         assert params["file"] == "src/file.py"
         assert params["content"] == "hello"
 
-    def test_build_dttp_params_edit(self):
+    def test_build_dtcp_params_edit(self):
         """Edit tool should map to 'patch' action."""
         import importlib.util
         hook_path = os.path.join(
@@ -300,7 +300,7 @@ class TestClaudePreToolHook:
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
-        action, params = mod.build_dttp_params("Edit", {
+        action, params = mod.build_dtcp_params("Edit", {
             "old_string": "old", "new_string": "new"
         }, "src/file.py")
         assert action == "patch"
@@ -350,18 +350,18 @@ class TestGeminiPreToolHook:
         result = mod.to_project_relative("/etc/passwd", "/home/user/project")
         assert result == "/etc/passwd"
 
-    def test_build_dttp_params_write_file(self):
+    def test_build_dtcp_params_write_file(self):
         """write_file tool should map to 'edit' action."""
         mod, _ = _load_gemini_hook()
-        action, params = mod.build_dttp_params("write_file", {"content": "hello"}, "src/file.py")
+        action, params = mod.build_dtcp_params("write_file", {"content": "hello"}, "src/file.py")
         assert action == "edit"
         assert params["file"] == "src/file.py"
         assert params["content"] == "hello"
 
-    def test_build_dttp_params_replace(self):
+    def test_build_dtcp_params_replace(self):
         """replace tool should map to 'patch' action."""
         mod, _ = _load_gemini_hook()
-        action, params = mod.build_dttp_params("replace", {
+        action, params = mod.build_dtcp_params("replace", {
             "old_string": "old", "new_string": "new"
         }, "src/file.py")
         assert action == "patch"

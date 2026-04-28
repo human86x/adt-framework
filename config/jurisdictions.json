@@ -3,8 +3,6 @@
     "Systems_Architect": {
       "paths": [
         ".",
-        "README.md",
-        "LICENSE",
         ".gitignore",
         "_cortex/",
         "docs/",
@@ -15,7 +13,10 @@
         "tests/",
         "adt-console/",
         "sample_projects/",
-        "_cortex/capabilities/"
+        "_cortex/capabilities/",
+        "_cortex/standards/",
+        "README.md",
+        "LICENSE"
       ],
       "action_types": [
         "edit",
@@ -40,7 +41,7 @@
         "tests/integration/",
         "adt_center/api/governance_routes.py",
         "_cortex/work_logs/",
-        "_cortex/capabilities/",
+        "_cortex/capabilities/capability_events.jsonl",
         "adt_core/ads/schema.py"
       ],
       "action_types": [
@@ -59,7 +60,7 @@
         "adt-console/src/",
         "install.sh",
         "_cortex/work_logs/",
-        "_cortex/capabilities/"
+        "_cortex/capabilities/capability_events.jsonl"
       ],
       "action_types": [
         "edit",
@@ -75,21 +76,22 @@
     },
     "DevOps_Engineer": {
       "paths": [
-        "ops/",
-        ".github/",
-        ".gemini/",
         ".claude/",
-        "adt-console/src-tauri/",
-        "setup.py",
-        "start.sh",
-        "console.sh",
-        "adt-console/",
-        "scripts/",
+        ".gemini/",
+        ".github/",
+        "_cortex/capabilities/capability_events.jsonl",
         "_cortex/ops/",
-        "adt_sdk/",
         "_cortex/work_logs/",
+        "adt-console/",
+        "adt-console/src-tauri/",
+        "adt_sdk/",
+        "bootstrap.sh",
+        "console.sh",
         "install.sh",
-        "_cortex/capabilities/"
+        "ops/",
+        "scripts/",
+        "setup.py",
+        "start.sh"
       ],
       "action_types": [
         "edit",
@@ -109,7 +111,8 @@
         "_cortex/docs/",
         "_cortex/requests.md",
         "_cortex/work_logs/",
-        "_cortex/capabilities/"
+        "_cortex/capabilities/capability_events.jsonl",
+        "_cortex/standards/"
       ],
       "action_types": [
         "edit",

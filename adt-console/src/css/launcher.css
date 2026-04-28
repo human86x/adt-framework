@@ -61,9 +61,9 @@
 
 .launcher-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
-  max-width: 1100px;
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto 50px auto;
 }
@@ -95,6 +95,20 @@
 .launcher-card.forge-mode:hover {
   border-color: #d29922;
   box-shadow: 0 12px 24px rgba(210, 153, 34, 0.15);
+}
+
+.launcher-card.forge-app {
+  border-left: 4px solid #4CAF50;
+  background: linear-gradient(135deg, #161b22 0%, #0d1a0e 100%);
+}
+
+.launcher-card.forge-app:hover {
+  border-color: #4CAF50;
+  box-shadow: 0 12px 24px rgba(76, 175, 80, 0.2);
+}
+
+.launcher-card.forge-app h3 {
+  color: #4CAF50;
 }
 
 .launcher-card h3 {
@@ -347,7 +361,81 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.95); 
+  background: rgba(0,0,0,0.95);
   z-index: 1050;
   backdrop-filter: blur(10px);
+}
+
+/* SPEC-043: Forge wizard additions */
+.wizard-modal h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.8rem;
+  color: #6B7FD7;
+  text-align: center;
+  font-weight: 700;
+}
+
+.wiz-subtitle {
+  color: #8b949e;
+  font-size: 0.95rem;
+  text-align: center;
+  margin-bottom: 28px;
+  line-height: 1.6;
+}
+
+.wiz-required {
+  color: #f85149;
+}
+
+.wiz-optional {
+  color: #6B7FD7;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.wizard-field textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.6;
+}
+
+.wizard-actions button.forge-submit {
+  background: linear-gradient(135deg, #2d6a2f, #1a4a1c);
+  border-color: #4CAF50;
+}
+
+.wizard-actions button.forge-submit:hover {
+  background: linear-gradient(135deg, #3a8a3d, #246b27);
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.25);
+}
+
+.forge-result {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forge-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.forge-result-label {
+  color: #8b949e;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  min-width: 60px;
+  padding-top: 2px;
 }

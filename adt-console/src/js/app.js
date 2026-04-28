@@ -697,14 +697,14 @@ const GitStatusManager = (() => {
   function initSettings() {
     const autostart = document.getElementById("setting-autostart");
     const centerUrl = document.getElementById("setting-center-url");
-    const dttpUrl = document.getElementById("setting-dttp-url");
+    const dtcpUrl = document.getElementById("setting-dtcp-url");
     
     if (!autostart) return;
 
     // Load from localStorage
     autostart.checked = localStorage.getItem("adt_autostart") === "true";
     centerUrl.value = localStorage.getItem("adt_center_url") || "http://localhost:5001";
-    dttpUrl.value = localStorage.getItem("adt_dttp_url") || "http://localhost:5002";
+    dtcpUrl.value = localStorage.getItem("adt_dtcp_url") || "http://localhost:5002";
     
     autostart.addEventListener("change", () => {
       localStorage.setItem("adt_autostart", autostart.checked);
@@ -715,8 +715,8 @@ const GitStatusManager = (() => {
       localStorage.setItem("adt_center_url", centerUrl.value);
     });
 
-    dttpUrl.addEventListener("change", () => {
-      localStorage.setItem("adt_dttp_url", dttpUrl.value);
+    dtcpUrl.addEventListener("change", () => {
+      localStorage.setItem("adt_dtcp_url", dtcpUrl.value);
     });
   }
 
@@ -917,7 +917,7 @@ const GitStatusManager = (() => {
           const type = event.action_type || '';
           if (type.includes('denied') || type.includes('violation')) {
             NativeNotify.send(
-              'DTTP Denial',
+              'DTCP Denial',
               truncateStr(event.description, 100)
             );
             TrayBridge.updateStatus('error', SessionManager.getAll().length, 1);

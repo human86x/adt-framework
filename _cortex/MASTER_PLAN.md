@@ -10,7 +10,7 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 
 ## 2. Completed Milestones
 
-- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTTP Gateway.
+- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTCP Gateway.
 - **v0.2.0 (Operational Center):** Flask Web UI, Agent SDK, Tiered Path Protection, SCR Queue.
 - **v0.3.0 (Operator Console):** Tauri Desktop Command Center, Multi-Project Registry, Shatterglass Protocol.
 - **v0.3.5 (Hardening):** Agent Sandboxing (Filesystem/Network), Windows Installer, Remote Share.
@@ -44,10 +44,11 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 | SPEC-038 | Capability Governance | ACTIVE |
 | SPEC-039 | Interactive Orchestration | ACTIVE |
 | SPEC-040 | Capability Governance UI | ACTIVE |
+| SPEC-044 | DTCP -> DTCP Terminology Migration | ACTIVE |
 
 ## 6. Roadmap
 
-- **v0.5.0:** Enterprise DTTP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.
+- **v0.5.0:** Enterprise DTCP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.
 - **v0.6.0:** Advance Visual Analytics, Causal Impact Dashboards.
 - **v1.0.0:** Production Stable Release.
 

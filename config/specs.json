@@ -1,7 +1,7 @@
 {
   "specs": {
     "SPEC-014": {
-      "title": "DTTP Implementation (Level 3)",
+      "title": "DTCP Implementation (Level 3)",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -56,7 +56,8 @@
       "roles": [
         "Overseer",
         "Systems_Architect",
-        "DevOps_Engineer"
+        "DevOps_Engineer",
+        "Backend_Engineer"
       ],
       "action_types": [
         "edit",
@@ -106,7 +107,7 @@
       ]
     },
     "SPEC-019": {
-      "title": "DTTP Standalone Service",
+      "title": "DTCP Standalone Service",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -183,7 +184,7 @@
       ]
     },
     "SPEC-026": {
-      "title": "DTTP Governance Configurator",
+      "title": "DTCP Governance Configurator",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -462,7 +463,10 @@
       "title": "Organizational Capability Governance",
       "status": "approved",
       "roles": [
-        "Overseer"
+        "Overseer",
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer"
       ],
       "action_types": [
         "edit",
@@ -496,6 +500,236 @@
         "adt-console/src-tauri/",
         "adt_center/api/",
         "adt_core/ads/schema.py"
+      ]
+    },
+    "SPEC-040": {
+      "title": "Capability Governance UI Integration",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Frontend_Engineer",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/",
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "adt_center/api/governance_routes.py"
+      ]
+    },
+    "SPEC-041": {
+      "title": "Console UX & Context",
+      "status": "active",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/context/",
+        "adt_core/api/billing.py",
+        "adt_core/ads/summarizer.py",
+        "adt_core/ads/schema.py",
+        "adt-console/src/",
+        "adt-console/src-tauri/"
+      ]
+    },
+    "SPEC-042": {
+      "title": "Multi-Harness Swarm Agent Spawning",
+      "status": "active",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/ads/schema.py",
+        "adt_core/ads/logger.py",
+        "adt_center/api/governance_routes.py",
+        "adt_core/dttp/gateway.py",
+        "adt_core/dttp/policy.py",
+        "adt_sdk/swarm.py",
+        "adt-console/src-tauri/",
+        "adt-console/src/",
+        "config/delegation_policy.json"
+      ]
+    },
+    "SPEC-038A": {
+      "title": "Capability Data Model Enrichment and Stage-Gate Engine",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/capabilities/",
+        "adt_core/ads/capability.py",
+        "adt_center/api/governance_routes.py",
+        "adt_core/ads/schema.py",
+        "config/jurisdictions.json"
+      ]
+    },
+    "SPEC-043": {
+      "title": "Autonomous One-Click App Forge",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Frontend_Engineer",
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt-console/src/",
+        "adt_center/api/",
+        "adt_sdk/",
+        "_cortex/specs/",
+        "_cortex/tasks.json"
+      ]
+    },
+    "SPEC-044": {
+      "title": "DTCP to DTCP Terminology Migration",
+      "status": "active",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete",
+        "rename"
+      ],
+      "paths": [
+        "README.md",
+        "_cortex/",
+        "adt-console/src-tauri/",
+        "adt-console/src/",
+        "adt_center/",
+        "adt_core/",
+        "adt_core/ads/crypto.py",
+        "adt_core/ads/integrity.py",
+        "adt_core/ads/logger.py",
+        "adt_core/dttp/gateway.py",
+        "adt_core/dttp/policy.py",
+        "adt_core/dttp/service.py",
+        "adt_sdk/",
+        "bootstrap.sh",
+        "config/",
+        "console.sh",
+        "install.sh",
+        "notes.md",
+        "ops/",
+        "start.sh",
+        "tests/"
+      ]
+    },
+    "SPEC-045": {
+      "title": "SCR Authorization Hardening",
+      "status": "active",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/api/governance_routes.py",
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "config/specs.json",
+        "_cortex/ops/",
+        "adt_sdk/hooks/"
+      ]
+    },
+    "SPEC-046": {
+      "title": "Standards Governance Layer",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/standards/",
+        "adt_core/standards/",
+        "adt_center/api/governance_routes.py",
+        "config/specs.json",
+        "config/jurisdictions.json",
+        "adt_core/ads/schema.py"
+      ]
+    },
+    "SPEC-047": {
+      "title": "Standards Integration & Transparency",
+      "status": "draft",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/",
+        "adt_center/api/",
+        "adt-console/src/",
+        "_cortex/ads/",
+        "config/specs.json"
       ]
     }
   }

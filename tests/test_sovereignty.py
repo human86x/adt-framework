@@ -3,22 +3,22 @@ import json
 import os
 import pytest
 
-from adt_core.dttp.config import DTTPConfig
-from adt_core.dttp.service import create_dttp_app
+from adt_core.dtcp.config import DTCPConfig
+from adt_core.dtcp.service import create_dtcp_app
 from adt_core.ads.logger import ADSLogger
 from adt_core.ads.schema import ADSEventSchema
 
 
 @pytest.fixture
-def dttp_app(tmp_path):
-    """Create a test DTTP service with SPEC-020 configurations."""
+def dtcp_app(tmp_path):
+    """Create a test DTCP service with SPEC-020 configurations."""
     project_root = tmp_path / "project"
     project_root.mkdir()
     
     # Create required directories
     (project_root / "config").mkdir()
     (project_root / "_cortex" / "ads").mkdir(parents=True)
-    (project_root / "adt_core" / "dttp").mkdir(parents=True)
+    (project_root / "adt_core" / "dtcp").mkdir(parents=True)
     (project_root / "data").mkdir()
 
     # ADS log
@@ -33,13 +33,13 @@ def dttp_app(tmp_path):
                 "status": "approved",
                 "roles": ["admin"],
                 "action_types": ["edit"],
-                "paths": ["config/specs.json", "adt_core/dttp/gateway.py"]
+                "paths": ["config/specs.json", "adt_core/dtcp/gateway.py"]
             },
             "SPEC-WILDCARD": {
                 "status": "approved",
                 "roles": ["admin"],
                 "action_types": ["edit"],
-                "paths": ["adt_core/dttp/"]
+                "paths": ["adt_core/dtcp/"]
             },
             "SPEC-REGULAR": {
                 "status": "approved",
@@ -59,11 +59,11 @@ def dttp_app(tmp_path):
         }
     }))
 
-    # DTTP config (Sovereign path)
-    dttp_json = project_root / "config" / "dttp.json"
-    dttp_json.write_text(json.dumps({}))
+    # DTCP config (Sovereign path)
+    dtcp_json = project_root / "config" / "dtcp.json"
+    dtcp_json.write_text(json.dumps({}))
 
-    config = DTTPConfig(
+    config = DTCPConfig(
         port=5002,
         mode="development",
         ads_path=str(ads_path),
@@ -73,14 +73,14 @@ def dttp_app(tmp_path):
         project_name="sovereign-test",
     )
 
-    app = create_dttp_app(config)
+    app = create_dtcp_app(config)
     app.config["TESTING"] = True
     return app
 
 
 @pytest.fixture
-def client(dttp_app):
-    return dttp_app.test_client()
+def client(dtcp_app):
+    return dtcp_app.test_client()
 
 
 def _req(role="admin", spec="SPEC-020", file="data/test.txt", **overrides):
@@ -102,7 +102,7 @@ class TestSovereignPaths:
     @pytest.mark.parametrize("path", [
         "config/specs.json",
         "config/jurisdictions.json",
-        "config/dttp.json",
+        "config/dtcp.json",
         "_cortex/AI_PROTOCOL.md",
         "_cortex/MASTER_PLAN.md"
     ])
@@ -113,10 +113,10 @@ class TestSovereignPaths:
         data = resp.get_json()
         assert data["reason"] == "sovereign_path_violation"
 
-    def test_sovereign_denial_logging(self, client, dttp_app):
+    def test_sovereign_denial_logging(self, client, dtcp_app):
         """Tier 1 denials must be logged with tier 1 and escalation."""
         client.post("/request", json=_req(file="config/specs.json"))
-        ads_path = dttp_app.config["DTTP"].ads_path
+        ads_path = dtcp_app.config["DTCP"].ads_path
         with open(ads_path) as f:
             events = [json.loads(line) for line in f if line.strip()]
         
@@ -131,7 +131,7 @@ class TestConstitutionalPaths:
     """Tier 2: Constitutional Path Elevated Authorization Tests."""
 
     @pytest.mark.parametrize("path", [
-        "adt_core/dttp/gateway.py",
+        "adt_core/dtcp/gateway.py",
         "adt_core/ads/logger.py"
     ])
     def test_tier2_denied_no_justification(self, client, path):
@@ -144,8 +144,8 @@ class TestConstitutionalPaths:
         """Tier 2 paths require explicit file listing in spec, not wildcard."""
         payload = _req(
             spec="SPEC-WILDCARD", 
-            file="adt_core/dttp/gateway.py",
-            params={"file": "adt_core/dttp/gateway.py", "content": "test", "tier2_justification": "needed"}
+            file="adt_core/dtcp/gateway.py",
+            params={"file": "adt_core/dtcp/gateway.py", "content": "test", "tier2_justification": "needed"}
         )
         resp = client.post("/request", json=payload)
         assert resp.status_code == 403
@@ -155,22 +155,22 @@ class TestConstitutionalPaths:
         """Tier 2 approved with explicit spec listing and justification."""
         payload = _req(
             spec="SPEC-020",
-            file="adt_core/dttp/gateway.py",
-            params={"file": "adt_core/dttp/gateway.py", "content": "test", "tier2_justification": "Updating gateway for SPEC-020"}
+            file="adt_core/dtcp/gateway.py",
+            params={"file": "adt_core/dtcp/gateway.py", "content": "test", "tier2_justification": "Updating gateway for SPEC-020"}
         )
         resp = client.post("/request", json=payload)
         assert resp.status_code == 200
         assert resp.get_json()["status"] == "allowed"
 
-    def test_tier2_logging(self, client, dttp_app):
+    def test_tier2_logging(self, client, dtcp_app):
         """Tier 2 approved requests log tier2_authorized and tier: 2."""
         payload = _req(
             spec="SPEC-020",
-            file="adt_core/dttp/gateway.py",
-            params={"file": "adt_core/dttp/gateway.py", "content": "test", "tier2_justification": "test"}
+            file="adt_core/dtcp/gateway.py",
+            params={"file": "adt_core/dtcp/gateway.py", "content": "test", "tier2_justification": "test"}
         )
         client.post("/request", json=payload)
-        ads_path = dttp_app.config["DTTP"].ads_path
+        ads_path = dtcp_app.config["DTCP"].ads_path
         with open(ads_path) as f:
             events = [json.loads(line) for line in f if line.strip()]
         

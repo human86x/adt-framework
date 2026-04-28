@@ -2593,3 +2593,79 @@ input:checked + .slider:before {
   outline: none;
   box-shadow: 0 0 0 2px rgba(107, 127, 215, 0.2);
 }
+
+/* SPEC-041: UX & Context Refinements */
+
+/* Jurisdiction Tiers */
+.tier-badge {
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1px 3px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.tier-1 { background: var(--accent-red); color: white; }
+.tier-2 { background: var(--accent-amber); color: black; }
+.tier-3 { background: var(--accent-green); color: white; }
+
+.tier-border-1 { border-left: 3px solid var(--accent-red) !important; }
+.tier-border-2 { border-left: 3px solid var(--accent-amber) !important; }
+.tier-border-3 { border-left: 3px solid var(--accent-green) !important; }
+
+/* Timeline Nodes */
+.timeline-node {
+    margin-bottom: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--border);
+    position: relative;
+}
+.timeline-node.success { border-left-color: var(--accent-green); }
+.timeline-node.denied { border-left-color: var(--accent-red); }
+.timeline-node.pending { border-left-color: var(--accent-blue); animation: pulse-border 2s infinite; }
+
+.timeline-node .node-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.timeline-node .node-title { font-weight: 700; font-size: 11px; }
+.timeline-node .node-time { font-size: 9px; opacity: 0.6; }
+.timeline-node .node-summary { font-size: 10px; line-height: 1.3; }
+
+.timeline-node .node-stats {
+    margin-top: 6px;
+    font-size: 9px;
+    display: flex;
+    gap: 8px;
+    opacity: 0.8;
+}
+
+@keyframes pulse-border {
+    0% { border-left-color: var(--accent-blue); }
+    50% { border-left-color: transparent; }
+    100% { border-left-color: var(--accent-blue); }
+}
+
+/* Cost & Tokens */
+#status-cost, #status-tokens {
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+#ctx-cost-value { color: var(--accent-green); }
+#ctx-token-value { color: var(--accent-blue); }
+
+/* Exit Code Badges */
+.exit-badge {
+    display: inline-block;
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 800;
+    margin-left: 4px;
+}
+.exit-0 { background: rgba(var(--adt-success-rgb), 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+.exit-err { background: rgba(var(--adt-error-rgb), 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }

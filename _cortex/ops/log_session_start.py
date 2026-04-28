@@ -11,7 +11,7 @@ from adt_core.ads.schema import ADSEventSchema
 
 def log_session_start(role: str, agent: str, description: str, spec_ref: str):
     logger = ADSLogger("_cortex/ads/events.jsonl")
-    session_id = f"sess_{datetime.datetime.now().strftime(\"%Y%m%d_%H%M%S\")}_{uuid.uuid4().hex[:4]}"
+    session_id = f"sess_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
     
     event_id = ADSEventSchema.generate_id("session_start")
     event = ADSEventSchema.create_event(

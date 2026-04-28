@@ -2,6 +2,89 @@
 
 ---
 
+## REQ-061: SPEC-048 - Filter sessions/tree endpoint to active + recent-completed
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-04-28
+**Type:** BUG
+**Priority:** HIGH
+**Related Specs:** SPEC-048, SPEC-042
+
+### Description
+
+`GET /api/governance/sessions/tree` (`adt_center/api/governance_routes.py:2135`, `get_session_tree`) currently walks every event in the ADS and emits a top-level node for every `session_start`. Live console returned 48 top-level sessions, most completed months ago. The Swarm Tree panel renders the lot, producing a wall of unparented nodes that is functionally unreadable.
+
+Implement task_298 per SPEC-048 Section 4.1:
+
+- Always include sessions with `status` in `{"active", "spawning"}`.
+- Include `completed` sessions only if their `session_start` event is within the last `SESSION_TREE_RECENT_HOURS` (default: 6) hours of wall clock.
+- Honour env var override `SESSION_TREE_RECENT_HOURS` (integer hours; default 6 if unset or invalid).
+- Children whose `parent_session_id` resolves to an excluded session are promoted to root (do not silently drop live children of stale parents).
+- No new query parameter, no new endpoint, no schema change.
+
+Add a unit test that seeds three crafted events (one active, one completed-recent, one completed-old) and asserts only two appear in the tree.
+
+Audit `grep -rn "sessions/tree" adt_center/ adt-console/` before merge; if any other caller relies on the unfiltered list, add `?include_all=true` and document. Otherwise the change is internal.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-062: SPEC-048 - Subscribe-before-spawn fix and IPC arg-naming normalization
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-04-28
+**Type:** BUG
+**Priority:** HIGH
+**Related Specs:** SPEC-048, SPEC-042, SPEC-021
+
+### Description
+
+Spawning a child agent from the Console produces an empty terminal tab. Root cause: `adt-console/src/js/sessions.js:495` awaits `spawn_child_session` (PTY starts and the child CLI emits its banner immediately), then `adt-console/src/js/sessions.js:524` calls `TerminalManager.create(session.id)` which only at that point subscribes to `pty-output-<id>` Tauri events. Bytes emitted between spawn and subscribe are dropped because Tauri events have no replay buffer.
+
+Implement task_299 and task_300 per SPEC-048 Section 4.2 / 4.3:
+
+1. Add `TerminalManager.prepare(sessionId)` that creates the xterm instance, mounts the wrapper, and **registers `pty-output-<sessionId>` and `pty-closed-<sessionId>` listeners before returning.** xterm.write is safe before `term.open` resolves.
+2. Generate a client-side reserved id (`crypto.randomUUID()`), call `TerminalManager.prepare(reservedId)` first, *then* invoke `spawn_child_session` with a new optional field `reserved_session_id: <reservedId>`. Coordinate with DevOps (REQ-063) for the small `pty.rs` change to honour that field; if absent the Rust side falls back to its own id (no behaviour change for other callers).
+3. On `spawn_child_session` rejection, dispose the prepared xterm and listeners cleanly. No orphan tabs on failure.
+4. Normalize Tauri IPC argument naming. `adt-console/src/js/terminal.js:74` sends `sessionId`; `adt-console/src/js/sessions.js:537` sends `session_id` for the same `write_to_session` command. Pick the form the Rust struct in `adt-console/src-tauri/src/ipc.rs` accepts (do not change the Rust struct -- match it from JS) and bring every call site into agreement. Run `grep -rn "write_to_session\\|resize_session\\|spawn_child_session" adt-console/src/js/` and verify uniformity before completing.
+
+Acceptance: a clean console launch + `+ Spawn Agent` -> `Spawn` produces a tab whose terminal shows the child CLI's first banner / prompt / menu without delay. Log an `acceptance_observation` event when verified.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-063: SPEC-048 - PTY accept reserved_session_id, optional ring-buffer replay
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-04-28
+**Type:** BUG
+**Priority:** MEDIUM
+**Related Specs:** SPEC-048, SPEC-042, SPEC-021
+
+### Description
+
+Two changes in `adt-console/src-tauri/src/pty.rs`:
+
+1. **Required (slice of task_299).** Extend the `spawn_child_session` IPC request struct to accept an optional `reserved_session_id: Option<String>`. If `Some(id)`, the PTY manager registers the new session under that id instead of generating one. If `None`, fall back to the existing generated-id path. Return the same `sessionInfo` shape on both branches. This unblocks Frontend's subscribe-before-spawn fix (REQ-062 / task_299).
+2. **Optional / deferred (task_301).** Add a small per-session ring buffer (~64 KiB last bytes of stdout) replayed on first listener attach. Defensive belt-and-braces against future races. Skip unless task_299 acceptance reveals it is still needed.
+
+Coordinate with Frontend on the IPC field name -- whichever case (`reservedSessionId` vs `reserved_session_id`) is used must match the Rust struct exactly so REQ-062 step 4 passes its grep.
+
+### Status
+
+**COMPLETED (Part 1)** - PTY spawner updated to honor `reserved_session_id`. Unblocks REQ-062. Part 2 (ring-buffer) deferred until verified as needed.
+
+---
+
 ## REQ-001: Spec Request — Standalone DTTP Service Architecture
 
 **From:** Backend_Engineer (CLAUDE)
@@ -535,7 +618,7 @@ Frontend_Engineer needs jurisdiction over _cortex/work_logs/ to log sessions as 
 
 ### Status
 
-**OPEN** -- Submitted via ADT Panel.
+**COMPLETED** — SPEC-035/037 implemented.
 
 
 ---
@@ -554,7 +637,7 @@ This is a test request filed via API.
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 
 ---
@@ -592,7 +675,7 @@ This is a test request filed via API.
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 
 ---
@@ -901,7 +984,7 @@ The Help & Principles page (`adt_center/templates/about.html`) has a sidebar nav
 
 ### Status
 
-**OPEN** -- Awaiting Frontend_Engineer implementation.
+**COMPLETED** — Verified on 2026-04-10. All 16 sections are implemented and aligned with SPEC-038/039 standards.
 
 
 ---
@@ -971,7 +1054,7 @@ task_215 (P1): Harness badges on session cards. [C] badge (blue) for Claude, [G]
 
 ### Status
 
-**IN PROGRESS** (Backend/DevOps foundations ready)
+**COMPLETED** — SPEC-042 Frontend (tasks 214-217) implemented and verified.
 
 
 ---
@@ -1040,7 +1123,7 @@ This is a test request filed via API.
 
 ### Status
 
-**OPEN**
+**COMPLETED**
 
 
 ---
@@ -1060,3 +1143,339 @@ Testing status update.
 ### Status
 
 **COMPLETED**
+
+---
+
+## REQ-051: SPEC-044 Phase B - Backend DTTP -> DTCP module rename
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-04-25
+**Type:** IMPLEMENTATION
+**Priority:** HIGH
+**Related Specs:** SPEC-044 (DTTP -> DTCP Migration), SPEC-014, SPEC-019
+
+### Description
+
+Execute SPEC-044 Phase B (tasks task_234, task_235, task_238).
+
+1. Create `adt_core/dtcp/` as canonical module by copying from `adt_core/dttp/` with internal identifiers rewritten to DTCP.
+2. Convert `adt_core/dttp/*` to deprecation shims that re-export from `dtcp` and emit `DeprecationWarning`. Shim removed in Phase F.
+3. Migrate `adt_sdk/` (rename `hooks/dttp_request.py`, update imports/identifiers, add `DTCP_URL` env var with `DTTP_URL` fallback).
+4. Migrate `adt_center/api/` (rename `dttp_routes.py`, register `dtcp` blueprint, add `/dttp/* -> /dtcp/*` 308 redirect).
+5. Emit a one-time `protocol_renamed` ADS event as the cutover marker.
+6. Phase E: rename `tests/test_dttp*.py` to `test_dtcp*.py`; verify `pytest` runs green.
+
+Do NOT start until Phase A (task_231/232/233) is complete. Do NOT rewrite historical `dttp_*` ADS events - immutable ledger.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-052: SPEC-044 Phase C - DevOps DTTP -> DTCP config + service rename
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-04-25
+**Type:** IMPLEMENTATION
+**Priority:** HIGH
+**Related Specs:** SPEC-044
+
+### Description
+
+Execute SPEC-044 Phase C (task_236).
+
+1. Submit SCR to rename `config/dttp.json` -> `config/dtcp.json` (Tier-1). Code reads new path; falls back to old for one release.
+2. Update Tauri Rust source: `adt-console/src-tauri/src/{main,pty,ipc}.rs` - identifier and log-string updates only.
+3. Rename systemd unit `_cortex/ops/adt-dttp.service` -> `adt-dtcp.service`; PyInstaller spec `ops/windows/dttp_service.spec` -> `dtcp_service.spec`.
+4. Update `install.sh`, `console.sh`, and any docs referencing service names.
+5. New logs write to `dtcp*.log`; existing `dttp*.log` files NOT renamed (historical artefacts).
+
+Do NOT start until Phase A (task_231/232/233) is complete. May proceed in parallel with Phase B and Phase D after A.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-053: SPEC-044 Phase D - Frontend DTTP -> DTCP UI rename
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-04-25
+**Type:** IMPLEMENTATION
+**Priority:** HIGH
+**Related Specs:** SPEC-044
+
+### Description
+
+Execute SPEC-044 Phase D (task_237).
+
+1. Rename `adt_center/templates/dttp.html` -> `dtcp.html`; update `base.html` nav link and any `url_for('dttp_...')` -> `url_for('dtcp_...')`.
+2. Update `dashboard.html`, `governance.html`, `about.html`, `projects.html` displayed copy ("DTTP Gateway" -> "DTCP Gateway").
+3. Update Console JS in `adt-console/src/js/{app,context,launcher,guide}.js` and `index.html` - identifier renames, displayed copy, tooltips.
+4. Acceptance: Operator Console and ADT Panel render zero "DTTP" strings; `/dtcp` page loads; old `/dttp` URL redirects.
+
+Do NOT start until Phase A (task_231/232/233) is complete. May proceed in parallel with Phase B and Phase C after A.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-055: SPEC-045 Phase 1 - Server-side SCR authorize hardening (CRITICAL)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer, @Frontend_Engineer
+**Date:** 2026-04-26
+**Type:** SECURITY
+**Priority:** CRITICAL
+**Related Specs:** SPEC-045 (SCR Auth Hardening), SPEC-033 (SCR), SPEC-021 Section 8
+
+### Description
+
+VULNERABILITY: `manage_sovereign_request` in `adt_center/api/governance_routes.py:1387` authenticates "human" by absence of `X-Agent` header. Any localhost process (including the proposing agent) can authorise a Tier-1 sovereign change with `curl`, and the ledger records `"agent": "HUMAN"`.
+
+Execute SPEC-045 Phase 1 (task_241..task_245):
+
+1. **Backend (task_241):** Replace header-absence check with positive proof - server-issued session cookie + per-request CSRF token + browser fingerprint bundle.
+2. **Backend (task_242):** Server-side proposer/authorizer separation. If session identity == SCR proposer, deny. Add `auth_spoofing_attempt` ADS action_type.
+3. **Backend (task_243):** Single-use, 60-second nonce on authorise flow.
+4. **Frontend (task_244):** Panel UI fetches/echoes nonce; dashboard surfaces `auth_spoofing_attempt` events.
+5. **Architect (task_245):** Adversarial test - run curl scenarios A1-A7 from agent shell, verify all rejected.
+
+Phase 1 is server-side only and can ship in days. Phases 2-4 (OS isolation, hardware tokens, OOB notification) follow.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-056: SPEC-045 Phase 2 - OS-level privilege separation for Panel SCR routes
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer, @Backend_Engineer
+**Date:** 2026-04-26
+**Type:** SECURITY
+**Priority:** HIGH
+**Related Specs:** SPEC-045, SPEC-021 Section 8, SPEC-036
+
+### Description
+
+Execute SPEC-045 Phase 2 (task_246..task_248):
+
+1. **DevOps (task_246):** Move SCR management routes behind a Unix socket (`/run/adt/panel.sock`, mode 0660, group `adt_human`). Introduce `adt_agent` and `adt_human` OS users. Browser-to-socket bridge service runs as `adt_human`. Agents in `adt_agent` group cannot connect at kernel layer.
+2. **DevOps (task_247):** Make SPEC-021/036 sandbox mandatory by default. Document developer-mode override with explicit security warning.
+3. **Backend (task_248):** Verify and (if gap) extend Tier protection over `_cortex/ops/sovereign_requests.json`. Adversarial test: agent attempt to write file -> DTTP denial.
+
+Goal: make it physically impossible for an agent process to reach the authorise endpoint, not merely authenticated-impossible.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-057: SPEC-045 Phase 3 - Hardware-token cryptographic authorize
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer, @Systems_Architect
+**Date:** 2026-04-26
+**Type:** SECURITY
+**Priority:** MEDIUM
+**Related Specs:** SPEC-045
+
+### Description
+
+Execute SPEC-045 Phase 3 (task_249, task_250):
+
+1. **Backend (task_249):** WebAuthn/FIDO2/passkey enrolment in `adt init`. SCR authorise requires signature over `(scr_id + content_hash + nonce + timestamp)`. ADS records signature, public-key fingerprint, attestation chain.
+2. **Architect (task_250):** Encode dual-control policy for AI_PROTOCOL.md / MASTER_PLAN.md changes - require two distinct passkey signatures (human + Overseer human, or 2-of-N quorum). Express in `config/specs.json` Tier-1 entries.
+
+After Phase 3 the private signing material is on a hardware token only, not in any filesystem an agent can read. The `agent has the keys` failure mode goes away.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-060: BUG - ADT Console cannot spawn new sessions (sessions.js syntax error)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-04-26
+**Resolved:** 2026-04-27
+**Type:** BUG
+**Priority:** CRITICAL (blocks all new agent sessions in Console)
+**Related Specs:** SPEC-042 (Multi-Harness Swarm Spawning), SPEC-021 (Operator Console)
+
+### Symptom
+
+Clicking "New Session" or any agent-launch action in the ADT Console silently does nothing. No new Claude or Gemini tabs open. No error toast.
+
+### Root cause
+
+Uncommitted change to `adt-console/src/js/sessions.js` (SPEC-042 §7.1 context_hint injection, lines 507-519) ships an invalid string literal at lines 512-513:
+
+```js
+request: { session_id: session.id, data: contextHint + "
+" }
+```
+
+A bare newline inside the JS string is a SyntaxError. `node -c` reports `Invalid or unexpected token`. The entire `SessionManager` module fails to parse, so all session-spawn handlers silently lose their bindings.
+
+### Fix
+
+One character: replace the multi-line string with an escaped `\n`:
+
+```js
+request: { session_id: session.id, data: contextHint + "\n" }
+```
+
+### Origin / coordination note
+
+This change appears to be in-flight work for SPEC-042 (Multi-Harness Swarm Spawning) by GEMINI Systems_Architect. ADS shows their session active at 17:22:44 today on this exact stream. Whoever fixes this should also:
+1. Confirm the rest of SPEC-042 §7.1 actually works after the fix.
+2. Add a JS lint / parse step to the Console's dev workflow so a syntax error cannot land uncaught again. `node -c <file>` per JS file in CI is sufficient.
+
+### Acceptance
+
+1. `node --check adt-console/src/js/sessions.js` exits 0.
+2. Console "New Session" successfully spawns Claude and Gemini agent tabs.
+3. SPEC-042 context_hint actually injects into the spawned PTY's stdin within 1.5s of startup.
+4. CI gate added: every JS file under `adt-console/src/js/` parses successfully before commit.
+
+### Status
+
+**COMPLETED** (2026-04-27, break-glass) — Bare newline at lines 512-513 replaced with `\n` escape. `node --check adt-console/src/js/sessions.js` exits 0. Console session spawning unblocked. ADS event evt_20260427_205558_636_break_glas. Outstanding follow-up: acceptance items 3 (verify SPEC-042 context_hint actually injects post-spawn) and 4 (CI gate adding `node --check` to every commit) remain OPEN — file as separate Frontend/DevOps tasks.
+
+---
+
+## REQ-059: BUG - ADT Panel dashboard 500 on legacy ADS schema events
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer (preferred), @Frontend_Engineer (fallback)
+**Date:** 2026-04-26
+**Type:** BUG
+**Priority:** HIGH (blocks SCR authorisation UX)
+**Related Specs:** SPEC-015 (ADT Operational Center), SPEC-021
+
+### Symptom
+
+`GET http://localhost:5001/` returns 500. Panel dashboard unreachable, blocking the standard SCR authorisation flow. Users must currently fall back to direct API curl. Affects all Panel views that render the events list.
+
+### Root cause
+
+`adt_center/templates/dashboard.html:85` does `{{ event.ts[11:19] }}` under Jinja2 `StrictUndefined`. Two legacy ADS events in `_cortex/ads/events.jsonl` (lines 2382 and 2412, dated 2026-04-10) use the **old schema**:
+
+```json
+{"timestamp": "2026-04-10T12:58:17Z", "event": "session_start", "role": "systems_architect", "jurisdiction": "_cortex/", "spec": "SPEC-039", "rationale": "...", "prev_hash": "...", "hash": "..."}
+```
+
+i.e. `timestamp` instead of `ts`, `event` instead of `action_type`, no `event_id` / `agent`. Jinja blows up on the first occurrence and aborts rendering. Stack trace in `_cortex/ops/adt_center.log` (search "UndefinedError: 'dict object' has no attribute 'ts'").
+
+### Constraint
+
+**The legacy events MUST NOT be rewritten in place.** They have valid `prev_hash`/`hash` chain entries; mutating them invalidates the SHA-256 chain. The fix lives in the read path or template layer, NOT in `events.jsonl`.
+
+### Recommended fix (Backend, preferred)
+
+Normalise legacy schema in `adt_core/ads/query.py::ADSQuery.get_all_events`. Add a small adaptor:
+
+```python
+def _normalize(e: dict) -> dict:
+    if "ts" not in e and "timestamp" in e:
+        e["ts"] = e["timestamp"]
+    if "action_type" not in e and "event" in e:
+        e["action_type"] = e["event"]
+    e.setdefault("agent", "UNKNOWN")
+    e.setdefault("role", e.get("role", "unknown"))
+    e.setdefault("description", e.get("rationale", ""))
+    return e
+```
+
+Apply to every event before returning. Pure read-path normalisation; ledger and chain untouched.
+
+### Fallback fix (Frontend, if Backend can't ship today)
+
+Make the template defensive at every site that touches schema-volatile fields:
+
+```jinja
+{{ (event.ts or event.timestamp or '')[11:19] }}
+{{ event.action_type or event.event or 'unknown' }}
+{{ event.agent or 'UNKNOWN' }}
+```
+
+Less robust (every template site has to remember; new templates can regress). Backend normalisation is preferred.
+
+### Acceptance
+
+1. `GET /` returns 200 with the events list rendered.
+2. `_cortex/ads/events.jsonl` is byte-identical before and after the fix.
+3. ADS hash-chain validation continues to pass.
+4. No new template sites added since this REQ require manual schema branching.
+
+### Related risk
+
+This bug exposes a Panel-down failure mode in the SCR authorisation UX. Combined with SPEC-045's findings, this means: when the Panel UI is broken, the only path to authorise an SCR is a raw `curl` — exactly the vector SPEC-045 wants to make infeasible. A Panel-down state should not silently widen the attack surface. **Phase 1 of SPEC-045 must explicitly handle the "Panel dashboard 500 but API still reachable" state** (e.g. log every API-only authorisation as `auth_via_api_fallback` with elevated scrutiny). Cross-link this REQ to task_241/task_242.
+
+### Status
+
+**COMPLETED** (2026-04-27, break-glass — Backend-preferred path) — Added `_normalize_event` helper to `adt_core/ads/query.py`; applied at both parse sites (`get_all_events`, `_tail_events`). Legacy events (lines 2382, 2412 of `_cortex/ads/events.jsonl`) now expose `ts`/`action_type`/`spec_ref`/`description` to templates without ledger mutation. SHA-256 chain unchanged. `adt_center` restarted (pid 41617); `GET /` returns 200. ADS event evt_20260427_205558_661_break_glas. The Panel-down/SPEC-045 cross-link concern remains OPEN for SPEC-045 Phase 1 design.
+
+---
+
+## REQ-058: SPEC-045 Phase 4 - Out-of-band detection (always-on)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer, @Overseer
+**Date:** 2026-04-26
+**Type:** SECURITY
+**Priority:** HIGH
+**Related Specs:** SPEC-045
+
+### Description
+
+Execute SPEC-045 Phase 4 (task_251..task_253):
+
+1. **DevOps (task_251):** Separate-user daemon emits OS notification (libnotify on Linux, native push on Win/Mac) for every `sovereign_change_authorized` event. Channel must be one the agent process cannot suppress.
+2. **Overseer (task_252):** Daily scheduled audit script - scan last 24h authorise events, cross-check against bridge-service session log (Phase 2) and attestation log (Phase 3). Discrepancy -> emit `audit_discrepancy` event.
+3. **Backend (task_253, optional):** Mirror sovereign authorisations to a public transparency log (Sigsum/Rekor) so local ADS tampering is externally detectable.
+
+Phase 4 is detection independent of every other layer. A forged authorisation that bypasses Phases 1-3 still surfaces in the notification and the daily audit.
+
+### Status
+
+**OPEN**
+
+---
+
+## REQ-054: SPEC-044 Phase F coordination - Shim removal gate
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer, @Overseer
+**Date:** 2026-04-25
+**Type:** COORDINATION
+**Priority:** LOW
+**Related Specs:** SPEC-044
+
+### Description
+
+Phase F (task_239, task_240) gates on:
+1. One full release cycle has passed since Phase B completion.
+2. ADS shows zero `DeprecationWarning` events for the `adt_core.dttp` shim during that cycle.
+3. All Phase B-E tasks marked completed.
+
+Then: remove shim, drop fallbacks, add editorial header notes to SPEC-014/019/026, mark SPEC-044 COMPLETED. Verify the SPEC-044 Section 4 Phase-F grep produces only the four allowed historical-artefact categories.
+
+Overseer: please monitor for shim deprecation events during the cycle and confirm zero count before authorising SPEC-044 Phase F closure.
+
+### Status
+
+**OPEN**

@@ -2,9 +2,8 @@ import json
 import logging
 import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
-# Cross-platform file locking
 try:
     import fcntl
 except ImportError:
@@ -48,7 +47,7 @@ class ADSLogger:
                 line = f.readline()
                 if line.strip(): return json.loads(line.decode('utf-8'))
             except (json.JSONDecodeError, OSError) as e:
-                logger.error(f"Error reading last event from {self.file_path}: {e}")
+                logger.error(f'Error reading last event from {self.file_path}: {e}')
                 return None
         return None
 
@@ -85,24 +84,24 @@ class ADSLogger:
 
     def log_delegation(self, agent: str, role: str, spec_ref: str, child_session_id: str, 
                        child_role: str, child_harness: str, task_id: str, 
-                       strategy: str = "serial", skip_permissions: bool = False,
+                       strategy: str = 'serial', skip_permissions: bool = False,
                        session_id: Optional[str] = None, parent_session_id: Optional[str] = None) -> str:
         """SPEC-042: Log a session_delegated event when spawning a child."""
-        event_id = ADSEventSchema.generate_id("session_delegated")
+        event_id = ADSEventSchema.generate_id('session_delegated')
         action_data = {
-            "child_session_id": child_session_id,
-            "child_role": child_role,
-            "child_harness": child_harness,
-            "task_id": task_id,
-            "strategy": strategy,
-            "skip_permissions": skip_permissions
+            'child_session_id': child_session_id,
+            'child_role': child_role,
+            'child_harness': child_harness,
+            'task_id': task_id,
+            'strategy': strategy,
+            'skip_permissions': skip_permissions
         }
         event = ADSEventSchema.create_event(
             event_id=event_id,
             agent=agent,
             role=role,
-            action_type="session_delegated",
-            description=f"Delegated task {task_id} to child session {child_session_id} ({child_role})",
+            action_type='session_delegated',
+            description=f'Delegated task {task_id} to child session {child_session_id} ({child_role})',
             spec_ref=spec_ref,
             session_id=session_id,
             parent_session_id=parent_session_id,
@@ -114,19 +113,19 @@ class ADSLogger:
                                 child_session_id: str, parent_session_id: str, 
                                 outcome: str, task_id: str, turns: int = 0) -> str:
         """SPEC-042: Log a session_delegation_complete event when a child session ends."""
-        event_id = ADSEventSchema.generate_id("session_delegation_complete")
+        event_id = ADSEventSchema.generate_id('session_delegation_complete')
         action_data = {
-            "parent_session_id": parent_session_id,
-            "outcome": outcome,
-            "turns": turns,
-            "task_id": task_id
+            'parent_session_id': parent_session_id,
+            'outcome': outcome,
+            'turns': turns,
+            'task_id': task_id
         }
         event = ADSEventSchema.create_event(
             event_id=event_id,
             agent=agent,
             role=role,
-            action_type="session_delegation_complete",
-            description=f"Child session {child_session_id} completed task {task_id} with outcome: {outcome}",
+            action_type='session_delegation_complete',
+            description=f'Child session {child_session_id} completed task {task_id} with outcome: {outcome}',
             spec_ref=spec_ref,
             session_id=child_session_id,
             parent_session_id=parent_session_id,
@@ -138,58 +137,22 @@ class ADSLogger:
                           label: str, strategy: str, child_session_ids: List[str], 
                           child_roles: List[str], session_id: Optional[str] = None) -> str:
         """SPEC-042: Log a session_group_created event when spawning parallel children."""
-        event_id = ADSEventSchema.generate_id("session_group_created")
+        event_id = ADSEventSchema.generate_id('session_group_created')
         action_data = {
-            "group_id": group_id,
-            "label": label,
-            "strategy": strategy,
-            "child_session_ids": child_session_ids,
-            "child_roles": child_roles
+            'group_id': group_id,
+            'label': label,
+            'strategy': strategy,
+            'child_session_ids': child_session_ids,
+            'child_roles': child_roles
         }
         event = ADSEventSchema.create_event(
             event_id=event_id,
             agent=agent,
             role=role,
-            action_type="session_group_created",
-            description=f"Spawned parallel group {group_id} with {len(child_session_ids)} children: {label}",
+            action_type='session_group_created',
+            description=f'Spawned parallel group {group_id} with {len(child_session_ids)} children: {label}',
             spec_ref=spec_ref,
             session_id=session_id,
             action_data=action_data
-        )
-        return self.log(event)
-    def log_session_delegated(self, parent_session_id: str, child_session_id: str, child_role: str, child_harness: str, task_id: str, spec_ref: str, agent: str, role: str, rationale: str = "", **kwargs):
-        event = ADSEventSchema.create_event(
-            event_id=ADSEventSchema.generate_id("session_del"),
-            agent=agent,
-            role=role,
-            action_type="session_delegated",
-            description=f"Delegated {task_id} to {child_role} ({child_harness}).",
-            spec_ref=spec_ref,
-            session_id=parent_session_id,
-            action_data={
-                "child_session_id": child_session_id,
-                "child_role": child_role,
-                "child_harness": child_harness,
-                "task_id": task_id,
-                "rationale": rationale,
-                **kwargs
-            }
-        )
-        return self.log(event)
-
-    def log_session_delegation_complete(self, session_id: str, status: str, outcome: str = "", agent: str = "SYSTEM", role: str = "Sentry", **kwargs):
-        event = ADSEventSchema.create_event(
-            event_id=ADSEventSchema.generate_id("session_end"),
-            agent=agent,
-            role=role,
-            action_type="session_delegation_complete",
-            description=f"Delegation session {session_id} completed with status: {status}",
-            spec_ref="SPEC-042",
-            session_id=session_id,
-            action_data={
-                "status": status,
-                "outcome": outcome,
-                **kwargs
-            }
         )
         return self.log(event)

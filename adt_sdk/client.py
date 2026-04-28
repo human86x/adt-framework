@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Dict, Any, Optional
 
 import requests
@@ -7,26 +8,33 @@ logger = logging.getLogger(__name__)
 
 
 class ADTClient:
-    """Client library for AI agents to interact with the DTTP service."""
+    """Client library for AI agents to interact with the DTCP service."""
 
     def __init__(self,
-                 dttp_url: str = "http://localhost:5002",
+                 dtcp_url: Optional[str] = None,
                  agent_name: str = "AGENT",
-                 role: str = "backend_engineer"):
-        self.dttp_url = dttp_url.rstrip("/")
+                 role: str = "backend_engineer",
+                 session_id: Optional[str] = None,
+                 parent_session_id: Optional[str] = None):
+        # SPEC-044 Phase B3: Support DTCP_URL with fallback to DTTP_URL
+        self.dtcp_url = (dtcp_url or os.environ.get("DTCP_URL") or os.environ.get("DTTP_URL") or "http://localhost:5002").rstrip("/")
         self.agent_name = agent_name
         self.role = role
-        self.session_id: Optional[str] = None
+        self.session_id = session_id
+        self.parent_session_id = parent_session_id
 
     def set_session(self, session_id: str):
         self.session_id = session_id
+
+    def set_parent_session(self, parent_session_id: str):
+        self.parent_session_id = parent_session_id
 
     def request(self,
                 spec_id: str,
                 action: str,
                 params: Dict[str, Any],
                 rationale: str) -> Dict[str, Any]:
-        """Submit a DTTP request directly to the DTTP service."""
+        """Submit a DTCP request directly to the DTCP service."""
         payload = {
             "agent": self.agent_name,
             "role": self.role,
@@ -37,29 +45,31 @@ class ADTClient:
         }
         if self.session_id:
             payload["session_id"] = self.session_id
+        if self.parent_session_id:
+            payload["parent_session_id"] = self.parent_session_id
 
         try:
-            response = requests.post(f"{self.dttp_url}/request", json=payload, timeout=10)
+            response = requests.post(f"{self.dtcp_url}/request", json=payload, timeout=10)
             return response.json()
         except requests.ConnectionError:
-            logger.error("DTTP service unreachable at %s", self.dttp_url)
-            return {"status": "error", "message": f"DTTP service unreachable at {self.dttp_url}"}
+            logger.error("DTCP service unreachable at %s", self.dtcp_url)
+            return {"status": "error", "message": f"DTCP service unreachable at {self.dtcp_url}"}
         except requests.RequestException as e:
-            logger.error("DTTP request failed: %s", e)
+            logger.error("DTCP request failed: %s", e)
             return {"status": "error", "message": str(e)}
 
     def get_status(self) -> Dict[str, Any]:
-        """Get the DTTP service status."""
+        """Get the DTCP service status."""
         try:
-            response = requests.get(f"{self.dttp_url}/status", timeout=5)
+            response = requests.get(f"{self.dtcp_url}/status", timeout=5)
             return response.json()
         except requests.RequestException as e:
             return {"status": "error", "message": str(e)}
 
     def get_policy(self) -> Dict[str, Any]:
-        """Get the current loaded policy from DTTP."""
+        """Get the current loaded policy from DTCP."""
         try:
-            response = requests.get(f"{self.dttp_url}/policy", timeout=5)
+            response = requests.get(f"{self.dtcp_url}/policy", timeout=5)
             return response.json()
         except requests.RequestException as e:
             return {"status": "error", "message": str(e)}
@@ -81,15 +91,17 @@ class ADTClient:
         }
         if self.session_id:
             payload["session_id"] = self.session_id
+        if self.parent_session_id:
+            payload["parent_session_id"] = self.parent_session_id
 
         try:
-            response = requests.post(f"{self.dttp_url}/request", json=payload, timeout=10)
+            response = requests.post(f"{self.dtcp_url}/request", json=payload, timeout=10)
             return response.json()
         except requests.ConnectionError:
-            logger.error("DTTP service unreachable at %s", self.dttp_url)
-            return {"status": "error", "message": f"DTTP service unreachable at {self.dttp_url}"}
+            logger.error("DTCP service unreachable at %s", self.dtcp_url)
+            return {"status": "error", "message": f"DTCP service unreachable at {self.dtcp_url}"}
         except requests.RequestException as e:
-            logger.error("DTTP validate_write failed: %s", e)
+            logger.error("DTCP validate_write failed: %s", e)
             return {"status": "error", "message": str(e)}
 
     def patch_file(self,
@@ -98,7 +110,7 @@ class ADTClient:
                    old_string: str,
                    new_string: str,
                    rationale: str) -> Dict[str, Any]:
-        """Submit a patch action (partial file edit) through DTTP."""
+        """Submit a patch action (partial file edit) through DTCP."""
         return self.request(
             spec_id=spec_id,
             action="patch",
@@ -107,19 +119,19 @@ class ADTClient:
         )
 
     def log_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """Log an arbitrary event to the ADS via the DTTP service."""
+        """Log an arbitrary event to the ADS via the DTCP service."""
         try:
-            response = requests.post(f"{self.dttp_url}/log", json=event, timeout=10)
+            response = requests.post(f"{self.dtcp_url}/log", json=event, timeout=10)
             return response.json()
         except requests.RequestException as e:
-            logger.error("DTTP log_event failed: %s", e)
+            logger.error("DTCP log_event failed: %s", e)
             return {"status": "error", "message": str(e)}
 
     def _get_panel_url(self) -> str:
-        """Derive the ADT Panel URL from the DTTP URL.
+        """Derive the ADT Panel URL from the DTCP URL.
         Defaults to port 5001 on the same host."""
         from urllib.parse import urlparse, urlunparse
-        parsed = urlparse(self.dttp_url)
+        parsed = urlparse(self.dtcp_url)
         # Rebuild with port 5001
         netloc = parsed.hostname or "localhost"
         if parsed.port:

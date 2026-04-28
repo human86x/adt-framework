@@ -1844,8 +1844,11 @@
       "description": "Restrict agent network access to only project DTTP and Panel ports via iptables/netns.",
       "spec_ref": "SPEC-036",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
-      "priority": "high"
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Implemented via bwrap --unshare-net and socat TCP-to-Unix bridges for DTTP/Panel ports.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-18T10:00:00Z"
     },
     {
       "id": "task_149",
@@ -2119,9 +2122,11 @@
       "description": "Implement PTY injection logic in pty.rs to send hints/priorities to active agents.",
       "spec_ref": "SPEC-039",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
-      "evidence": "Implemented inject_command in pty.rs and registered IPC handler."
+      "evidence": "Implemented inject_command in pty.rs and registered IPC handler. Verified in context.js.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-18T10:00:00Z"
     },
     {
       "id": "task_172",
@@ -2365,8 +2370,11 @@
       "description": "Add capability-related Tauri event emissions (file watchers)",
       "spec_ref": "SPEC-040",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
-      "priority": "medium"
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented intents.jsonl and gates.jsonl watchers in watcher.rs and capabilities-updated listener in context.js.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-18T10:00:00Z"
     },
     {
       "id": "task_196",
@@ -2404,8 +2412,11 @@
       "description": "Implement native notifications for gate events via Tauri IPC",
       "spec_ref": "SPEC-040",
       "assigned_to": "DevOps_Engineer",
-      "status": "pending",
-      "priority": "low"
+      "status": "completed",
+      "priority": "low",
+      "evidence": "Integrated NativeNotify.send and ToastManager.show in context.js for capability_gate_ events.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-18T10:00:00Z"
     },
     {
       "id": "task_200",
@@ -2591,6 +2602,890 @@
       "evidence": "Applied CSS styling for agent harness badges and active session indicators.",
       "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-09T13:30:00Z"
+    },
+    {
+      "id": "task_216",
+      "title": "SPEC-042: Auto-spawn PTY bridge in fetchSessionTree",
+      "description": "Critical gap: fetchSessionTree() renders the tree but never calls SessionManager.spawnChild() for new children. Fix: (1) Maintain a module-level Set 'spawnedSessions' of session IDs already opened as PTYs. (2) In fetchSessionTree(), after rendering, walk the tree recursively; for any node with status 'spawning' whose session_id is NOT in spawnedSessions and NOT already in SessionManager.getAll(), call SessionManager.spawnChild(node) and add to spawnedSessions. (3) Add fetchSessionTree() call inside the 'ads-updated' Tauri event listener in initWatchers(). File: adt-console/src/js/context.js",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [],
+      "evidence": "spawnedSessions Set + walkAndSpawn() added to fetchSessionTree. fetchSessionTree() wired to ads-updated listener.",
+      "last_updated_by": "CLAUDE (Systems_Architect)",
+      "last_updated_at": "2026-04-10T17:32:49Z"
+    },
+    {
+      "id": "task_217",
+      "title": "SPEC-042: Manual spawn button in Swarm Tree panel",
+      "description": "Add a 'Spawn Agent' button to the #ctx-sessions-tree container area in index.html. On click: show an inline form with dropdowns for role (Systems_Architect/Backend_Engineer/Frontend_Engineer/DevOps_Engineer), harness (claude/gemini), and text inputs for task_id and spec_ref (default SPEC-042). On submit: POST to /api/governance/sessions/spawn, then call SessionManager.spawnChild() with the response data. Style consistent with existing panel buttons. This allows the human operator to test swarm without an SDK call. Files: adt-console/src/index.html, adt-console/src/js/context.js (or app.js)",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "swarm-spawn-controls div + doManualSpawn() added to index.html.",
+      "last_updated_by": "CLAUDE (Systems_Architect)",
+      "last_updated_at": "2026-04-10T17:32:49Z"
+    },
+    {
+      "id": "task_218",
+      "title": "SPEC-042: Swarm SDK integration tests",
+      "description": "Write tests/test_swarm_sdk_integration.py. Tests: (1) spawn_subagent() sends correct POST payload with all required fields (parent_session_id, child_role, child_harness, task_id, spec_ref, strategy, project). (2) spawn_subagent() raises ValueError when ADT_SESSION_ID and ADT_SPEC_ID are missing from env. (3) spawn_subagent() returns the JSON response dict on HTTP 200. (4) spawn_subagent() raises requests.HTTPError on HTTP 403. Use unittest.mock.patch('requests.post') for all tests. Set env vars via os.environ in setUp/tearDown.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "9/9 tests passing. Written via Backend_Engineer agent.",
+      "last_updated_by": "CLAUDE (Systems_Architect)",
+      "last_updated_at": "2026-04-10T17:29:52Z"
+    },
+    {
+      "id": "task_219",
+      "title": "SPEC-042: Swarm group SDK tests",
+      "description": "Write tests/test_swarm_group_sdk.py. Tests: (1) spawn_group() with 2 children calls spawn_subagent() twice and returns status='group_spawned' with correct children list. (2) spawn_group() raises ValueError when roles/harnesses/task_ids arrays have different lengths. (3) spawn_group() propagates parent_session_id and spec_ref to each child call. (4) The returned dict includes 'label' and 'strategy' fields matching what was passed in. Use unittest.mock.patch('adt_sdk.swarm.spawn_subagent') to avoid real HTTP calls.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_218"
+      ],
+      "evidence": "9/9 tests passing. Written via Backend_Engineer agent.",
+      "last_updated_by": "CLAUDE (Systems_Architect)",
+      "last_updated_at": "2026-04-10T17:29:52Z"
+    },
+    {
+      "id": "task_225",
+      "title": "SPEC-043: Implement Forge button and Build overlay in Launcher UI",
+      "description": "Create the Forge action card and the 'Wish' input overlay in the Project Launcher.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_210"
+      ],
+      "last_updated_by": "CLAUDE (Frontend_Engineer)",
+      "last_updated_at": "2026-04-28T13:50:58.213864Z",
+      "evidence": "FORGE APPLICATION card added to Launcher with Wish overlay wizard; POST /api/governance/forge integration; success state with Open Project button."
+    },
+    {
+      "id": "task_226",
+      "title": "SPEC-043: Implement api/governance/forge scaffold endpoint",
+      "description": "Backend logic to create project directory, adt init, and spawn Architect.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "task_227",
+      "title": "SPEC-043: Develop Forge Protocol orchestration loop",
+      "description": "System instructions and logic for Architect to autonomously manage the build swarm.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "critical",
+      "evidence": "FORGE_PROTOCOL.md finalized in _cortex/docs/",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-26T17:35:00Z"
+    },
+    {
+      "id": "task_228",
+      "title": "SPEC-043: Hive Tracker Swarm Visualization",
+      "description": "Update Panel to show causal linking between parent and child sessions in real-time.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_225"
+      ],
+      "last_updated_by": "CLAUDE (Frontend_Engineer)",
+      "last_updated_at": "2026-04-28T13:50:58.213864Z",
+      "evidence": "renderSessionTree enhanced: status pulses (active/spawning/done), forge badge for SPEC-043 sessions, causal link indicator (\u21b3 N) for parent nodes. swarm.css rewritten with pulse animations."
+    },
+    {
+      "id": "task_229",
+      "title": "SPEC-043: Implement report_ready notification trigger",
+      "description": "API/SDK method for Architect to signal build completion to the Console UI.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium"
+    },
+    {
+      "id": "task_230",
+      "title": "SPEC-043: Integration Test - Hello World Forge",
+      "description": "Verify the full autonomous wish-to-launch flow.",
+      "spec_ref": "SPEC-043",
+      "assigned_to": "Systems_Architect",
+      "status": "in_progress",
+      "priority": "high",
+      "depends_on": [
+        "task_225",
+        "task_226",
+        "task_227",
+        "task_228"
+      ]
+    },
+    {
+      "id": "task_231",
+      "title": "SPEC-044 Phase A1: Register SPEC-044 in config/specs.json (SCR)",
+      "description": "Submit Sovereign Change Request adding the SPEC-044 entry to config/specs.json so all roles can act under SPEC-044 authority. Bootstrap step for the entire rename.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "SCR-051 submitted (by Claude) and verified in requests.json",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-26T17:22:14.795771Z",
+      "review_status": "pending",
+      "completed_at": "2026-04-26T17:27:53.602292Z"
+    },
+    {
+      "id": "task_232",
+      "title": "SPEC-044 Phase A2: Update AI_PROTOCOL.md to v2.3 with DTCP definition (SCR)",
+      "description": "Submit SCR to replace DTTP terminology with Paul's canonical DTCP paragraph. Bump version to v2.3, date 2026-04-25, add supersedes note.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_231"
+      ],
+      "evidence": "SCR scr_20260426_172111_062 submitted to update AI_PROTOCOL.md",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-26T17:22:14.821705Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_233",
+      "title": "SPEC-044 Phase A3: Add SPEC-044 row to MASTER_PLAN.md Section 5 (SCR)",
+      "description": "Submit SCR to add SPEC-044 (DTTP -> DTCP Migration, ACTIVE) to MASTER_PLAN.md Active Specifications table.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_231"
+      ],
+      "evidence": "SCR scr_20260426_172123_063 submitted to update MASTER_PLAN.md",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-04-26T17:22:14.848433Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_234",
+      "title": "SPEC-044 Phase B1+B2: Create adt_core/dtcp/ canonical module + dttp shim",
+      "description": "Copy adt_core/dttp/ to adt_core/dtcp/, rewriting internal identifiers to DTCP. Convert original adt_core/dttp/ files to deprecation shims that re-export from dtcp with DeprecationWarning.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_232"
+      ],
+      "evidence": "Created adt_core/dtcp canonical module and converted adt_core/dttp to shims.",
+      "last_updated_by": "CLI (Backend_Engineer)",
+      "last_updated_at": "2026-04-27T22:36:15.105490Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_235",
+      "title": "SPEC-044 Phase B3+B4+B5: Migrate adt_sdk and adt_center/api to DTCP names",
+      "description": "Rename adt_sdk/hooks/dttp_request.py to dtcp_request.py; update SDK imports/identifiers/env-var (DTCP_URL with DTTP_URL fallback). Rename adt_center/api/dttp_routes.py, add /dttp -> /dtcp 308 redirect. Emit one-time protocol_renamed ADS event as cutover marker.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_234"
+      ],
+      "evidence": "Migrated adt_sdk and adt_center/api to DTCP names.",
+      "last_updated_by": "CLI (Backend_Engineer)",
+      "last_updated_at": "2026-04-27T22:36:15.369805Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_236",
+      "title": "SPEC-044 Phase C: DevOps config + service + Tauri rename",
+      "description": "SCR for config/dttp.json -> config/dtcp.json; rename adt-dttp.service, dttp_service.spec PyInstaller spec; update install.sh, console.sh; update Tauri Rust identifiers in src-tauri/src/{main,pty,ipc}.rs; update logrotate. Keep config fallback for one release.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_232"
+      ],
+      "evidence": "Renamed service files, PyInstaller spec, updated shell scripts, and Tauri Rust identifiers.",
+      "last_updated_by": "CLI (DevOps_Engineer)",
+      "last_updated_at": "2026-04-27T22:35:42.432108Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_237",
+      "title": "SPEC-044 Phase D: Frontend + Console rename",
+      "description": "Rename adt_center/templates/dttp.html to dtcp.html; update base.html nav and url_for references; update dashboard.html, governance.html, about.html, projects.html. Update Tauri/console JS (app.js, context.js, launcher.js, guide.js) and index.html identifiers and displayed copy. UI must show zero 'DTTP' strings on completion.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_232"
+      ],
+      "evidence": "Updated all frontend templates and JS files to DTCP terminology.",
+      "last_updated_by": "CLI (Frontend_Engineer)",
+      "last_updated_at": "2026-04-27T22:35:42.650489Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_238",
+      "title": "SPEC-044 Phase E: Tests + ops scripts + README",
+      "description": "Rename tests/test_dttp*.py to tests/test_dtcp*.py and update fixtures/mocks; update _cortex/ops/*.py scripts mentioning DTTP (skip historical *.log files); update top-level README.md and notes.md with Paul's canonical DTCP definition.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_235"
+      ],
+      "evidence": "Renamed test files and updated identifiers to DTCP.",
+      "last_updated_by": "CLI (Backend_Engineer)",
+      "last_updated_at": "2026-04-27T22:36:15.606815Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_239",
+      "title": "SPEC-044 Phase F1-F4: Remove dttp shim and backwards-compat fallbacks",
+      "description": "After one release cycle and zero DeprecationWarning events: delete adt_core/dttp/ shim, remove DTTP_URL env-var fallback, remove /dttp/* HTTP redirect, drop config/dttp.json fallback path.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_235",
+        "task_236",
+        "task_237",
+        "task_238"
+      ]
+    },
+    {
+      "id": "task_240",
+      "title": "SPEC-044 Phase F5: Editorial notes + close SPEC-044",
+      "description": "Add editorial header notes to SPEC-014, SPEC-019, SPEC-026 linking to SPEC-044 (do not rewrite historical content). Verify Phase F grep produces only the four allowed historical-artefact categories. Mark SPEC-044 COMPLETED.",
+      "spec_ref": "SPEC-044",
+      "assigned_to": "Systems_Architect",
+      "status": "in_progress",
+      "priority": "low",
+      "depends_on": [
+        "task_239"
+      ]
+    },
+    {
+      "id": "task_241",
+      "title": "SPEC-045 P1.1+1.2: Session token + browser fingerprint required for SCR authorize",
+      "description": "Replace 'absence of X-Agent header' check with positive proof: server-issued session cookie + per-request CSRF token + browser fingerprint bundle. Reject all unsigned requests.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": []
+    },
+    {
+      "id": "task_242",
+      "title": "SPEC-045 P1.3: Server-side proposer/authorizer separation",
+      "description": "Compare scr['agent'] (proposer) against authenticated session identity. Match or empty -> deny. Add auth_spoofing_attempt ADS action_type.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "critical",
+      "depends_on": [
+        "task_241"
+      ]
+    },
+    {
+      "id": "task_243",
+      "title": "SPEC-045 P1.4: Single-use 60s nonce on authorize flow",
+      "description": "Server issues per-SCR nonce on GET; PUT must echo. Single-use, expires in 60s. Replay -> deny.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_241"
+      ]
+    },
+    {
+      "id": "task_244",
+      "title": "SPEC-045 P1: Panel UI nonce support + spoofing-attempt surface",
+      "description": "Panel fetches nonce, echoes on authorize. Dashboard surfaces auth_spoofing_attempt events with source IP and SCR id.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_243"
+      ]
+    },
+    {
+      "id": "task_245",
+      "title": "SPEC-045 P1: Adversarial test - all spoofing scenarios A1-A7 rejected",
+      "description": "Run curl-based attack scenarios from agent shell (no headers, fake X-Agent: false, stolen cookies, self-authorize, replay nonce). Verify all rejected and emit auth_spoofing_attempt. Phase 1 gate.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Systems_Architect",
+      "status": "in_progress",
+      "priority": "critical",
+      "depends_on": [
+        "task_241",
+        "task_242",
+        "task_243",
+        "task_244"
+      ],
+      "evidence": "Vulnerability confirmed via tests/adversarial_scr_test.py: successfully authorized SCR without X-Agent header (spoofing human)."
+    },
+    {
+      "id": "task_246",
+      "title": "SPEC-045 P2.1+2.2: Unix-socket SCR endpoint + adt_agent/adt_human users",
+      "description": "Panel SCR routes move behind /run/adt/panel.sock (mode 0660, group adt_human). Agents under adt_agent (not in group) cannot connect at kernel layer. Browser-to-socket bridge service runs as adt_human.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_245"
+      ]
+    },
+    {
+      "id": "task_247",
+      "title": "SPEC-045 P2.3: Make SPEC-021/036 sandbox mandatory by default",
+      "description": "Default agent sessions to sandboxed mode. Document developer-mode escape with explicit security warning. Update install.sh and console launchers.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_248",
+      "title": "SPEC-045 P2.4: Verify Tier protection over sovereign_requests.json",
+      "description": "Adversarial test: attempt direct write to _cortex/ops/sovereign_requests.json from agent. Must trigger DTTP denial. If gap found, extend protection.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_249",
+      "title": "SPEC-045 P3.1+3.2: WebAuthn passkey signature on Tier-1 SCRs",
+      "description": "adt init enrols passkey/FIDO2/YubiKey, public key bound to project. Authorize requires signature over (scr_id + content_hash + nonce + ts). ADS records signature, public key fingerprint, attestation chain.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_246"
+      ]
+    },
+    {
+      "id": "task_250",
+      "title": "SPEC-045 P3.3: Dual-control policy for AI_PROTOCOL.md / MASTER_PLAN.md",
+      "description": "Encode in config/specs.json that Tier-1 changes to AI_PROTOCOL.md and MASTER_PLAN.md require two distinct passkey signatures (human + Overseer human, or two-of-N quorum).",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Systems_Architect",
+      "status": "in_progress",
+      "priority": "medium",
+      "depends_on": [
+        "task_249"
+      ]
+    },
+    {
+      "id": "task_251",
+      "title": "SPEC-045 P4.1: Out-of-band notification on every Tier-1 authorize",
+      "description": "Separate-user daemon emits OS notification (libnotify / native push) for every sovereign_change_authorized event. Channel agent cannot suppress.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_246"
+      ]
+    },
+    {
+      "id": "task_252",
+      "title": "SPEC-045 P4.2: Daily Overseer audit cross-checks authorize events vs bridge log",
+      "description": "Scheduled daily script: scan last 24h sovereign_change_authorized, cross-check against bridge-service session log and Phase 3 attestation log. Mismatch -> audit_discrepancy event.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Overseer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_246",
+        "task_249"
+      ]
+    },
+    {
+      "id": "task_253",
+      "title": "SPEC-045 P4.3 (optional): Mirror sovereign authorize events to public transparency log",
+      "description": "Integrate with Sigsum/Rekor or self-hosted CT-style append-only log. Local ADS tampering becomes externally detectable.",
+      "spec_ref": "SPEC-045",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_252"
+      ]
+    },
+    {
+      "id": "task_254",
+      "title": "BUG: Panel dashboard 500 on legacy ADS schema events",
+      "description": "Read-path normalize legacy ADS events (timestamp->ts, event->action_type, defaults for missing agent/role/description) in adt_core/ads/query.py::ADSQuery.get_all_events. Do NOT rewrite events.jsonl - hash chain integrity. See REQ-059 for full context and acceptance.",
+      "spec_ref": "SPEC-015",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "resolution": "COMPLETED via break-glass 2026-04-27. _normalize_event added to adt_core/ads/query.py (ADS evt_20260427_205558_661_break_glas). GET / returns 200."
+    },
+    {
+      "id": "task_255",
+      "title": "BUG (CRITICAL): Console cannot spawn sessions - sessions.js syntax error from SPEC-042 \u00a77.1",
+      "description": "Fix bare newline in JS string literal at adt-console/src/js/sessions.js:512-513. Replace multi-line string with \\n. Add node --check to dev workflow / CI. See REQ-060.",
+      "spec_ref": "SPEC-042",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "critical",
+      "depends_on": [],
+      "resolution": "COMPLETED via break-glass 2026-04-27. Bare newline replaced with \\n escape in sessions.js lines 512-513 (ADS evt_20260427_205558_636_break_glas). node --check passes."
+    },
+    {
+      "id": "task_260",
+      "title": "SPEC-046: Register SPEC-046 in config/specs.json (via SCR)",
+      "description": "Submit SCR to register SPEC-046. Tier 1 path protection.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "resolution": "COMPLETED via SCR scr_20260427_212108_074 authorized and applied 2026-04-27."
+    },
+    {
+      "id": "task_261",
+      "title": "SPEC-046: Create Standards Registry data model",
+      "description": "Implement StandardsRegistry and Clause models in adt_core/standards/schema.py.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_262",
+      "title": "SPEC-046: Add ADS event types for Standards Layer",
+      "description": "Add 5 new action_types (standard_registered, clause_adopted, clause_adapted, clause_dismissed, standards_registry_changed) to adt_core/ads/schema.py.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_263",
+      "title": "SPEC-046: Implement Standards API endpoints",
+      "description": "Implement /api/governance/standards* endpoints in adt_center/api/governance_routes.py.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_261"
+      ]
+    },
+    {
+      "id": "task_264",
+      "title": "SPEC-046: Wire SCR auto-submission for Tier 1 disposition changes",
+      "description": "Ensure agent-initiated changes to adapted/dismissed dispositions trigger SCRs.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_265",
+      "title": "SPEC-046: Update jurisdictions.json for Standards Layer",
+      "description": "Add _cortex/standards/ to SA tier_3_paths and Tier 1 protection.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "resolution": "COMPLETED via SCR scr_20260427_212113_075 authorized and applied 2026-04-27."
+    },
+    {
+      "id": "task_266",
+      "title": "SPEC-046: Extend Capability Intent schema with standards_refs",
+      "description": "Update SPEC-038A and adt_core/ads/schema.py to include standards_refs in Intent model.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_267",
+      "title": "SPEC-046: Extend Spec schema with standards_refs",
+      "description": "Update config/specs.json schema and validation to support standards_refs.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_268",
+      "title": "SPEC-046: Seed Standards Registry with starter standards",
+      "description": "Populate _cortex/standards/ with 8 seeded standards (UNESCO, EU AI Act, etc.).",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_261"
+      ]
+    },
+    {
+      "id": "task_269",
+      "title": "SPEC-046: Build Standards tab in ADT Panel",
+      "description": "Implement index.html section, standards.js, and CSS for the registry table.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_270",
+      "title": "SPEC-046: Build clause drill-down UI",
+      "description": "Implement disposition controls and rationale textarea in the Panel.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_269"
+      ]
+    },
+    {
+      "id": "task_271",
+      "title": "SPEC-046: Add standards_refs multi-select to Intent form",
+      "description": "Integrate with SPEC-040 surface to allow clause selection.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_270"
+      ]
+    },
+    {
+      "id": "task_272",
+      "title": "SPEC-046: Integration tests for Standards Layer",
+      "description": "Write tests/test_standards_*.py for registry, dispositions, SCR gating, and ADS events.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_273",
+      "title": "SPEC-046: Architect review on seeded clauses",
+      "description": "Perform first-pass adopt/adapt/dismiss review on UNESCO and EU AI Act.",
+      "spec_ref": "SPEC-046",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_268"
+      ]
+    },
+    {
+      "id": "task_280",
+      "title": "SPEC-047: Register SPEC-047 in config/specs.json (via SCR)",
+      "description": "Submit SCR to register SPEC-047.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "resolution": "COMPLETED via SCR scr_20260427_212108_074 authorized and applied 2026-04-27."
+    },
+    {
+      "id": "task_281",
+      "title": "SPEC-047: Capabilities tab standards integration",
+      "description": "Intent form multi-select widget + Intent card badges.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_266",
+        "task_271"
+      ]
+    },
+    {
+      "id": "task_282",
+      "title": "SPEC-047: Specs tab standards integration",
+      "description": "Standards column + Spec detail provenance card.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_267"
+      ]
+    },
+    {
+      "id": "task_283",
+      "title": "SPEC-047: DTCP tab standards integration",
+      "description": "Event detail expansion + standards filter chip.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_284",
+      "title": "SPEC-047: ADS Timeline standards integration",
+      "description": "Event-type icons + standards filter.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_262"
+      ]
+    },
+    {
+      "id": "task_285",
+      "title": "SPEC-047: Dashboard Standards Coverage tile",
+      "description": "Implement donut chart and stats card on dashboard.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_286"
+      ]
+    },
+    {
+      "id": "task_286",
+      "title": "SPEC-047: API Standards Coverage endpoint",
+      "description": "GET /api/governance/standards/coverage returning realized maturity stats.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_287",
+      "title": "SPEC-047: API Transparency Page endpoint",
+      "description": "GET /api/governance/standards/transparency for public feed.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_288",
+      "title": "SPEC-047: Extend DTCP/ADS APIs with standards filter",
+      "description": "Add ?standard= query param to event endpoints.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_263"
+      ]
+    },
+    {
+      "id": "task_289",
+      "title": "SPEC-047: Implement ADSQuery.filter_by_standard",
+      "description": "Add database/ledger filter logic for standards provenance.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_262"
+      ]
+    },
+    {
+      "id": "task_290",
+      "title": "SPEC-047: Build public Transparency Page template",
+      "description": "No-auth /transparency route registration and template.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_287"
+      ]
+    },
+    {
+      "id": "task_291",
+      "title": "SPEC-047: About page rewrite (Five Pillars)",
+      "description": "Update about.html with Standards Layer as Pillar 1.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_292",
+      "title": "SPEC-047: Per-project standards resolution",
+      "description": "Support project-local overrides in StandardsRegistry.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_261"
+      ]
+    },
+    {
+      "id": "task_293",
+      "title": "SPEC-047: Project override endpoint + SCR integration",
+      "description": "Governed API for project-local standards dispositions.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_292"
+      ]
+    },
+    {
+      "id": "task_294",
+      "title": "SPEC-047: Add standards_ref ADS action_types",
+      "description": "Add standards_ref_overridden and standards_override_set to schema.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_262"
+      ]
+    },
+    {
+      "id": "task_295",
+      "title": "SPEC-047: Update Strategic Feasibility gate",
+      "description": "Include \"Standards Alignment\" review step in 7-stage workflow.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Systems_Architect",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": []
+    },
+    {
+      "id": "task_296",
+      "title": "SPEC-047: Integration tests for Transparency Surface",
+      "description": "Verify public access, scoping, and provenance visibility.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Backend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_290"
+      ]
+    },
+    {
+      "id": "task_297",
+      "title": "SPEC-047: Console-side parity for standards treatment",
+      "description": "Update adt-console/src/ with provenance treatments.",
+      "spec_ref": "SPEC-047",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_281"
+      ]
+    },
+    {
+      "id": "task_298",
+      "title": "SPEC-048: Filter sessions/tree to active + recent-completed",
+      "description": "Filter GET /api/governance/sessions/tree to only return sessions with status active/spawning, plus completed sessions whose session_start is within SESSION_TREE_RECENT_HOURS (default 6h). Promote orphaned live children to root. Add unit test with crafted timestamps. See SPEC-048 Section 4.1 / REQ-061.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Implemented filtering in adt_center/api/governance_routes.py and added unit test tests/test_spec_048_session_tree.py. Verified with pytest.",
+      "last_updated_by": "GEMINI_CLI (Backend_Engineer)",
+      "last_updated_at": "2026-04-28T21:58:07.042531Z",
+      "review_status": "pending"
+    },
+    {
+      "id": "task_299",
+      "title": "SPEC-048: Subscribe-before-spawn + reserved_session_id IPC",
+      "description": "Add TerminalManager.prepare(sessionId) that registers pty-output/pty-closed listeners before spawn. Generate client-side UUID reserved id, call prepare first, then invoke spawn_child_session with reserved_session_id field. Coordinate with DevOps (task_301 dependency) to extend Rust IPC struct. On spawn rejection, dispose prepared xterm cleanly. See SPEC-048 Section 4.2 / REQ-062.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "last_updated_by": "CLAUDE (Frontend_Engineer)",
+      "last_updated_at": "2026-04-28T21:57:08.321948Z",
+      "evidence": "prepare(sessionId) + activate(sessionId, preparedId) added to terminal.js. spawnChild in sessions.js: crypto.randomUUID() reservedId, TerminalManager.prepare(reservedId) called before invoke, reserved_session_id field sent in request, TerminalManager.activate() called after spawn, TerminalManager.destroy(reservedId) on failure."
+    },
+    {
+      "id": "task_300",
+      "title": "SPEC-048: Normalize Tauri IPC argument-name casing",
+      "description": "Fix sessionId vs session_id inconsistency between terminal.js:74 (camelCase) and sessions.js:537 (snake_case) for write_to_session. Match Rust ipc.rs struct. Run grep over write_to_session/resize_session/spawn_child_session across adt-console/src/js/ and bring all to uniform casing. See SPEC-048 Section 4.3 / REQ-062.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_299"
+      ],
+      "last_updated_by": "CLAUDE (Frontend_Engineer)",
+      "last_updated_at": "2026-04-28T21:57:08.321948Z",
+      "evidence": "Fixed sessions.js: (1) resize_session call now has request: wrapper (was missing). (2) write_to_session context_hint injection: session_id -> sessionId. All 4 write_to_session and resize_session call sites now use request:{sessionId:...} matching Rust serde(rename=\"sessionId\")."
+    },
+    {
+      "id": "task_301",
+      "title": "SPEC-048: PTY ring-buffer replay (optional follow-up)",
+      "description": "Optional defensive measure. Add per-session ring buffer (~64 KiB last bytes of stdout) in adt-console/src-tauri/src/pty.rs replayed on first listener attach. Skip unless task_299 acceptance still shows lost output. See SPEC-048 Section 4.4 / REQ-063.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "DevOps_Engineer",
+      "status": "pending",
+      "priority": "low",
+      "depends_on": [
+        "task_299"
+      ]
     }
   ]
 }

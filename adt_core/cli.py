@@ -151,7 +151,7 @@ def shatterglass_command(args):
     sovereign_paths = [
         "config/specs.json",
         "config/jurisdictions.json",
-        "config/dttp.json",
+        "config/dtcp.json",
         "_cortex/AI_PROTOCOL.md",
         "_cortex/MASTER_PLAN.md"
     ]
@@ -270,13 +270,13 @@ def shatterglass_command(args):
             pass
         add_check("User 'agent' exists", agent_exists)
         
-        dttp_exists = False
+        dtcp_user_exists = False
         try:
             pwd.getpwnam("dttp")
-            dttp_exists = True
+            dtcp_user_exists = True
         except KeyError:
             pass
-        add_check("User 'dttp' exists", dttp_exists)
+        add_check("User .dttp. exists", dtcp_user_exists)
         
         # 2. Tier 1 Ownership & Permissions (Sovereign)
         tier1_passed = True
@@ -296,7 +296,7 @@ def shatterglass_command(args):
         constitutional_paths = [
             "adt_core/dttp/gateway.py",
             "adt_core/dttp/policy.py",
-            "adt_core/dttp/service.py",
+            "adt_core.dtcp.service.py",
             "adt_core/ads/logger.py",
             "adt_core/ads/integrity.py",
             "adt_core/ads/crypto.py"
@@ -307,7 +307,7 @@ def shatterglass_command(args):
             if os.path.exists(full_path):
                 stat = os.stat(full_path)
                 owner = pwd.getpwuid(stat.st_uid).pw_name
-                if dttp_exists and owner != "dttp" and owner != "root":
+                if dtcp_user_exists and owner != "dttp" and owner != "root":
                     # In production mode, Tier 2 should be owned by dttp or root
                     pass # Relax check if not in production mode yet
         add_check("Tier 2 (Constitutional) paths", True, "Paths verified")
@@ -324,8 +324,8 @@ def shatterglass_command(args):
             active_session = "ACTIVE"
         add_check("Shatterglass window active", active_session == "ACTIVE", active_session or "Inactive")
 
-        # 6. DTTP Running as dttp
-        dttp_user_correct = False
+        # 6. DTCP Running as dttp
+        dtcp_user_correct = False
         pid = get_pid_by_port(5002)
         if pid:
             try:
@@ -334,12 +334,12 @@ def shatterglass_command(args):
                         if line.startswith("Uid:"):
                             uid = int(line.split()[1])
                             user = pwd.getpwuid(uid).pw_name
-                            if user == "dttp" or (not dttp_exists):
-                                dttp_user_correct = True
+                            if user == "dttp" or (not dtcp_user_exists):
+                                dtcp_user_correct = True
                             break
             except:
                 pass
-        add_check("DTTP running as correct user", dttp_user_correct, f"PID {pid}" if pid else "Not running")
+        add_check("DTCP running as correct user", dtcp_user_correct, f"PID {pid}" if pid else "Not running")
 
         # Print Table
         print(f"{'CHECK':<35} {'RESULT':<8} {'DETAIL'}")
@@ -372,9 +372,9 @@ def is_port_in_use(port):
         s.settimeout(0.5)
         return s.connect_ex(('localhost', port)) == 0
 
-def _generate_summon_toml(project_name: str, dttp_port: int, framework_root: str) -> str:
+def _generate_summon_toml(project_name: str, dtcp_port: int, framework_root: str) -> str:
     """Generate a project-specific Gemini CLI /summon command."""
-    dttp_request = os.path.join(framework_root, "adt_sdk", "hooks", "dttp_request.py")
+    dtcp_request = os.path.join(framework_root, "adt_sdk", "hooks", "dtcp_request.py")
     return f'''description = "Initialize a specialized Hive Mind agent for the {project_name} project."
 prompt = """
 *** SYSTEM: HIVE MIND AGENT ACTIVATION ({project_name}) ***
@@ -410,16 +410,16 @@ Defined in `config/jurisdictions.json`. Read it to see all roles and their allow
 - EVERY implementation must trace to an approved spec
 - Actions without spec authorization are logged as `authorized: false` and BLOCKED
 
-**DTTP Communication:**
-- DTTP service at: http://localhost:{dttp_port}
-- Use `python3 {dttp_request} --action edit --file path/to/file --spec SPEC-XXX --rationale "reason" --content "content"`
+**DTCP Communication:**
+- DTCP service at: http://localhost:{dtcp_port}
+- Use `python3 {dtcp_request} --action edit --file path/to/file --spec SPEC-XXX --rationale "reason" --content "content"`
 
 **Execute Initialization now.**
 """
 '''
 
 
-def _generate_hive_md(role_name: str, project_name: str, dttp_port: int) -> str:
+def _generate_hive_md(role_name: str, project_name: str, dtcp_port: int) -> str:
     """Generate a project-specific Claude Code /hive-<role> command."""
     return f"""# HIVEMIND ACTIVATION - {role_name.upper()} ({project_name})
 
@@ -454,9 +454,9 @@ Respect their work. Do not undo or override without user permission.
 7. **Log `session_start` to ADS**
 8. Announce role and status
 
-## DTTP SERVICE
+## DTCP SERVICE
 
-DTTP runs at `http://localhost:{dttp_port}`.
+DTCP runs at `http://localhost:{dtcp_port}`.
 
 ## ADS EVENT FORMAT
 
@@ -475,15 +475,15 @@ DTTP runs at `http://localhost:{dttp_port}`.
 def _install_hive_commands(project_path: str, framework_root: str):
     """SPEC-031: Install hive activation commands for both Gemini and Claude Code."""
     # Read project config for name and port
-    dttp_json = os.path.join(project_path, "config", "dttp.json")
+    dtcp.json = os.path.join(project_path, "config", "dtcp.json")
     project_name = os.path.basename(project_path)
-    dttp_port = 5002
-    if os.path.exists(dttp_json):
+    dtcp_port = 5002
+    if os.path.exists(dtcp.json):
         try:
-            with open(dttp_json, "r") as f:
+            with open(dtcp.json, "r") as f:
                 cfg = json.load(f)
             project_name = cfg.get("name", project_name)
-            dttp_port = cfg.get("port", dttp_port)
+            dtcp_port = cfg.get("port", dtcp_port)
         except:
             pass
 
@@ -504,7 +504,7 @@ def _install_hive_commands(project_path: str, framework_root: str):
     summon_path = os.path.join(gemini_cmds, "summon.toml")
     if not os.path.exists(summon_path):
         with open(summon_path, "w") as f:
-            f.write(_generate_summon_toml(project_name, dttp_port, framework_root))
+            f.write(_generate_summon_toml(project_name, dtcp_port, framework_root))
         print(f"  Installed Gemini /summon command: {summon_path}")
 
     # 2. Claude Code: .claude/commands/hive-<role>.md
@@ -516,7 +516,7 @@ def _install_hive_commands(project_path: str, framework_root: str):
         md_path = os.path.join(claude_cmds, f"hive-{slug}.md")
         if not os.path.exists(md_path):
             with open(md_path, "w") as f:
-                f.write(_generate_hive_md(role, project_name, dttp_port))
+                f.write(_generate_hive_md(role, project_name, dtcp_port))
             installed.append(slug)
 
     # Also install a hive-status command
@@ -529,7 +529,7 @@ Read and report:
 1. `_cortex/ads/events.jsonl` - last 10 events
 2. `_cortex/tasks.json` - pending/in-progress tasks
 3. `config/jurisdictions.json` - active roles
-4. Current DTTP status at http://localhost:{dttp_port}/status
+4. Current DTCP status at http://localhost:{dtcp_port}/status
 """)
         installed.append("status")
 
@@ -632,7 +632,7 @@ def init_command(args):
             port=args.port
         )
         print(f"\nSUCCESS: Project '{result['name']}' initialized.")
-        print(f"DTTP Port assigned: {result['port']}")
+        print(f"DTCP Port assigned: {result['port']}")
         print(f"Path: {result['path']}")
         if _is_production_mode():
             print(f"Shatterglass: OS-level permissions applied (production mode)")
@@ -649,7 +649,7 @@ def projects_command(args):
         print("-" * 60)
         for name, cfg in projects.items():
             status = cfg.get("status", "unknown")
-            port = cfg.get("dttp_port", "N/A")
+            port = cfg.get("dtcp_port", "N/A")
             path = cfg.get("path")
             print(f"{name:<20} {port:<6} {status:<8} {path}")
             
@@ -659,13 +659,13 @@ def projects_command(args):
             print(f"Project '{args.name}' not found.")
             return
         
-        port = project.get("dttp_port")
+        port = project.get("dtcp_port")
         pid = get_pid_by_port(port) if port else None
         
         print(f"Project: {args.name}")
         print(f"Path:    {project.get('path')}")
         print(f"Port:    {port}")
-        print(f"DTTP:    {'RUNNING (PID: ' + pid + ')' if pid else 'STOPPED'}")
+        print(f"DTCP:    {'RUNNING (PID: ' + pid + ')' if pid else 'STOPPED'}")
         
         # Count ADS events
         ads_path = os.path.join(project.get("path"), "_cortex", "ads", "events.jsonl")
@@ -682,18 +682,18 @@ def projects_command(args):
             print(f"Project '{args.name}' not found.")
             return
         
-        port = project.get("dttp_port")
+        port = project.get("dtcp_port")
         if not port:
-            print(f"Error: Project '{args.name}' has no DTTP port assigned.")
+            print(f"Error: Project '{args.name}' has no DTCP port assigned.")
             return
             
         if is_port_in_use(port):
             print(f"Port {port} already in use (PID: {get_pid_by_port(port)})")
             return
             
-        print(f"Starting DTTP for {args.name} on :{port}...")
+        print(f"Starting DTCP for {args.name} on :{port}...")
         
-        # Get path to adt_core.dttp.service
+        # Get path to adt_core.dtcp.service
         # Use framework's python if available
         python_exe = sys.executable
         framework = registry.get_project("adt-framework")
@@ -705,11 +705,11 @@ def projects_command(args):
         # Launch background process
         log_dir = os.path.join(project["path"], "_cortex", "ops")
         os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, "dttp.log")
+        log_file = os.path.join(log_dir, "dtcp.log")
         
         with open(log_file, "a") as log:
             subprocess.Popen(
-                [python_exe, "-m", "adt_core.dttp.service", "--port", str(port), "--project-root", project["path"]],
+                [python_exe, "-m", "adt_core.dtcp.service", "--port", str(port), "--project-root", project["path"]],
                 stdout=log,
                 stderr=log,
                 start_new_session=True
@@ -717,9 +717,9 @@ def projects_command(args):
             
         time.sleep(2)
         if is_port_in_use(port):
-            print(f"DTTP service started successfully (PID: {get_pid_by_port(port)})")
+            print(f"DTCP service started successfully (PID: {get_pid_by_port(port)})")
         else:
-            print(f"Failed to start DTTP service. Check logs: {log_file}")
+            print(f"Failed to start DTCP service. Check logs: {log_file}")
 
     elif args.subcommand == 'stop':
         project = registry.get_project(args.name)
@@ -727,10 +727,10 @@ def projects_command(args):
             print(f"Project '{args.name}' not found.")
             return
             
-        port = project.get("dttp_port")
+        port = project.get("dtcp_port")
         pid = get_pid_by_port(port)
         if pid:
-            print(f"Stopping DTTP on :{port} (PID: {pid})...")
+            print(f"Stopping DTCP on :{port} (PID: {pid})...")
             try:
                 import signal
                 os.kill(int(pid), signal.SIGTERM)
@@ -738,7 +738,7 @@ def projects_command(args):
             except Exception as e:
                 print(f"Failed to stop: {e}")
         else:
-            print(f"DTTP not running on port {port}.")
+            print(f"DTCP not running on port {port}.")
 
     elif args.subcommand == 'start-all':
         print("Starting all registered projects...")
@@ -750,7 +750,7 @@ def projects_command(args):
 
 def tasks_command(args):
     client = ADTClient(
-        dttp_url=os.environ.get("DTTP_URL", "http://localhost:5002"),
+        dtcp_url=os.environ.get("DTCP_URL", "http://localhost:5002"),
         agent_name=os.environ.get("ADT_AGENT", "CLI"),
         role=os.environ.get("ADT_ROLE", "Architect")
     )
@@ -765,7 +765,7 @@ def tasks_command(args):
 
 def requests_command(args):
     client = ADTClient(
-        dttp_url=os.environ.get("DTTP_URL", "http://localhost:5002"),
+        dtcp_url=os.environ.get("DTCP_URL", "http://localhost:5002"),
         agent_name=os.environ.get("ADT_AGENT", "CLI"),
         role=os.environ.get("ADT_ROLE", "Architect")
     )
@@ -788,7 +788,7 @@ def main():
     init_parser.add_argument('--name', help='Human-readable project name')
     init_parser.add_argument('--no-detect', dest='detect', action='store_false', help='Disable project detection')
     init_parser.set_defaults(detect=True)
-    init_parser.add_argument('--port', type=int, help='Custom DTTP port')
+    init_parser.add_argument('--port', type=int, help='Custom DTCP port')
     
     # projects group
     proj_parser = subparsers.add_parser('projects', help='Manage governed projects')
@@ -799,10 +799,10 @@ def main():
     proj_status = proj_sub.add_parser('status', help='Show detailed project status')
     proj_status.add_argument('name', help='Project name')
     
-    proj_start = proj_sub.add_parser('start', help='Start DTTP for a project')
+    proj_start = proj_sub.add_parser('start', help='Start DTCP for a project')
     proj_start.add_argument('name', help='Project name')
     
-    proj_stop = proj_sub.add_parser('stop', help='Stop DTTP for a project')
+    proj_stop = proj_sub.add_parser('stop', help='Stop DTCP for a project')
     proj_stop.add_argument('name', help='Project name')
     
     proj_start_all = proj_sub.add_parser('start-all', help='Start all non-framework projects')

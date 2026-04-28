@@ -1,2 +1,2 @@
-1. DTTP - CONFIG section
+1. DTCP - CONFIG section
 2. 

@@ -5,6 +5,28 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_event(e: dict) -> dict:
+    """Map legacy ADS event schema keys onto the current schema for read-path
+    consumers. The on-disk ledger is never mutated; this only affects in-memory
+    dicts. Required because two pre-2026-04-10 events use {timestamp, event,
+    spec, rationale} keys and break templates that assume {ts, action_type,
+    spec_ref, description} under StrictUndefined. See REQ-059."""
+    if not isinstance(e, dict):
+        return e
+    if "ts" not in e and "timestamp" in e:
+        e["ts"] = e["timestamp"]
+    if "action_type" not in e and "event" in e:
+        e["action_type"] = e["event"]
+    if "spec_ref" not in e and "spec" in e:
+        e["spec_ref"] = e["spec"]
+    if "description" not in e:
+        e["description"] = e.get("rationale", "")
+    e.setdefault("agent", "UNKNOWN")
+    e.setdefault("role", "unknown")
+    return e
+
+
 class ADSQuery:
     def __init__(self, file_path: str):
         self.file_path = file_path
@@ -18,7 +40,7 @@ class ADSQuery:
                 for i, line in enumerate(f):
                     if not line.strip(): continue
                     if offset is not None and i < offset: continue
-                    try: events.append(json.loads(line))
+                    try: events.append(_normalize_event(json.loads(line)))
                     except json.JSONDecodeError: continue
                     if limit is not None and len(events) >= limit: break
         except FileNotFoundError: pass
@@ -51,7 +73,7 @@ class ADSQuery:
                 target_lines = all_lines[-limit:] if len(all_lines) > limit else all_lines
                 for line in target_lines:
                     if line.strip():
-                        try: events.append(json.loads(line))
+                        try: events.append(_normalize_event(json.loads(line)))
                         except json.JSONDecodeError: continue
         except FileNotFoundError: pass
         except (OSError, Exception) as e:
@@ -82,30 +104,63 @@ class ADSQuery:
         details = self.get_active_sessions_details()
         return len(details)
 
+    def get_session_events(self, session_id: str) -> List[Dict[str, Any]]:
+        """
+        Returns all events belonging to a specific session.
+        """
+        all_events = self.get_all_events()
+        return [e for e in all_events if e.get("session_id") == session_id]
+
+    def get_session_details(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Returns details for a specific session by its ID.
+        """
+        events = self.get_session_events(session_id)
+        # Look for session_start
+        for event in events:
+            if event.get('action_type') == 'session_start':
+                return {
+                    "agent": event.get('agent'),
+                    "role": event.get("role"),
+                    "spec_id": event.get("spec_ref"),
+                    "session_id": session_id,
+                    "parent_session_id": event.get("parent_session_id"),
+                    "ts": event.get("ts"),
+                    "sandbox": event.get("action_data", {}).get("sandbox", False)
+                }
+        return None
+
     def get_active_sessions_details(self) -> List[Dict[str, Any]]:
         """
         Returns a list of details for all currently active sessions.
         """
         all_events = self.get_all_events()
-        active_sessions = {}  # agent -> session_detail_dict
+        # session_id -> session_detail_dict
+        active_sessions = {}
 
         for event in all_events:
             agent = event.get('agent')
             action = event.get('action_type')
-            if not agent or not action:
+            session_id = event.get('session_id')
+            
+            # Fallback to agent if session_id is missing (legacy)
+            sid = session_id or agent
+            
+            if not sid or not action:
                 continue
             
             if action == 'session_start':
-                active_sessions[agent] = {
+                active_sessions[sid] = {
                     "agent": agent,
                     "role": event.get("role"),
                     "spec_id": event.get("spec_ref"),
-                    "session_id": event.get("session_id"),
+                    "session_id": session_id,
+                    "parent_session_id": event.get("parent_session_id"),
                     "ts": event.get("ts"),
                     "sandbox": event.get("action_data", {}).get("sandbox", False)
                 }
             elif action == 'session_end':
-                if agent in active_sessions:
-                    del active_sessions[agent]
+                if sid in active_sessions:
+                    del active_sessions[sid]
         
         return list(active_sessions.values())

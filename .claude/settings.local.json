@@ -5,7 +5,9 @@
       "Bash(pytest:*)",
       "Bash(pip:*)",
       "WebSearch",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(lsattr /home/human/Projects/adt-framework/_cortex/requests.md)"
     ]
   },
   "hooks": {

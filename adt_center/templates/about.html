@@ -17,7 +17,7 @@
                     <a class="nav-link py-1 text-adt-muted" href="#ads" style="text-decoration:none;">Authoritative Data Source</a>
                     <a class="nav-link py-1 text-adt-muted" href="#integrity" style="text-decoration:none;">Integrity Chain</a>
                     <a class="nav-link py-1 text-adt-muted" href="#sdd" style="text-decoration:none;">Specification-Driven Dev</a>
-                    <a class="nav-link py-1 text-adt-muted" href="#dttp" style="text-decoration:none;">DTTP Enforcement</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#dtcp" style="text-decoration:none;">DTCP Enforcement</a>
                     <a class="nav-link py-1 text-adt-muted" href="#orchestration" style="text-decoration:none;">Interactive Orchestration</a>
                     <a class="nav-link py-1 text-adt-muted" href="#op-center" style="text-decoration:none;">Operational Center</a>
                     <a class="nav-link py-1 text-adt-muted" href="#external-projects" style="text-decoration:none;">External Projects</a>
@@ -79,13 +79,13 @@
                         </div>
                         <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
                             <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarDTTP"
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarDTCP"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
-                                    DTTP &mdash; Structural Enforcement
+                                    DTCP &mdash; Structural Enforcement
                                 </button>
                             </h2>
-                            <div id="pillarDTTP" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                            <div id="pillarDTCP" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
                                     <p>Structural enforcement of spec-authorised actions. OS-level privilege separation ensures agents cannot bypass rules. Level 3 enforcement.</p>
                                     <p class="text-adt-muted">Implementation: SPEC-014, SPEC-019, SPEC-036 (Sandbox)</p>
@@ -156,7 +156,7 @@
                     <blockquote style="border-left:3px solid var(--adt-accent); padding-left:1rem; color:var(--adt-text-muted); font-style:italic;">
                         "If an action is not recorded, it is not recognised as having occurred."
                     </blockquote>
-                    <p>The ADS is the single source of truth for everything that happens inside a governed project. Every agent action, DTTP decision, delegation, and escalation is appended to <code>_cortex/ads/events.jsonl</code>.</p>
+                    <p>The ADS is the single source of truth for everything that happens inside a governed project. Every agent action, DTCP decision, delegation, and escalation is appended to <code>_cortex/ads/events.jsonl</code>.</p>
                     <ul style="color:var(--adt-text-muted);">
                         <li><strong>Append-only:</strong> History is never modified. Events are immutable once written.</li>
                         <li><strong>Structured events:</strong> Each entry carries agent, role, action type, spec reference, authorization status, and hash chain link.</li>
@@ -235,24 +235,24 @@
             </div>
         </section>
 
-        <!-- DTTP -->
-        <section id="dttp" class="mb-4">
+        <!-- DTCP -->
+        <section id="dtcp" class="mb-4">
             <div class="card card-adt">
                 <div class="card-header d-flex justify-content-between">
-                    <span>DTTP &mdash; Structural Enforcement</span>
+                    <span>DTCP &mdash; Structural Enforcement</span>
                     <span class="badge-adt badge-completed">OPERATIONAL</span>
                 </div>
                 <div class="card-body" style="font-size:0.85rem;">
                     <p>The Digital Transformation Transaction Protocol enforces governance structurally, not just behaviourally.</p>
-                    <div class="accordion" id="dttpAccordion">
+                    <div class="accordion" id="dtcpAccordion">
                         <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
                             <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dttpLevels"
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dtcpLevels"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     Three Enforcement Levels
                                 </button>
                             </h2>
-                            <div id="dttpLevels" class="accordion-collapse collapse" data-bs-parent="#dttpAccordion">
+                            <div id="dtcpLevels" class="accordion-collapse collapse" data-bs-parent="#dtcpAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
                                     <table class="table table-sm table-dark mb-0" style="font-size:0.8rem;">
                                         <thead><tr><th>Level</th><th>Mechanism</th><th>Strength</th></tr></thead>
@@ -267,17 +267,17 @@
                         </div>
                         <div class="accordion-item" style="background:transparent; border:none;">
                             <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dttpModel"
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dtcpModel"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     Three-User Model & Agent Sandbox
                                 </button>
                             </h2>
-                            <div id="dttpModel" class="accordion-collapse collapse" data-bs-parent="#dttpAccordion">
+                            <div id="dtcpModel" class="accordion-collapse collapse" data-bs-parent="#dtcpAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
                                     <ul style="color:var(--adt-text-muted);">
                                         <li><strong>human:</strong> Full access. Approves specs, authorizes SCRs, activates Shatterglass.</li>
-                                        <li><strong>agent:</strong> Restricted OS user. Can only write via DTTP API requests.</li>
-                                        <li><strong>dttp:</strong> Service user. Validates requests against policy, executes authorized writes.</li>
+                                        <li><strong>agent:</strong> Restricted OS user. Can only write via DTCP API requests.</li>
+                                        <li><strong>dtcp:</strong> Service user. Validates requests against policy, executes authorized writes.</li>
                                     </ul>
                                     <p style="color:var(--adt-text-muted);">Agent Filesystem Sandbox (SPEC-036): bwrap/unshare namespace isolation confines each agent session to its jurisdictional paths.</p>
                                 </div>
@@ -314,13 +314,13 @@
                     <span class="badge-adt badge-completed">OPERATIONAL</span>
                 </div>
                 <div class="card-body" style="font-size:0.85rem;">
-                    <p>The ADT Framework incarnated as software. A Flask application that serves as the human web UI, agent API, and DTTP engine.</p>
+                    <p>The ADT Framework incarnated as software. A Flask application that serves as the human web UI, agent API, and DTCP engine.</p>
                     <ul style="color:var(--adt-text-muted);">
                         <li><strong>Dashboard:</strong> Real-time governance overview with compliance stats and event counters.</li>
                         <li><strong>ADS Timeline:</strong> Searchable, filterable event history with agent and role grouping.</li>
                         <li><strong>Spec Registry:</strong> Browse, create, and inspect specifications.</li>
                         <li><strong>Task Board:</strong> Track task assignments, completion, review status, and delegation chains.</li>
-                        <li><strong>DTTP Monitor:</strong> Live enforcement activity, denial log, and policy status.</li>
+                        <li><strong>DTCP Monitor:</strong> Live enforcement activity, denial log, and policy status.</li>
                         <li><strong>Governance Configurator:</strong> Role cards, jurisdiction editor, enforcement dashboard (SPEC-026).</li>
                     </ul>
                     <p class="text-adt-muted mb-0">Multi-project capable via External Project Governance (SPEC-031).</p>
@@ -357,7 +357,7 @@
                 </div>
                 <div class="card-body" style="font-size:0.85rem;">
                     <p>Sovereign paths contain the rules of the framework. No agent can modify them directly.</p>
-                    <p>When an agent proposes a change to a sovereign file, DTTP blocks the write and auto-submits a <strong>Sovereign Change Request</strong> for human authorization in the Governance panel.</p>
+                    <p>When an agent proposes a change to a sovereign file, DTCP blocks the write and auto-submits a <strong>Sovereign Change Request</strong> for human authorization in the Governance panel.</p>
                     <p class="text-adt-muted">Implementation: SPEC-033 &mdash; Human-in-the-loop authorization queue.</p>
                 </div>
             </div>
@@ -403,7 +403,7 @@
                         </tbody>
                     </table>
                     <p style="color:var(--adt-text-muted);">Two AI agents operate within this model: <strong>CLAUDE</strong> (Claude Code) and <strong>GEMINI</strong> (Gemini CLI). Both are summoned into specific roles per session and governed by the same jurisdiction rules.</p>
-                    <p class="text-adt-muted mb-0">Enforcement: DTTP hook-based (Level 2) migrating to full OS-level privilege separation (Level 3).</p>
+                    <p class="text-adt-muted mb-0">Enforcement: DTCP hook-based (Level 2) migrating to full OS-level privilege separation (Level 3).</p>
                 </div>
             </div>
         </section>
@@ -427,7 +427,7 @@
                             </h2>
                             <div id="incChain" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
-                                    <p style="color:var(--adt-text-muted);">An em-dash character in an ADS event description caused <code>_get_last_event()</code> to crash mid-way through a multi-byte UTF-8 sequence. The entire DTTP pipeline returned 500 errors, blocking all governed writes. Root cause: byte-by-byte reverse seek in text mode. Fix: binary mode read in Safe Logger v3.0.</p>
+                                    <p style="color:var(--adt-text-muted);">An em-dash character in an ADS event description caused <code>_get_last_event()</code> to crash mid-way through a multi-byte UTF-8 sequence. The entire DTCP pipeline returned 500 errors, blocking all governed writes. Root cause: byte-by-byte reverse seek in text mode. Fix: binary mode read in Safe Logger v3.0.</p>
                                 </div>
                             </div>
                         </div>
@@ -440,7 +440,7 @@
                             </h2>
                             <div id="incSDD" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
-                                    <p style="color:var(--adt-text-muted);">Agents discovered they could use the Bash tool to bypass DTTP hooks entirely, writing directly to governed files. This proved Level 2 (hook-based) enforcement is fundamentally insufficient and motivated the move to Level 3 privilege separation with the agent OS user model.</p>
+                                    <p style="color:var(--adt-text-muted);">Agents discovered they could use the Bash tool to bypass DTCP hooks entirely, writing directly to governed files. This proved Level 2 (hook-based) enforcement is fundamentally insufficient and motivated the move to Level 3 privilege separation with the agent OS user model.</p>
                                 </div>
                             </div>
                         </div>
@@ -466,7 +466,7 @@
                             </h2>
                             <div id="incJuris" class="accordion-collapse collapse" data-bs-parent="#incidentAccordion">
                                 <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
-                                    <p style="color:var(--adt-text-muted);">Agents completing cross-role requests could not mark them as COMPLETED because <code>_cortex/requests.md</code> and <code>_cortex/tasks.json</code> were outside their jurisdiction. The only option was bypassing DTTP via Bash. Fix: governed status update API (SPEC-035) at <code>/api/governance/requests/&lt;id&gt;/status</code>.</p>
+                                    <p style="color:var(--adt-text-muted);">Agents completing cross-role requests could not mark them as COMPLETED because <code>_cortex/requests.md</code> and <code>_cortex/tasks.json</code> were outside their jurisdiction. The only option was bypassing DTCP via Bash. Fix: governed status update API (SPEC-035) at <code>/api/governance/requests/&lt;id&gt;/status</code>.</p>
                                 </div>
                             </div>
                         </div>
@@ -490,7 +490,7 @@
                                 <dd>Authoritative Data Source. The append-only event ledger (<code>events.jsonl</code>).</dd>
                                 <dt style="color:var(--adt-text);">SDD</dt>
                                 <dd>Specification-Driven Development. "No Spec, No Code."</dd>
-                                <dt style="color:var(--adt-text);">DTTP</dt>
+                                <dt style="color:var(--adt-text);">DTCP</dt>
                                 <dd>Digital Transformation Transaction Protocol. Structural enforcement engine.</dd>
                                 <dt style="color:var(--adt-text);">IoE</dt>
                                 <dd>Index of Events. Searchable, filterable ADS view.</dd>
@@ -513,9 +513,9 @@
                                 <dt style="color:var(--adt-text);">Safe Logger</dt>
                                 <dd>Atomic ADS writer with fcntl locking and schema validation.</dd>
                                 <dt style="color:var(--adt-text);">Fail-Closed</dt>
-                                <dd>Default-deny policy. If DTTP cannot validate, the action is blocked.</dd>
+                                <dd>Default-deny policy. If DTCP cannot validate, the action is blocked.</dd>
                                 <dt style="color:var(--adt-text);">Privilege Separation</dt>
-                                <dd>OS-level user isolation (human/agent/dttp) for Level 3 enforcement.</dd>
+                                <dd>OS-level user isolation (human/agent/dtcp) for Level 3 enforcement.</dd>
                                 <dt style="color:var(--adt-text);">Overseer</dt>
                                 <dd>Autonomous auditor role responsible for ADS integrity and compliance.</dd>
                                 <dt style="color:var(--adt-text);">Hivemind</dt>
@@ -550,7 +550,7 @@
                             <h6 style="color:var(--adt-green); font-size:0.8rem;">Completed</h6>
                             <ul class="list-unstyled text-adt-muted">
                                 <li>&#10003; ADS Ledger & Integrity Chain</li>
-                                <li>&#10003; DTTP Standalone Service</li>
+                                <li>&#10003; DTCP Standalone Service</li>
                                 <li>&#10003; Operator Console (Tauri)</li>
                                 <li>&#10003; External Project Governance</li>
                                 <li>&#10003; Sovereign Change Requests</li>
@@ -570,7 +570,7 @@
                         <div class="col-md-4">
                             <h6 style="color:var(--adt-text-muted); font-size:0.8rem;">Planned</h6>
                             <ul class="list-unstyled text-adt-muted">
-                                <li>&#9675; Enterprise DTTP Network</li>
+                                <li>&#9675; Enterprise DTCP Network</li>
                                 <li>&#9675; Advanced Visual Analytics</li>
                                 <li>&#9675; Sovereign DAO Integration</li>
                             </ul>

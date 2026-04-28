@@ -1,15 +1,15 @@
-"""Integration tests for the standalone DTTP service (SPEC-019)."""
+"""Integration tests for the standalone DTCP service (SPEC-019)."""
 import json
 import os
 import pytest
 
-from adt_core.dttp.config import DTTPConfig
-from adt_core.dttp.service import create_dttp_app
+from adt_core.dtcp.config import DTCPConfig
+from adt_core.dtcp.service import create_dtcp_app
 
 
 @pytest.fixture
-def dttp_app(tmp_path):
-    """Create a test DTTP service with proper config."""
+def dtcp_app(tmp_path):
+    """Create a test DTCP service with proper config."""
     project_root = tmp_path / "project"
     project_root.mkdir()
     (project_root / "data").mkdir()
@@ -43,7 +43,7 @@ def dttp_app(tmp_path):
         }
     }))
 
-    config = DTTPConfig(
+    config = DTCPConfig(
         port=5002,
         mode="development",
         ads_path=str(ads_path),
@@ -53,25 +53,25 @@ def dttp_app(tmp_path):
         project_name="test-project",
     )
 
-    app = create_dttp_app(config)
+    app = create_dtcp_app(config)
     app.config["TESTING"] = True
     return app
 
 
 @pytest.fixture
-def client(dttp_app):
-    return dttp_app.test_client()
+def client(dtcp_app):
+    return dtcp_app.test_client()
 
 
 def _valid_request(**overrides):
-    """Build a valid DTTP request payload."""
+    """Build a valid DTCP request payload."""
     payload = {
         "agent": "TEST",
         "role": "tester",
         "spec_id": "SPEC-001",
         "action": "edit",
         "params": {"file": "data/test.txt", "content": "hello"},
-        "rationale": "Testing DTTP service",
+        "rationale": "Testing DTCP service",
     }
     payload.update(overrides)
     return payload
@@ -79,7 +79,7 @@ def _valid_request(**overrides):
 
 # === POST /request ===
 
-class TestDTTPRequest:
+class TestDTCPRequest:
     def test_approved_request(self, client):
         resp = client.post("/request", json=_valid_request())
         assert resp.status_code == 200
@@ -126,17 +126,17 @@ class TestDTTPRequest:
         resp = client.post("/request", json=_valid_request(rationale=""))
         assert resp.status_code == 400
 
-    def test_file_actually_written(self, client, dttp_app):
+    def test_file_actually_written(self, client, dtcp_app):
         client.post("/request", json=_valid_request())
-        project_root = dttp_app.config["DTTP"].project_root
+        project_root = dtcp_app.config["DTCP"].project_root
         written_file = os.path.join(project_root, "data", "test.txt")
         assert os.path.exists(written_file)
         with open(written_file) as f:
             assert f.read() == "hello"
 
-    def test_ads_events_logged(self, client, dttp_app):
+    def test_ads_events_logged(self, client, dtcp_app):
         client.post("/request", json=_valid_request())
-        ads_path = dttp_app.config["DTTP"].ads_path
+        ads_path = dtcp_app.config["DTCP"].ads_path
         with open(ads_path) as f:
             events = [json.loads(line) for line in f if line.strip()]
         # Should have pre-action (pending) and post-action (completed) events
@@ -145,9 +145,9 @@ class TestDTTPRequest:
         assert any("pending" in t for t in action_types)
         assert any("completed" in t for t in action_types)
 
-    def test_denial_logged_to_ads(self, client, dttp_app):
+    def test_denial_logged_to_ads(self, client, dtcp_app):
         client.post("/request", json=_valid_request(role="unauthorized"))
-        ads_path = dttp_app.config["DTTP"].ads_path
+        ads_path = dtcp_app.config["DTCP"].ads_path
         with open(ads_path) as f:
             events = [json.loads(line) for line in f if line.strip()]
         denied_events = [e for e in events if not e.get("authorized", True)]
@@ -157,12 +157,12 @@ class TestDTTPRequest:
 
 # === GET /status ===
 
-class TestDTTPStatus:
+class TestDTCPStatus:
     def test_status_endpoint(self, client):
         resp = client.get("/status")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["service"] == "dttp"
+        assert data["service"] == "dtcp"
         assert data["version"] == "0.1.0"
         assert data["mode"] == "development"
         assert data["project"] == "test-project"
@@ -181,7 +181,7 @@ class TestDTTPStatus:
 
 # === GET /policy ===
 
-class TestDTTPPolicy:
+class TestDTCPPolicy:
     def test_policy_endpoint(self, client):
         resp = client.get("/policy")
         assert resp.status_code == 200

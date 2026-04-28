@@ -20,6 +20,8 @@ pub struct CreateSessionRequest {
     pub cwd: Option<String>,
     pub parent_session_id: Option<String>,
     pub task_id: Option<String>,
+    #[serde(rename = "reservedSessionId")]
+    pub reserved_session_id: Option<String>,
     pub cols: u16,
     pub rows: u16,
 }
@@ -65,7 +67,7 @@ pub struct InitProjectRequest {
     pub path: String,
     pub name: Option<String>,
     pub detect: Option<bool>,
-    pub start_dttp: Option<bool>,
+    pub start_dtcp: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -86,7 +88,7 @@ pub fn create_session<R: Runtime>(
         project_name, request.agent, request.role, request.command, request.args
     );
     pty_manager.create_session(
-        None,
+        request.reserved_session_id,
         project_name,
         &request.agent,
         &request.role,
@@ -121,7 +123,7 @@ pub fn spawn_child_session<R: Runtime>(
     let project_name = request.project.as_deref().unwrap_or("adt-framework");
     
     pty_manager.create_session(
-        None,
+        request.reserved_session_id,
         project_name,
         &request.agent,
         &request.role,
@@ -497,22 +499,22 @@ pub fn init_project(request: InitProjectRequest) -> Result<String, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
-    // Optionally start DTTP for the new project
-    if request.start_dttp.unwrap_or(false) {
-        if let Err(e) = start_project_dttp_inner(&request.name.unwrap_or_else(|| {
+    // Optionally start DTCP for the new project
+    if request.start_dtcp.unwrap_or(false) {
+        if let Err(e) = start_project_dtcp_inner(&request.name.unwrap_or_else(|| {
             std::path::Path::new(&request.path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "project".to_string())
         })) {
-            log::warn!("Failed to auto-start DTTP: {}", e);
+            log::warn!("Failed to auto-start DTCP: {}", e);
         }
     }
 
     Ok(stdout)
 }
 
-/// List all registered projects with DTTP status enrichment.
+/// List all registered projects with DTCP status enrichment.
 /// Reads ~/.adt/projects.json and checks port availability.
 #[tauri::command]
 pub fn list_projects() -> Result<String, String> {
@@ -530,7 +532,7 @@ pub fn list_projects() -> Result<String, String> {
     let content = std::fs::read_to_string(&registry_path)
         .map_err(|e| format!("Failed to read registry: {}", e))?;
 
-    // Parse, enrich with DTTP status, return
+    // Parse, enrich with DTCP status, return
     let mut registry: serde_json::Value = serde_json::from_str(&content)
         .map_err(|e| format!("Invalid registry JSON: {}", e))?;
 
@@ -538,9 +540,9 @@ pub fn list_projects() -> Result<String, String> {
         if let Some(arr) = projects.as_array_mut() {
             for project in arr.iter_mut() {
                 if let Some(port) = project.get("port").and_then(|p| p.as_u64()) {
-                    let dttp_running = check_port(port as u16);
+                    let dtcp_running = check_port(port as u16);
                     project.as_object_mut().map(|obj| {
-                        obj.insert("dttp_running".to_string(), serde_json::Value::Bool(dttp_running));
+                        obj.insert("dtcp_running".to_string(), serde_json::Value::Bool(dtcp_running));
                     });
                 }
             }
@@ -551,17 +553,17 @@ pub fn list_projects() -> Result<String, String> {
         .map_err(|e| format!("Failed to serialize: {}", e))
 }
 
-/// Start DTTP service for a named project.
+/// Start DTCP service for a named project.
 #[tauri::command]
-pub fn start_project_dttp(request: ProjectNameRequest) -> Result<String, String> {
-    log::info!("[IPC RECV] start_project_dttp: name={}", request.name);
-    start_project_dttp_inner(&request.name)
+pub fn start_project_dtcp(request: ProjectNameRequest) -> Result<String, String> {
+    log::info!("[IPC RECV] start_project_dtcp: name={}", request.name);
+    start_project_dtcp_inner(&request.name)
 }
 
-/// Stop DTTP service for a named project.
+/// Stop DTCP service for a named project.
 #[tauri::command]
-pub fn stop_project_dttp(request: ProjectNameRequest) -> Result<String, String> {
-    log::info!("[IPC RECV] stop_project_dttp: name={}", request.name);
+pub fn stop_project_dtcp(request: ProjectNameRequest) -> Result<String, String> {
+    log::info!("[IPC RECV] stop_project_dtcp: name={}", request.name);
 
     let python = find_python().ok_or("Python not found")?;
     let mut cmd = std::process::Command::new(&python);
@@ -571,12 +573,12 @@ pub fn stop_project_dttp(request: ProjectNameRequest) -> Result<String, String> 
         cmd.env("PYTHONPATH", &cwd);
     }
 
-    let output = cmd.output().map_err(|e| format!("Failed to stop DTTP: {}", e))?;
+    let output = cmd.output().map_err(|e| format!("Failed to stop DTCP: {}", e))?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to stop DTTP: {}", stderr));
+        return Err(format!("Failed to stop DTCP: {}", stderr));
     }
 
     Ok(stdout)
@@ -607,7 +609,7 @@ fn check_port(port: u16) -> bool {
     ).is_ok()
 }
 
-fn start_project_dttp_inner(name: &str) -> Result<String, String> {
+fn start_project_dtcp_inner(name: &str) -> Result<String, String> {
     let python = find_python().ok_or("Python not found")?;
     let mut cmd = std::process::Command::new(&python);
     cmd.arg("-m").arg("adt_core.cli").arg("projects").arg("start").arg(name);
@@ -616,12 +618,12 @@ fn start_project_dttp_inner(name: &str) -> Result<String, String> {
         cmd.env("PYTHONPATH", &cwd);
     }
 
-    let output = cmd.output().map_err(|e| format!("Failed to start DTTP: {}", e))?;
+    let output = cmd.output().map_err(|e| format!("Failed to start DTCP: {}", e))?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to start DTTP: {}", stderr));
+        return Err(format!("Failed to start DTCP: {}", stderr));
     }
 
     Ok(stdout)
