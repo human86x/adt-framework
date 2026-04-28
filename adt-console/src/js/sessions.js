@@ -512,7 +512,7 @@ const SessionManager = (() => {
             cols: 120,
             rows: 30,
             skip_permissions: !!skip_permissions,
-            reserved_session_id: reservedId,
+            reservedSessionId: reservedId,
           }
         });
 
