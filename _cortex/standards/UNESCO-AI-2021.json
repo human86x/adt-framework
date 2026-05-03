@@ -1,0 +1,45 @@
+{
+  "id": "UNESCO-AI-2021",
+  "title": "UNESCO Recommendation on the Ethics of Artificial Intelligence",
+  "version": "2021",
+  "publisher": "UNESCO",
+  "source_url": "https://unesdoc.unesco.org/ark:/48223/pf0000381137",
+  "scope": "ethical",
+  "imported_at": "2026-05-03T20:25:00Z",
+  "imported_by": "Systems_Architect",
+  "clauses": [
+    {
+      "id": "III.1",
+      "title": "Proportionality and Do No Harm",
+      "text": "The use of AI systems must not go beyond what is necessary to achieve a legitimate aim...",
+      "tags": ["proportionality", "harm"],
+      "disposition": "pending",
+      "rationale": null,
+      "decided_at": null,
+      "decided_by": null,
+      "scr_ref": null
+    },
+    {
+      "id": "III.2",
+      "title": "Safety and Security",
+      "text": "Unwanted harms (safety risks) and vulnerabilities to attacks (security risks) should be avoided...",
+      "tags": ["safety", "security"],
+      "disposition": "pending",
+      "rationale": null,
+      "decided_at": null,
+      "decided_by": null,
+      "scr_ref": null
+    },
+    {
+      "id": "III.3",
+      "title": "Fairness and Non-discrimination",
+      "text": "AI actors should promote social justice and safeguard human rights...",
+      "tags": ["fairness", "non-discrimination"],
+      "disposition": "pending",
+      "rationale": null,
+      "decided_at": null,
+      "decided_by": null,
+      "scr_ref": null
+    }
+  ]
+}
