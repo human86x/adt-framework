@@ -53,6 +53,10 @@ def validate_intent(data: Dict[str, Any]) -> List[str]:
         errors.append("title is required")
     if not data.get("description"):
         errors.append("description is required")
+    if "standards_refs" not in data:
+        errors.append("standards_refs is required (can be empty array for legacy)")
+    elif not isinstance(data["standards_refs"], list):
+        errors.append("standards_refs must be a list of strings")
     if data.get("type") and data["type"] not in INTENT_TYPES:
         errors.append(f"type must be one of: {INTENT_TYPES}")
     if data.get("target_maturity") and data["target_maturity"] not in MATURITY_LEVELS:
