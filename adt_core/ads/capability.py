@@ -137,6 +137,9 @@ class CapabilityManager:
             intent_data["status"] = "Intent Defined"
         if not intent_data.get("target_maturity"):
             intent_data["target_maturity"] = "Initial"
+        
+        # SPEC-046: Standards Registry integration
+        intent_data.setdefault("standards_refs", [])
         # Default empty nested sections for backward compat
         intent_data.setdefault("org_context", {})
         intent_data.setdefault("capability", {})
