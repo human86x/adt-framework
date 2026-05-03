@@ -12,7 +12,8 @@
             <div class="card-body p-2">
                 <nav class="nav flex-column" style="font-size:0.78rem;">
                     <a class="nav-link py-1 text-adt-muted" href="#what-is-adt" style="text-decoration:none;">What is ADT?</a>
-                    <a class="nav-link py-1 text-adt-muted" href="#four-pillars" style="text-decoration:none;">The Four Pillars</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#five-pillars" style="text-decoration:none;">The Five Pillars</a>
+                    <a class="nav-link py-1 text-adt-muted" href="#standards" style="text-decoration:none;">Standards Layer</a>
                     <a class="nav-link py-1 text-adt-muted" href="#capabilities" style="text-decoration:none;">Capability Governance</a>
                     <a class="nav-link py-1 text-adt-muted" href="#ads" style="text-decoration:none;">Authoritative Data Source</a>
                     <a class="nav-link py-1 text-adt-muted" href="#integrity" style="text-decoration:none;">Integrity Chain</a>
@@ -53,21 +54,36 @@
             </div>
         </section>
 
-        <!-- Four Pillars -->
-        <section id="four-pillars" class="mb-4">
+        <!-- Five Pillars -->
+        <section id="five-pillars" class="mb-4">
             <div class="card card-adt">
                 <div class="card-header d-flex justify-content-between">
-                    <span>The Four Pillars (Evolved)</span>
+                    <span>The Five Pillars (Standards-Native)</span>
                     <span class="badge-adt badge-completed">CURRENT</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="accordion" id="pillarAccordion">
                         <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
                             <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarStd"
+                                    style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
+                                    <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
+                                    Pillar 1: Standards Layer &mdash; Governing Principles
+                                </button>
+                            </h2>
+                            <div id="pillarStd" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
+                                <div class="accordion-body" style="background:var(--adt-bg-secondary); font-size:0.8rem;">
+                                    <p>The foundation of ADT governance. Aligns technical execution with abstract ethical principles, regulatory frameworks (EU AI Act, NIST), and organizational codices.</p>
+                                    <p class="text-adt-muted">Implementation: SPEC-046 &mdash; standards.json, Clause Dispositions</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="background:transparent; border:none; border-bottom:1px solid var(--adt-border);">
+                            <h2 class="accordion-header">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarCap"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
-                                    Capability Governance &mdash; Organisational Context
+                                    Pillar 2: Capability Governance &mdash; Organisational Context
                                 </button>
                             </h2>
                             <div id="pillarCap" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
@@ -82,7 +98,7 @@
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarDTCP"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
-                                    DTCP &mdash; Structural Enforcement
+                                    Pillar 3: DTCP &mdash; Structural Enforcement
                                 </button>
                             </h2>
                             <div id="pillarDTCP" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
@@ -97,7 +113,7 @@
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarBB"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
-                                    Digital Black Box &mdash; Causal Traceability
+                                    Pillar 4: Digital Black Box &mdash; Causal Traceability
                                 </button>
                             </h2>
                             <div id="pillarBB" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
@@ -112,7 +128,7 @@
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pillarOrch"
                                     style="background:var(--adt-bg-card); color:var(--adt-text); font-size:0.85rem; box-shadow:none;">
                                     <span class="badge-adt badge-completed me-2">OPERATIONAL</span>
-                                    Interactive Orchestration &mdash; Human Steering
+                                    Pillar 5: Interactive Orchestration &mdash; Human Steering
                                 </button>
                             </h2>
                             <div id="pillarOrch" class="accordion-collapse collapse" data-bs-parent="#pillarAccordion">
@@ -123,6 +139,25 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Standards Layer -->
+        <section id="standards" class="mb-4">
+            <div class="card card-adt">
+                <div class="card-header d-flex justify-content-between">
+                    <span>Standards Layer (SPEC-046)</span>
+                    <span class="badge-adt badge-completed">OPERATIONAL</span>
+                </div>
+                <div class="card-body" style="font-size:0.85rem;">
+                    <p>The Standards Layer is the ethical and regulatory foundation of the ADT Framework. It ensures that technical decisions are guided by established principles rather than just efficiency.</p>
+                    <ul style="color:var(--adt-text-muted);">
+                        <li><strong>Standards Registry:</strong> A collection of governing documents (EU AI Act, UNESCO Ethics, Company Codex).</li>
+                        <li><strong>Clause Dispositions:</strong> Every clause in a standard is evaluated and assigned a disposition: <em>Adopted</em>, <em>Adapted</em>, or <em>Dismissed</em>.</li>
+                        <li><strong>Traceability:</strong> Specifications and Intents are linked directly to standards, providing a clear path from principle to production.</li>
+                    </ul>
+                    <p class="text-adt-muted mb-0">Manage governing principles in the <a href="/standards" style="color:var(--adt-accent);">Standards Registry</a>.</p>
                 </div>
             </div>
         </section>

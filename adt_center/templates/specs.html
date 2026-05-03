@@ -30,6 +30,11 @@
                     <span class="ms-2">{{ spec.name }}</span>
                 </div>
                 <div class="d-flex align-items-center">
+                    <div class="me-3 d-flex flex-wrap gap-1 justify-content-end">
+                        {% for std in spec.standards_refs %}
+                        <span class="badge bg-dark border border-secondary text-info" style="font-size: 0.6rem;" title="Governed by {{ std }}">{{ std.split('-')[0] }}</span>
+                        {% endfor %}
+                    </div>
                     {% if spec.status|upper == 'DRAFT' %}
                     <button class="btn btn-success btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;" 
                             onclick="event.stopPropagation(); updateStatusDirect('{{ spec.id }}', 'APPROVED')">
@@ -118,6 +123,15 @@
                             <input type="text" id="spec-title" class="form-control-adt" placeholder="New Feature Idea" required>
                         </div>
                         <div class="col-12">
+                            <label class="form-label-adt">Governed by Standards</label>
+                            <div id="spec-standards-container" class="d-flex flex-wrap gap-2 p-2 border border-adt rounded mb-2" style="min-height: 40px;">
+                                <!-- Tags will be injected here -->
+                            </div>
+                            <select id="spec-standards-select" class="form-select form-control-adt">
+                                <option value="">-- Select Standard to link --</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label-adt">Content (Markdown)</label>
                             <textarea id="spec-content" class="form-control-adt" rows="12" style="font-family:monospace; font-size:0.8rem;" placeholder="# SPEC-XXX: Title\n\n## Purpose\n..." required></textarea>
                         </div>
@@ -133,14 +147,35 @@
 </div>
 
 <script>
-function viewSpec(id, name, el) {
+async function viewSpec(id, name, el) {
     const content = document.getElementById('data-' + id).innerHTML;
     const currentStatus = el.getAttribute('data-status') || 'DRAFT';
+    
+    // Fetch spec details to get standards_refs (if not in data- storage)
+    let provenanceHtml = '';
+    try {
+        const res = await fetch(`/api/specs/${id}`);
+        const spec = await res.json();
+        if (spec.standards_refs && spec.standards_refs.length > 0) {
+            provenanceHtml = `
+                <div class="card bg-dark border-secondary mb-4">
+                    <div class="card-header py-2 text-info small fw-bold">
+                        <i class="bi bi-shield-check me-1"></i> STANDARDS PROVENANCE
+                    </div>
+                    <div class="card-body py-2">
+                        <div class="d-flex flex-wrap gap-2">
+                            ${spec.standards_refs.map(s => `<span class="badge bg-black border border-secondary text-info">${s}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (e) {}
 
     document.getElementById('m-spec-id').innerText = id;
     document.getElementById('m-spec-name').innerText = name;
     document.getElementById('m-spec-status').innerText = currentStatus;
-    document.getElementById('specModalBody').innerHTML = content;
+    document.getElementById('specModalBody').innerHTML = provenanceHtml + content;
     
     // Toggle buttons based on status
     const approveBtn = document.getElementById('btn-approve-spec');
@@ -193,13 +228,56 @@ async function performUpdate(specId, newStatus) {
     }
 }
 
+let selectedStandards = [];
+
+async function loadStandards() {
+    try {
+        const res = await fetch('/api/governance/standards');
+        const data = await res.json();
+        const select = document.getElementById('spec-standards-select');
+        (data.standards || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.innerText = `${s.id}: ${s.title}`;
+            select.appendChild(opt);
+        });
+    } catch (e) {}
+}
+
+document.getElementById('spec-standards-select').addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val && !selectedStandards.includes(val)) {
+        selectedStandards.push(val);
+        renderStandardTags();
+    }
+    e.target.value = '';
+});
+
+function renderStandardTags() {
+    const container = document.getElementById('spec-standards-container');
+    container.innerHTML = selectedStandards.map(s => `
+        <span class="badge bg-dark border border-secondary text-info d-flex align-items-center gap-2">
+            ${s}
+            <span style="cursor:pointer;" onclick="removeStandard('${s}')">&times;</span>
+        </span>
+    `).join('');
+}
+
+window.removeStandard = (id) => {
+    selectedStandards = selectedStandards.filter(s => s !== id);
+    renderStandardTags();
+};
+
+document.addEventListener('DOMContentLoaded', loadStandards);
+
 document.getElementById('createSpecForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = {
         id: document.getElementById('spec-id').value,
         title: document.getElementById('spec-title').value,
         status: 'DRAFT',
-        content: document.getElementById('spec-content').value
+        content: document.getElementById('spec-content').value,
+        standards_refs: selectedStandards
     };
 
     try {

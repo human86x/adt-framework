@@ -25,6 +25,13 @@
     </div>
     <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-card">
+            <div class="stat-label">Standards Coverage</div>
+            <div class="stat-value text-info" id="dash-standards-pct">--%</div>
+            <div class="stat-detail" id="dash-standards-detail">Loading...</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-card">
             <div class="stat-label">Specifications</div>
             <div class="stat-value text-green">{{ specs|length }}</div>
             <div class="stat-detail">
@@ -333,6 +340,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 selector.appendChild(opt);
             }
         });
+
+    // Load Standards Coverage
+    const loadStandardsCoverage = async () => {
+        try {
+            const query = currentProject ? `?project=${currentProject}` : '';
+            const res = await fetch(`/api/governance/standards/coverage${query}`);
+            const data = await res.json();
+            const pctEl = document.getElementById('dash-standards-pct');
+            const detailEl = document.getElementById('dash-standards-detail');
+            if (pctEl) pctEl.innerText = (data.covered_pct || 0) + '%';
+            if (detailEl) detailEl.innerText = `${data.adopted || 0} adopted clauses`;
+        } catch (e) {
+            const detailEl = document.getElementById('dash-standards-detail');
+            if (detailEl) detailEl.innerText = 'Coverage N/A';
+        }
+    };
+    loadStandardsCoverage();
 
     selector.addEventListener('change', (e) => {
         const val = e.target.value;

@@ -166,10 +166,12 @@ const ContextPanel = (() => {
     
     try {
       if (window.__TAURI__) {
-        // Fix command name to match Rust ipc.rs: inject_pty_command
+        // Fix command name and argument structure to match Rust ipc.rs: inject_pty_command
         await window.__TAURI__.core.invoke('inject_pty_command', {
-          sessionId: currentSession.id,
-          data: `User hint: Focus on Task ID: ${taskId} immediately.`
+          request: {
+            sessionId: currentSession.id,
+            data: `User hint: Focus on Task ID: ${taskId} immediately.`
+          }
         });
       }
       

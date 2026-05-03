@@ -23,6 +23,9 @@
             <option value="ui_build">ui_build</option>
             <option value="spec_request">spec_request</option>
         </select>
+        <select id="filterStandard" class="form-select form-select-sm" style="width:auto; background-color:var(--adt-bg-card); border-color:var(--adt-border); color:var(--adt-text); font-size:0.8rem;">
+            <option value="">All Standards</option>
+        </select>
     </div>
 </div>
 
@@ -40,7 +43,9 @@
             {% elif event.status == 'pending' or event.action_type == 'pending_edit' %}event-pending
             {% endif %}"
             data-agent="{{ event.agent }}"
-            data-action="{{ event.action_type }}">
+            data-action="{{ event.action_type }}"
+            {% set spec = specs_map.get(event.spec_ref) if specs_map else none %}
+            data-standards="{{ spec.standards_refs|join(',') if spec and spec.standards_refs else '' }}">
             <div class="event-meta d-flex justify-content-between">
                 <span>
                     {{ event.ts }}
@@ -62,9 +67,18 @@
                     {% endif %}
                 </span>
             </div>
-            <div class="event-body">
-                <span class="event-action">{{ event.action_type }}:</span>
-                {{ event.description }}
+            <div class="event-body d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="event-action">{{ event.action_type }}:</span>
+                    {{ event.description }}
+                </div>
+                <div class="d-flex flex-wrap gap-1 justify-content-end ms-2">
+                    {% if spec and spec.standards_refs %}
+                        {% for std in spec.standards_refs %}
+                        <span class="badge bg-dark border border-secondary text-info" style="font-size: 0.6rem;">{{ std.split('-')[0] }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
             </div>
             {% if event.hash %}
             <div class="mt-1" style="font-size:0.65rem; color:var(--adt-text-muted); font-family:monospace;">
@@ -84,19 +98,36 @@ document.getElementById('filterAction').addEventListener('change', applyFilters)
 function applyFilters() {
     const agent = document.getElementById('filterAgent').value;
     const action = document.getElementById('filterAction').value;
+    const standard = document.getElementById('filterStandard').value;
     document.querySelectorAll('.event-filterable').forEach(el => {
         const matchAgent = !agent || el.dataset.agent === agent;
         const matchAction = !action || el.dataset.action === action;
-        el.style.display = (matchAgent && matchAction) ? '' : 'none';
+        const matchStandard = !standard || (el.dataset.standards || '').split(',').includes(standard);
+        el.style.display = (matchAgent && matchAction && matchStandard) ? '' : 'none';
     });
 }
 
 // Auto-scroll to bottom on load (SPEC-013)
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const container = document.getElementById('ads-container');
     if (container) {
         container.scrollTop = container.scrollHeight;
     }
+
+    // Load standards for filter
+    try {
+        const res = await fetch('/api/governance/standards');
+        const data = await res.json();
+        const select = document.getElementById('filterStandard');
+        (data.standards || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.innerText = s.id;
+            select.appendChild(opt);
+        });
+    } catch (e) {}
+
+    document.getElementById('filterStandard').addEventListener('change', applyFilters);
 });
 </script>
 {% endblock %}

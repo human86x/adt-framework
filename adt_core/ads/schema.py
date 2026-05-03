@@ -65,6 +65,26 @@ class ADSEventSchema:
         "delegation_denied"
     ]
 
+    # SPEC-046: Standards Governance Layer Event Types
+    STANDARDS_EVENTS = [
+        "standard_registered",
+        "clause_adopted",
+        "clause_adapted",
+        "clause_dismissed",
+        "standards_registry_changed"
+    ]
+
+    # SPEC-049: Cross-AI Orchestration Event Types
+    CROSS_AI_EVENTS = [
+        "cross_ai_orchestration_start",
+        "cross_ai_task_assigned",
+        "cross_ai_task_accepted",
+        "cross_ai_progress_update",
+        "cross_ai_task_complete",
+        "cross_ai_task_aborted",
+        "cross_ai_orchestration_complete"
+    ]
+
     # SPEC-020 Amendment B: Canonical values for normalization
     CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN", "SYSTEM"]
     CANONICAL_ROLES: Optional[List[str]] = None  # Loaded at startup

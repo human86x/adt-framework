@@ -1137,8 +1137,8 @@ def get_enforcement_status():
     if project_name:
         registry = ProjectRegistry()
         project = registry.get_project(project_name)
-        if project and project.get("dtcp_port"):
-            dtcp_url = f"http://localhost:{project['dtcp_port']}"
+        if project and project.get("dttp_port"):
+            dtcp_url = f"http://localhost:{project['dttp_port']}"
     
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
@@ -1496,6 +1496,70 @@ def list_sovereign_requests():
         
     scrs["requests"].sort(key=lambda x: x["ts"], reverse=True)
     return jsonify(scrs)
+
+@governance_bp.route("/governance/sovereign-requests/approve", methods=["POST"])
+def approve_sovereign_request_internal():
+    """Internal-only endpoint for forge/automatic SCR approval."""
+    data = request.get_json()
+    if not data or "scr_id" not in data:
+        return jsonify({"error": "scr_id is required"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    scrs = _load_scrs(res["paths"]["root"])
+    
+    scr_id = data["scr_id"]
+    scr = next((r for r in scrs["requests"] if r["id"] == scr_id), None)
+    if not scr:
+        return jsonify({"error": "SCR not found"}), 404
+        
+    if scr["status"] != "pending":
+        return jsonify({"error": f"SCR is already {scr['status']}"}), 400
+
+    # 1. Apply Change
+    try:
+        from adt_core.dtcp.actions import ActionHandler
+        handler = ActionHandler(res["paths"]["root"])
+        
+        # Build params for ActionHandler
+        params = {"file": scr["target_path"]}
+        if scr["change_type"] == "patch":
+            params.update(scr["patch"])
+        elif scr["change_type"] == "append":
+            params["content"] = scr["content"]
+        elif scr["change_type"] == "json_merge":
+            params["content"] = scr["merge_data"]
+        elif scr["change_type"] == "full_replace":
+            params["content"] = scr["content"]
+            
+        result = handler.execute(scr["change_type"], params, agent="SYSTEM", role="Overseer")
+        if result.get("status") != "success":
+            return jsonify({"error": f"Execution failed: {result.get('message')}"}), 500
+            
+        # 2. Update Status
+        scr["status"] = "authorized"
+        scr["authorized_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        scr["authorized_by"] = "SYSTEM_FORGE"
+        _save_scrs(res["paths"]["root"], scrs)
+        
+        # 3. Log to ADS
+        event_id = ADSEventSchema.generate_id("forge_appr")
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent="SYSTEM",
+            role="Overseer",
+            action_type="forge_approval_received",
+            description=f"FORGE APPROVAL: SCR {scr_id} authorized and applied by System.",
+            spec_ref=scr.get("spec_ref", "unknown"),
+            action_data={"scr_id": scr_id, "result": result}
+        )
+        res["logger"].log(event)
+        
+        return jsonify({"status": "success", "scr_id": scr_id, "new_status": "authorized"})
+        
+    except Exception as e:
+        logger.error(f"Internal SCR approval failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @governance_bp.route("/governance/sovereign-requests/<scr_id>", methods=["PUT"])
 def manage_sovereign_request(scr_id):
@@ -2072,8 +2136,8 @@ def api_spawn_session():
     if project_name:
         registry = ProjectRegistry()
         project = registry.get_project(project_name)
-        if project and project.get("dtcp_port"):
-            dtcp_url = f"http://localhost:{project['dtcp_port']}"
+        if project and project.get("dttp_port"):
+            dtcp_url = f"http://localhost:{project['dttp_port']}"
 
     parent_session = res["query"].get_session_details(data["parent_session_id"])
     if not parent_session:
@@ -2223,3 +2287,155 @@ def get_session_tree():
             root_sessions.append(s)
             
     return jsonify({"sessions": root_sessions})
+
+# --- Cross-AI Orchestration Protocol (SPEC-049) ---
+
+CAOP_TASKS = {} # In-memory storage (SPEC-049 sec 4.4)
+
+@governance_bp.route("/governance/cross_ai/task", methods=["POST"])
+def api_create_caop_task():
+    """SPEC-049: Create a cross-AI task manifest."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["orchestrator_session_id", "worker_role", "worker_agent", "title", "instructions"]):
+        return jsonify({"error": "Missing required fields for CAOP task"}), 400
+
+    project_name = request.args.get("project") or data.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    if not res:
+        return jsonify({"error": f"Project {project_name} not found"}), 404
+    
+    # 1. Authorize via DTCP (REQ-077: Authorization Check)
+    # Check if the session is authorized to delegate tasks.
+    # We use a virtual action 'cross_ai_delegation' to check this.
+    try:
+        dtcp_resp = requests.post(
+            current_app.config.get("DTCP_URL", "http://localhost:5002") + "/request",
+            json={
+                "agent": data.get("agent", "SYSTEM"),
+                "role": data.get("role", "unknown"),
+                "spec_id": "SPEC-049",
+                "action": "cross_ai_delegation",
+                "params": {"worker_role": data["worker_role"]},
+                "rationale": f"Registering CAOP task for {data['worker_role']}"
+            },
+            timeout=5
+        ).json()
+        
+        if dtcp_resp.get("status") != "allowed":
+            return jsonify({"error": "DTCP Forbidden: " + dtcp_resp.get("reason", "Unauthorized")}), 403
+    except Exception as e:
+        logger.error(f"DTCP auth check failed: {e}")
+        # In case of auth service failure, fail closed for security.
+        return jsonify({"error": "Governance authorization service unreachable"}), 503
+    
+    # 2. Generate task_id
+    ts_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    import random
+    task_id = f"caop_task_{ts_str}_{random.randint(100, 999)}"
+    
+    manifest = {
+        "task_id": task_id,
+        "orchestrator_session_id": data["orchestrator_session_id"],
+        "worker_role": data["worker_role"],
+        "worker_agent": data["worker_agent"],
+        "title": data["title"],
+        "instructions": data["instructions"],
+        "context": data.get("context", {}),
+        "constraints": data.get("constraints", {}),
+        "timeout_seconds": data.get("timeout_seconds", 600),
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    }
+    
+    CAOP_TASKS[task_id] = manifest
+    
+    # 3. Log to ADS
+    event_id = ADSEventSchema.generate_id("caop_task")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent=data.get("agent", "SYSTEM"), # Usually the orchestrator
+        role=data.get("role", "Systems_Architect"),
+        action_type="cross_ai_task_assigned",
+        description=f"Assigned Cross-AI task {task_id}: {data['title']}",
+        spec_ref="SPEC-049",
+        session_id=data["orchestrator_session_id"],
+        action_data={
+            "task_id": task_id,
+            "worker_role": data["worker_role"],
+            "worker_agent": data["worker_agent"],
+            "title": data["title"]
+        }
+    )
+    res["logger"].log(event)
+    
+    return jsonify({"status": "success", "task_id": task_id, "ads_event_id": event_id}), 201
+
+@governance_bp.route("/governance/cross_ai/task/<task_id>", methods=["GET"])
+def api_get_caop_task(task_id):
+    """SPEC-049: Retrieve a cross-AI task manifest."""
+    if task_id not in CAOP_TASKS:
+        return jsonify({"error": "Task not found"}), 404
+    return jsonify(CAOP_TASKS[task_id])
+
+@governance_bp.route("/governance/cross_ai/orchestration/<session_id>/status", methods=["GET"])
+def api_get_caop_orchestration_status(session_id):
+    """SPEC-049: Get aggregate status of all workers for an orchestrator."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    if not res:
+        return jsonify({"error": f"Project {project_name} not found"}), 404
+    
+    events = res["query"].get_all_events()
+    
+    # 1. Find all tasks assigned by this session
+    my_tasks = {}
+    for e in events:
+        if e.get("action_type") == "cross_ai_task_assigned" and e.get("session_id") == session_id:
+            tid = e.get("action_data", {}).get("task_id")
+            if tid:
+                my_tasks[tid] = {
+                    "task_id": tid,
+                    "title": e.get("action_data", {}).get("title"),
+                    "worker_agent": e.get("action_data", {}).get("worker_agent"),
+                    "status": "pending",
+                    "progress_pct": 0,
+                    "last_update": []
+                }
+                
+    # 2. Reconstruct status from worker events
+    for e in events:
+        tid = e.get("action_data", {}).get("task_id")
+        if not tid or tid not in my_tasks:
+            continue
+            
+        atype = e.get("action_type")
+        if atype == "cross_ai_task_accepted":
+            my_tasks[tid]["status"] = "accepted"
+            my_tasks[tid]["worker_session_id"] = e.get("session_id")
+        elif atype == "cross_ai_progress_update":
+            my_tasks[tid]["status"] = "in_progress"
+            my_tasks[tid]["progress_pct"] = e.get("action_data", {}).get("progress_pct", 0)
+            my_tasks[tid]["last_update"].append(e.get("action_data", {}).get("summary"))
+        elif atype == "cross_ai_task_complete":
+            my_tasks[tid]["status"] = "complete"
+            my_tasks[tid]["progress_pct"] = 100
+        elif atype == "cross_ai_task_aborted":
+            my_tasks[tid]["status"] = "failed"
+            my_tasks[tid]["error"] = e.get("action_data", {}).get("reason")
+
+    # 3. Aggregate
+    breakdown = list(my_tasks.values())
+    counts = {
+        "total": len(breakdown),
+        "pending": len([t for t in breakdown if t["status"] == "pending"]),
+        "accepted": len([t for t in breakdown if t["status"] == "accepted"]),
+        "in_progress": len([t for t in breakdown if t["status"] == "in_progress"]),
+        "complete": len([t for t in breakdown if t["status"] == "complete"]),
+        "failed": len([t for t in breakdown if t["status"] == "failed"])
+    }
+    
+    return jsonify({
+        "orchestrator_session_id": session_id,
+        "counts": counts,
+        "tasks": breakdown
+    })

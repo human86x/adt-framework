@@ -392,10 +392,19 @@ const ProjectLauncher = (() => {
           </div>
         `;
         document.getElementById("btn-forge-close").onclick = closeWizard;
-        document.getElementById("btn-forge-open").onclick = () => {
+        document.getElementById("btn-forge-open").onclick = async () => {
+          const sessionId = data.session_id;
           closeWizard();
           toggle();
-          openProject(projectName);
+          
+          if (typeof SessionManager !== "undefined") {
+            // Restore sessions to ensure the newly spawned one is in the local map
+            await SessionManager.restore();
+            // Switch to and focus the new session
+            SessionManager.switchTo(sessionId);
+          } else {
+            openProject(projectName);
+          }
         };
       }
       await refresh();
