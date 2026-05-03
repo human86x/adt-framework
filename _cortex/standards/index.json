@@ -1,0 +1,108 @@
+{
+  "standards": [
+    {
+      "id": "UNESCO-AI-2021",
+      "title": "UNESCO Recommendation on the Ethics of Artificial Intelligence",
+      "version": "2021",
+      "file": "UNESCO-AI-2021.json",
+      "status_summary": {
+        "total": 3,
+        "pending": 3,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "OECD-AI-2024",
+      "title": "OECD AI Principles",
+      "version": "2024",
+      "file": "OECD-AI-2024.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "EU-AI-ACT-2024",
+      "title": "EU AI Act",
+      "version": "2024",
+      "file": "EU-AI-ACT-2024.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "NIST-AI-RMF-1.0",
+      "title": "NIST AI Risk Management Framework",
+      "version": "1.0",
+      "file": "NIST-AI-RMF-1.0.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "ISO-IEC-42001-2023",
+      "title": "ISO/IEC 42001:2023 Information technology - Artificial intelligence - Management system",
+      "version": "2023",
+      "file": "ISO-IEC-42001-2023.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "COBIT-2019",
+      "title": "COBIT 2019",
+      "version": "2019",
+      "file": "COBIT-2019.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "ITIL-4",
+      "title": "ITIL 4",
+      "version": "4",
+      "file": "ITIL-4.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "COMPANY-CODEX",
+      "title": "Company AI Codex",
+      "version": "1.0",
+      "file": "COMPANY-CODEX.json",
+      "status_summary": {
+        "total": 0,
+        "pending": 0,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    }
+  ]
+}
