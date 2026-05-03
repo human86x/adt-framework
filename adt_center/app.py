@@ -31,6 +31,7 @@ def create_app():
             "ads": os.path.join(root, "_cortex", "ads", "events.jsonl"),
             "specs": os.path.join(root, "_cortex", "specs"),
             "tasks": os.path.join(root, "_cortex", "tasks.json"),
+            "standards": os.path.join(root, "_cortex", "standards", "registry.json"),
             "name": name or os.path.basename(root)
         }
 
@@ -215,7 +216,7 @@ def create_app():
         enriched = {}
         for name, config in project_dict.items():
             paths = get_project_paths(name)
-            port = config.get("dtcp_port")
+            port = config.get("dttp_port")
             dtcp_running = is_port_in_use(port) if port else False
             stats = {"specs": 0, "tasks": 0, "ads_events": 0}
             if os.path.exists(paths["specs"]):
@@ -272,8 +273,8 @@ def create_app():
         dtcp_url = app.config['DTCP_URL']
         if project_name:
             project = app.project_registry.get_project(project_name)
-            if project and project.get("dtcp_port"):
-                dtcp_url = f"http://localhost:{project['dtcp_port']}"
+            if project and project.get("dttp_port"):
+                dtcp_url = f"http://localhost:{project['dttp_port']}"
                 
         try:
             resp = http_client.get(f"{dtcp_url}/status", timeout=2)
@@ -285,7 +286,8 @@ def create_app():
         return render_template("dtcp.html",
                                dtcp_events=dtcp_events,
                                dtcp_denied=dtcp_denied,
-                               dtcp_status=dtcp_status)
+                               dtcp_status=dtcp_status,
+                               current_project=project_name)
 
     @app.route("/governance")
     def governance_page():

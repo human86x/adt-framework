@@ -13,6 +13,7 @@ from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.registry import SpecRegistry
 from adt_core.sdd.tasks import TaskManager
 from adt_core.ads.capability import CapabilityManager
+from adt_core.standards.registry import StandardsRegistry
 
 from adt_core.registry import ProjectRegistry
 from adt_core.context.manager import TieredContextManager
@@ -425,7 +426,8 @@ def _get_project_resources(project_name):
         "logger": ADSLogger(paths["ads"]),
         "spec_registry": SpecRegistry(paths["specs"]),
         "task_manager": TaskManager(paths["tasks"], project_name=paths["name"]),
-        "capability_manager": CapabilityManager(paths["root"])
+        "capability_manager": CapabilityManager(paths["root"]),
+        "standards_registry": StandardsRegistry(paths["standards"])
     }
 
 def _load_json(path):
