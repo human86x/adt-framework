@@ -1,7 +1,7 @@
 {
   "specs": {
     "SPEC-014": {
-      "title": "DTCP Implementation (Level 3)",
+      "title": "DTTP Implementation (Level 3)",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -107,7 +107,7 @@
       ]
     },
     "SPEC-019": {
-      "title": "DTCP Standalone Service",
+      "title": "DTTP Standalone Service",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -184,7 +184,7 @@
       ]
     },
     "SPEC-026": {
-      "title": "DTCP Governance Configurator",
+      "title": "DTTP Governance Configurator",
       "status": "approved",
       "roles": [
         "Overseer"
@@ -567,8 +567,8 @@
         "adt_core/ads/schema.py",
         "adt_core/ads/logger.py",
         "adt_center/api/governance_routes.py",
-        "adt_core/dttp/gateway.py",
-        "adt_core/dttp/policy.py",
+        "adt_core/dtcp/gateway.py",
+        "adt_core/dtcp/policy.py",
         "adt_sdk/swarm.py",
         "adt-console/src-tauri/",
         "adt-console/src/",
@@ -599,7 +599,7 @@
     },
     "SPEC-043": {
       "title": "Autonomous One-Click App Forge",
-      "status": "approved",
+      "status": "active",
       "roles": [
         "Systems_Architect",
         "Frontend_Engineer",
@@ -620,7 +620,7 @@
       ]
     },
     "SPEC-044": {
-      "title": "DTCP to DTCP Terminology Migration",
+      "title": "DTTP to DTCP Terminology Migration",
       "status": "active",
       "roles": [
         "Systems_Architect",
@@ -637,27 +637,17 @@
         "rename"
       ],
       "paths": [
-        "README.md",
         "_cortex/",
-        "adt-console/src-tauri/",
-        "adt-console/src/",
-        "adt_center/",
         "adt_core/",
-        "adt_core/ads/crypto.py",
-        "adt_core/ads/integrity.py",
-        "adt_core/ads/logger.py",
-        "adt_core/dttp/gateway.py",
-        "adt_core/dttp/policy.py",
-        "adt_core/dttp/service.py",
         "adt_sdk/",
-        "bootstrap.sh",
-        "config/",
-        "console.sh",
-        "install.sh",
-        "notes.md",
+        "adt_center/",
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "tests/",
         "ops/",
-        "start.sh",
-        "tests/"
+        "config/",
+        "README.md",
+        "notes.md"
       ]
     },
     "SPEC-045": {
@@ -667,7 +657,8 @@
         "Systems_Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Overseer"
+        "Overseer",
+        "Frontend_Engineer"
       ],
       "action_types": [
         "edit",
@@ -730,6 +721,98 @@
         "adt-console/src/",
         "_cortex/ads/",
         "config/specs.json"
+      ]
+    },
+    "SPEC-048": {
+      "title": "Operator Console -- Swarm Visibility & Spawn Reliability",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "DevOps_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/api/governance_routes.py",
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "adt_core/ads/schema.py",
+        "tests/"
+      ]
+    },
+    "SPEC-049": {
+      "title": "Cross-AI Orchestration Protocol",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer",
+        "Overseer"
+      ],
+      "paths": [
+        "adt_core/ads/schema.py",
+        "adt_core/dtcp/policy.py",
+        "adt_center/api/governance_routes.py",
+        "adt_sdk/cross_ai.py",
+        "adt_sdk/swarm.py",
+        "adt_sdk/forge.py",
+        "adt-console/src-tauri/src/pty.rs",
+        "adt-console/src/js/launcher.js",
+        "_cortex/specs/"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ]
+    },
+    "SPEC-050": {
+      "title": "Spec Intent Registry and Panel View",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Frontend_Engineer",
+        "Backend_Engineer"
+      ],
+      "paths": [
+        "adt_center/api/governance_routes.py",
+        "adt_center/templates/specs.html",
+        "adt_center/static/js/",
+        "adt_core/specs/",
+        "_cortex/specs/"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ]
+    },
+    "SPEC-052": {
+      "title": "Visual Spec Progression & Active Intent Display",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/api/governance_routes.py",
+        "adt-console/src/",
+        "adt_center/templates/",
+        "adt_center/static/"
       ]
     }
   }
