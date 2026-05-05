@@ -21,10 +21,14 @@ class SpecRegistry:
             if filename.endswith(".md") and filename.startswith("SPEC-"):
                 spec_id = filename.split("_")[0]
                 status = self._parse_status(os.path.join(self.specs_dir, filename))
+                path = os.path.join(self.specs_dir, filename)
                 specs.append({
                     "id": spec_id,
                     "filename": filename,
-                    "status": status or "UNKNOWN"
+                    "status": status or "UNKNOWN",
+                    "title": self._parse_title(path),
+                    "intent": self._parse_intent(path) or "—",
+                    "task_count": self._count_tasks(path)
                 })
         return sorted(specs, key=lambda x: x["id"])
 
@@ -65,6 +69,31 @@ class SpecRegistry:
         except OSError as e:
             logger.error(f"Error parsing title from {path}: {e}")
         return None
+
+    def _parse_intent(self, path: str) -> Optional[str]:
+        """Parses the intent from the spec markdown."""
+        try:
+            with open(path, "r") as f:
+                content = f.read(2000)
+                match = re.search(r"\*\*Intent:\*\*\s*(.*)", content)
+                if match:
+                    return match.group(1).strip()
+        except OSError as e:
+            logger.error(f"Error parsing intent from {path}: {e}")
+        return None
+
+    def _count_tasks(self, path: str) -> int:
+        """Counts tasks in the task breakdown section."""
+        try:
+            with open(path, "r") as f:
+                content = f.read()
+                # Find task section
+                task_section = re.search(r"## (?:Task Breakdown|Tasks)(.*?)(?:##|$)", content, re.DOTALL | re.IGNORECASE)
+                if task_section:
+                    return len(re.findall(r"- task_\d+:", task_section.group(1)))
+        except OSError as e:
+            logger.error(f"Error counting tasks in {path}: {e}")
+        return 0
 
     def _read_content(self, path: str) -> str:
         """Reads the full content of the spec."""

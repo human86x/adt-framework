@@ -1084,6 +1084,9 @@ const ContextPanel = (() => {
 
       // Handle both list and object response formats
       const allEvents = Array.isArray(data) ? data : (data.events || []);
+      
+      updateForgeContext(allEvents);
+
       const agentEvents = allEvents
         .filter(e => e.agent?.toLowerCase() === session.agent?.toLowerCase())
         .slice(-10)
@@ -1470,6 +1473,101 @@ const ContextPanel = (() => {
             btn.disabled = false;
           }
         }
+      }
+
+      function updateForgeContext(allEvents) {
+        const forgeEvents = allEvents.filter(e => 
+          e.spec_ref === 'SPEC-043' || 
+          ['capability_intent_defined', 'spec_drafted', 'scr_submitted', 'forge_approval_received', 'project_ready', 'cross_ai_task_verified', 'cross_ai_task_rejected', 'cross_ai_task_retasked'].includes(e.action_type)
+        );
+
+        const statusSection = document.getElementById('section-forge-status');
+        const activitySection = document.getElementById('section-forge-activity');
+
+        if (forgeEvents.length === 0) {
+          if (statusSection) statusSection.style.display = 'none';
+          if (activitySection) activitySection.style.display = 'none';
+          return;
+        }
+
+        if (statusSection) statusSection.style.display = 'block';
+        if (activitySection) activitySection.style.display = 'block';
+
+        // Determine Progress
+        let currentStep = 'Initializing';
+        let pct = 10;
+
+        if (forgeEvents.some(e => e.action_type === 'project_ready')) {
+          currentStep = 'Ready';
+          pct = 100;
+        } else if (forgeEvents.some(e => e.action_type === 'cross_ai_task_verified')) {
+          currentStep = 'Verifying';
+          pct = 85;
+        } else if (forgeEvents.some(e => e.action_type === 'session_delegated' || e.action_type === 'cross_ai_task_complete')) {
+          currentStep = 'Orchestrating';
+          pct = 60;
+        } else if (forgeEvents.some(e => e.action_type === 'forge_approval_received')) {
+          currentStep = 'Approved';
+          pct = 40;
+        } else if (forgeEvents.some(e => e.action_type === 'scr_submitted')) {
+          currentStep = 'Awaiting Approval';
+          pct = 30;
+        } else if (forgeEvents.some(e => e.action_type === 'spec_drafted')) {
+          currentStep = 'Drafted';
+          pct = 20;
+        }
+
+        const labelEl = document.getElementById('forge-step-label');
+        const pctEl = document.getElementById('forge-step-pct');
+        const fillEl = document.getElementById('forge-progress-fill');
+
+        if (labelEl) labelEl.textContent = currentStep;
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (fillEl) fillEl.style.width = pct + '%';
+
+        // Worker Summary
+        const workersSummary = document.getElementById('forge-workers-summary');
+        if (workersSummary) {
+          const completed = allEvents.filter(e => e.action_type === 'cross_ai_task_complete').length;
+          const verified = allEvents.filter(e => e.action_type === 'cross_ai_task_verified').length;
+          const rejected = allEvents.filter(e => e.action_type === 'cross_ai_task_rejected').length;
+          
+          let summary = `${completed} completed`;
+          if (verified > 0) summary += `, ${verified} verified`;
+          if (rejected > 0) summary += `, <span class="text-adt-red">${rejected} rejected</span>`;
+          workersSummary.innerHTML = summary;
+        }
+
+        renderForgeFeed(forgeEvents.slice(-5).reverse());
+      }
+
+      function renderForgeFeed(events) {
+        const container = document.getElementById('ctx-forge-feed');
+        if (!container) return;
+
+        if (events.length === 0) {
+          container.innerHTML = '<li class="ctx-empty">No forge activity</li>';
+          return;
+        }
+
+        container.innerHTML = events.map(e => {
+          const ts = e.ts ? e.ts.substring(11, 19) : '--:--:--';
+          let icon = '&#9671;';
+          if (e.action_type === 'cross_ai_task_verified') icon = '&#9989;';
+          if (e.action_type === 'cross_ai_task_rejected') icon = '&#10060;';
+          if (e.action_type === 'project_ready') icon = '&#127881;';
+          if (e.action_type === 'forge_approval_received') icon = '&#128275;';
+
+          return `
+            <li class="tracker-item">
+              <div class="tracker-item-header">
+                <span class="tracker-item-role" style="font-size:9px">${icon} ${e.action_type.replace(/_/g, ' ')}</span>
+                <span class="tracker-item-time">${ts}</span>
+              </div>
+              <div class="tracker-item-title" style="font-size:10px">${e.description}</div>
+            </li>
+          `;
+        }).join('');
       }
 
       async function fetchSessionTree() {

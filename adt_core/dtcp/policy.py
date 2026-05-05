@@ -1,7 +1,7 @@
 import logging
 import os
 import json
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from adt_core.sdd.validator import SpecValidator
 from .jurisdictions import JurisdictionManager
@@ -31,6 +31,18 @@ class PolicyEngine:
         Validates an action request against specs and jurisdictions.
         Returns (is_allowed, reason).
         """
+        # Systems_Architect spec-creation exemption: SA can always create/edit
+        # _cortex/specs/SPEC-*.md regardless of which active spec is set.
+        # Prevents the bootstrap deadlock where writing a new spec requires
+        # an already-existing spec to authorize the write. Jurisdiction is
+        # still enforced (SA owns _cortex/).
+        if (role == "Systems_Architect"
+                and action_type in ("edit", "patch", "create")
+                and path is not None
+                and os.path.normpath(path).startswith(os.path.normpath("_cortex/specs"))):
+            if self.jurisdictions.is_in_jurisdiction(role, path):
+                return True, "Authorized: Systems_Architect spec-creation exemption"
+
         # 1. Check spec authorization
         if not self.validator.is_authorized(spec_id, role, action_type):
             return False, f"Spec {spec_id} does not authorize role {role} for action {action_type}"

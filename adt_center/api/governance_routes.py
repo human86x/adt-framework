@@ -1410,6 +1410,48 @@ def _apply_sovereign_change(project_root, request_data):
     else:
         raise ValueError(f"Unsupported change type: {change_type}")
 
+def _submit_scr_internal(res, project_root, data):
+    """Shared logic to queue an SCR and log to ADS."""
+    scrs = _load_scrs(project_root)
+    scr_id = f"scr_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{len(scrs['requests']) + 1:03d}"
+    
+    intent_id = data.get("intent_id")
+    new_request = {
+        "id": scr_id,
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "agent": data["agent"],
+        "role": data["role"],
+        "spec_ref": data.get("spec_ref", "SPEC-033"),
+        "intent_id": intent_id,
+        "target_path": data["target_path"],
+        "change_type": data["change_type"],
+        "description": data.get("description", ""),
+        "status": "pending",
+        "authorized_by": None,
+        "authorized_at": None
+    }
+    
+    for field in ["patch", "content", "merge_data"]:
+        if field in data:
+            new_request[field] = data[field]
+            
+    scrs["requests"].append(new_request)
+    _save_scrs(project_root, scrs)
+    
+    event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("scr_prop"),
+        agent=data["agent"],
+        role=data["role"],
+        action_type="sovereign_change_proposed",
+        description=f"SCR {scr_id} proposed for {data['target_path']}: {new_request['description']}",
+        spec_ref=data.get("spec_ref", "SPEC-033"),
+        authorized=True,
+        tier=3,
+        action_data={"scr_id": scr_id, "target_path": data["target_path"], "intent_id": intent_id}
+    )
+    res["logger"].log(event)
+    return scr_id
+
 @governance_bp.route("/governance/sovereign-requests", methods=["POST"])
 def submit_sovereign_request():
     """SPEC-033: Submit a new sovereign change request."""
@@ -1499,6 +1541,17 @@ def list_sovereign_requests():
     scrs["requests"].sort(key=lambda x: x["ts"], reverse=True)
     return jsonify(scrs)
 
+@governance_bp.route("/governance/specs", methods=["GET"])
+def api_list_all_specs():
+    """SPEC-050: List all specifications with metadata."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    if not res:
+        return jsonify({"error": f"Project {project_name} not found"}), 404
+        
+    specs = res["spec_registry"].list_specs()
+    return jsonify({"specs": specs})
+
 @governance_bp.route("/governance/sovereign-requests/approve", methods=["POST"])
 def approve_sovereign_request_internal():
     """Internal-only endpoint for forge/automatic SCR approval."""
@@ -1562,6 +1615,49 @@ def approve_sovereign_request_internal():
     except Exception as e:
         logger.error(f"Internal SCR approval failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+@governance_bp.route("/governance/forge", methods=["POST"])
+def api_forge_project():
+    """SPEC-043: Trigger the Forge process for a new application."""
+    data = request.get_json()
+    if not data or "wish" not in data:
+        return jsonify({"error": "wish description is required"}), 400
+
+    wish = data["wish"]
+    project_name = data.get("name")
+    
+    try:
+        from adt_sdk.forge import forge_project
+        result = forge_project(wish, project_name=project_name)
+        return jsonify(result), 201
+    except Exception as e:
+        logger.error(f"Forge initiation failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@governance_bp.route("/governance/forge/report_ready", methods=["POST"])
+def api_forge_report_ready():
+    """SPEC-043: Signal that a forged project is ready for launch."""
+    data = request.get_json()
+    project_name = request.args.get("project") or data.get("project")
+    res = _get_project_resources(project_name)
+    
+    # 1. Log to ADS
+    event_id = ADSEventSchema.generate_id("forge_ready")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent=data.get("agent", "SYSTEM"),
+        role="Systems_Architect",
+        action_type="forge_project_ready",
+        description=f"FORGE COMPLETE: Project {project_name} is ready for launch.",
+        spec_ref="SPEC-043",
+        action_data={"project": project_name}
+    )
+    res["logger"].log(event)
+    
+    # 2. Emit Tauri event (handled by Panel to show Launch button)
+    # This is virtual here, handled by the UI polling or long-polling/SSE in future.
+    
+    return jsonify({"status": "success", "event_id": event_id})
 
 @governance_bp.route("/governance/sovereign-requests/<scr_id>", methods=["PUT"])
 def manage_sovereign_request(scr_id):
@@ -2441,3 +2537,209 @@ def api_get_caop_orchestration_status(session_id):
         "counts": counts,
         "tasks": breakdown
     })
+
+# --- Standards Governance Layer (SPEC-046) ---
+
+@governance_bp.route("/governance/standards", methods=["GET"])
+def api_list_standards():
+    """SPEC-046: List all registered standards."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    if not res:
+        return jsonify({"error": f"Project {project_name} not found"}), 404
+        
+    standards = res["standards_registry"].get_all_standards()
+    return jsonify({"standards": standards})
+
+@governance_bp.route("/governance/standards", methods=["POST"])
+def api_register_standard():
+    """SPEC-046: Register a new standard (Governed by SCR)."""
+    data = request.get_json()
+    project_name = request.args.get("project") or data.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    
+    # Authorize via DTCP (Virtual Action)
+    try:
+        dtcp_resp = requests.post(
+            current_app.config.get("DTCP_URL", "http://localhost:5002") + "/request",
+            json={
+                "agent": data.get("agent", "SYSTEM"),
+                "role": data.get("role", "unknown"),
+                "spec_id": "SPEC-046",
+                "action": "standard_registration",
+                "params": {"standard_id": data.get("id")},
+                "rationale": f"Registering standard {data.get('id')}"
+            },
+            timeout=5
+        ).json()
+        
+        if dtcp_resp.get("status") != "allowed":
+            if dtcp_resp.get("reason") == "sovereign_path_violation":
+                # REQ-071: Auto-submit SCR for standard registration
+                scr_id = _submit_scr_internal(res, res["paths"]["root"], {
+                    "agent": data.get("agent", "SYSTEM"),
+                    "role": data.get("role", "unknown"),
+                    "target_path": res["paths"]["standards"],
+                    "change_type": "json_merge",
+                    "description": f"Register standard {data.get('title')}",
+                    "merge_data": {"standards": {data.get("id"): data}},
+                    "spec_ref": "SPEC-046"
+                })
+                return jsonify({
+                    "status": "queued",
+                    "scr_id": scr_id,
+                    "message": "Standard registration requires human authorization. SCR submitted."
+                }), 202
+            return jsonify({"error": "DTCP Forbidden: " + dtcp_resp.get("reason", "Unauthorized")}), 403
+    except Exception as e:
+        return jsonify({"error": "Governance authorization service unreachable"}), 503
+
+    try:
+        res["standards_registry"].add_standard(data)
+        
+        # Log to ADS
+        event_id = ADSEventSchema.generate_id("std_reg")
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=data.get("agent", "SYSTEM"),
+            role=data.get("role", "Systems_Architect"),
+            action_type="standard_registered",
+            description=f"Registered new standard: {data.get('title')} ({data.get('id')})",
+            spec_ref="SPEC-046",
+            action_data={"standard_id": data.get("id")}
+        )
+        res["logger"].log(event)
+        
+        return jsonify({"status": "success", "standard_id": data.get("id")}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@governance_bp.route("/governance/standards/<standard_id>", methods=["GET"])
+def api_get_standard(standard_id):
+    """SPEC-046: Retrieve details for a standard."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    
+    standard = res["standards_registry"].get_standard(standard_id)
+    if not standard:
+        return jsonify({"error": "Standard not found"}), 404
+    return jsonify(standard)
+
+@governance_bp.route("/governance/standards/<standard_id>/clauses/<clause_id>", methods=["PATCH"])
+def api_update_clause_disposition(standard_id, clause_id):
+    """SPEC-046: Update a clause disposition (Governed by SCR)."""
+    data = request.get_json()
+    project_name = request.args.get("project") or data.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    
+    # Authorize via DTCP (Virtual Action)
+    try:
+        dtcp_resp = requests.post(
+            current_app.config.get("DTCP_URL", "http://localhost:5002") + "/request",
+            json={
+                "agent": data.get("agent", "SYSTEM"),
+                "role": data.get("role", "unknown"),
+                "spec_id": "SPEC-046",
+                "action": "clause_disposition_change",
+                "params": {"standard_id": standard_id, "clause_id": clause_id, "disposition": data.get("disposition")},
+                "rationale": f"Changing clause {clause_id} to {data.get('disposition')}"
+            },
+            timeout=5
+        ).json()
+        
+        if dtcp_resp.get("status") != "allowed":
+            if dtcp_resp.get("reason") == "sovereign_path_violation":
+                # REQ-071: Auto-submit SCR for clause change
+                scr_id = _submit_scr_internal(res, res["paths"]["root"], {
+                    "agent": data.get("agent", "SYSTEM"),
+                    "role": data.get("role", "unknown"),
+                    "target_path": res["paths"]["standards"],
+                    "change_type": "json_merge",
+                    "description": f"Update clause {clause_id} in {standard_id} to {data.get('disposition')}",
+                    "merge_data": {"standards": {standard_id: {"clauses": [data]}}}, # Note: this requires deep_merge to support list update or handle correctly
+                    "spec_ref": "SPEC-046"
+                })
+                return jsonify({
+                    "status": "queued",
+                    "scr_id": scr_id,
+                    "message": "Clause disposition change requires human authorization. SCR submitted."
+                }), 202
+            return jsonify({"error": "DTCP Forbidden: " + dtcp_resp.get("reason", "Unauthorized")}), 403
+    except Exception as e:
+        return jsonify({"error": "Governance authorization service unreachable"}), 503
+
+    try:
+        res["standards_registry"].update_clause(standard_id, clause_id, data)
+        
+        # Log to ADS
+        action_type = f"clause_{data.get('disposition', 'changed')}"
+        event_id = ADSEventSchema.generate_id("std_cls")
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=data.get("agent", "SYSTEM"),
+            role=data.get("role", "Systems_Architect"),
+            action_type=action_type,
+            description=f"Updated clause {clause_id} in {standard_id} to {data.get('disposition')}",
+            spec_ref="SPEC-046",
+            action_data={"standard_id": standard_id, "clause_id": clause_id, "disposition": data.get("disposition")}
+        )
+        res["logger"].log(event)
+        
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# --- Standards Integration & Transparency (SPEC-047) ---
+
+@governance_bp.route("/governance/standards/coverage", methods=["GET"])
+def api_get_standards_coverage():
+    """SPEC-047: Get standards coverage/maturity statistics."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    
+    standards = res["standards_registry"].get_all_standards()
+    stats = {
+        "total_standards": len(standards),
+        "total_clauses": 0,
+        "dispositions": {
+            "pending": 0,
+            "adopted": 0,
+            "adapted": 0,
+            "dismissed": 0
+        }
+    }
+    
+    for std in standards:
+        for clause in std.get("clauses", []):
+            stats["total_clauses"] += 1
+            disp = clause.get("disposition", "pending")
+            if disp in stats["dispositions"]:
+                stats["dispositions"][disp] += 1
+                
+    return jsonify(stats)
+
+@governance_bp.route("/governance/standards/transparency", methods=["GET"])
+def api_get_standards_transparency():
+    """SPEC-047: Get detailed transparency log of all clause dispositions."""
+    project_name = request.args.get("project") or "adt-framework"
+    res = _get_project_resources(project_name)
+    
+    standards = res["standards_registry"].get_all_standards()
+    log = []
+    
+    for std in standards:
+        for clause in std.get("clauses", []):
+            log.append({
+                "standard_id": std["id"],
+                "standard_title": std["title"],
+                "clause_id": clause["id"],
+                "clause_title": clause["title"],
+                "disposition": clause["disposition"],
+                "rationale": clause.get("rationale"),
+                "decided_at": clause.get("decided_at"),
+                "decided_by": clause.get("decided_by")
+            })
+            
+    # Sort by most recent decisions
+    log.sort(key=lambda x: x.get("decided_at", ""), reverse=True)
+    return jsonify({"transparency_log": log})

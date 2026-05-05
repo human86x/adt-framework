@@ -80,7 +80,7 @@ class ADSQuery:
             logger.error(f"Error tailing events from {self.file_path}: {e}")
         return events
 
-    def filter_events(self, agent=None, role=None, action_type=None, spec_ref=None, limit=None, offset=None) -> List[Dict[str, Any]]:
+    def filter_events(self, agent=None, role=None, action_type=None, spec_ref=None, standard=None, limit=None, offset=None) -> List[Dict[str, Any]]:
         all_events = self.get_all_events()
         filtered = []
         for event in all_events:
@@ -88,10 +88,18 @@ class ADSQuery:
             if role and event.get('role') != role: continue
             if action_type and event.get('action_type') != action_type: continue
             if spec_ref and event.get('spec_ref') != spec_ref: continue
+            if standard:
+                # Check action_data for standard_id
+                action_data = event.get('action_data', {})
+                if action_data.get('standard_id') != standard: continue
             filtered.append(event)
         start = offset if offset else 0
         end = start + limit if limit else len(filtered)
         return filtered[start:end]
+
+    def filter_by_standard(self, standard_id: str) -> List[Dict[str, Any]]:
+        """SPEC-047: Return all events associated with a specific standard."""
+        return self.filter_events(standard=standard_id)
 
     def get_last_event(self) -> Optional[Dict[str, Any]]:
         events = self._tail_events(1)
