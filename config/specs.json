@@ -757,6 +757,7 @@
         "Frontend_Engineer",
         "Overseer"
       ],
+      "action_types": ["edit", "patch", "create", "pty_io"],
       "paths": [
         "adt_core/ads/schema.py",
         "adt_core/dtcp/policy.py",
