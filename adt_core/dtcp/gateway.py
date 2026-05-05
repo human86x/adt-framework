@@ -209,7 +209,7 @@ class DTCPGateway:
                 return {"status": "denied", "reason": reason}
 
         # 3. Standard Policy Validation
-        allowed, reason = self.policy_engine.validate_request(role, spec_id, action, path)
+        allowed, reason = self.policy_engine.validate_request(role, spec_id, action, path, session_id=session_id, params=params)
         
         if not allowed:
             # Log denial
