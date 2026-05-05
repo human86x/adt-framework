@@ -16,17 +16,21 @@ class PolicyEngine:
                  validator: SpecValidator, 
                  jurisdictions: JurisdictionManager,
                  task_manager: Optional[any] = None,
-                 delegation_policy_path: Optional[str] = None):
+                 delegation_policy_path: Optional[str] = None,
+                 ads_query: Optional[any] = None):
         self.validator = validator
         self.jurisdictions = jurisdictions
         self.task_manager = task_manager
         self.delegation_policy_path = delegation_policy_path
+        self.ads_query = ads_query
 
     def validate_request(self,
                          role: str,
                          spec_id: str,
                          action_type: str,
-                         path: Optional[str] = None) -> Tuple[bool, str]:
+                         path: Optional[str] = None,
+                         session_id: Optional[str] = None,
+                         params: Optional[dict] = None) -> Tuple[bool, str]:
         """
         Validates an action request against specs and jurisdictions.
         Returns (is_allowed, reason).
