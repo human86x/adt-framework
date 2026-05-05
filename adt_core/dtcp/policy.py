@@ -118,3 +118,30 @@ class PolicyEngine:
             return False, f"Spec {spec_ref} does not authorize role {child_role}"
 
         return True, "Delegation authorized"
+
+    def validate_pty_io(self,
+                        caller_role: str,
+                        caller_sid: Optional[str],
+                        target_sid: Optional[str],
+                        spec_id: str) -> Tuple[bool, str]:
+        """
+        SPEC-053 sec 4.4: Authorization for PTY interaction.
+        """
+        if not target_sid:
+            return False, "PTY I/O requires session_id in params"
+
+        # 1. High-level role exemption
+        if caller_role in ("Systems_Architect", "Overseer"):
+            return True, f"Authorized: {caller_role} can interact with any PTY"
+
+        # 2. Self-interaction
+        if caller_sid == target_sid:
+            return True, "Authorized: Agent can interact with its own PTY"
+
+        # 3. Spawner interaction (requires ads_query)
+        if self.ads_query:
+            target_details = self.ads_query.get_session_details(target_sid)
+            if target_details and target_details.get("parent_session_id") == caller_sid:
+                return True, f"Authorized: Session {caller_sid} is the spawner of {target_sid}"
+
+        return False, f"Denied: Session {caller_sid} (role {caller_role}) is not authorized to interact with PTY {target_sid}"
