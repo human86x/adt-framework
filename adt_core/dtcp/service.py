@@ -39,10 +39,13 @@ def create_dtcp_app(config: DTCPConfig) -> Flask:
     
     delegation_policy_path = os.path.join(config.project_root, "config", "delegation_policy.json")
 
+    from adt_core.ads.query import ADSQuery
+    ads_query = ADSQuery(config.ads_path)
+    
     ads_logger = ADSLogger(config.ads_path)
     validator = SpecValidator(config.specs_config)
     jurisdictions = JurisdictionManager(config.jurisdictions_config)
-    policy_engine = PolicyEngine(validator, jurisdictions, task_manager=task_manager, delegation_policy_path=delegation_policy_path)
+    policy_engine = PolicyEngine(validator, jurisdictions, task_manager=task_manager, delegation_policy_path=delegation_policy_path, ads_query=ads_query)
     action_handler = ActionHandler(config.project_root)
     gateway = DTCPGateway(policy_engine, action_handler, ads_logger, is_framework=config.is_framework_project)
 
