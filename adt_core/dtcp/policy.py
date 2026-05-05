@@ -35,6 +35,11 @@ class PolicyEngine:
         Validates an action request against specs and jurisdictions.
         Returns (is_allowed, reason).
         """
+        # SPEC-053: PTY I/O Authorization
+        if action_type == "pty_io":
+            target_sid = params.get("session_id") if params else None
+            return self.validate_pty_io(role, session_id, target_sid, spec_id)
+
         # Systems_Architect spec-creation exemption: SA can always create/edit
         # _cortex/specs/SPEC-*.md regardless of which active spec is set.
         # Prevents the bootstrap deadlock where writing a new spec requires
