@@ -182,7 +182,21 @@ const PanelManager = (() => {
     if (active) {
       if (DashboardManager.isActive()) DashboardManager.toggle();
       if (GovernanceManager.isActive()) GovernanceManager.toggle();
-      
+
+      // Open in native WebviewWindow — bypasses webkit2gtk iframe bug (REQ-085)
+      if (window.__TAURI__) {
+        try {
+          const { WebviewWindow } = window.__TAURI__.webviewWindow;
+          new WebviewWindow('adt-panel', { url: getUrl() });
+        } catch (e) {
+          console.error('[ADT Panel] WebviewWindow failed:', e);
+        }
+        active = false;
+        const panelBtn = document.getElementById('btn-adt-panel');
+        if (panelBtn) panelBtn.classList.remove('active');
+        return;
+      }
+
       termArea.classList.add('panel-active');
       view.style.display = '';
       if (iframe.src === 'about:blank' || iframe.src === '') {
@@ -339,10 +353,28 @@ const GitStatusManager = (() => {
   'use strict';
 
   // --- Clock ---
+  // --- Build Info ---
+  async function loadBuildInfo() {
+    try {
+      const res = await fetch('build_time.txt');
+      if (res.ok) {
+        const text = await res.text();
+        const el = document.getElementById('build-time');
+        if (el) el.textContent = ;
+      }
+    } catch (e) {
+      console.warn('Failed to load build_time.txt');
+    }
+  }
+  loadBuildInfo();
+
+  // --- Clock ---
   function updateClock() {
     const now = new Date();
-    document.getElementById('status-clock').textContent =
-      now.toISOString().substring(11, 19) + ' UTC';
+    const clockEl = document.getElementById('status-clock');
+    if (clockEl) {
+      clockEl.textContent = now.toISOString().substring(11, 19) + ' UTC';
+    }
   }
   setInterval(updateClock, 1000);
   updateClock();
@@ -886,6 +918,19 @@ const GitStatusManager = (() => {
     // ADS updates: refresh tray status + send native notifications for denials
     window.__TAURI__.event.listen('ads-updated', () => {
       TrayBridge.refresh();
+    });
+
+    // Panel → Console: spawn orchestrator PTY window when build is triggered from specs.html
+    window.__TAURI__.event.listen('spawn-build-orchestrator', async (event) => {
+      const { spec_id, build_id, project } = event.payload || {};
+      if (!spec_id || !build_id) return;
+      try {
+        await SessionManager.spawnOrchestratorSession({ spec_id, build_id, triggered_by: 'panel' });
+        BuildManager.showBuildProgress(build_id, spec_id);
+      } catch (e) {
+        console.warn('[BUILD] spawn-build-orchestrator event handler failed:', e);
+        ToastManager.show('denial', 'Orchestrator Error', String(e));
+      }
     });
   }
 
