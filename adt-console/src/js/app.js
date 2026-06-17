@@ -360,7 +360,7 @@ const GitStatusManager = (() => {
       if (res.ok) {
         const text = await res.text();
         const el = document.getElementById('build-time');
-        if (el) el.textContent = ;
+        if (el) el.textContent = '| Build: ' + text.trim();
       }
     } catch (e) {
       console.warn('Failed to load build_time.txt');
