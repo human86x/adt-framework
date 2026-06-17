@@ -52,10 +52,448 @@ const ContextPanel = (() => {
     await fetchDTCPStatus();
     await fetchCapabilityContext(session);
     if (typeof fetchSessionTree === "function") await fetchSessionTree();
+    await renderFileExplorer();
+    
+    // SPEC-057: Inject UI elements if they don't exist
+    ensureMessagingUI();
+    
+    updateComposePanelVisibility(session);
+    
+    await fetchSessionMode(session);
+    await pollAllPending();
 
     // If Tauri, try reading local files as fallback
     if (window.__TAURI__) {
       fetchLocalData(session);
+    }
+  }
+
+  function ensureTabBadge(sessionId) {
+    const tab = document.querySelector(`.session-tab[data-session-id="${sessionId}"]`);
+    if (tab && !document.getElementById(`pending-badge-${sessionId}`)) {
+      const badge = document.createElement('span');
+      badge.id = `pending-badge-${sessionId}`;
+      badge.className = 'pending-badge';
+      badge.style.cssText = 'display:none; color: #ff9800; margin-left: 4px; font-weight: bold; cursor: pointer;';
+      badge.title = 'Pending messages';
+      badge.innerHTML = '● <span class="pending-count">0</span>';
+      
+      const closeBtn = tab.querySelector('.tab-close');
+      if (closeBtn) {
+        tab.insertBefore(badge, closeBtn);
+      } else {
+        tab.appendChild(badge);
+      }
+      
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof SessionManager !== 'undefined') {
+          SessionManager.switchTo(sessionId);
+          setTimeout(showPendingMessages, 100);
+        }
+      });
+    }
+  }
+
+  function ensureMessagingUI() {
+    // Inject Messaging Mode Toggle into Active Session section
+    if (!document.getElementById('ctx-messaging-mode-container')) {
+      const alignmentDetails = document.getElementById('ctx-alignment-details');
+      if (alignmentDetails) {
+        const container = document.createElement('div');
+        container.id = 'ctx-messaging-mode-container';
+        container.style.cssText = 'margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;';
+        container.innerHTML = `
+          <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Messaging Mode</div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="mode-toggle-wrapper" style="display: flex; align-items: center; gap: 8px;">
+              <span id="mode-label-auto" style="font-size: 10px; color: var(--text-primary); font-weight: 700;">AUTO</span>
+              <label class="switch">
+                <input type="checkbox" id="input-session-mode">
+                <span class="slider"></span>
+              </label>
+              <span id="mode-label-manual" style="font-size: 10px; color: var(--text-muted);">MANUAL</span>
+            </div>
+            <div id="pending-badge-context" class="pending-badge" style="display: none; cursor: pointer; background: #ff9800; color: #000; border-radius: 10px; padding: 0 6px; font-size: 10px; font-weight: 700; align-items: center; height: 16px;">
+              ● <span id="pending-count-context">0</span>
+            </div>
+          </div>
+        `;
+        alignmentDetails.after(container);
+        
+        document.getElementById('input-session-mode').addEventListener('change', () => toggleSessionMode());
+        document.getElementById('pending-badge-context').addEventListener('click', () => showPendingMessages());
+      }
+    }
+
+    // Inject Pending Messages section before Capability Context
+    if (!document.getElementById('section-pending-messages')) {
+      const capSection = document.getElementById('section-capability-context');
+      if (capSection) {
+        const section = document.createElement('section');
+        section.id = 'section-pending-messages';
+        section.className = 'context-section';
+        section.innerHTML = `
+          <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Pending Messages</h3>
+            <button id="btn-flush-all" style="display: none; background: transparent; border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 2px 8px; cursor: pointer; border-radius: 2px;">Flush All</button>
+          </div>
+          <ul id="ctx-pending-list" class="tracker-list" style="list-style: none; padding: 0; margin: 0;">
+            <li class="ctx-empty">No pending messages</li>
+          </ul>
+        `;
+        capSection.before(section);
+        document.getElementById('btn-flush-all').addEventListener('click', () => flushAllMessages());
+      }
+    }
+
+    // Inject Compose Message section for Systems_Architect
+    if (!document.getElementById('section-messaging-compose')) {
+      const pendingSection = document.getElementById('section-pending-messages');
+      if (pendingSection) {
+        const section = document.createElement('section');
+        section.id = 'section-messaging-compose';
+        section.className = 'context-section';
+        section.style.display = 'none'; // Hidden by default
+        section.innerHTML = `
+          <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Compose Message</h3>
+          </div>
+          <div class="compose-container" style="padding: 8px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 4px;">
+            <div style="display: flex; gap: 4px;">
+              <select id="select-msg-to" style="flex: 1; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 2px;">
+                <option value="">Select recipient...</option>
+              </select>
+              <select id="select-msg-priority" style="width: 70px; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 2px;">
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <textarea id="textarea-msg-body" placeholder="Message body..." style="width: 100%; height: 60px; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 4px; resize: none; font-family: inherit;"></textarea>
+            <div style="display: flex; gap: 4px;">
+              <button id="btn-send-msg" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-primary); font-size: 10px; padding: 4px; cursor: pointer; border-radius: 2px;">Send</button>
+              <button id="btn-broadcast-msg" style="background: var(--denial); border: 1px solid var(--denial); color: #fff; font-size: 10px; padding: 4px 8px; cursor: pointer; border-radius: 2px;">Broadcast</button>
+            </div>
+          </div>
+        `;
+        pendingSection.before(section);
+        
+        document.getElementById('btn-send-msg').addEventListener('click', () => sendMessage());
+        document.getElementById('btn-broadcast-msg').addEventListener('click', () => broadcastMessage());
+      }
+    }
+  }
+
+  async function pollAllPending() {
+    if (typeof SessionManager === 'undefined') return;
+    const allSessions = SessionManager.getAll();
+    await Promise.all(allSessions.map(session => fetchPendingMessages(session)));
+  }
+
+  async function fetchSessionMode(session) {
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/${session.id}/mode`);
+      if (!res.ok) return;
+      const data = await res.json();
+      session.mode = data.mode;
+      updateModeUI(data.mode);
+    } catch (e) {
+      console.error("fetchSessionMode error:", e);
+    }
+  }
+
+  function updateModeUI(mode) {
+    const input = document.getElementById('input-session-mode');
+    const labelAuto = document.getElementById('mode-label-auto');
+    const labelManual = document.getElementById('mode-label-manual');
+    
+    if (input) {
+      input.checked = (mode === 'MANUAL');
+    }
+    if (labelAuto) {
+      labelAuto.style.color = (mode === 'AUTO') ? 'var(--text-primary)' : 'var(--text-muted)';
+      labelAuto.style.fontWeight = (mode === 'AUTO') ? '700' : '400';
+    }
+    if (labelManual) {
+      labelManual.style.color = (mode === 'MANUAL') ? 'var(--text-primary)' : 'var(--text-muted)';
+      labelManual.style.fontWeight = (mode === 'MANUAL') ? '700' : '400';
+    }
+  }
+
+  async function toggleSessionMode() {
+    if (!currentSession) return;
+    const input = document.getElementById('input-session-mode');
+    const newMode = input.checked ? 'MANUAL' : 'AUTO';
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/${currentSession.id}/mode`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode })
+      });
+      
+      if (res.ok) {
+        currentSession.mode = newMode;
+        updateModeUI(newMode);
+        ToastManager.show('info', 'Mode Changed', `Session set to ${newMode}`);
+        if (newMode === 'AUTO') {
+          // Switching to AUTO flushes pending
+          await fetchPendingMessages(currentSession);
+        }
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to change mode');
+        // Revert UI
+        input.checked = !input.checked;
+      }
+    } catch (e) {
+      console.error("toggleSessionMode error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+      input.checked = !input.checked;
+    }
+  }
+
+  async function fetchPendingMessages(session) {
+    if (!session || !session.id) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/pending/${session.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const messages = data.messages || [];
+      
+      ensureTabBadge(session.id);
+      updatePendingUI(session.id, messages);
+    } catch (e) {
+      console.error("fetchPendingMessages error:", e);
+    }
+  }
+
+  function updatePendingUI(sessionId, messages) {
+    const count = messages.length;
+    
+    // Update context panel badge
+    const contextBadge = document.getElementById('pending-badge-context');
+    const contextCount = document.getElementById('pending-count-context');
+    if (contextBadge && contextCount) {
+      contextBadge.style.display = count > 0 ? 'flex' : 'none';
+      contextCount.textContent = count;
+    }
+
+    // Update tab badge (even though we can't edit sessions.js, we can try to find the element if it exists)
+    const tabBadge = document.getElementById(`pending-badge-${sessionId}`);
+    if (tabBadge) {
+      tabBadge.style.display = count > 0 ? 'inline-block' : 'none';
+      const countSpan = tabBadge.querySelector('.pending-count');
+      if (countSpan) countSpan.textContent = count;
+    }
+
+    // Render pending list
+    const container = document.getElementById('ctx-pending-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    if (count === 0) {
+      container.innerHTML = '<li class="ctx-empty">No pending messages</li>';
+      return;
+    }
+
+    messages.forEach(msg => {
+      const li = document.createElement('li');
+      li.className = 'tracker-item pending-msg-item';
+      
+      const isHigh = msg.priority === 'urgent' || msg.priority === 'high';
+      if (isHigh) {
+        li.style.borderLeftColor = 'var(--denial)';
+        li.style.background = 'rgba(244, 67, 54, 0.1)';
+      }
+      
+      const time = new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const priorityColors = {
+        low: 'var(--text-muted)',
+        normal: 'var(--accent-blue)',
+        high: '#ff9800',
+        urgent: 'var(--denial)'
+      };
+      const pColor = priorityColors[msg.priority] || 'var(--text-primary)';
+      const pWeight = msg.priority === 'urgent' ? 'bold' : 'normal';
+
+      li.innerHTML = `
+        <div class="tracker-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="msg-priority" style="font-size: 8px; padding: 0 3px; border-radius: 2px; border: 1px solid ${pColor}; color: ${pColor}; font-weight: ${pWeight};">${msg.priority.toUpperCase()}</span>
+          <span class="msg-from" style="font-size: 10px; opacity: 0.8;">from ${msg.from_role}</span>
+          <span class="msg-time" style="font-size: 9px; opacity: 0.5;">${time}</span>
+        </div>
+        <div class="tracker-body" style="font-size: 11px; color: var(--text-secondary); line-height: 1.3;">${msg.body}</div>
+        <div class="msg-actions" style="display: flex; gap: 4px; margin-top: 4px;">
+          <button class="btn-msg-action deliver" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 1px 6px; cursor: pointer; border-radius: 2px;" onclick="ContextPanel.deliverMessage('${msg.id}')">Deliver</button>
+          <button class="btn-msg-action discard" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 1px 6px; cursor: pointer; border-radius: 2px;" onclick="ContextPanel.discardMessage('${msg.id}')">Discard</button>
+        </div>
+      `;
+      container.appendChild(li);
+    });
+
+    const flushBtn = document.getElementById('btn-flush-all');
+    if (flushBtn) flushBtn.style.display = count > 1 ? 'block' : 'none';
+  }
+
+  async function deliverMessage(msgId) {
+    if (!currentSession) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/deliver/${currentSession.id}/${msgId}`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("deliverMessage error:", e);
+    }
+  }
+
+  async function discardMessage(msgId) {
+    if (!currentSession) return;
+    if (!confirm('Discard this message? It will be logged to ADS but not delivered to the PTY.')) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/pending/${currentSession.id}/${msgId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("discardMessage error:", e);
+    }
+  }
+
+  async function flushAllMessages() {
+    if (!currentSession) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/deliver/${currentSession.id}/all`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("flushAllMessages error:", e);
+    }
+  }
+
+  function updateComposePanelVisibility(session) {
+    const section = document.getElementById('section-messaging-compose');
+    if (!section) return;
+    
+    const isSA = session.role === 'Systems_Architect' || session.role === 'systems_architect';
+    section.style.display = isSA ? 'block' : 'none';
+    
+    if (isSA) {
+      updateRecipientList();
+    }
+  }
+
+  function updateRecipientList() {
+    const select = document.getElementById('select-msg-to');
+    if (!select || typeof SessionManager === 'undefined') return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select recipient...</option>';
+    
+    const allSessions = SessionManager.getAll();
+    allSessions.forEach(s => {
+      if (currentSession && s.id === currentSession.id) return;
+      
+      const option = document.createElement('option');
+      option.value = s.id;
+      option.textContent = `${s.role || 'Agent'} (${s.id.substring(0,6)})`;
+      select.appendChild(option);
+    });
+    
+    if (currentValue) select.value = currentValue;
+  }
+
+  async function sendMessage() {
+    if (!currentSession) return;
+    const to = document.getElementById('select-msg-to').value;
+    const priority = document.getElementById('select-msg-priority').value;
+    const body = document.getElementById('textarea-msg-body').value;
+    
+    if (!to) {
+      ToastManager.show('denial', 'Error', 'Please select a recipient');
+      return;
+    }
+    if (!body.trim()) {
+      ToastManager.show('denial', 'Error', 'Message body cannot be empty');
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_session: currentSession.id,
+          to_session: to,
+          body: body,
+          priority: priority
+        })
+      });
+      
+      if (res.ok) {
+        ToastManager.show('info', 'Message Sent', `Message delivered to session ${to.substring(0,6)}`);
+        document.getElementById('textarea-msg-body').value = '';
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to send message');
+      }
+    } catch (e) {
+      console.error("sendMessage error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+    }
+  }
+
+  async function broadcastMessage() {
+    if (!currentSession) return;
+    const priority = document.getElementById('select-msg-priority').value;
+    const body = document.getElementById('textarea-msg-body').value;
+    
+    if (!body.trim()) {
+      ToastManager.show('denial', 'Error', 'Message body cannot be empty');
+      return;
+    }
+    
+    if (!confirm('Broadcast this message to ALL active sessions?')) return;
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_session: currentSession.id,
+          body: body,
+          priority: priority
+        })
+      });
+      
+      if (res.ok) {
+        ToastManager.show('info', 'Broadcast Sent', 'Message sent to all sessions');
+        document.getElementById('textarea-msg-body').value = '';
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to broadcast message');
+      }
+    } catch (e) {
+      console.error("broadcastMessage error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+    }
+  }
+
+  function showPendingMessages() {
+    const section = document.getElementById('section-pending-messages');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
@@ -808,6 +1246,14 @@ const ContextPanel = (() => {
           <span class="ctx-value-decoded">${specTitle}</span>
         `;
 
+        // SPEC-055: Show Build button for APPROVED/ACTIVE specs
+        const buildContainer = document.getElementById('ctx-spec-build-container');
+        if (buildContainer) {
+          const specStatus = (spec?.status || '').toUpperCase();
+          buildContainer.style.display = (specStatus === 'APPROVED' || specStatus === 'ACTIVE') ? 'block' : 'none';
+          if (session) session.spec_id = activeTask.spec_ref;
+        }
+
         // Update To-Do list (Pending or In Progress)
         // Note: Filter by role is still needed if showAllRoles is true
         const todoTasks = tasks.filter(t => 
@@ -847,6 +1293,8 @@ const ContextPanel = (() => {
         document.getElementById('ctx-task').textContent = '--';
         document.getElementById('ctx-spec').textContent = '--';
         document.getElementById('count-todo').textContent = '0';
+        const buildContainerEl = document.getElementById('ctx-spec-build-container');
+        if (buildContainerEl) buildContainerEl.style.display = 'none';
         updatePreflight(session, null);
         renderDelegation(null, session);
       }
@@ -1168,6 +1616,8 @@ const ContextPanel = (() => {
 
     newEvents.forEach(event => {
       handleADSFeedback(event);
+      // SPEC-055: Route build events to BuildManager
+      if (typeof BuildManager !== 'undefined') BuildManager.handleADSEvent(event);
       if (event.action_type?.includes('denied') || event.action_type?.includes('violation')) {
         ToastManager.show('denial', 'DENIED', truncate(event.description, 80));
       } else if (event.action_type?.includes('escalation') || event.action_type?.includes('break_glass')) {
@@ -1360,16 +1810,26 @@ const ContextPanel = (() => {
           fetchRoleRequests(currentSession);
           fetchDelegations();
           fetchCapabilityContext(currentSession);
+          if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
         }
         fetchSessionTree(); // SPEC-042: refresh swarm tree on any ADS update
       });
 
       window.__TAURI__.event.listen('capabilities-updated', () => {
-        if (currentSession) fetchCapabilityContext(currentSession);
+        if (currentSession) {
+          fetchCapabilityContext(currentSession);
+          if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
+        }
       });
 
       window.__TAURI__.event.listen('tasks-updated', () => {
-        if (currentSession) fetchTaskData(currentSession);
+        if (currentSession) {
+          fetchTaskData(currentSession);
+          if (typeof SpecProgress !== 'undefined') {
+            SpecProgress.updateSidebarProgress();
+            SpecProgress.updateTerminalHeader(currentSession);
+          }
+        }
       });
 
       window.__TAURI__.event.listen('requests-updated', () => {
@@ -1377,7 +1837,7 @@ const ContextPanel = (() => {
       });
     }
 
-        // Browser fallback: poll every 10s
+        // Browser fallback: poll every 3s
         pollInterval = setInterval(() => {
           if (currentSession) {
             fetchADSEvents(currentSession);
@@ -1387,8 +1847,10 @@ const ContextPanel = (() => {
             fetchRequests();
             fetchDTCPStatus();
             fetchSessionTree();
+            pollAllPending();
+            if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
           }
-        }, 10000);
+        }, 3000);
       }
     
       async function completeTask(taskId, btn) {
@@ -1555,6 +2017,7 @@ const ContextPanel = (() => {
           let icon = '&#9671;';
           if (e.action_type === 'cross_ai_task_verified') icon = '&#9989;';
           if (e.action_type === 'cross_ai_task_rejected') icon = '&#10060;';
+          if (e.action_type === 'cross_ai_task_retasked') icon = '&#128257;';
           if (e.action_type === 'project_ready') icon = '&#127881;';
           if (e.action_type === 'forge_approval_received') icon = '&#128275;';
 
@@ -1661,7 +2124,8 @@ const ContextPanel = (() => {
         update, initWatchers, updateUptime, toggleFilter, 
         completeTask, completeRequest, prioritizeTask, 
         openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, 
-        fetchSessionTree, renderSessionTree 
+        fetchSessionTree, renderSessionTree,
+        deliverMessage, discardMessage, flushAllMessages, sendMessage, broadcastMessage, showPendingMessages
       };
       })();
 
