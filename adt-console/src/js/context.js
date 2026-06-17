@@ -2133,8 +2133,15 @@ const ContextPanel = (() => {
         if (!container) return;
 
         let html = '';
+        const role = currentSession?.role || 'unknown';
+        
         for (const path of CORE_FILES) {
-          const tier = JurisdictionUI.getPathTierSync(path);
+          // Trigger async fetch to populate cache for next render
+          JurisdictionUI.fetchPathTier(path, role).then(() => {
+            // No-op, just warming cache
+          });
+
+          const tier = JurisdictionUI.getPathTierSync(path, role);
           const tierClass = JurisdictionUI.getTierClass(tier);
           
           html += `
