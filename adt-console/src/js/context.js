@@ -133,10 +133,9 @@ const ContextPanel = (() => {
         const section = document.createElement('section');
         section.id = 'section-pending-messages';
         section.className = 'context-section';
-        section.style.display = 'none'; // Hidden per user request
         section.innerHTML = `
           <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Pending Messages</h3>
+            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Approval Notifications</h3>
             <button id="btn-flush-all" style="display: none; background: transparent; border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 2px 8px; cursor: pointer; border-radius: 2px;">Flush All</button>
           </div>
           <ul id="ctx-pending-list" class="tracker-list" style="list-style: none; padding: 0; margin: 0;">
