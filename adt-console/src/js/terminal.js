@@ -161,10 +161,12 @@ const TerminalManager = (() => {
         // Skip syncSize if activate() just fired for this session — it already sent
         // one SIGWINCH. Sending another 100ms later causes Gemini to clear+redraw
         // again, which is the primary cause of the blank terminal bug.
-        if (!entry._justActivated) {
+        const now = Date.now();
+        const timeSinceActive = now - (entry._activatedAt || 0);
+        if (timeSinceActive > 300) {
           syncSize(sessionId, entry.term);
         }
-        entry._justActivated = false;
+        entry._activatedAt = now;
         entry._suppressResize = false;
         entry.term.focus();
       }, 100);
