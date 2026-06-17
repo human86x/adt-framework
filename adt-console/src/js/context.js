@@ -133,6 +133,7 @@ const ContextPanel = (() => {
         const section = document.createElement('section');
         section.id = 'section-pending-messages';
         section.className = 'context-section';
+        section.style.display = 'none'; // Hidden per user request
         section.innerHTML = `
           <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Pending Messages</h3>
