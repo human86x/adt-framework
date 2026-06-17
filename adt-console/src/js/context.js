@@ -2120,11 +2120,39 @@ const ContextPanel = (() => {
         container.innerHTML = tree.map(node => renderNode(node)).join("");
       }
 
+      const CORE_FILES = [
+        "_cortex/AI_PROTOCOL.md",
+        "config/jurisdictions.json",
+        "_cortex/ads/events.jsonl",
+        "adt_core/dtcp/gateway.py",
+        "adt_center/app.py",
+        "adt-console/src/index.html"
+      ];
+
+      async function renderFileExplorer() {
+        const container = document.getElementById('ctx-file-explorer');
+        if (!container) return;
+
+        let html = '';
+        for (const path of CORE_FILES) {
+          const tier = JurisdictionUI.getPathTierSync(path);
+          const tierClass = JurisdictionUI.getTierClass(tier);
+          
+          html += `
+            <div class="file-item ${tierClass}" onclick="console.log('Open ${path}')" title="${path}">
+              <span class="file-icon">&#128196;</span>
+              <span class="file-path">${path}</span>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      }
+
       return { 
         update, initWatchers, updateUptime, toggleFilter, 
         completeTask, completeRequest, prioritizeTask, 
         openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, 
-        fetchSessionTree, renderSessionTree,
+        fetchSessionTree, renderSessionTree, renderFileExplorer,
         deliverMessage, discardMessage, flushAllMessages, sendMessage, broadcastMessage, showPendingMessages
       };
       })();
