@@ -685,15 +685,14 @@ const ContextPanel = (() => {
     const costEl = document.getElementById("ctx-cost-value");
     const tokenEl = document.getElementById("ctx-token-value");
     
-    if (costEl) {
-      const costStr = cost < 0.01 && cost > 0 ? "<$0.01" : `$${cost.toFixed(2)}`;
-      costEl.textContent = costStr;
-    }
-    if (tokenEl) {
-      const tokenStr = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + "M" : 
-                       (tokens >= 1000 ? (tokens / 1000).toFixed(1) + "K" : tokens);
-      tokenEl.textContent = tokenStr;
-    }
+    const costStr = cost < 0.01 && cost > 0 ? "<$0.01" : `$${cost.toFixed(2)}`;
+    const tokenStr = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + "M" : 
+                     (tokens >= 1000 ? (tokens / 1000).toFixed(1) + "K" : tokens);
+
+    if (costEl) costEl.textContent = costStr;
+    if (tokenEl) tokenEl.textContent = tokenStr;
+    if (document.getElementById("ctx-cost-sidebar")) document.getElementById("ctx-cost-sidebar").textContent = costStr;
+    if (document.getElementById("ctx-token-sidebar")) document.getElementById("ctx-token-sidebar").textContent = tokenStr;
   }
 
   function updateFilterIndicator() {
