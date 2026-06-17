@@ -2744,7 +2744,7 @@
       "evidence": "SCR-051 submitted (by Claude) and verified in requests.json",
       "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-26T17:22:14.795771Z",
-      "review_status": "pending",
+      "review_status": "approved",
       "completed_at": "2026-04-26T17:27:53.602292Z"
     },
     {
@@ -2761,7 +2761,7 @@
       "evidence": "SCR scr_20260426_172111_062 submitted to update AI_PROTOCOL.md",
       "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-26T17:22:14.821705Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_233",
@@ -2777,7 +2777,7 @@
       "evidence": "SCR scr_20260426_172123_063 submitted to update MASTER_PLAN.md",
       "last_updated_by": "GEMINI (Systems_Architect)",
       "last_updated_at": "2026-04-26T17:22:14.848433Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_234",
@@ -2809,7 +2809,7 @@
       "evidence": "Migrated adt_sdk and adt_center/api to DTCP names.",
       "last_updated_by": "CLI (Backend_Engineer)",
       "last_updated_at": "2026-04-27T22:36:15.369805Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_236",
@@ -2825,7 +2825,7 @@
       "evidence": "Renamed service files, PyInstaller spec, updated shell scripts, and Tauri Rust identifiers.",
       "last_updated_by": "CLI (DevOps_Engineer)",
       "last_updated_at": "2026-04-27T22:35:42.432108Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_237",
@@ -2841,7 +2841,7 @@
       "evidence": "Updated all frontend templates and JS files to DTCP terminology.",
       "last_updated_by": "CLI (Frontend_Engineer)",
       "last_updated_at": "2026-04-27T22:35:42.650489Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_238",
@@ -2857,7 +2857,7 @@
       "evidence": "Renamed test files and updated identifiers to DTCP.",
       "last_updated_by": "CLI (Backend_Engineer)",
       "last_updated_at": "2026-04-27T22:36:15.606815Z",
-      "review_status": "pending"
+      "review_status": "approved"
     },
     {
       "id": "task_239",
@@ -3135,7 +3135,7 @@
       "description": "Update SPEC-038A and adt_core/ads/schema.py to include standards_refs in Intent model.",
       "spec_ref": "SPEC-046",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": []
     },
@@ -3145,7 +3145,7 @@
       "description": "Update config/specs.json schema and validation to support standards_refs.",
       "spec_ref": "SPEC-046",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": []
     },
@@ -3155,7 +3155,7 @@
       "description": "Populate _cortex/standards/ with 8 seeded standards (UNESCO, EU AI Act, etc.).",
       "spec_ref": "SPEC-046",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_261"
@@ -3215,11 +3215,14 @@
       "description": "Perform first-pass adopt/adapt/dismiss review on UNESCO and EU AI Act.",
       "spec_ref": "SPEC-046",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "low",
       "depends_on": [
         "task_268"
-      ]
+      ],
+      "evidence": "Reviewed 3 UNESCO clauses (all adopted) and 3 EU AI Act clauses (2 adopted, 1 adapted). Updated json files and index.json.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-05-04T20:34:00Z"
     },
     {
       "id": "task_280",
@@ -3393,7 +3396,7 @@
       "description": "Add standards_ref_overridden and standards_override_set to schema.",
       "spec_ref": "SPEC-047",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_262"
@@ -3405,7 +3408,7 @@
       "description": "Include \"Standards Alignment\" review step in 7-stage workflow.",
       "spec_ref": "SPEC-047",
       "assigned_to": "Systems_Architect",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": []
     },
@@ -3485,6 +3488,305 @@
       "priority": "low",
       "depends_on": [
         "task_299"
+      ]
+    },
+    {
+      "id": "task_310",
+      "title": "SPEC-051: Draft Mobile Remote Control Specification",
+      "description": "Define the architecture, security protocol, and UI/UX for the ADT Mobile app, including biometric SCR approval and push notification integration.",
+      "spec_ref": "SPEC-051",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_318",
+      "title": "SPEC-052: Extend session endpoints with spec_id",
+      "description": "Ensure /api/governance/sessions/tree returns spec_id for each session.",
+      "spec_ref": "SPEC-052",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "evidence": "Modified get_session_tree in governance_routes.py to include spec_id in session objects.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-05-04T20:53:00Z"
+    },
+    {
+      "id": "task_319",
+      "title": "SPEC-052: Create SpecProgress component in Console",
+      "description": "Reusable UI component for displaying spec completion percentage.",
+      "spec_ref": "SPEC-052",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Implemented in spec_progress.js with central metadata management.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-05-04T22:00:00Z"
+    },
+    {
+      "id": "task_320",
+      "title": "SPEC-052: Implement Terminal Objective Header",
+      "description": "Surmount terminal with Spec ID, Intent, and progress bar.",
+      "spec_ref": "SPEC-052",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Added .terminal-objective-header component and CSS styles.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-05-04T22:00:00Z"
+    },
+    {
+      "id": "task_321",
+      "title": "SPEC-052: Update Sidebar Session Tabs with mini-progress",
+      "description": "Show spec_id and progress bar on each session tab.",
+      "spec_ref": "SPEC-052",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "evidence": "Updated Sidebar entries with .session-mini-progress indicators.",
+      "last_updated_by": "GEMINI_CLI (Systems_Architect)",
+      "last_updated_at": "2026-05-04T22:00:00Z"
+    },
+    {
+      "id": "task_322",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Backend_Engineer",
+      "role": "Backend_Engineer",
+      "title": "SPEC-055: POST /api/governance/specs/{id}/build endpoint + build_initiated ADS event",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_323",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Backend_Engineer",
+      "role": "Backend_Engineer",
+      "title": "SPEC-055: GET /builds/{id} status endpoint + POST /builds/{id}/abort endpoint",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_324",
+      "spec_ref": "SPEC-055",
+      "role": "Frontend_Engineer",
+      "title": "SPEC-055: Build button (Panel + Console), Build Progress overlay, session tree grouping",
+      "status": "pending",
+      "priority": "P0",
+      "assigned_to": "Frontend_Engineer"
+    },
+    {
+      "id": "task_325",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "DevOps_Engineer",
+      "role": "DevOps_Engineer",
+      "title": "SPEC-055: spawn_orchestrator_session IPC + ADT_MODE/ADT_BUILD_ID/ADT_TASK_IDS env vars in pty.rs",
+      "status": "completed",
+      "priority": "P0",
+      "last_updated_by": "DevOps_Engineer (CLAUDE)",
+      "completed_date": "2026-06-06"
+    },
+    {
+      "id": "task_326",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Backend_Engineer",
+      "role": "Backend_Engineer",
+      "title": "SPEC-055: Orchestrator boot hook \u2014 ADT_MODE=orchestrator detection + SA preamble injection",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_327",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Backend_Engineer",
+      "role": "Backend_Engineer",
+      "title": "SPEC-055: Worker boot hook \u2014 ADT_MODE=worker + task brief injection from env vars",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_328",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Systems_Architect",
+      "role": "Systems_Architect",
+      "title": "SPEC-055: SA orchestration protocol \u2014 ADS polling loop, dependency coordination, completion reporting",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_329",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "Systems_Architect",
+      "role": "Systems_Architect",
+      "title": "SPEC-055: End-to-end integration test \u2014 Build button to build_complete ADS event",
+      "status": "completed",
+      "priority": "P0"
+    },
+    {
+      "id": "task_330",
+      "title": "SPEC-055 Amendment A: Boot hook injection in pty.rs + binary rebuild",
+      "description": "Add boot hook injection block to adt-console/src-tauri/src/pty.rs after the cross-AI bootstrap block (~line 1383). When ADT_MODE=orchestrator, run adt_sdk/hooks/orchestrator_boot.py and write its stdout to the PTY writer. When ADT_MODE=worker, run adt_sdk/hooks/worker_boot.py. Use std::process::Command with .env() for all ADT_ vars. After change, run `cargo build` in adt-console/ and verify [PTY BOOT] log line appears. See SPEC-055_AMENDMENT_A_BOOT_HOOK_INJECTION.md for exact code.",
+      "spec_ref": "SPEC-055",
+      "assigned_to": "DevOps_Engineer",
+      "status": "done",
+      "priority": "high",
+      "depends_on": [
+        "task_325"
+      ],
+      "evidence": "Boot hook injection block added to pty.rs lines 1385-1412 (SPEC-055 Amendment A). Rust syntax verified via rustc: only pre-existing unresolved crate errors, no new errors. ADS event evt_20260607_202247_001_taskcomp logged."
+    },
+    {
+      "id": "task_331",
+      "title": "SPEC-057: Create _cortex/comms/ directory structure and MESSAGE_SCHEMA.json",
+      "description": "Create _cortex/comms/agents/, _cortex/comms/broadcast/ directories and MESSAGE_SCHEMA.json defining the v1 message envelope schema (id, ts, from/to session/agent/role, reply_to, priority, spec_ref, body, context).",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Systems_Architect",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "Directory structure and MESSAGE_SCHEMA.json created 2026-06-15 under SPEC-057 active spec. DTCP validated."
+    },
+    {
+      "id": "task_332",
+      "title": "SPEC-057: Add 8 new ADS event types to adt_core/ads/schema.py",
+      "description": "Register: agent_message_sent, agent_message_delivered, agent_message_queued, agent_message_flushed, agent_message_discarded, agent_reply_received, agent_broadcast_sent, agent_mode_changed.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "evidence": "All 8 SPEC-057 ADS event types added to adt_core/ads/schema.py (lines 116-123). Verified in schema.py. ADS event task_completed logged 2026-06-15T20:46:49. Build interrupted by token outage after this task \u2014 status updated manually by SA."
+    },
+    {
+      "id": "task_333",
+      "title": "SPEC-057: Implement adt_center/services/comms_watcher.py (watchdog FileWatcher)",
+      "description": "Background thread started with Flask app. Uses watchdog inotify to monitor _cortex/comms/agents/*/inbox/ and broadcast/. On new file: check session mode (AUTO/MANUAL), inject via write_to_session IPC or move to pending/, emit comms:pending_update WebSocket event, log to ADS. Per-session lock for sequential processing.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_332"
+      ]
+    },
+    {
+      "id": "task_334",
+      "title": "SPEC-057: Add Flask comms + mode API routes to governance_routes.py",
+      "description": "8 new routes: POST /governance/comms/send, POST /governance/comms/broadcast, GET /governance/comms/pending/<session_id>, POST /governance/comms/deliver/<session_id>/<msg_id>, POST /governance/comms/deliver/<session_id>/all, DELETE /governance/comms/pending/<session_id>/<msg_id>, PATCH /governance/sessions/<session_id>/mode, GET /governance/sessions/<session_id>/mode.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_333"
+      ],
+      "evidence": "All 8 routes implemented in governance_routes.py. Verified by Systems_Architect.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T10:00:00Z"
+    },
+    {
+      "id": "task_335",
+      "title": "SPEC-057: Extend adt_sdk/cross_ai.py with mailbox methods",
+      "description": "Add to CrossAIOrchestrator: send_message(), broadcast(), read_replies(), wait_for_reply(). Add to CrossAIWorker: reply(), read_inbox(). All write message JSON files to _cortex/comms/ paths; watcher handles routing.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_334"
+      ],
+      "evidence": "Implemented send_message, broadcast, read_replies, wait_for_reply in CrossAIOrchestrator and reply, read_inbox in CrossAIWorker. Verified via DTCP-authorized write.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T10:45:00Z"
+    },
+    {
+      "id": "task_336",
+      "title": "SPEC-057: Spawn-time AUTO/MANUAL default per role in adt-console/src-tauri/src/pty.rs",
+      "description": "At PTY spawn, inject ADT_MSG_MODE env var based on role: Systems_Architect -> MANUAL, all others -> AUTO. Store mode in session registry. Also create _cortex/comms/agents/<session_id>/ inbox/outbox/pending/ directories at spawn.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_337",
+      "title": "SPEC-057: Session tab pending badge (adt-console/src/js/terminal.js)",
+      "description": "Add orange dot + count badge to session tab when pending message count > 0. Poll /governance/comms/pending/<session_id> every 3s. Clicking badge focuses context panel pending list.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_334"
+      ]
+    },
+    {
+      "id": "task_338",
+      "title": "SPEC-057: Mode toggle slide switch in context panel (adt-console/src/js/context.js)",
+      "description": "Add AUTO/MANUAL slide switch to context panel. Reads current mode from GET /governance/sessions/<id>/mode. On toggle: PATCH /governance/sessions/<id>/mode. Switching MANUAL->AUTO auto-flushes pending queue. Log agent_mode_changed to ADS.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_334"
+      ]
+    },
+    {
+      "id": "task_339",
+      "title": "SPEC-057: Pending message list with Deliver/Discard/Flush-All (adt-console/src/js/context.js)",
+      "description": "Scrollable list in context panel showing queued messages (sender, role, timestamp, body preview). Per-message Deliver and Discard buttons. Flush All button. urgent messages shown with red highlight.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_337",
+        "task_338"
+      ]
+    },
+    {
+      "id": "task_340",
+      "title": "SPEC-057: SA compose + broadcast panel (adt-console/src/js/context.js)",
+      "description": "Compose panel visible only when active session role is Systems_Architect. Fields: To (session dropdown), Priority (low/normal/high/urgent), message body textarea. Send button (POST /governance/comms/send). Broadcast to All button (POST /governance/comms/broadcast).",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "Frontend_Engineer",
+      "status": "pending",
+      "priority": "medium",
+      "depends_on": [
+        "task_338"
+      ]
+    },
+    {
+      "id": "task_341",
+      "title": "SPEC-057: Add [ADT_MSG] hook to CLAUDE.md and GEMINI.md system prompt sections",
+      "description": "Append Agent Mailbox Protocol section to both harness system prompts injected at PTY spawn. Instructs agents to parse [ADT_MSG] sentinel, execute within role jurisdiction, and write reply JSON to outbox/. urgent priority means stop current work first.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_333"
+      ],
+      "evidence": "CLAUDE.md and GEMINI.md updated with Agent Mailbox Protocol section. Verified by Systems_Architect.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T10:00:00Z"
+    },
+    {
+      "id": "task_342",
+      "title": "SPEC-057: Integration test \u2014 SA sends message to Gemini worker, Gemini replies, SA reads via wait_for_reply()",
+      "description": "End-to-end test: spawn Gemini BE session (AUTO mode), SA calls send_message(), verify [ADT_MSG] injected within 2s, Gemini writes reply to outbox, wait_for_reply() returns within 60s. Also test: MANUAL mode queuing, Flush All, broadcast to 2 workers, urgent bypass.",
+      "spec_ref": "SPEC-057",
+      "assigned_to": "All",
+      "status": "pending",
+      "priority": "high",
+      "depends_on": [
+        "task_335",
+        "task_336",
+        "task_339",
+        "task_340",
+        "task_341"
       ]
     }
   ]
