@@ -47,7 +47,7 @@ class DTCPConfig:
         
         # Check if it is the framework project
         # This is a bit heuristic but works for now: check if it contains adt_core
-        is_framework = False
+        is_framework = os.path.exists(os.path.join(project_root, "adt_core"))
         
         config = cls(
             project_root=project_root,
