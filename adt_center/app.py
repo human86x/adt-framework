@@ -31,7 +31,7 @@ def create_app():
             "ads": os.path.join(root, "_cortex", "ads", "events.jsonl"),
             "specs": os.path.join(root, "_cortex", "specs"),
             "tasks": os.path.join(root, "_cortex", "tasks.json"),
-            "standards": os.path.join(root, "_cortex", "standards", "registry.json"),
+            "standards": os.path.join(root, "_cortex", "standards"),
             "name": name or os.path.basename(root)
         }
 
@@ -114,11 +114,16 @@ def create_app():
         
         events = query.get_all_events()
         tasks = task_manager.list_tasks()
+        # Defensive: dashboard groups completed tasks by assigned_to; a missing
+        # field would 500 the whole page. Backfill from `role` or "Unassigned".
+        for t in tasks:
+            if not t.get("assigned_to"):
+                t["assigned_to"] = t.get("role") or "Unassigned"
         specs = _enrich_specs(spec_registry.list_specs())
-        
+
         active_sessions = query.get_active_sessions()
         denials = sum(1 for e in events if not e.get("authorized", True))
-        
+
         return render_template("dashboard.html",
                                events=events,
                                tasks=tasks,
@@ -293,6 +298,11 @@ def create_app():
     def governance_page():
         return render_template("governance.html")
 
+    @app.route("/standards")
+    def standards_page():
+        project = request.args.get("project")
+        return render_template("standards.html", current_project=project)
+
     @app.route("/about")
     def about_page():
         return render_template("about.html")
@@ -306,8 +316,9 @@ if __name__ == "__main__":
     
     if unix_socket:
         # SPEC-045: Run on Unix socket for privilege separation
-        import socket
         from werkzeug.serving import run_simple
+        import threading
+        import time
         
         # Ensure directory exists
         socket_dir = os.path.dirname(unix_socket)
@@ -316,19 +327,27 @@ if __name__ == "__main__":
             
         # Clean up existing socket if any
         if os.path.exists(unix_socket):
-            os.remove(unix_socket)
+            try:
+                os.remove(unix_socket)
+            except OSError:
+                pass
             
         print(f"Starting Operational Center on Unix socket: {unix_socket}")
-        # We need to use a custom socket to set permissions
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.bind(unix_socket)
         
-        # Set permissions: 0660 (rw-rw----)
-        # This allows the bridge (running as adt_human) to connect,
-        # but blocks adt_agent (not in group).
-        os.chmod(unix_socket, 0o660)
+        def chmod_loop():
+            # Wait for socket to be created by run_simple, then chmod it to 0660
+            for _ in range(50):
+                if os.path.exists(unix_socket):
+                    try:
+                        os.chmod(unix_socket, 0o660)
+                        break
+                    except Exception:
+                        pass
+                time.sleep(0.1)
+                
+        threading.Thread(target=chmod_loop, daemon=True).start()
         
-        run_simple("unix", 0, app, fd=sock.fileno(), debug=(os.environ.get("FLASK_DEBUG") == "1"))
+        run_simple(f"unix://{unix_socket}", 0, app, debug=(os.environ.get("FLASK_DEBUG") == "1"))
     else:
         port = int(os.environ.get("ADC_PORT", 5001))
         debug = os.environ.get("FLASK_DEBUG", "0") == "1"
