@@ -285,6 +285,22 @@ def submit_scr(dtcp_url: str, agent: str, role: str, spec_id: str,
         return {"error": str(e)}
 
 
+def find_project_root(file_path):
+    if not file_path:
+        return None
+    abs_path = os.path.abspath(file_path)
+    if os.path.isdir(abs_path):
+        current = abs_path
+    else:
+        current = os.path.dirname(abs_path)
+    
+    while current and current != os.path.dirname(current):
+        if os.path.exists(os.path.join(current, "_cortex")) or os.path.exists(os.path.join(current, ".git")):
+            return current
+        current = os.path.dirname(current)
+    return None
+
+
 def main():
     # Read hook input from stdin
     try:
@@ -322,6 +338,13 @@ def main():
 
     # Configuration from environment
     project_dir = os.environ.get("GEMINI_PROJECT_DIR") or os.environ.get("ADT_PROJECT_DIR") or os.environ.get("ADT_FRAMEWORK_ROOT") or hook_input.get("cwd", os.getcwd())
+
+    # Try to dynamically resolve project root from target file path
+    abs_path_temp = extract_file_path(tool_name, hook_input.get("tool_input", {}))
+    if abs_path_temp:
+        dyn_root = find_project_root(abs_path_temp)
+        if dyn_root:
+            project_dir = dyn_root
     dtcp_url = os.environ.get("DTCP_URL", read_project_dtcp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "GEMINI")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
