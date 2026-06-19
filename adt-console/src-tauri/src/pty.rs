@@ -1301,6 +1301,7 @@ impl PtyManager {
                                             "installation_id",
                                             "google_accounts.json",
                                             "projects.json",
+                                            "config",
                                         ] {
                                             let host_file = host_gemini_dir.join(name);
                                             if host_file.exists() {
