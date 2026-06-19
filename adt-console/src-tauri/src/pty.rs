@@ -1241,7 +1241,7 @@ impl PtyManager {
                                 }
                             }
                         }
-                    } else if agent == "gemini" {
+                    } else if agent == "gemini" || agent == "agy" {
                         if let Err(e) = generate_gemini_sandbox_config(
                             &sb_root, &project_root, &framework_root, namespace_mode
                         ) {
