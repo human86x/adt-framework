@@ -1440,11 +1440,23 @@ impl PtyManager {
         cmd.env("TERM", "xterm-256color");
         cmd.env("PATH", &user_path);
 
+        let agy_model = if let Some(pos) = final_args.iter().position(|x| x == "--model") {
+            final_args.get(pos + 1).cloned()
+        } else {
+            None
+        };
+        if let Some(m) = agy_model {
+            cmd.env("AGY_MODEL", &m);
+        }
+
         if let Some(path) = &cwd {
-            if sandbox_root.is_none() {
-                cmd.env("CLAUDE_PROJECT_DIR", path);
-                cmd.env("GEMINI_PROJECT_DIR", path);
-            }
+            let project_dir_val = if namespace_mode {
+                "/project".to_string()
+            } else {
+                path.clone()
+            };
+            cmd.env("CLAUDE_PROJECT_DIR", &project_dir_val);
+            cmd.env("GEMINI_PROJECT_DIR", &project_dir_val);
         }
 
         let child = pair
