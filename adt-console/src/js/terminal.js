@@ -64,11 +64,13 @@ const TerminalManager = (() => {
     // Synchronous fit before any output arrives.
     wrapper.getBoundingClientRect();
     fitAddon.fit();
+    // ONE syncSize — sends SIGWINCH so the PTY knows the real terminal size.
+    // Do NOT call syncSize again in requestAnimationFrame: a second SIGWINCH while
+    // Gemini is processing the first one causes a blank screen.
     syncSize(sessionId, term);
 
     requestAnimationFrame(() => {
       fitAddon.fit();
-      syncSize(sessionId, term);
       term.focus();
     });
 
@@ -86,9 +88,18 @@ const TerminalManager = (() => {
       }
     });
 
-    // Handle resize -> notify PTY (debounced to prevent rapid re-fitting)
+    // Create entry before ResizeObserver so the closure can reference _suppressResize.
+    // _suppressResize is set true for 2500ms to protect Gemini's initial TUI draw
+    // from spurious ResizeObserver-triggered SIGWINCHes (same as activate() path).
+    const entry = { term, fitAddon, wrapper, resizeObserver: null,
+                    _suppressResize: true, _activatedAt: Date.now() };
+    terminals.set(sessionId, entry);
+    setTimeout(() => { entry._suppressResize = false; }, 2500);
+
+    // Handle resize -> notify PTY (debounced, guarded against the initial suppress window)
     let resizeTimer = null;
     const resizeObserver = new ResizeObserver(() => {
+      if (entry._suppressResize) return;
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         fitAddon.fit();
@@ -96,6 +107,7 @@ const TerminalManager = (() => {
       }, 50);
     });
     resizeObserver.observe(wrapper);
+    entry.resizeObserver = resizeObserver;
 
     // Listen for PTY output from Rust backend.
     // Await both listen() calls before replay() — event.listen() is async IPC;
@@ -113,7 +125,6 @@ const TerminalManager = (() => {
       replay(sessionId);
     }
 
-    terminals.set(sessionId, { term, fitAddon, wrapper, resizeObserver });
     return term;
   }
 
@@ -127,12 +138,15 @@ const TerminalManager = (() => {
 
   function syncSize(sessionId, term) {
     if (window.__TAURI__) {
+      const entry = terminals.get(sessionId);
       window.__TAURI__.core.invoke('resize_session', {
         request: {
           sessionId: sessionId,
           cols: term.cols,
           rows: term.rows,
         }
+      }).then(() => {
+        if (entry) { entry._lastCols = term.cols; entry._lastRows = term.rows; }
       }).catch(err => console.error('[JS RESIZE ERROR]:', err));
     }
   }
@@ -158,17 +172,28 @@ const TerminalManager = (() => {
       entry._suppressResize = true;
       setTimeout(() => {
         entry.fitAddon.fit();
-        // Skip syncSize if activate() just fired for this session — it already sent
-        // one SIGWINCH. Sending another 100ms later causes Gemini to clear+redraw
-        // again, which is the primary cause of the blank terminal bug.
+        // Only send SIGWINCH if the size genuinely changed AND we are outside the
+        // activate() suppress window (2500ms). Within that window activate() already
+        // sent the correct size and Gemini is still mid-draw — a second SIGWINCH here
+        // clears the screen before the first draw completes, leaving a blank terminal.
         const now = Date.now();
-        const timeSinceActive = now - (entry._activatedAt || 0);
-        if (timeSinceActive > 300) {
+        const sizeChanged = entry.term.cols !== (entry._lastCols || 0)
+                         || entry.term.rows !== (entry._lastRows || 0);
+        if ((now - (entry._activatedAt || 0) > 2500) && sizeChanged) {
           syncSize(sessionId, entry.term);
         }
-        entry._activatedAt = now;
-        entry._suppressResize = false;
         entry.term.focus();
+        // Only re-enable ResizeObserver if we are outside activate()'s 2500ms protect
+        // window. If show() is called during that window (e.g. immediately after session
+        // creation via switchTo), letting the 250ms timer fire here would prematurely
+        // end the 2500ms suppression and allow layout-shift ResizeObserver events to
+        // fire SIGWINCHes while Gemini is still drawing — blanking the screen.
+        // activate()'s own 2500ms timer is the sole owner of re-enabling in that case.
+        setTimeout(() => {
+          if (entry && Date.now() > ((entry._activatedAt || 0) + 2500)) {
+            entry._suppressResize = false;
+          }
+        }, 250);
       }, 100);
     }
   }
