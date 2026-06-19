@@ -294,6 +294,19 @@ def main():
         print(json.dumps(make_deny("DTCP hook: failed to parse hook input")))
         sys.exit(0)
 
+    # Debug logging
+    try:
+        with open("/tmp/gemini_hook.log", "a") as f:
+            import datetime
+            f.write(f"[{datetime.datetime.now()}] --- HOOK TRIGGERED ---\n")
+            f.write(f"CWD: {os.getcwd()}\n")
+            f.write(f"ENV ADT_SPEC_ID: {os.environ.get('ADT_SPEC_ID')}\n")
+            f.write(f"ENV ADT_PROJECT_DIR: {os.environ.get('ADT_PROJECT_DIR')}\n")
+            f.write(f"hook_input keys: {list(hook_input.keys())}\n")
+            f.write(f"hook_input cwd: {hook_input.get('cwd')}\n")
+    except Exception as e:
+        pass
+
     tool_name = hook_input.get("tool_name", "")
 
     # Intercept write tools OR read tools (if sandboxed) OR shell (if sandboxed)
@@ -308,8 +321,7 @@ def main():
     tool_input = hook_input.get("tool_input", {})
 
     # Configuration from environment
-    project_dir = os.environ.get("GEMINI_PROJECT_DIR",
-                                 hook_input.get("cwd", os.getcwd()))
+    project_dir = os.environ.get("GEMINI_PROJECT_DIR") or os.environ.get("ADT_PROJECT_DIR") or os.environ.get("ADT_FRAMEWORK_ROOT") or hook_input.get("cwd", os.getcwd())
     dtcp_url = os.environ.get("DTCP_URL", read_project_dtcp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "GEMINI")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
