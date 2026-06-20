@@ -50,6 +50,8 @@
 
     <!-- Center: Terminal Area -->
     <main id="terminal-area">
+      <!-- SPEC-052: Shared objective header — updated by SpecProgress.updateTerminalHeader() -->
+      <div id="terminal-objective-header" class="terminal-objective-header" style="display:none"></div>
       <div id="terminal-container">
         <!-- xterm.js instances injected here -->
       </div>
@@ -253,6 +255,7 @@
               <select id="spawn-harness" class="form-select form-select-sm mb-1" style="font-size:10px;">
                 <option value="claude">claude</option>
                 <option value="gemini">gemini</option>
+                <option value="agy">agy (Antigravity)</option>
               </select>
               <input id="spawn-task-id" type="text" class="form-control form-control-sm mb-1" placeholder="task_id" style="font-size:10px;">
               <input id="spawn-spec" type="text" class="form-control form-control-sm mb-1" value="SPEC-042" style="font-size:10px;">
@@ -384,6 +387,7 @@
         Agent
         <select id="input-agent" autofocus>
           <option value="claude" data-command="claude" data-color="#6B7FD7">Claude Code</option>
+          <option value="agy" data-command="agy" data-color="#FF6B35">Antigravity (agy)</option>
           <option value="gemini" data-command="gemini" data-color="#4CAF50">Gemini CLI</option>
           <option value="shell" data-command="/bin/bash" data-color="#8b949e">System Shell (Bash)</option>
           <option value="custom">Custom...</option>
@@ -422,7 +426,13 @@
           <input type="checkbox" id="input-yolo"> YOLO mode
         </label>
         <label id="flag-skip-permissions" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
-          <input type="checkbox" id="input-skip-permissions"> Skip permissions
+          <input type="checkbox" id="input-skip-permissions" checked> Skip permissions
+        </label>
+        <label id="flag-agy-model" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; margin-top: 6px;">
+          <span style="white-space:nowrap;">Model</span>
+          <select id="input-agy-model" style="flex:1; font-size:0.9em;" data-placeholder="Loading...">
+            <option value="">Loading models...</option>
+          </select>
         </label>
       </div>
       <div class="dialog-actions">

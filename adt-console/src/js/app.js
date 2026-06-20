@@ -515,12 +515,54 @@ const GitStatusManager = (() => {
     }
   }
 
+  async function fetchAgyModels() {
+    if (window._agyModelsCache) {
+      return window._agyModelsCache;
+    }
+    try {
+      const models = await window.__TAURI__.core.invoke('list_agy_models');
+      if (Array.isArray(models) && models.length > 0) {
+        window._agyModelsCache = models;
+        return models;
+      }
+    } catch (err) {
+      console.error('Failed to fetch agy models:', err);
+    }
+    const fallback = [
+      'Claude Sonnet 4.6 (Thinking)',
+      'Claude Opus 4.6 (Thinking)',
+      'Gemini 3.5 Flash (High)',
+      'Gemini 3.1 Pro (High)',
+      'GPT-OSS 120B (Medium)'
+    ];
+    return fallback;
+  }
+
+  async function populateAgyModels() {
+    const selectEl = document.getElementById('input-agy-model');
+    if (!selectEl) return;
+    
+    selectEl.innerHTML = '<option value="">Loading models...</option>';
+    
+    const models = await fetchAgyModels();
+    selectEl.innerHTML = '';
+    models.forEach(model => {
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      selectEl.appendChild(opt);
+    });
+  }
+
   function openNewSessionDialog() {
     loadProjects().then(() => {
       loadRoles().then(() => loadSpecs());
     });
     dialog.showModal();
     setTimeout(() => agentSelect.focus(), 50);
+    if (agentSelect.value === 'agy') {
+      populateAgyModels();
+    }
   }
 
   document.getElementById('btn-new-session').addEventListener('click', openNewSessionDialog);
@@ -616,8 +658,19 @@ const GitStatusManager = (() => {
         flagsDiv.style.display = 'block';
         yoloFlag.style.display = 'none';
         skipFlag.style.display = 'flex';
+      } else if (agent === 'agy') {
+        // SPEC-061 Amendment A: Antigravity harness flags
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'none';
+        skipFlag.style.display = 'flex'; // --dangerously-skip-permissions required for console ops
+        // Show model selector if present
+        const modelRow = document.getElementById('flag-agy-model');
+        if (modelRow) modelRow.style.display = 'flex';
+        populateAgyModels();
       } else {
         flagsDiv.style.display = 'none';
+        const modelRow = document.getElementById('flag-agy-model');
+        if (modelRow) modelRow.style.display = 'none';
       }
     }
   });
@@ -641,7 +694,8 @@ const GitStatusManager = (() => {
     // SPEC-034: Agent flags
     const flags = {
       yolo: document.getElementById('input-yolo')?.checked || false,
-      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false
+      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false,
+      model: agent === 'agy' ? (document.getElementById('input-agy-model')?.value || null) : null,
     };
 
     dialog.close();

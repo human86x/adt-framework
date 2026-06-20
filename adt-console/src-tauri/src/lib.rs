@@ -80,6 +80,7 @@ pub fn run() {
             ipc::get_production_mode,
             ipc::enable_production_mode,
             ipc::disable_production_mode,
+            ipc::list_agy_models,
         ])
         .run(tauri::generate_context!())
         .expect("error running ADT Console");

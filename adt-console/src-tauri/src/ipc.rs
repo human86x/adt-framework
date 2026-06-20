@@ -5,6 +5,7 @@
 use crate::pty::{self, PtyManager, SessionInfo};
 use crate::tray::{self, TrayStatus};
 use serde::Deserialize;
+use std::sync::Arc;
 
 use tauri::{Runtime, State};
 use tauri_plugin_notification::NotificationExt;
@@ -22,6 +23,15 @@ pub struct CreateSessionRequest {
     pub task_id: Option<String>,
     #[serde(rename = "reservedSessionId")]
     pub reserved_session_id: Option<String>,
+    #[serde(default)]
+    pub build_id: Option<String>,
+    #[serde(default)]
+    pub adt_mode: Option<String>,
+    #[serde(default)]
+    pub adt_task_ids: Option<String>,
+    pub context_hint: Option<String>,
+    #[serde(default)]
+    pub skip_permissions: bool,
     pub cols: u16,
     pub rows: u16,
 }
@@ -79,7 +89,7 @@ pub struct ProjectNameRequest {
 #[tauri::command]
 pub fn create_session<R: Runtime>(
     request: CreateSessionRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
     app_handle: tauri::AppHandle<R>,
 ) -> Result<SessionInfo, String> {
     let project_name = request.project.as_deref().unwrap_or("adt-framework");
@@ -98,6 +108,11 @@ pub fn create_session<R: Runtime>(
         request.cwd,
         request.parent_session_id,
         request.task_id,
+        request.build_id,
+        request.adt_mode,
+        request.adt_task_ids,
+        request.context_hint,
+        request.skip_permissions,
         request.cols,
         request.rows,
         app_handle,
@@ -107,21 +122,21 @@ pub fn create_session<R: Runtime>(
 #[tauri::command]
 pub fn spawn_child_session<R: Runtime>(
     request: CreateSessionRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
     app_handle: tauri::AppHandle<R>,
 ) -> Result<SessionInfo, String> {
     log::info!(
         "[SWARM] Spawning child session: agent={}, role={}, parent={:?}",
         request.agent, request.role, request.parent_session_id
     );
-    
+
     // For child sessions, we enforce the parent_session_id exists
     if request.parent_session_id.is_none() {
         return Err("parent_session_id required for child spawning".to_string());
     }
 
     let project_name = request.project.as_deref().unwrap_or("adt-framework");
-    
+
     pty_manager.create_session(
         request.reserved_session_id,
         project_name,
@@ -133,6 +148,56 @@ pub fn spawn_child_session<R: Runtime>(
         request.cwd,
         request.parent_session_id,
         request.task_id,
+        request.build_id,
+        request.adt_mode,
+        request.adt_task_ids,
+        request.context_hint,
+        request.skip_permissions,
+        request.cols,
+        request.rows,
+        app_handle,
+    )
+}
+
+/// SPEC-055 task_325: Spawn an orchestrator SA session for the Build workflow.
+/// Variant of spawn_child_session that requires build_id and defaults ADT_MODE=orchestrator.
+#[tauri::command]
+pub fn spawn_orchestrator_session<R: Runtime>(
+    request: CreateSessionRequest,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app_handle: tauri::AppHandle<R>,
+) -> Result<SessionInfo, String> {
+    log::info!(
+        "[ORCHESTRATOR] Spawning orchestrator session: agent={}, role={}, build_id={:?}, parent={:?}",
+        request.agent, request.role, request.build_id, request.parent_session_id
+    );
+
+    if request.parent_session_id.is_none() {
+        return Err("parent_session_id required for orchestrator session".to_string());
+    }
+    if request.build_id.is_none() {
+        return Err("build_id required for orchestrator session".to_string());
+    }
+
+    let project_name = request.project.as_deref().unwrap_or("adt-framework");
+    let adt_mode = Some(request.adt_mode.unwrap_or_else(|| "orchestrator".to_string()));
+
+    pty_manager.create_session(
+        request.reserved_session_id,
+        project_name,
+        &request.agent,
+        &request.role,
+        &request.spec_id,
+        &request.command,
+        &request.args,
+        request.cwd,
+        request.parent_session_id,
+        request.task_id,
+        request.build_id,
+        Some("orchestrator".to_string()), // Forced mode
+        request.adt_task_ids,
+        request.context_hint,
+        request.skip_permissions,
         request.cols,
         request.rows,
         app_handle,
@@ -142,16 +207,15 @@ pub fn spawn_child_session<R: Runtime>(
 #[tauri::command]
 pub fn close_session(
     request: SessionIdRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
-    log::info!("[IPC RECV] close_session: id={}", request.session_id);
     pty_manager.close_session(&request.session_id)
 }
 
 #[tauri::command]
 pub fn write_to_session(
     request: WriteRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     log::debug!(
         "[IPC RECV] write_to_session: id={}, data_len={}",
@@ -163,7 +227,7 @@ pub fn write_to_session(
 #[tauri::command]
 pub fn inject_pty_command(
     request: WriteRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     log::info!(
         "[IPC RECV] inject_pty_command: id={}, cmd={}",
@@ -175,7 +239,7 @@ pub fn inject_pty_command(
 #[tauri::command]
 pub fn resize_session(
     request: ResizeRequest,
-    pty_manager: State<PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     log::info!(
         "[IPC RECV] resize_session: id={}, cols={}, rows={}",
@@ -185,7 +249,17 @@ pub fn resize_session(
 }
 
 #[tauri::command]
-pub fn list_sessions(pty_manager: State<PtyManager>) -> Vec<SessionInfo> {
+pub fn replay_session_output<R: Runtime>(
+    request: SessionIdRequest,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app_handle: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    log::info!("[IPC RECV] replay_session_output: id={}", request.session_id);
+    pty_manager.replay_session_output(&request.session_id, app_handle)
+}
+
+#[tauri::command]
+pub fn list_sessions(pty_manager: State<'_, Arc<PtyManager>>) -> Vec<SessionInfo> {
     pty_manager.list_sessions()
 }
 
@@ -629,6 +703,105 @@ fn start_project_dtcp_inner(name: &str) -> Result<String, String> {
     Ok(stdout)
 }
 
+#[tauri::command]
+pub fn list_agy_models() -> Vec<String> {
+    use std::sync::OnceLock;
+    use std::process::Command;
+    use std::time::Duration;
+    use std::thread;
+
+    static CACHED_MODELS: OnceLock<Vec<String>> = OnceLock::new();
+
+    CACHED_MODELS.get_or_init(|| {
+        log::info!("Fetching available agy models...");
+        let fallback = vec![
+            "Claude Sonnet 4.6 (Thinking)".to_string(),
+            "Claude Opus 4.6 (Thinking)".to_string(),
+            "Gemini 3.5 Flash (High)".to_string(),
+            "Gemini 3.1 Pro (High)".to_string(),
+            "GPT-OSS 120B (Medium)".to_string(),
+        ];
+
+        let agy_bin = std::env::var("AGY_EXECPATH").unwrap_or_else(|_| {
+            if std::path::Path::new("/home/human/.local/bin/agy").exists() {
+                "/home/human/.local/bin/agy".to_string()
+            } else {
+                "agy".to_string()
+            }
+        });
+
+        let mut child = match Command::new(&agy_bin)
+            .arg("models")
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn() 
+        {
+            Ok(c) => c,
+            Err(e) => {
+                log::error!("Failed to spawn agy models: {}", e);
+                return fallback;
+            }
+        };
+
+        let child_stdout = child.stdout.take();
+        let reader_thread = thread::spawn(move || {
+            if let Some(stdout) = child_stdout {
+                use std::io::Read;
+                let mut buf = String::new();
+                let mut reader = std::io::BufReader::new(stdout);
+                if reader.read_to_string(&mut buf).is_ok() {
+                    return Some(buf);
+                }
+            }
+            None
+        });
+
+        let (tx_status, rx_status) = std::sync::mpsc::channel();
+        thread::spawn(move || {
+            let res = child.wait();
+            let _ = tx_status.send(res);
+        });
+
+        let timeout = Duration::from_secs(10);
+        let status = rx_status.recv_timeout(timeout);
+
+        match status {
+            Ok(Ok(exit_status)) if exit_status.success() => {
+                if let Ok(Some(stdout_str)) = reader_thread.join() {
+                    let mut models = Vec::new();
+                    for line in stdout_str.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() 
+                            && !trimmed.contains("Fetching available models")
+                            && !trimmed.contains("⠋")
+                            && !trimmed.contains("⠙")
+                            && !trimmed.contains("⠹")
+                            && !trimmed.contains("⠸")
+                            && !trimmed.contains("⠼")
+                            && !trimmed.contains("⠴")
+                            && !trimmed.contains("⠦")
+                            && !trimmed.contains("⠧")
+                            && !trimmed.contains("⠇")
+                            && !trimmed.contains("⠏")
+                            && !trimmed.contains("Error")
+                        {
+                            models.push(trimmed.to_string());
+                        }
+                    }
+                    if !models.is_empty() {
+                        return models;
+                    }
+                }
+            }
+            _ => {
+                log::warn!("agy models command timed out, failed, or returned error. Using fallback.");
+            }
+        }
+        
+        fallback
+    }).clone()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -639,9 +812,9 @@ mod tests {
     #[test]
     fn test_list_sessions_empty() {
         let app = mock_builder().build(mock_context(noop_assets())).unwrap();
-        let pty_manager = PtyManager::new();
+        let pty_manager = Arc::new(PtyManager::new());
         app.manage(pty_manager);
-        let state = app.state::<PtyManager>();
+        let state = app.state::<Arc<PtyManager>>();
         let sessions = list_sessions(state);
         assert_eq!(sessions.len(), 0);
     }

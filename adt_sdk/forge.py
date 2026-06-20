@@ -194,7 +194,7 @@ class ForgeOrchestrator:
             for t in tasks:
                 caop_tid = self.orchestrator.create_task(
                     worker_role=t["assigned_to"],
-                    worker_agent=os.environ.get("FORGE_DEFAULT_AGENT", "gemini"),
+                    worker_agent=os.environ.get("FORGE_DEFAULT_AGENT", "antigravity"),
                     title=t["title"],
                     instructions=f"Implement {t['title']} as defined in SPEC-001 for {self.project_name}."
                 )

@@ -110,6 +110,170 @@ class CrossAIOrchestrator(ADTClient):
                 
             time.sleep(poll_interval)
 
+    def write_to_worker(self, worker_session_id: str, content: str) -> Dict[str, Any]:
+        """SPEC-053: Send text/commands to a worker's PTY."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/sessions/{worker_session_id}/write"
+        payload = {
+            "agent": self.agent_name,
+            "role": self.role,
+            "session_id": self.session_id,
+            "spec_id": "SPEC-053",
+            "content": content
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
+    def read_worker_output(self, worker_session_id: str, limit: int = 1000) -> Dict[str, Any]:
+        """SPEC-053: Read current buffer from a worker's PTY."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/sessions/{worker_session_id}/output?limit={limit}"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
+    def tail_worker_output(self, worker_session_id: str):
+        """SPEC-053: Stream output from a worker's PTY (SSE)."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/sessions/{worker_session_id}/stream"
+        resp = requests.get(url, stream=True, timeout=None)
+        resp.raise_for_status()
+        for line in resp.iter_lines():
+            if line:
+                decoded = line.decode('utf-8')
+                if decoded.startswith("data: "):
+                    try:
+                        yield json.loads(decoded[6:])
+                    except:
+                        yield decoded[6:]
+
+    def steer(self, worker_session_id: str, instruction: str) -> Dict[str, Any]:
+        """SPEC-053: Higher-level steering: write an instruction and log it."""
+        self.log_event({
+            "agent": self.agent_name,
+            "role": self.role,
+            "action_type": "human_steering",
+            "description": f"Steering worker {worker_session_id}: {instruction}",
+            "spec_ref": "SPEC-053",
+            "session_id": self.session_id,
+            "action_data": {
+                "target_session_id": worker_session_id,
+                "instruction": instruction
+            }
+        })
+        return self.write_to_worker(worker_session_id, f"\n*** STEERING: {instruction} ***\n")
+
+    def send_message(self, 
+                     to_session: str, 
+                     body: str, 
+                     context: Optional[Dict[str, Any]] = None,
+                     priority: str = "normal",
+                     reply_to: Optional[str] = None) -> str:
+        """SPEC-057: Send a structured message to another agent mailbox."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/comms/send"
+        payload = {
+            "from_session": self.session_id,
+            "from_agent": self.agent_name,
+            "from_role": self.role,
+            "to_session": to_session,
+            "body": body,
+            "context": context or {},
+            "priority": priority,
+            "reply_to": reply_to,
+            "spec_ref": os.environ.get("ADT_SPEC_ID", "SPEC-057")
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        msg_id = resp.json()["id"]
+        
+        self.log_event({
+            "agent": self.agent_name,
+            "role": self.role,
+            "action_type": "agent_message_sent",
+            "description": f"Sent {priority} message {msg_id} to session {to_session}",
+            "spec_ref": "SPEC-057",
+            "session_id": self.session_id,
+            "action_data": {
+                "msg_id": msg_id,
+                "to_session": to_session,
+                "priority": priority
+            }
+        })
+        return msg_id
+
+    def broadcast(self, body: str, context: Optional[Dict[str, Any]] = None, priority: str = "normal") -> str:
+        """SPEC-057: Broadcast a message to all active agents in the swarm."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/comms/broadcast"
+        payload = {
+            "from_session": self.session_id,
+            "from_agent": self.agent_name,
+            "from_role": self.role,
+            "body": body,
+            "context": context or {},
+            "priority": priority,
+            "spec_ref": os.environ.get("ADT_SPEC_ID", "SPEC-057")
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        batch_id = resp.json()["batch_id"]
+        
+        self.log_event({
+            "agent": self.agent_name,
+            "role": self.role,
+            "action_type": "agent_broadcast_sent",
+            "description": f"Sent broadcast batch {batch_id} to swarm",
+            "spec_ref": "SPEC-057",
+            "session_id": self.session_id,
+            "action_data": {
+                "batch_id": batch_id,
+                "priority": priority
+            }
+        })
+        return batch_id
+
+    def read_replies(self, msg_id: str) -> List[Dict[str, Any]]:
+        """SPEC-057: Read all replies to a specific message."""
+        inbox_path = f"_cortex/comms/agents/{self.session_id}/inbox"
+        replies = []
+        if os.path.exists(inbox_path):
+            for f in os.listdir(inbox_path):
+                if f.endswith(".json"):
+                    try:
+                        with open(os.path.join(inbox_path, f), "r") as m:
+                            msg = json.load(m)
+                            if msg.get("reply_to") == msg_id:
+                                replies.append(msg)
+                    except:
+                        pass
+        return replies
+
+    def wait_for_reply(self, msg_id: str, timeout: int = 60, poll_interval: int = 2) -> Optional[Dict[str, Any]]:
+        """SPEC-057: Block until a reply is received for a message."""
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            replies = self.read_replies(msg_id)
+            if replies:
+                return replies[0]
+            time.sleep(poll_interval)
+        return None
+
+    def report_ready(self, project: str) -> Dict[str, Any]:
+        """SPEC-043: Signal build completion to the console."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/forge/report_ready"
+        payload = {
+            "project": project,
+            "agent": self.agent_name,
+            "role": self.role,
+            "session_id": self.session_id
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
 class CrossAIWorker(ADTClient):
     """Worker side of the Cross-AI Orchestration Protocol (CAOP)."""
 
@@ -122,7 +286,7 @@ class CrossAIWorker(ADTClient):
     def from_env(cls):
         """Bootstrap worker from environment variables."""
         worker = cls(
-            agent_name=os.environ.get("ADT_AGENT", "gemini"),
+            agent_name=os.environ.get("ADT_AGENT", "antigravity"),
             role=os.environ.get("ADT_ROLE", "backend_engineer"),
             session_id=os.environ.get("ADT_SESSION_ID")
         )
@@ -200,3 +364,50 @@ class CrossAIWorker(ADTClient):
                 "reason": reason
             }
         })
+
+    def reply(self, original_msg: Dict[str, Any], body: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """SPEC-057: Reply to a received message."""
+        panel_url = self._get_panel_url()
+        url = f"{panel_url}/api/governance/comms/send"
+        payload = {
+            "from_session": self.session_id,
+            "from_agent": self.agent_name,
+            "from_role": self.role,
+            "to_session": original_msg["from_session"],
+            "body": body,
+            "context": context or {},
+            "priority": original_msg.get("priority", "normal"),
+            "reply_to": original_msg["id"],
+            "spec_ref": original_msg.get("spec_ref", "SPEC-057")
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        msg_id = resp.json()["id"]
+        
+        self.log_event({
+            "agent": self.agent_name,
+            "role": self.role,
+            "action_type": "agent_reply_sent",
+            "description": f"Replied to message {original_msg[id]} with {msg_id}",
+            "spec_ref": "SPEC-057",
+            "session_id": self.session_id,
+            "action_data": {
+                "reply_msg_id": msg_id,
+                "original_msg_id": original_msg["id"]
+            }
+        })
+        return msg_id
+
+    def read_inbox(self) -> List[Dict[str, Any]]:
+        """SPEC-057: Read all messages in the agent inbox."""
+        inbox_path = f"_cortex/comms/agents/{self.session_id}/inbox"
+        messages = []
+        if os.path.exists(inbox_path):
+            for f in os.listdir(inbox_path):
+                if f.endswith(".json"):
+                    try:
+                        with open(os.path.join(inbox_path, f), "r") as m:
+                            messages.append(json.load(m))
+                    except:
+                        pass
+        return sorted(messages, key=lambda x: x.get("ts", ""))
