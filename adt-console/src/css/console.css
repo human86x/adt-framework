@@ -338,12 +338,15 @@ body {
 #terminal-area.forge-split-mode #spec-map-view {
   display: flex !important;
   flex: 0 0 60% !important;
-  height: auto !important;
+  max-height: 60% !important;
+  height: 60% !important;
   min-height: 0;
   overflow: hidden;
 }
 #terminal-area.forge-split-mode #terminal-container {
-  flex: 0 0 39.6%;
+  display: flex !important;
+  flex: 0 0 calc(40% - 4px) !important;
+  max-height: calc(40% - 4px) !important;
   min-height: 0;
   overflow: hidden;
 }

@@ -495,9 +495,9 @@ def api_forge_status(forge_session_id):
     log_path = os.path.join(os.path.join(res["paths"]["root"], "_cortex", "ops"), "forge_worker.log")
     if os.path.exists(log_path):
         try:
-            with open(log_path, "r") as f:
+            with open(log_path, "r", errors="replace") as f:
                 lines = f.readlines()
-                log_tail = [l.strip() for l in lines[-20:]]
+                log_tail = [l.rstrip() for l in lines[-50:]]
         except Exception:
             pass
             
@@ -3631,43 +3631,49 @@ def api_decompose_spec(spec_id):
 @governance_bp.route("/decompose/workers", methods=["GET"])
 def api_decompose_workers():
     """List all spawned decompose workers with live status + log tail."""
-    import os, subprocess
+    import os, glob as _glob
+    import json as _json
+    project_name = request.args.get("project") or "adt-framework"
+
+    def _read_log_tail(log_path, n=15):
+        if not log_path or not os.path.exists(log_path):
+            return []
+        try:
+            with open(log_path, "r", errors="replace") as f:
+                lines = f.readlines()
+                return [l.rstrip() for l in lines[-n:]]
+        except Exception:
+            return []
+
+    def _count_spec_tasks(spec_id):
+        if not spec_id:
+            return 0
+        try:
+            res2 = _get_project_resources(project_name)
+            tasks_path = os.path.join(res2["paths"]["root"], "_cortex", "tasks.json")
+            if os.path.exists(tasks_path):
+                td = _json.load(open(tasks_path))
+                tlist = td if isinstance(td, list) else td.get("tasks", [])
+                return sum(1 for t in tlist if (t.get("spec_ref") == spec_id or t.get("spec_id") == spec_id))
+        except Exception:
+            pass
+        return 0
+
     result = []
     for tid, manifest in CAOP_TASKS.items():
         pid = manifest.get("worker_pid")
         if not pid:
             continue
-        # Check if process is alive
         alive = False
         try:
             os.kill(int(pid), 0)
             alive = True
         except (OSError, ProcessLookupError, ValueError):
             alive = False
-        # Tail the log
         log_path = manifest.get("worker_log", "")
-        log_tail = []
-        if log_path and os.path.exists(log_path):
-            try:
-                with open(log_path, "r", errors="replace") as f:
-                    lines = f.readlines()
-                    log_tail = [l.rstrip() for l in lines[-15:]]
-            except Exception:
-                pass
-        # Count tasks created for this spec since worker started
+        log_tail = _read_log_tail(log_path)
         spec_id = manifest.get("spec_ref") or manifest.get("context", {}).get("spec_id")
-        task_count = 0
-        try:
-            import json as _json
-            project_name = request.args.get("project") or "adt-framework"
-            res2 = _get_project_resources(project_name)
-            tasks_path = os.path.join(res2["paths"]["root"], "_cortex", "tasks.json")
-            if os.path.exists(tasks_path):
-                td = _json.load(open(tasks_path))
-                tlist = td if isinstance(td, list) else td.get("tasks", [])
-                task_count = sum(1 for t in tlist if (t.get("spec_ref") == spec_id or t.get("spec_id") == spec_id))
-        except Exception:
-            pass
+        task_count = _count_spec_tasks(spec_id)
         result.append({
             "task_id": tid,
             "pid": pid,
@@ -3680,7 +3686,52 @@ def api_decompose_workers():
             "log_tail": log_tail,
             "tasks_created_so_far": task_count,
             "status": "running" if alive else ("complete" if task_count > 0 else "exited"),
+            "source": "memory",
         })
+
+    # Disk fallback: scan ops dir for decompose_worker_*.log files not already in result
+    if not result:
+        try:
+            res2 = _get_project_resources(project_name)
+            ops_dir = os.path.join(res2["paths"]["root"], "_cortex", "ops")
+            log_files = sorted(_glob.glob(os.path.join(ops_dir, "decompose_worker_caop_task_*.log")), reverse=True)
+            seen_tasks = {r["task_id"] for r in result}
+            for lf in log_files[:5]:
+                fname = os.path.basename(lf)
+                # Extract task_id: decompose_worker_<task_id>.log
+                tid_disk = fname.replace("decompose_worker_", "").replace(".log", "")
+                if tid_disk in seen_tasks:
+                    continue
+                log_tail = _read_log_tail(lf)
+                # Try to extract spec_id from first few lines
+                spec_id = None
+                for ln in (log_tail[:5] if log_tail else []):
+                    if "SPEC-" in ln:
+                        import re as _re
+                        m = _re.search(r"(SPEC-\d+(?:-[A-Z0-9]+)?)", ln)
+                        if m:
+                            spec_id = m.group(1)
+                            break
+                task_count = _count_spec_tasks(spec_id)
+                mtime = os.path.getmtime(lf)
+                result.append({
+                    "task_id": tid_disk,
+                    "pid": None,
+                    "alive": False,
+                    "spec_id": spec_id,
+                    "title": f"Decompose {spec_id or tid_disk}",
+                    "worker_role": "Systems_Architect",
+                    "worker_agent": "antigravity",
+                    "log_path": lf,
+                    "log_tail": log_tail,
+                    "tasks_created_so_far": task_count,
+                    "status": "complete" if task_count > 0 else "exited",
+                    "source": "disk",
+                    "mtime": mtime,
+                })
+        except Exception:
+            pass
+
     # Sort newest first by task_id (which embeds timestamp)
     result.sort(key=lambda x: x["task_id"], reverse=True)
     return jsonify({"workers": result, "count": len(result)})

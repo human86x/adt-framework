@@ -870,12 +870,12 @@ const ProjectLauncher = (() => {
 
         if (_isComplete) {
           clearInterval(forgePollInterval);
-          showForgeComplete(data.specs_created || []);
+          showForgeComplete(data.specs_created || [], data.log_tail);
         } else if (_isFailed || (_hasSpecs && !_isComplete && data.log_tail && data.log_tail.join("\n").includes("worker died"))) {
           // Disk-evidence override: worker died but 2+ specs on disk => transition anyway
           clearInterval(forgePollInterval);
           if (_hasSpecs) {
-            showForgeComplete(data.specs_created);
+            showForgeComplete(data.specs_created, data.log_tail);
           } else {
             showForgeFailed(data.log_tail || ["Worker died before producing specs"]);
           }
@@ -885,7 +885,7 @@ const ProjectLauncher = (() => {
           forgeData._sawSpecsAt = Date.now();
         } else if (forgeData._sawSpecsAt && Date.now() - forgeData._sawSpecsAt > 30000) {
           clearInterval(forgePollInterval);
-          showForgeComplete(data.specs_created);
+          showForgeComplete(data.specs_created, data.log_tail);
         }
       } catch (err) {
         console.warn("Error polling forge status:", err);
@@ -895,7 +895,7 @@ const ProjectLauncher = (() => {
     }, 2000);
   }
 
-  function showForgeComplete(specs) {
+  function showForgeComplete(specs, forgeLogLines) {
     // Filter out SPEC-001 (the vision spec); the child specs are what we decompose.
     const childSpecs = (specs || []).filter(s => s && s !== "SPEC-001" && !s.startsWith("SPEC-001_"));
 
@@ -907,23 +907,35 @@ const ProjectLauncher = (() => {
        </div>`
     ).join("");
 
+    const forgeLogHtml = Array.isArray(forgeLogLines) && forgeLogLines.length
+      ? forgeLogLines.join('\n').replace(/</g, '&lt;')
+      : '(no output captured)';
+
     showWizard(`
       <h2 style="color:#4CAF50;">Forge Complete</h2>
       <p class="wiz-subtitle">${childSpecs.length} child specs created. Auto-decomposing now — watch real-time below or jump to the spec map.</p>
 
-      <div id="forge-pipeline" style="margin-top:10px;max-height:140px;overflow-y:auto">${rowsHtml || '<div style="color:#8b949e;font-size:12px">No child specs to decompose.</div>'}</div>
+      <div id="forge-pipeline" style="margin-top:10px;max-height:120px;overflow-y:auto">${rowsHtml || '<div style="color:#8b949e;font-size:12px">No child specs to decompose.</div>'}</div>
 
-      <div style="margin-top:10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px">
+      <div style="margin-top:8px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+          <span>Forge Agent Log (last 20 lines)</span>
+          <span style="color:#4CAF50;font-size:10px">&#10003; done</span>
+        </div>
+        <pre id="forge-complete-log" style="margin:0;font-size:10px;color:#b1bac4;background:transparent;border:none;height:90px;overflow-y:auto;white-space:pre-wrap;word-break:break-word">${forgeLogHtml}</pre>
+      </div>
+
+      <div style="margin-top:8px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px">
         <div style="font-size:11px;color:#8b949e;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
           <span>Decompose Agent Log</span>
           <span id="decompose-active-spec" style="color:#58a6ff;font-size:10px"></span>
         </div>
-        <pre id="decompose-log-tail" style="margin:0;font-size:10.5px;color:#e6e6e6;background:transparent;border:none;height:150px;overflow-y:auto;white-space:pre-wrap;word-break:break-word">(waiting for worker to start...)</pre>
+        <pre id="decompose-log-tail" style="margin:0;font-size:10.5px;color:#e6e6e6;background:transparent;border:none;height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word">(waiting for worker to start...)</pre>
       </div>
 
       <div class="wizard-actions" style="margin-top:12px;">
         <button class="btn-prev" id="btn-forge-later">I'll open it later</button>
-        <button class="primary" id="btn-forge-start" style="font-size:14px;padding:10px 18px;background:#238636;border-color:#2ea043">▶ Start Building</button>
+        <button class="primary" id="btn-forge-start" style="font-size:14px;padding:10px 18px;background:#238636;border-color:#2ea043">&#9654; Start Building</button>
       </div>
     `);
 

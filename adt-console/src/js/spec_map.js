@@ -2415,7 +2415,11 @@ window.SpecMap.LivePoll = (function() {
       );
     }
 
-    (status.decompose_workers || []).forEach(w => {
+    // Show at most 1 decompose card: prefer alive workers; skip exited workers that already created tasks (done = no longer relevant)
+    const visibleWorkers = (status.decompose_workers || [])
+      .filter(w => w.alive || w.tasks_created_so_far === 0)
+      .slice(0, 1);
+    visibleWorkers.forEach(w => {
       const pill = w.alive ? 'live-decompose' : 'live-decompose-dead';
       const stateText = w.alive ? 'agy alive' : 'agy exited';
       const last = (w.log_tail && w.log_tail.length) ? w.log_tail[w.log_tail.length - 1] : '';
