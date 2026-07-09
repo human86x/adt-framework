@@ -89,12 +89,12 @@ const TerminalManager = (() => {
     });
 
     // Create entry before ResizeObserver so the closure can reference _suppressResize.
-    // _suppressResize is set true for 2500ms to protect Gemini's initial TUI draw
+    // _suppressResize is set true for 8s to protect Gemini's initial TUI draw
     // from spurious ResizeObserver-triggered SIGWINCHes (same as activate() path).
     const entry = { term, fitAddon, wrapper, resizeObserver: null,
                     _suppressResize: true, _activatedAt: Date.now() };
     terminals.set(sessionId, entry);
-    setTimeout(() => { entry._suppressResize = false; }, 2500);
+    setTimeout(() => { entry._suppressResize = false; }, 8000);
 
     // Handle resize -> notify PTY (debounced, guarded against the initial suppress window)
     let resizeTimer = null;
@@ -115,6 +115,7 @@ const TerminalManager = (() => {
     if (window.__TAURI__) {
       await window.__TAURI__.event.listen(`pty-output-${sessionId}`, (event) => {
         term.write(event.payload);
+        term.scrollToBottom();
       });
 
       await window.__TAURI__.event.listen(`pty-closed-${sessionId}`, () => {
@@ -173,24 +174,24 @@ const TerminalManager = (() => {
       setTimeout(() => {
         entry.fitAddon.fit();
         // Only send SIGWINCH if the size genuinely changed AND we are outside the
-        // activate() suppress window (2500ms). Within that window activate() already
+        // activate() suppress window (8s). Within that window activate() already
         // sent the correct size and Gemini is still mid-draw — a second SIGWINCH here
         // clears the screen before the first draw completes, leaving a blank terminal.
         const now = Date.now();
         const sizeChanged = entry.term.cols !== (entry._lastCols || 0)
                          || entry.term.rows !== (entry._lastRows || 0);
-        if ((now - (entry._activatedAt || 0) > 2500) && sizeChanged) {
+        if ((now - (entry._activatedAt || 0) > 8000) && sizeChanged) {
           syncSize(sessionId, entry.term);
         }
         entry.term.focus();
-        // Only re-enable ResizeObserver if we are outside activate()'s 2500ms protect
+        // Only re-enable ResizeObserver if we are outside activate()'s 8s protect
         // window. If show() is called during that window (e.g. immediately after session
         // creation via switchTo), letting the 250ms timer fire here would prematurely
-        // end the 2500ms suppression and allow layout-shift ResizeObserver events to
-        // fire SIGWINCHes while Gemini is still drawing — blanking the screen.
-        // activate()'s own 2500ms timer is the sole owner of re-enabling in that case.
+        // end the suppression and allow layout-shift ResizeObserver events to fire
+        // SIGWINCHes while Gemini is still drawing — blanking the screen.
+        // activate()'s own 8s timer is the sole owner of re-enabling in that case.
         setTimeout(() => {
-          if (entry && Date.now() > ((entry._activatedAt || 0) + 2500)) {
+          if (entry && Date.now() > ((entry._activatedAt || 0) + 8000)) {
             entry._suppressResize = false;
           }
         }, 250);
@@ -245,6 +246,27 @@ const TerminalManager = (() => {
     const wrapper = document.createElement('div');
     wrapper.id = `terminal-${sessionId}`;
     wrapper.className = 'terminal-wrapper';
+    wrapper.style.position = 'relative';
+
+    // Startup status overlay — shown until first PTY bytes arrive, giving the
+    // user real-time feedback during Gemini's OAuth + relaunch startup sequence.
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position:absolute', 'inset:0', 'display:flex', 'flex-direction:column',
+      'align-items:center', 'justify-content:center', 'z-index:10',
+      'background:rgba(13,17,23,0.93)', 'pointer-events:none',
+      'transition:opacity 0.4s', 'font-family:monospace',
+    ].join(';');
+    overlay.innerHTML = `
+      <div style="color:#6e7681;font-size:13px;margin-bottom:6px" class="adt-startup-phase">Spawning process...</div>
+      <div style="color:#484f58;font-size:11px" class="adt-startup-timer">0.0s</div>
+    `;
+    wrapper.appendChild(overlay);
+    const overlayStart = Date.now();
+    const overlayTimer = setInterval(() => {
+      const el = overlay.querySelector('.adt-startup-timer');
+      if (el) el.textContent = `${((Date.now() - overlayStart) / 1000).toFixed(1)}s`;
+    }, 100);
 
     // Create the entry first so the listener closures can reference it.
     // _opened tracks whether term.open() has been called.
@@ -253,23 +275,49 @@ const TerminalManager = (() => {
     // is rendered until open() fires. For TUI agents (Gemini) the startup
     // sequence clears the screen; by the time open() renders the final state
     // the screen looks blank. We buffer here and flush immediately after open().
-    const entry = { term, fitAddon, wrapper, resizeObserver: null, _prepared: true, _opened: false, _pending: [] };
+    const entry = {
+      term, fitAddon, wrapper, resizeObserver: null,
+      _prepared: true, _opened: false, _pending: [],
+      _startupOverlay: overlay, _startupOverlayTimer: overlayTimer,
+    };
     terminals.set(sessionId, entry);
 
     if (window.__TAURI__) {
       await window.__TAURI__.event.listen(`pty-output-${sessionId}`, (event) => {
+        // Dismiss startup overlay on first real PTY bytes
+        if (entry._startupOverlay) {
+          clearInterval(entry._startupOverlayTimer);
+          entry._startupOverlay.style.opacity = '0';
+          setTimeout(() => {
+            if (entry._startupOverlay) { entry._startupOverlay.remove(); entry._startupOverlay = null; }
+          }, 400);
+        }
         if (entry._opened) {
           entry.term.write(event.payload);
+          entry.term.scrollToBottom();
         } else {
           entry._pending.push(event.payload);
         }
       });
       await window.__TAURI__.event.listen(`pty-closed-${sessionId}`, () => {
+        if (entry._startupOverlay) {
+          clearInterval(entry._startupOverlayTimer);
+          entry._startupOverlay.remove();
+          entry._startupOverlay = null;
+        }
         entry.term.write('\r\n\x1b[90m[Session ended]\x1b[0m\r\n');
       });
     }
 
     return term;
+  }
+
+  function setStartupPhase(sessionId, phase) {
+    const entry = terminals.get(sessionId);
+    if (entry && entry._startupOverlay) {
+      const el = entry._startupOverlay.querySelector('.adt-startup-phase');
+      if (el) el.textContent = phase;
+    }
   }
 
   // Mount a previously prepare()d terminal to the DOM and open it.
@@ -292,6 +340,7 @@ const TerminalManager = (() => {
       if (window.__TAURI__) {
         await window.__TAURI__.event.listen(`pty-output-${sessionId}`, (event) => {
           entry.term.write(event.payload);
+          entry.term.scrollToBottom();
         });
         await window.__TAURI__.event.listen(`pty-closed-${sessionId}`, () => {
           entry.term.write('\r\n\x1b[90m[Session ended]\x1b[0m\r\n');
@@ -303,6 +352,12 @@ const TerminalManager = (() => {
     }
 
     const { term, fitAddon, wrapper } = entry;
+
+    // Update startup overlay to "Activating..." phase while we open xterm.js
+    if (entry._startupOverlay) {
+      const phaseEl = entry._startupOverlay.querySelector('.adt-startup-phase');
+      if (phaseEl) phaseEl.textContent = 'Waiting for Gemini TUI...';
+    }
 
     document.querySelectorAll('#terminal-container .terminal-wrapper.active').forEach(w => {
       w.classList.remove('active');
@@ -316,24 +371,10 @@ const TerminalManager = (() => {
     wrapper.getBoundingClientRect();
     fitAddon.fit();
 
-    // Flush buffered output BEFORE sending SIGWINCH so xterm.js has the old TUI
-    // rendered before Gemini clears and redraws. This prevents the flicker window
-    // where xterm.js is empty when the SIGWINCH clear-screen arrives.
-    entry._opened = true;
-    if (entry._pending && entry._pending.length > 0) {
-      for (const chunk of entry._pending) {
-        term.write(chunk);
-      }
-      entry._pending = [];
-    }
-
-    // ONE syncSize — sends SIGWINCH so Gemini redraws at the correct terminal size.
-    // This is intentionally the ONLY syncSize call for a new session. show() will
-    // skip its syncSize (via _justActivated) to avoid flooding Gemini with SIGWINCHs
-    // that cause repeated clear+redraw cycles and a blank terminal.
-    syncSize(sessionId, term);
-    entry._activatedAt = Date.now();
-
+    // Register onData BEFORE flushing _pending. xterm.js generates terminal
+    // capability responses (DA1 etc.) when processing the initial Gemini output —
+    // if the handler is not yet registered those bytes are silently dropped and
+    // Gemini hangs waiting for capability negotiation it never receives.
     term.onData((data) => {
       if (window.__TAURI__) {
         window.__TAURI__.core.invoke('write_to_session', {
@@ -344,20 +385,39 @@ const TerminalManager = (() => {
       }
     });
 
+    // Flush buffered output BEFORE sending SIGWINCH so xterm.js has the old TUI
+    // rendered before Gemini clears and redraws. This prevents the flicker window
+    // where xterm.js is empty when the SIGWINCH clear-screen arrives.
+    entry._opened = true;
+    if (entry._pending && entry._pending.length > 0) {
+      for (const chunk of entry._pending) {
+        term.write(chunk);
+      }
+      entry._pending = [];
+      // Dismiss overlay — buffered output means TUI is already rendered underneath
+      if (entry._startupOverlay) {
+        clearInterval(entry._startupOverlayTimer);
+        entry._startupOverlay.style.opacity = '0';
+        setTimeout(() => {
+          if (entry._startupOverlay) { entry._startupOverlay.remove(); entry._startupOverlay = null; }
+        }, 400);
+      }
+    }
+
+    // ONE syncSize — sends SIGWINCH so Gemini redraws at the correct terminal size.
+    syncSize(sessionId, term);
+    entry._activatedAt = Date.now();
+
     requestAnimationFrame(() => {
       term.focus();
     });
 
-    // Replay at 2000 ms: Gemini needs up to ~1-2s to finish redrawing after SIGWINCH.
-    // Firing replay too early (250ms) catches Gemini mid-clear, leaving a blank screen.
-    setTimeout(() => replay(sessionId), 2000);
-
-    // Suppress ResizeObserver for the first 2.5s after activation.
-    // When observe() is called below the wrapper already has real dimensions, so
-    // ResizeObserver fires immediately and would send a second SIGWINCH at ~50ms —
-    // right while Gemini is mid-TUI-draw — blanking the terminal.
+    // Suppress ResizeObserver for 8s after activation. Gemini's startup sequence
+    // (parent init → OAuth refresh → relaunch → child TUI draw) takes 2-5+ seconds;
+    // the old 2500ms window expired before the TUI was ready, so a subsequent resize
+    // event sent a SIGWINCH mid-draw that blanked the terminal.
     entry._suppressResize = true;
-    setTimeout(() => { entry._suppressResize = false; }, 2500);
+    setTimeout(() => { entry._suppressResize = false; }, 8000);
 
     let resizeTimer = null;
     const resizeObserver = new ResizeObserver(() => {
@@ -372,5 +432,5 @@ const TerminalManager = (() => {
     return term;
   }
 
-  return { create, prepare, activate, show, destroy, get, getSize };
+  return { create, prepare, activate, show, destroy, get, getSize, setStartupPhase };
 })();

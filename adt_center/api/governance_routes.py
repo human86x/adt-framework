@@ -917,6 +917,24 @@ def api_stop_project(name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@governance_bp.route("/projects/<name>/set_active_spec", methods=["POST"])
+def api_set_active_spec(name):
+    """Write _cortex/ops/active_spec.txt so summon-based sessions initialize on the right spec."""
+    data = request.get_json(force=True, silent=True) or {}
+    spec_id = (data.get("spec_id") or "").strip()
+    if not spec_id:
+        return jsonify({"error": "spec_id required"}), 400
+    try:
+        res = _get_project_resources(name)
+        ops_dir = os.path.join(res["paths"]["root"], "_cortex", "ops")
+        os.makedirs(ops_dir, exist_ok=True)
+        with open(os.path.join(ops_dir, "active_spec.txt"), "w") as f:
+            f.write(spec_id)
+        return jsonify({"ok": True, "spec_id": spec_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 def _get_project_resources(project_name):
     """Helper to get project-specific managers and paths."""
     paths = current_app.get_project_paths(project_name)
