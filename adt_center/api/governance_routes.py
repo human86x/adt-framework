@@ -6397,6 +6397,57 @@ def api_mirror_frame_latest():
     resp.headers["X-Frame-Seq"] = str(frame["seq"])
     return resp
 
+@governance_bp.route("/mirror/start_peer_capture", methods=["POST"])
+def api_mirror_start_peer_capture():
+    """Server-side: tell peer adt_center to start screen capture.
+    Bypasses Tauri CSP — the console can POST here on localhost:5001 instead of
+    directly to the peer. Body: {peer_url, collector_url, peer_id, session_id}"""
+    data = request.get_json() or {}
+    peer_url = (data.get("peer_url") or "").rstrip("/")
+    collector_url = (data.get("collector_url") or "").rstrip("/")
+    peer_id = data.get("peer_id") or "pauls"
+    session_id = data.get("session_id") or "*"
+    if not peer_url:
+        return jsonify({"error": "peer_url required"}), 400
+    try:
+        r = http_client.post(f"{peer_url}/api/mirror/capture/start",
+                             json={"collector_url": collector_url, "peer_id": peer_id, "session_id": session_id},
+                             timeout=10)
+        return jsonify({"ok": r.status_code < 300, "peer_status": r.status_code,
+                        "peer_body": r.json() if r.content else {}}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@governance_bp.route("/mirror/peer_command", methods=["POST"])
+def api_mirror_peer_command():
+    """Proxy a remote-command POST to peer adt_center. Bypasses Tauri CSP."""
+    data = request.get_json() or {}
+    peer_url = (data.get("peer_url") or "").rstrip("/")
+    payload = data.get("payload") or {}
+    if not peer_url:
+        return jsonify({"error": "peer_url required"}), 400
+    try:
+        r = http_client.post(f"{peer_url}/api/remote/commands", json=payload, timeout=5)
+        return jsonify({"ok": r.status_code < 300, "peer_status": r.status_code}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@governance_bp.route("/mirror/stop_peer_capture", methods=["POST"])
+def api_mirror_stop_peer_capture():
+    """Server-side: tell peer adt_center to stop screen capture."""
+    data = request.get_json() or {}
+    peer_url = (data.get("peer_url") or "").rstrip("/")
+    if not peer_url:
+        return jsonify({"error": "peer_url required"}), 400
+    try:
+        r = http_client.post(f"{peer_url}/api/mirror/capture/stop", timeout=5)
+        return jsonify({"ok": r.status_code < 300}), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
 @governance_bp.route("/mirror/peer_proxy", methods=["GET"])
 def api_mirror_peer_proxy():
     """Proxy a GET request to a peer adt_center. Bypasses Tauri CSP for event polling.

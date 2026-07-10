@@ -172,11 +172,16 @@
       }, 5000);
       _pendingAcks.set(cmd_id, { el: sourceEl, ts: Date.now(), command, timeoutId });
     }
+    // Route through OUR adt_center (localhost:5001) to bypass Tauri CSP.
+    // Direct fetch to peer_url is blocked by CSP's connect-src which only allows localhost.
+    const localBase = (window.SpecMap && window.SpecMap.getCenterUrl)
+      ? window.SpecMap.getCenterUrl().replace(/\/$/,'')
+      : 'http://localhost:5001';
     try {
-      await fetch(`${cfg.peer_url}/api/remote/commands`, {
+      await fetch(`${localBase}/api/mirror/peer_command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ peer_url: cfg.peer_url, payload }),
         keepalive: true,
       });
     } catch (e) { /* swallow */ }
@@ -289,9 +294,18 @@
       if (ACTIVE) {
         startHeartbeat(); _startAckPoll();
         const localUrl = (window.SpecMap && window.SpecMap.getCenterUrl) ? window.SpecMap.getCenterUrl().replace(/\/$/,'') : 'http://localhost:5001';
-        // collectorUrl is where Paul's capture service sends frames TO — must be reachable from Paul's machine
+        // collectorUrl is where Paul's capture service sends frames TO — must be our Tailscale/external IP
         const collectorUrl = cfg.my_external_url || localUrl;
-        send('mirror_capture_start', 'peer', { collector_url: collectorUrl, peer_id: cfg.peer_user, session_id: cfg.session_id || '*' });
+        // Use server-side proxy to start capture — direct fetch to peer_url is blocked by Tauri CSP
+        fetch(`${localUrl}/api/mirror/start_peer_capture`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peer_url: cfg.peer_url, collector_url: collectorUrl,
+                                 peer_id: cfg.peer_user, session_id: cfg.session_id || '*' }),
+        }).then(r => r.json()).then(d => {
+          if (!d.ok && window.ToastManager)
+            window.ToastManager.show('denial', 'Capture start failed', d.error || JSON.stringify(d));
+        }).catch(() => {});
         if (window.MirrorMonitor) {
           window.MirrorMonitor.setPeer({
             peer_id: cfg.peer_user,
@@ -302,9 +316,14 @@
           });
           window.MirrorMonitor.show();
         }
-      } else { 
-        send('mirror_capture_stop', 'peer', {});
-        stopHeartbeat(); _stopAckPoll(); 
+      } else {
+        const localUrl2 = (window.SpecMap && window.SpecMap.getCenterUrl) ? window.SpecMap.getCenterUrl().replace(/\/$/,'') : 'http://localhost:5001';
+        fetch(`${localUrl2}/api/mirror/stop_peer_capture`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peer_url: cfg.peer_url }),
+        }).catch(() => {});
+        stopHeartbeat(); _stopAckPoll();
         if (window.MirrorMonitor) window.MirrorMonitor.hide();
       }
       if (window.ToastManager) window.ToastManager.show(ACTIVE ? 'info' : 'denial',
