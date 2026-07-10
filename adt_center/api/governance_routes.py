@@ -4389,8 +4389,9 @@ def api_agy_state():
             state.update(_json.load(open(state_path)))
         except Exception: pass
 
-    # Only re-probe if older than 30s
-    if _t.time() - state.get("last_check_at", 0) > 30 or request.args.get("force") == "1":
+    # Re-probe if state is bad and > 10s old, or if state is good and > 30s old
+    age = _t.time() - state.get("last_check_at", 0)
+    if (age > (10 if not state.get("ok") else 30)) or request.args.get("force") == "1":
         # Use the REAL probe (agy -p with a tiny prompt) -- same as workers use.
         # `agy models` would be lighter but it uses cached creds and can show green
         # while `agy -p` fails on actual API calls. The badge needs to match worker reality.
