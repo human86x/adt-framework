@@ -2,5 +2,108 @@
   "id": "ISO-IEC-42001-2023",
   "title": "ISO-IEC-42001-2023",
   "version": "latest",
-  "clauses": []
+  "clauses": [
+    {
+      "id": "R-4.1",
+      "title": "Context of the organization",
+      "text": "The organization shall determine internal and external issues, interested parties and requirements relevant to the AI management system.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "context"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-5.1",
+      "title": "Leadership and commitment",
+      "text": "Top management shall demonstrate leadership and commitment to the AI management system, ensuring policy and objectives are established and compatible with strategic direction.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "leadership"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-6.1",
+      "title": "AI risk assessment",
+      "text": "The organization shall define and apply an AI risk assessment process that identifies, analyses and evaluates AI risks.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "risk_assessment"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-8.1",
+      "title": "Operational planning and control",
+      "text": "The organization shall plan, implement and control the processes needed to meet AI management system requirements and to address AI risks and impacts.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "operations"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-9.1",
+      "title": "Performance evaluation",
+      "text": "The organization shall determine what needs to be monitored and measured, the methods used, and when results shall be analysed and evaluated.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "performance"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-A.1",
+      "title": "Responsible AI control objectives (Annex A)",
+      "text": "Organizations shall implement controls covering fairness, security, transparency, accountability, human oversight and impact assessment of AI systems.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "controls",
+        "responsible_ai"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    }
+  ],
+  "scope": "operational",
+  "source_url": "https://www.iso.org/standard/81230.html",
+  "publisher": "",
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
 }

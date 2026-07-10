@@ -2,5 +2,92 @@
   "id": "COMPANY-CODEX",
   "title": "COMPANY-CODEX",
   "version": "latest",
-  "clauses": []
+  "clauses": [
+    {
+      "id": "R-C.1",
+      "title": "Governance as design property",
+      "text": "All AI and digital systems within the organization shall embed governance as an intrinsic design property, not as a retrospective compliance overlay.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "governance_native"
+      ],
+      "scope_tag": "internal_codex",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-C.2",
+      "title": "Authoritative Data Source primacy",
+      "text": "Every action taken by an AI agent or governed system shall be recorded in an append-only Authoritative Data Source with cryptographic integrity.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "ads"
+      ],
+      "scope_tag": "internal_codex",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-C.3",
+      "title": "Role-based jurisdiction with structural enforcement",
+      "text": "Agent actions shall be constrained by role-based jurisdiction enforced at execution time rather than by post-hoc audit.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "jurisdiction"
+      ],
+      "scope_tag": "internal_codex",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-C.4",
+      "title": "Human oversight for Tier-1 and Tier-2 changes",
+      "text": "Modifications to sovereign and constitutional governance artefacts shall require explicit human authorization via the Sovereign Change Request mechanism.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "human_oversight",
+        "scr"
+      ],
+      "scope_tag": "internal_codex",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-C.5",
+      "title": "Transparency through public audit surface",
+      "text": "The organization shall publish which standards have been adopted, adapted or dismissed, with rationale, to support external verification of governance claims.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "transparency"
+      ],
+      "scope_tag": "internal_codex",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    }
+  ],
+  "scope": "internal_codex",
+  "source_url": "internal: _cortex/AI_PROTOCOL.md",
+  "publisher": "",
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
 }

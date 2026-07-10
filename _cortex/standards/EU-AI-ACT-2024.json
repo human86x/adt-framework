@@ -1,6 +1,97 @@
 {
   "id": "EU-AI-ACT-2024",
-  "title": "EU-AI-ACT-2024",
-  "version": "latest",
-  "clauses": []
+  "title": "European Union Artificial Intelligence Act",
+  "version": "2024",
+  "publisher": "European Parliament",
+  "source_url": "https://data.consilium.europa.eu/doc/document/PE-24-2024-INIT/en/pdf",
+  "scope": "regulatory",
+  "clauses": [
+    {
+      "id": "Art.5",
+      "title": "Prohibited AI Practices",
+      "text": "The following AI practices shall be prohibited: the placing on the market, the putting into service or the use of an AI system that deploys subliminal techniques beyond a person's consciousness in order to materially distort a person's behaviour...",
+      "disposition": "adopted",
+      "decided_at": "2026-05-04T20:32:00Z",
+      "decided_by": "Systems_Architect",
+      "rationale": "Mandatory compliance for EU-bound systems; ADT must prevent deployment of prohibited practices.",
+      "scr_ref": null,
+      "tags": [
+        "prohibited",
+        "ethics",
+        "manipulation"
+      ]
+    },
+    {
+      "id": "Art.6",
+      "title": "Classification of AI systems as high-risk",
+      "text": "AI systems intended to be used as safety components of products, or which are themselves products, covered by the Union harmonisation legislation listed in Annex I shall be considered high-risk...",
+      "disposition": "adapted",
+      "decided_at": "2026-05-04T20:32:00Z",
+      "decided_by": "Systems_Architect",
+      "rationale": "The framework must support high-risk classification mapping to internal tier levels.",
+      "scr_ref": null,
+      "tags": [
+        "high-risk",
+        "classification"
+      ]
+    },
+    {
+      "id": "Art.13",
+      "title": "Transparency and provision of information to users",
+      "text": "High-risk AI systems shall be designed and developed in such a way as to ensure that their operation is sufficiently transparent to enable users to interpret the system's output and use it appropriately...",
+      "disposition": "adopted",
+      "decided_at": "2026-05-04T20:32:00Z",
+      "decided_by": "Systems_Architect",
+      "rationale": "Directly aligns with ADT's Transparency Layer and ADS logging requirements.",
+      "scr_ref": null,
+      "tags": [
+        "transparency",
+        "explainability"
+      ]
+    },
+    {
+      "id": "Art.9",
+      "title": "Risk management system",
+      "text": "A risk management system shall be established, implemented, documented and maintained in relation to high-risk AI systems, running as a continuous iterative process over the entire lifecycle.",
+      "disposition": "adopted",
+      "decided_at": "2026-06-26T09:07:50.152862Z",
+      "decided_by": "unknown",
+      "rationale": "",
+      "scr_ref": null,
+      "tags": [
+        "risk_management",
+        "lifecycle"
+      ]
+    },
+    {
+      "id": "Art.14",
+      "title": "Human oversight",
+      "text": "High-risk AI systems shall be designed and developed in such a way that they can be effectively overseen by natural persons during the period in which they are in use, with measures appropriate to the risks, level of autonomy and context of use.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "human_oversight",
+        "autonomy"
+      ]
+    },
+    {
+      "id": "Art.50",
+      "title": "Transparency obligations for providers and users of certain AI systems",
+      "text": "Providers shall ensure that AI systems intended to interact directly with natural persons are designed so that those persons are informed they are interacting with an AI system, unless this is obvious from the circumstances and context of use.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "transparency",
+        "disclosure"
+      ]
+    }
+  ],
+  "imported_at": "2026-05-04T20:31:00Z",
+  "imported_by": "Systems_Architect"
 }

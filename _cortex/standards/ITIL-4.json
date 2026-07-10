@@ -2,5 +2,123 @@
   "id": "ITIL-4",
   "title": "ITIL-4",
   "version": "latest",
-  "clauses": []
+  "clauses": [
+    {
+      "id": "R-1.1",
+      "title": "Focus on value",
+      "text": "Everything the organization does shall link, directly or indirectly, to value for the stakeholders.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "value"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.2",
+      "title": "Start where you are",
+      "text": "Do not start from scratch when planning new initiatives; assess and reuse what is already available.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "pragmatism"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.3",
+      "title": "Progress iteratively with feedback",
+      "text": "Organize work into smaller, manageable sections that can be executed and completed in a timely manner, with feedback informing each iteration.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "iteration"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.4",
+      "title": "Collaborate and promote visibility",
+      "text": "Work together across boundaries to produce results that have buy-in, relevance to objectives and increased likelihood of long-term success.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "collaboration"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.5",
+      "title": "Think and work holistically",
+      "text": "No service, practice, process, department or supplier stands alone; outcomes will suffer unless the organization works on the whole.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "holism"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.6",
+      "title": "Keep it simple and practical",
+      "text": "If a process, service, action or metric provides no value or produces no useful outcome, eliminate it.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "simplicity"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.7",
+      "title": "Optimize and automate",
+      "text": "Resources of all types, particularly human resources, shall be used to their best effect; eliminate anything truly wasteful and use technology to achieve whatever it is capable of.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "automation"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    }
+  ],
+  "scope": "operational",
+  "source_url": "https://www.axelos.com/certifications/itil-service-management",
+  "publisher": "",
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
 }

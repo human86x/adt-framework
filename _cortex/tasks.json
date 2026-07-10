@@ -9,7 +9,12 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 20,
+      "progress_message": "Scaffolding project structure",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-07-10T09:16:17.175471Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_002",
@@ -19,7 +24,12 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 100,
+      "progress_message": "Completed task 002",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-10T09:44:19.051958Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_003",
@@ -32,7 +42,11 @@
       "depends_on": [
         "task_001",
         "task_002"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Planning validation schema",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-03T20:56:24.972574Z"
     },
     {
       "id": "task_004",
@@ -45,7 +59,12 @@
       "depends_on": [
         "task_001",
         "task_002"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "Completed task 004",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-10T09:44:19.714833Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_005",
@@ -68,7 +87,11 @@
           "agent": "GEMINI"
         },
         "delegated_at": "2026-02-09T10:00:00Z"
-      }
+      },
+      "progress_percent": 100,
+      "progress_message": "All 21 tests passing",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-03T23:10:28.249461Z"
     },
     {
       "id": "task_006",
@@ -80,7 +103,12 @@
       "priority": "medium",
       "depends_on": [
         "task_003"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "task_006 complete: frontend project structure fully initialized for SPEC-003",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-07-09T21:07:43.204434Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_007",
@@ -94,7 +122,12 @@
         "task_001",
         "task_002",
         "task_003"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "Cost and time inputs already present with HTML5 validation and live recalculation wired up",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-09T21:30:05.752574Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_008",
@@ -104,7 +137,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 50,
+      "progress_message": "50% scaffolded",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-03T23:27:43.185793Z"
     },
     {
       "id": "task_009",
@@ -116,7 +153,11 @@
       "priority": "high",
       "depends_on": [
         "task_008"
-      ]
+      ],
+      "progress_percent": 50,
+      "progress_message": "50% scaffolded",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-03T23:33:23.754259Z"
     },
     {
       "id": "task_010",
@@ -128,7 +169,11 @@
       "priority": "high",
       "depends_on": [
         "task_008"
-      ]
+      ],
+      "progress_percent": 50,
+      "progress_message": "installing vite setup",
+      "progress_agent": "DevOps_Engineer",
+      "progress_updated_at": "2026-07-03T23:22:48.669457Z"
     },
     {
       "id": "task_011",
@@ -140,7 +185,12 @@
       "priority": "high",
       "depends_on": [
         "task_010"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Starting styling review and fixing Vite script tag issue",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-09T21:25:02.917759Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_012",
@@ -152,7 +202,11 @@
       "priority": "high",
       "depends_on": [
         "task_010"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Analyzed UI logic",
+      "progress_agent": "Overseer",
+      "progress_updated_at": "2026-07-04T00:08:20.456254Z"
     },
     {
       "id": "task_013",
@@ -164,7 +218,11 @@
       "priority": "high",
       "depends_on": [
         "task_010"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "20% understood",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-07-03T13:15:07.083167Z"
     },
     {
       "id": "task_014",
@@ -176,7 +234,11 @@
       "priority": "critical",
       "depends_on": [
         "task_008"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Spec analyzed",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-03T20:06:37.546007Z"
     },
     {
       "id": "task_015",
@@ -188,7 +250,11 @@
       "priority": "critical",
       "depends_on": [
         "task_014"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Starting Camera Viewport",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-03T13:20:45.226162Z"
     },
     {
       "id": "task_016",
@@ -200,7 +266,11 @@
       "priority": "high",
       "depends_on": [
         "task_014"
-      ]
+      ],
+      "progress_percent": 10,
+      "progress_message": "Planning error handling",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-03T13:24:55.030794Z"
     },
     {
       "id": "task_017",
@@ -214,7 +284,11 @@
         "task_014",
         "task_015",
         "task_016"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Initial planning",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-03T13:29:37.125591Z"
     },
     {
       "id": "task_018",
@@ -226,7 +300,11 @@
       "priority": "medium",
       "depends_on": [
         "task_016"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Understanding task_018",
+      "progress_agent": "DevOps_Engineer",
+      "progress_updated_at": "2026-07-03T13:31:45.299818Z"
     },
     {
       "id": "task_019",
@@ -332,7 +410,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 50,
+      "progress_message": "UI toggle scaffolded",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-04T11:58:07.435590Z"
     },
     {
       "id": "task_028",
@@ -342,7 +424,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 50,
+      "progress_message": "Collision checking design done",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-04T11:58:24.612614Z"
     },
     {
       "id": "task_029",
@@ -352,7 +438,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "high",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 20,
+      "progress_message": "Analyzing codebase",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-04T12:55:31.305135Z"
     },
     {
       "id": "task_030",
@@ -365,7 +455,11 @@
       "depends_on": [
         "task_027",
         "task_029"
-      ]
+      ],
+      "progress_percent": 50,
+      "progress_message": "generateWallConfig+refillWallQueue+spawnNextWall fully implemented with 8 patterns, pre-generation queue, and infinite difficulty scaling",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-07-04T20:40:22.521660Z"
     },
     {
       "id": "task_031",
@@ -377,7 +471,11 @@
       "priority": "high",
       "depends_on": [
         "task_028"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "analysing tasks",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-07-04T20:49:31.029484Z"
     },
     {
       "id": "task_032",
@@ -390,7 +488,11 @@
       "depends_on": [
         "task_029",
         "task_028"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Starting analysis",
+      "progress_updated_at": "2026-07-04T21:03:45.308451Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_033",
@@ -402,7 +504,11 @@
       "priority": "medium",
       "depends_on": [
         "task_032"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Analyzing server configuration and secure context requirements",
+      "progress_updated_at": "2026-07-04T22:46:29.885012Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_034",
@@ -415,7 +521,11 @@
       "depends_on": [
         "task_030",
         "task_032"
-      ]
+      ],
+      "progress_percent": 20,
+      "progress_message": "Analyzing camera setup and starting implementation",
+      "progress_updated_at": "2026-07-04T21:22:04.725399Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_035",
@@ -427,7 +537,11 @@
       "priority": "high",
       "depends_on": [
         "task_034"
-      ]
+      ],
+      "progress_percent": 50,
+      "progress_message": "Found the event listeners, identifying why start game doesn't work",
+      "progress_updated_at": "2026-07-04T21:49:10.419790Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_036",
@@ -453,7 +567,11 @@
       "priority": "medium",
       "depends_on": [
         "task_034"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "Implemented task 037",
+      "progress_updated_at": "2026-07-04T22:01:38.054291Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_038",
@@ -463,7 +581,11 @@
       "assigned_to": "Systems_Architect",
       "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 50,
+      "progress_message": "checking init logic",
+      "progress_updated_at": "2026-07-04T22:07:10.851498Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_039",
@@ -532,7 +654,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 80,
+      "progress_message": "fixed intent ID and webcam",
+      "progress_updated_at": "2026-07-04T21:57:14.921637Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_045",
@@ -544,7 +670,11 @@
       "priority": "high",
       "depends_on": [
         "task_020"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "Task completed",
+      "progress_updated_at": "2026-07-04T22:57:47.726689Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_046",
@@ -554,7 +684,11 @@
       "assigned_to": "Backend_Engineer",
       "status": "completed",
       "priority": "medium",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 100,
+      "progress_message": "package.json updated with dev script; server.js already binds 127.0.0.1:8642",
+      "progress_updated_at": "2026-07-04T23:22:30.130044Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_047",
@@ -2723,14 +2857,15 @@
       "description": "Verify the full autonomous wish-to-launch flow.",
       "spec_ref": "SPEC-043",
       "assigned_to": "Systems_Architect",
-      "status": "in_progress",
+      "status": "ready",
       "priority": "high",
       "depends_on": [
         "task_225",
         "task_226",
         "task_227",
         "task_228"
-      ]
+      ],
+      "auto_retry_count": 1
     },
     {
       "id": "task_231",
@@ -2880,11 +3015,12 @@
       "description": "Add editorial header notes to SPEC-014, SPEC-019, SPEC-026 linking to SPEC-044 (do not rewrite historical content). Verify Phase F grep produces only the four allowed historical-artefact categories. Mark SPEC-044 COMPLETED.",
       "spec_ref": "SPEC-044",
       "assigned_to": "Systems_Architect",
-      "status": "in_progress",
+      "status": "ready",
       "priority": "low",
       "depends_on": [
         "task_239"
-      ]
+      ],
+      "auto_retry_count": 1
     },
     {
       "id": "task_241",
@@ -2892,9 +3028,12 @@
       "description": "Replace 'absence of X-Agent header' check with positive proof: server-issued session cookie + per-request CSRF token + browser fingerprint bundle. Reject all unsigned requests.",
       "spec_ref": "SPEC-045",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "evidence": "Implemented /governance/auth/handshake with browser fingerprinting and session-bound is_human flag in governance_routes.py.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T12:40:00Z"
     },
     {
       "id": "task_242",
@@ -2902,11 +3041,14 @@
       "description": "Compare scr['agent'] (proposer) against authenticated session identity. Match or empty -> deny. Add auth_spoofing_attempt ADS action_type.",
       "spec_ref": "SPEC-045",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "critical",
       "depends_on": [
         "task_241"
-      ]
+      ],
+      "evidence": "Implemented _log_spoofing_attempt and integrated check into manage_sovereign_request. Spoofing attempts now log to ADS.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T12:40:00Z"
     },
     {
       "id": "task_243",
@@ -2914,11 +3056,14 @@
       "description": "Server issues per-SCR nonce on GET; PUT must echo. Single-use, expires in 60s. Replay -> deny.",
       "spec_ref": "SPEC-045",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "depends_on": [
         "task_241"
-      ]
+      ],
+      "evidence": "Implemented /governance/sovereign-requests/<scr_id>/nonce and verified single-use 60s window enforcement.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T12:40:00Z"
     },
     {
       "id": "task_244",
@@ -2938,7 +3083,7 @@
       "description": "Run curl-based attack scenarios from agent shell (no headers, fake X-Agent: false, stolen cookies, self-authorize, replay nonce). Verify all rejected and emit auth_spoofing_attempt. Phase 1 gate.",
       "spec_ref": "SPEC-045",
       "assigned_to": "Systems_Architect",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "critical",
       "depends_on": [
         "task_241",
@@ -2946,7 +3091,9 @@
         "task_243",
         "task_244"
       ],
-      "evidence": "Vulnerability confirmed via tests/adversarial_scr_test.py: successfully authorized SCR without X-Agent header (spoofing human)."
+      "evidence": "Verified all scenarios (no handshake, no nonce, invalid nonce, replay) via tests/test_spec_045_phase1.py. All rejected and logged.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T12:40:00Z"
     },
     {
       "id": "task_246",
@@ -2998,11 +3145,16 @@
       "description": "Encode in config/specs.json that Tier-1 changes to AI_PROTOCOL.md and MASTER_PLAN.md require two distinct passkey signatures (human + Overseer human, or two-of-N quorum).",
       "spec_ref": "SPEC-045",
       "assigned_to": "Systems_Architect",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_249"
-      ]
+      ],
+      "auto_retry_count": 1,
+      "completed_at": "2026-07-01T21:31:30.467547Z",
+      "progress_percent": 100,
+      "progress_message": "Defined dual-control policy for AI_PROTOCOL.md and MASTER_PLAN.md changes in config/specs.json via SCR.",
+      "progress_agent": "ANTIGRAVITY"
     },
     {
       "id": "task_251",
@@ -3715,11 +3867,14 @@
       "description": "Add orange dot + count badge to session tab when pending message count > 0. Poll /governance/comms/pending/<session_id> every 3s. Clicking badge focuses context panel pending list.",
       "spec_ref": "SPEC-057",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_334"
-      ]
+      ],
+      "evidence": "Implemented fetchPendingMessages and updatePendingUI in context.js and wired to terminal.js badges.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T11:30:00Z"
     },
     {
       "id": "task_338",
@@ -3727,11 +3882,14 @@
       "description": "Add AUTO/MANUAL slide switch to context panel. Reads current mode from GET /governance/sessions/<id>/mode. On toggle: PATCH /governance/sessions/<id>/mode. Switching MANUAL->AUTO auto-flushes pending queue. Log agent_mode_changed to ADS.",
       "spec_ref": "SPEC-057",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_334"
-      ]
+      ],
+      "evidence": "Implemented mode toggle in context.js with persistence and auto-flush logic.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T11:30:00Z"
     },
     {
       "id": "task_339",
@@ -3739,12 +3897,15 @@
       "description": "Scrollable list in context panel showing queued messages (sender, role, timestamp, body preview). Per-message Deliver and Discard buttons. Flush All button. urgent messages shown with red highlight.",
       "spec_ref": "SPEC-057",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_337",
         "task_338"
-      ]
+      ],
+      "evidence": "Implemented Pending Messages section with Deliver/Discard/Flush-All actions in context.js.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T11:30:00Z"
     },
     {
       "id": "task_340",
@@ -3752,11 +3913,14 @@
       "description": "Compose panel visible only when active session role is Systems_Architect. Fields: To (session dropdown), Priority (low/normal/high/urgent), message body textarea. Send button (POST /governance/comms/send). Broadcast to All button (POST /governance/comms/broadcast).",
       "spec_ref": "SPEC-057",
       "assigned_to": "Frontend_Engineer",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "depends_on": [
         "task_338"
-      ]
+      ],
+      "evidence": "Implemented Compose Message section for Systems_Architect in context.js.",
+      "last_updated_by": "GEMINI (Systems_Architect)",
+      "last_updated_at": "2026-06-17T11:30:00Z"
     },
     {
       "id": "task_341",
@@ -3788,6 +3952,3182 @@
         "task_340",
         "task_341"
       ]
+    },
+    {
+      "id": "task_343",
+      "title": "REQ-091-A: Verify SPEC-048 Rust binary is current; rebuild adt-console if not",
+      "description": "SPEC-048 Rust changes (ring buffer, replay_session_output, reserved_session_id in pty.rs) require a full cargo rebuild. Verify the running adt-console binary includes these changes. Test: invoke 'replay_session_output' IPC from devtools console on an active session \u2014 if it errors or returns nothing, the binary is stale. If stale: run 'npm run tauri build' or 'cargo tauri dev' from adt-console/. Confirm after rebuild that Gemini session spawn shows output without manual interaction.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "DevOps_Engineer",
+      "status": "completed",
+      "priority": "p0",
+      "depends_on": [],
+      "req_ref": "REQ-091"
+    },
+    {
+      "id": "task_344",
+      "title": "REQ-091-B: Fix SIGWINCH double-fire blanking Gemini TUI in terminal.js show()",
+      "description": "In adt-console/src/js/terminal.js, activate() sets entry._justActivated=true to suppress the second SIGWINCH in show(). But show() clears _justActivated inside setTimeout(100ms). If a second show() fires before that 100ms expires, the guard is already consumed and Gemini gets a double-SIGWINCH mid-TUI-draw, blanking the terminal. Fix: use a timestamp-based guard instead of a boolean \u2014 store _activatedAt=Date.now() in activate(), and in show() skip syncSize if Date.now()-entry._activatedAt < 300. Also audit: does switchTo() in sessions.js call show() more than once per spawn? After fix: spawning a Gemini session must show the TUI banner immediately.",
+      "spec_ref": "SPEC-048",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "p0",
+      "depends_on": [
+        "task_343"
+      ],
+      "req_ref": "REQ-091"
+    },
+    {
+      "id": "task_345",
+      "title": "REQ-092: Audit SPEC-041 right panel \u2014 implement missing Timeline, Cost Monitor, Jurisdiction highlights",
+      "description": "SPEC-041 tasks 201-206 are marked completed but the right panel HTML (adt-console/src/index.html) does not show a Timeline component, Cost Monitor, or Jurisdiction highlighting. Audit each: (1) Timeline section: ADS events rendered as green/red/pulse cards in the right panel. (2) Cost Monitor: token count + estimated USD in status bar or panel header. (3) Jurisdiction highlights: file paths colored red/amber/green by tier in any file navigator. For each missing item: implement per SPEC-041 \u00a73 and the original task description. If a more recent design was agreed with the operator that overrides SPEC-041, document it in a SPEC-041-B amendment file under _cortex/specs/ first, then implement. File: adt-console/src/index.html, adt-console/src/js/context.js, adt-console/src/css/console.css",
+      "spec_ref": "SPEC-041",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "req_ref": "REQ-092"
+    },
+    {
+      "id": "task_346",
+      "title": "SPEC-062: Backend build_task_graph(spec_id) helper",
+      "description": "Implement helper in adt_core/sdd/tasks.py (or governance module) that returns {nodes, edges, rollup} for a given spec_id by joining tasks.json with SPEC-050 intent metadata. See SPEC-062 sec 2.1.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": []
+    },
+    {
+      "id": "task_347",
+      "title": "SPEC-062: GET /api/specs/<id>/task_graph endpoint",
+      "description": "Expose task_graph helper via Flask route in adt_center/api/governance_routes.py. Response schema per SPEC-062 sec 2.1. Smoke-test: curl /api/specs/SPEC-061/task_graph returns non-empty nodes.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_346"
+      ]
+    },
+    {
+      "id": "task_348",
+      "title": "SPEC-062: Extend worker_session_started with task_id; verify /api/workers join",
+      "description": "Extend SPEC-061 worker_session_started schema with task_id field. Update /api/workers (SPEC-061 sec 3.2) to join latest event per session and expose current_task_id. See SPEC-062 sec 2.2.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Backend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_347"
+      ],
+      "build_id": "build_20260624_221819",
+      "wave": 1,
+      "started_at": "2026-06-24T22:18:21.879553Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:18:36.962006Z"
+    },
+    {
+      "id": "task_349",
+      "title": "SPEC-062: Vendor Cytoscape.js + dagre into adt-console/src/vendor/",
+      "description": "Download cytoscape.min.js and cytoscape-dagre.min.js and place at adt-console/src/vendor/. CSP blocks CDN per CLAUDE.md memory. Add to bundle if relevant.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "completed_at": "2026-06-20T16:40:50.024466Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_round2",
+        "reason": "ADS shows multiple task_completed events; tasks.json never patched. Downstream tasks (352/353/354) already counted as completed presupposing these.",
+        "ads_completion_event_count": 3
+      }
+    },
+    {
+      "id": "task_350",
+      "title": "SPEC-062: New Spec Map tab + selector dropdown + rollup header",
+      "description": "Add Spec Map tab to adt-console/src/index.html. Implement spec selector populated from approved+active specs; rollup header reuses SPEC-052 progress logic. See SPEC-062 sec 2.3.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_347",
+        "task_349"
+      ],
+      "completed_at": "2026-06-20T16:40:50.024466Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_round2",
+        "reason": "ADS shows multiple task_completed events; tasks.json never patched. Downstream tasks (352/353/354) already counted as completed presupposing these.",
+        "ads_completion_event_count": 2
+      }
+    },
+    {
+      "id": "task_351",
+      "title": "SPEC-062: Node renderer (status colors, role badge, radial progress)",
+      "description": "Cytoscape node renderer with status border, role badge, harness chip, radial progress arc. Status colors per SPEC-062 sec 3.2.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_350"
+      ],
+      "completed_at": "2026-06-20T16:40:50.024466Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_round2",
+        "reason": "ADS shows multiple task_completed events; tasks.json never patched. Downstream tasks (352/353/354) already counted as completed presupposing these.",
+        "ads_completion_event_count": 3
+      }
+    },
+    {
+      "id": "task_352",
+      "title": "SPEC-062: Worker token overlay (positioning, pulse, click-to-chat)",
+      "description": "Render worker tokens absolutely positioned over their task node. Pulse animation when last_tool fresh. Click opens SPEC-061 sec 4.4 steering chat. See SPEC-062 sec 3.3.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_351",
+        "task_348"
+      ],
+      "attempts": 1,
+      "last_skip": {
+        "build_id": "build_20260620_105753",
+        "skipped_at": "2026-06-20T11:25:49Z",
+        "reason": "wave_timeout_no_worker_activity",
+        "ads_evidence": "no events between wave_5 launch 11:25:09 and wave_6 launch 11:25:49"
+      },
+      "notes": "Soft-dep on SPEC-061 phases 6.4/6.5 (workers API + steering chat endpoint). Worker may have refused/no-op'd because the chat endpoint to wire into does not yet exist. Recommend re-dispatch after SPEC-061 phase 6.4 lands, or stub the endpoint.",
+      "completed_at": "2026-06-20T16:39:56.993546Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS shows task_completed events but tasks.json never updated; reconciliation against ledger",
+        "ads_evidence_ids": "evt_20260620_161800_523_task_compl"
+      }
+    },
+    {
+      "id": "task_353",
+      "title": "SPEC-062: Live update via ADS event stream + 500ms debounce",
+      "description": "Subscribe to Console ADS event stream. Re-fetch task_graph on task_status_changed, worker_session_started/ended/steered, tool_completed matching spec_id. 500ms debounce. See SPEC-062 sec 2.5.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_352"
+      ],
+      "completed_at": "2026-06-20T16:39:56.993546Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS shows task_completed events but tasks.json never updated; reconciliation against ledger",
+        "ads_evidence_ids": "evt_20260620_163539_742_task_compl"
+      }
+    },
+    {
+      "id": "task_354",
+      "title": "SPEC-062: Detail right-panel + context menus",
+      "description": "Click-handlers per SPEC-062 sec 4: task node click opens detail panel; worker token click opens steering chat; right-click context menus for dispatch/relayout/export.",
+      "spec_ref": "SPEC-062",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "medium",
+      "depends_on": [
+        "task_353"
+      ],
+      "completed_at": "2026-06-20T16:39:56.993546Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS shows task_completed events but tasks.json never updated; reconciliation against ledger",
+        "ads_evidence_ids": "evt_20260620_162524_436_task_compl"
+      }
+    },
+    {
+      "id": "task_355",
+      "title": "SPEC-061-B: Add resolve_agent() helper and ensure ANTIGRAVITY+UNKNOWN in CANONICAL_AGENTS",
+      "description": "Add resolve_agent() helper to adt_core/ads/schema.py per SPEC-061 Amendment B section 2. Order: ADT_AGENT env, argv[0] heuristic, default. Verify ANTIGRAVITY and UNKNOWN are in CANONICAL_AGENTS set.",
+      "spec_ref": "SPEC-061",
+      "assigned_to": "Backend_Engineer",
+      "status": "failed",
+      "priority": "medium",
+      "depends_on": [],
+      "build_id": "build_20260630_193158",
+      "wave": 1,
+      "started_at": "2026-06-30T19:32:00.729793Z",
+      "progress_percent": 50,
+      "progress_message": "Implementing resolve_agent",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-30T18:49:30.966379Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_356",
+      "title": "SPEC-061-B: Replace hardcoded GEMINI in governance_routes.py",
+      "description": "Replace hardcoded agent=GEMINI in adt_center/api/governance_routes.py at lines ~236 (Forge architect spawn) and ~2466 (parent_agent default) with resolve_agent(). Expand allowed-from set on line ~3266 to include ANTIGRAVITY (and ideally CANONICAL_AGENTS).",
+      "spec_ref": "SPEC-061",
+      "assigned_to": "Backend_Engineer",
+      "status": "ready",
+      "priority": "medium",
+      "depends_on": [
+        "task_355"
+      ],
+      "build_id": "build_20260630_193158",
+      "wave": 2,
+      "started_at": "2026-06-30T19:32:22.873705Z",
+      "progress_agent": "Backend_Engineer",
+      "completed_by_role": "Backend_Engineer",
+      "auto_retry_count": 1
+    },
+    {
+      "id": "task_357",
+      "title": "SPEC-061-B: Replace hardcoded GEMINI in build orchestrator task_completed writer",
+      "description": "Locate the build orchestrator code that writes task_completed events (likely in _cortex/ops/build_orchestrator.py or adt_center/api/build_executor.py) and replace any hardcoded agent=GEMINI with resolve_agent(). Verify on next build.",
+      "spec_ref": "SPEC-061",
+      "assigned_to": "Backend_Engineer",
+      "status": "ready",
+      "priority": "medium",
+      "depends_on": [
+        "task_355"
+      ],
+      "build_id": "build_20260630_193158",
+      "wave": 2,
+      "started_at": "2026-06-30T19:32:22.873705Z",
+      "progress_agent": "Backend_Engineer",
+      "completed_by_role": "Backend_Engineer",
+      "auto_retry_count": 1
+    },
+    {
+      "id": "task_358",
+      "title": "SPEC-061-B: Update four adt-bridge/agents/*/AGENT.md examples from GEMINI to ANTIGRAVITY",
+      "description": "Update agent label in example payloads in adt_sdk/plugins/adt-bridge/agents/architect/AGENT.md (line ~42), devops/AGENT.md (line ~35), frontend/AGENT.md (line ~33), overseer/AGENT.md (line ~33). The plugin only runs inside agy so label is structurally ANTIGRAVITY.",
+      "spec_ref": "SPEC-061",
+      "assigned_to": "Backend_Engineer",
+      "status": "failed",
+      "priority": "low",
+      "depends_on": [],
+      "build_id": "build_20260630_193158",
+      "wave": 1,
+      "started_at": "2026-06-30T19:32:00.729793Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_359",
+      "title": "SPEC-062 Amendment A: Fix Spec Map node visibility",
+      "description": "Per SPEC-062 Amendment A sec 2.1. Change Cytoscape node style in adt-console/src/js/graph_renderer.js: set background-opacity:1 with a base dark background-color (#1a1f2b), border-width:2 with border-color driven by getStatusColor(data.status). The SVG data URI becomes a text-only overlay. Fallback: drop SVG and use plain Cytoscape label/text-wrap if URI still fails inside Tauri WebView. Acceptance: nodes visible without hover; status colour on border; task ID + short title legible.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment A",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T17:01:13.798213Z",
+      "completed_at": "2026-06-20T19:35:47.939018Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS task_completed + amendment_a_verified events present; recurring tasks.json sync bug",
+        "ads_evidence_ids": "evt_20260620_170527_(task_compl,amend_verified)",
+        "build_id": "build_20260620_170152"
+      }
+    },
+    {
+      "id": "task_360",
+      "title": "SPEC-062 Amendment A: Add Approve/Build buttons to Spec Map header",
+      "description": "Per SPEC-062 Amendment A sec 2.2. Edit adt-console/src/index.html spec-map-header (around line 90-96) to add two buttons (#sm-btn-approve, #sm-btn-build) to the right of the rollup. Edit adt-console/src/js/spec_map.js: lift existing build POST logic (currently around line 189) to a header-button handler using the selected spec ID; surface progress through BuildManager.showBuildProgress. Approve handler POSTs to the same endpoint the Specs tab already uses (do NOT invent a new route). Button state rules: disable Approve when spec_status==='APPROVED', disable Build when no spec selected. Acceptance: both buttons present in header, functional, progress overlay opens on build.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment A",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T17:01:13.798213Z",
+      "completed_at": "2026-06-20T19:35:47.939018Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS task_completed + amendment_a_verified events present; recurring tasks.json sync bug",
+        "ads_evidence_ids": "evt_20260620_170527_(task_compl,amend_verified)",
+        "build_id": "build_20260620_170152"
+      }
+    },
+    {
+      "id": "task_361",
+      "title": "SPEC-062 Amendment A: Fix spec selector readability (white-on-white)",
+      "description": "Per SPEC-062 Amendment A sec 2.3. Edit adt-console/src/css/spec_map.css to add `.spec-selector { color-scheme: dark; }` and `.spec-selector option { background: var(--bg-tertiary); color: var(--text-primary); }`. Root cause: Tauri WebView falls back to light-mode native form controls when no color-scheme is declared, so the trigger and option list both render white-on-white. Acceptance: dropdown text legible both closed and open.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment A",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T17:01:13.798213Z",
+      "completed_at": "2026-06-20T19:35:47.939018Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation",
+        "reason": "ADS task_completed + amendment_a_verified events present; recurring tasks.json sync bug",
+        "ads_evidence_ids": "evt_20260620_170527_(task_compl,amend_verified)",
+        "build_id": "build_20260620_170152"
+      }
+    },
+    {
+      "id": "task_362",
+      "title": "SPEC-062 Amendment B: Replace #section-forge-activity with SCR alerts in right sidebar",
+      "description": "Per SPEC-062 Amendment B sec 3.1 and 3.2 (revised 2026-06-20). Replace the dormant <section id='section-forge-activity'> block in adt-console/src/index.html (currently lines 325-332) with <section id='section-scr-alerts'> inside #sidebar-right > #context-panel. Reuse existing context-panel classes: .context-section, .section-header-row, .tracker-list, .ctx-badge (badge-amber for count), .btn-mini-action, .ctx-empty. Add per-row template (.scr-alert-row with .scr-alert-meta, .scr-alert-target, .scr-alert-actions, .scr-approve-btn, .scr-reject-btn) and any new CSS to adt-console/src/css/console.css. Section hidden when no pending SCRs and no auth issue. Acceptance: markup lands cleanly, visual match with neighbouring context-sections, no regression in Hive Tracker layout.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment B",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T19:46:46.362543Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_363",
+      "title": "SPEC-062 Amendment B: Wire ads-updated event + approve/reject handlers",
+      "description": "Per SPEC-062 Amendment B sec 3.3 and 3.4 (revised 2026-06-20). Edit adt-console/src/js/app.js ONLY -- do not create new JS files (path adt-console/src/js/scr_alerts.js is NOT authorized by SPEC-062). On mount: fetch /api/governance/sovereign-requests?status=pending once and render. Subscribe to the existing Tauri 'ads-updated' event (window.__TAURI__.event.listen('ads-updated', ...)) and refetch on each notification. Add a 30s backstop setInterval. Pause both refresh paths on visibilitychange -> hidden; resume + immediate refetch on visible. Implement Approve handler (GET /api/governance/sovereign-requests/<id>/nonce then PUT with action='authorize', nonce) and Reject handler (window.prompt for reason then nonce-then-PUT with action='reject'). On success remove the row and show a toast. On failure show error inline on the row. Acceptance: pending SCRs appear within one ADS tick; Approve completes the nonce-then-PUT flow end-to-end against an is_human session.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment B",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_362"
+      ],
+      "created_at": "2026-06-20T19:46:46.362543Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_364",
+      "title": "SPEC-062 Amendment B: Handle 401 no-human-session path and verify end-to-end",
+      "description": "Per SPEC-062 Amendment B sec 3.5 and 7. In adt-console/src/js/app.js (or scr_alerts.js): on 401 from nonce or PUT endpoint, switch the section into auth-required mode (show #scr-alerts-auth-prompt, hide list, do not retry until user clicks Authenticate). Wire #scr-alerts-auth-btn to switch the main Console view to #adt-panel-view so the operator can complete the Panel handshake. After harness rebuild, verify end-to-end against a real SCR: trigger a Tier 1 attempt to create a pending SCR, confirm it appears in the right sidebar within one ADS tick, click Approve, observe nonce fetch + PUT authorize succeed, row disappears, toast confirms. Log amendment_b_verified to ADS with action_data {scr_id, outcome: 'authorized'}.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment B",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_362",
+        "task_363"
+      ],
+      "created_at": "2026-06-20T19:46:46.362543Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_365",
+      "title": "SPEC-062 Amendment C-1: Fix node labels (task ID + title legible on every node)",
+      "description": "Per SPEC-062 Amendment C-1 sec 3. Make every map node show task ID and a one-phrase title legibly without hover. Prefer native Cytoscape labels: add label + text-wrap + text-outline styling to the node selector in adt-console/src/js/graph_renderer.js getStyleSheet(). Fallback: add viewBox='0 0 260 90' to the SVG at graph_renderer.js:140 and change background-fit from 'contain' to 'none'. Acceptance: every node legible at default zoom and at extreme zoom levels; no regression in role chip, status border, or progress arc.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-1",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_366",
+      "title": "SPEC-062 Amendment C-1: Disable mouse-wheel zoom + add zoom button cluster",
+      "description": "Per SPEC-062 Amendment C-1 sec 4. In adt-console/src/js/spec_map.js where Cytoscape is initialised, call cy.userZoomingEnabled(false). Add markup #sm-zoom-cluster with three buttons (sm-btn-zoom-in, sm-btn-zoom-out, sm-btn-zoom-fit) to adt-console/src/index.html inside the map container. CSS in adt-console/src/css/spec_map.css: absolutely positioned top-right of canvas, vertically stacked, dark theme. Handlers: zoom in/out multiply current zoom by 1.2 / 0.83 centred on canvas; fit calls cy.fit(null, 40). Acceptance: mouse-wheel over canvas does not change zoom; all three buttons work as labelled.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-1",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_367",
+      "title": "SPEC-062 Amendment C-1: In-map build status strip with five states",
+      "description": "Per SPEC-062 Amendment C-1 sec 5. Add #sm-build-strip persistent overlay inside map view (markup in adt-console/src/index.html, CSS in adt-console/src/css/spec_map.css). On Build button click in spec_map.js handleBuild(), show strip IMMEDIATELY with state='queued' before POST resolves -- this is the critical UX guarantee. Transition states: queued -> dispatched (on POST 200) -> running (on first build_wave_start for this build_id) -> complete (on build_complete) / failed (on build_failed). Drive transitions from the existing Tauri 'ads-updated' subscription at spec_map.js:570; build a shared event reducer module that Amendment C-2 can extend. Progress bar fill = completed_tasks / total_tasks. Acceptance: strip appears within one animation frame of click; transitions correctly through all five states for a real build; on complete turns green and fades after 30s; on failure turns red and persists. Log amendment_c1_verified to ADS with build_id and transitions_seen.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-1",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_365",
+        "task_366"
+      ],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_368",
+      "title": "SPEC-062 Amendment C-2: AgentPresence reducer over ADS event stream",
+      "description": "Per SPEC-062 Amendment C-2 sec 2.2 and 2.3. Extend the shared ADS event reducer module (landed in Amendment C-1 task_367) with the AgentPresence state model: { session_id, agent, role, harness, current_task_id, progress_pct, status, last_action_ts, recent_actions (max 3) }. Implement the event-type -> state mapping table from sec 2.3 (worker_session_started, task_started, cross_ai_progress_update, dry_run_validated_*, task_completed, cross_ai_task_complete, worker_session_ended, build_complete, build_failed). 120s no-progress -> status 'stalled' (amber). No rendering in this task -- provide a state-introspection helper for manual verification with a canned event sequence.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-2",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_367"
+      ],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_369",
+      "title": "SPEC-062 Amendment C-2: Per-node presence markers + progress overlays",
+      "description": "Per SPEC-062 Amendment C-2 sec 2.4. For each AgentPresence whose current_task_id matches a rendered node, draw an absolutely-positioned HTML badge anchored to the node (use cy.getElementById(taskId).renderedPosition() and update on cy.on('render pan zoom position', ...); the handler at spec_map.js:535 is the integration point). Badge: harness initial in coloured square (reuse colours from graph_renderer.js:128), agent name truncated, status dot. Per-node progress: thin bar across the bottom edge of the node coloured by harness, width = progress_pct%. Verify with a synthetic build of three tasks and two agents -- markers reanchor smoothly on pan/zoom and on task transitions.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-2",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_368"
+      ],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_370",
+      "title": "SPEC-062 Amendment C-2: Live Activity hover detail + end-to-end verification",
+      "description": "Per SPEC-062 Amendment C-2 sec 2.5 and 6. Extend showDetailPanel in spec_map.js to append a Live Activity section when the hovered node has an attached AgentPresence: show recent_actions (3 most recent) and a relative last_action_ts. Run a real multi-agent build with at least three presence transitions and two distinct agents. Verify markers appear within one ADS tick of worker_session_started, progress bars update on cross_ai_progress_update, markers transition on task_completed, hover detail shows correct activity tail, and full teardown happens 30s after build_complete. Log amendment_c2_verified to ADS with action_data { build_id, presence_transitions_seen, agents_observed }.",
+      "spec_ref": "SPEC-062",
+      "amendment": "SPEC-062 Amendment C-2",
+      "assigned_to": "Frontend_Engineer",
+      "status": "completed",
+      "priority": "high",
+      "depends_on": [
+        "task_368",
+        "task_369"
+      ],
+      "created_at": "2026-06-20T20:06:26.447099Z",
+      "completed_at": "2026-06-20T20:36:55.117158Z",
+      "completion_evidence": {
+        "source": "SA_reconciliation_post_buildfix",
+        "reason": "Files verified on disk after build_20260620_200809; sync bug prevented automatic tasks.json patch",
+        "build_id": "build_20260620_200809",
+        "evidence_grep": "section-scr-alerts, sm-build-strip, sm-zoom-cluster, label data(label), userZoomingEnabled all present"
+      }
+    },
+    {
+      "id": "task_372",
+      "task_id": "task_372",
+      "spec_ref": "SPEC-065",
+      "role": "Backend_Engineer",
+      "title": "Implement standards import and CRUD clause endpoints",
+      "description": "Expose POST /api/governance/standards/import and CRUD endpoints for clauses in adt_center/api/standards_routes.py. Validate payloads using StandardsSchema and emit ADS events on operations.",
+      "acceptance_criteria": [
+        "POST /import returns 201 on valid standard",
+        "GET /standards/id/clauses returns clauses JSON",
+        "Clause operations emit ADS events"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:45:39.021414Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Backend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 1,
+      "started_at": "2026-06-24T22:22:26.742054Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:22:49.404114Z"
+    },
+    {
+      "id": "task_373",
+      "task_id": "task_373",
+      "spec_ref": "SPEC-065",
+      "role": "Backend_Engineer",
+      "title": "Create ClusterAssistant CLI and tags clustering endpoint",
+      "description": "Implement ClusterAssistant class in adt_core/standards/cluster.py with tag and text overlap metrics. Expose GET /api/governance/standards/cluster and /standards/tags endpoints.",
+      "acceptance_criteria": [
+        "Cluster CLI run via python3 -m adt_core.standards.cluster works",
+        "GET /standards/cluster returns cluster JSON",
+        "GET /standards/tags returns tag counts"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:45:50.203213Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Backend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 1,
+      "started_at": "2026-06-24T22:22:26.742054Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:22:49.404114Z"
+    },
+    {
+      "id": "task_374",
+      "task_id": "task_374",
+      "spec_ref": "SPEC-065",
+      "role": "Backend_Engineer",
+      "title": "Create rationalised rules and disposition API endpoints",
+      "description": "Implement CRUD endpoints for rationalised rules and disposition updating in adt_center/api/standards_routes.py. SCR-gate adapt/dismiss/supersede dispositions.",
+      "acceptance_criteria": [
+        "POST /rationalised_rules creates new RR in ledger",
+        "PUT /rationalised_rules/id/disposition updates status and queues SCR",
+        "Tests for RR CRUD pass"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:45:56.270083Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Backend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 1,
+      "started_at": "2026-06-24T22:22:26.742054Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:22:49.404114Z"
+    },
+    {
+      "id": "task_375",
+      "task_id": "task_375",
+      "spec_ref": "SPEC-065",
+      "role": "Frontend_Engineer",
+      "title": "Build standards import wizard and clause editor UI",
+      "description": "Implement standard import wizard (JSON upload/URL fetch) and clause editor with tag autocomplete in adt_center/templates/standards_authoring.html.",
+      "acceptance_criteria": [
+        "Import wizard parses valid JSON/URLs",
+        "Clause editor validates input using StandardsSchema",
+        "Autocomplete dropdown populates tags"
+      ],
+      "depends_on": [
+        "task_372"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:00.977182Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Frontend_Engineer",
+      "completed_at": "2026-06-24T14:57:39.751886Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_376",
+      "task_id": "task_376",
+      "spec_ref": "SPEC-065",
+      "role": "Frontend_Engineer",
+      "title": "Develop cluster view and RR disposition kanban",
+      "description": "Build cluster visualization and rationalised rule authoring form inside standards_authoring.html. Implement a drag-and-drop kanban board for RR disposition workflow.",
+      "acceptance_criteria": [
+        "Author RR from cluster pre-fills derived_from clauses",
+        "Kanban drag action shows rationale modal",
+        "Disposition change saves state or triggers SCR"
+      ],
+      "depends_on": [
+        "task_373",
+        "task_374",
+        "task_375"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:05.590090Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Frontend_Engineer",
+      "completed_at": "2026-06-24T15:00:34.737369Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_377",
+      "task_id": "task_377",
+      "spec_ref": "SPEC-065",
+      "role": "Backend_Engineer",
+      "title": "Implement spec coverage API and WebSocket endpoint",
+      "description": "Create spec markdown parser and spec coverage endpoints in adt_center/api/spec_coverage.py. Expose GET coverage and GET suggest APIs, and a WebSocket for live push on file mtime changes.",
+      "acceptance_criteria": [
+        "GET /coverage returns spec compliance status",
+        "GET /suggest returns overlapping RRs with confidence scores",
+        "WebSocket sends payload on mtime changes"
+      ],
+      "depends_on": [
+        "task_374"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:09.767885Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Backend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 2,
+      "started_at": "2026-06-24T22:22:49.685856Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:23:07.812443Z"
+    },
+    {
+      "id": "task_378",
+      "task_id": "task_378",
+      "spec_ref": "SPEC-065",
+      "role": "Backend_Engineer",
+      "title": "Implement v1 self-assessment checks for specs",
+      "description": "Implement 8 structural/regex checks against the Doc 4 self-assessment template. Allow inline overrides in markdown files via comment tags.",
+      "acceptance_criteria": [
+        "GET /self_assessment returns structured checks array",
+        "Self-assessment checklist recognizes overrides",
+        "Spec parser extracts title, section headers, and standards_refs"
+      ],
+      "depends_on": [
+        "task_377"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:14.603052Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Backend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 3,
+      "started_at": "2026-06-24T22:23:09.185965Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:23:27.448630Z"
+    },
+    {
+      "id": "task_379",
+      "task_id": "task_379",
+      "spec_ref": "SPEC-065",
+      "role": "Frontend_Engineer",
+      "title": "Render coverage suggestions and checklist in Op Center",
+      "description": "Add Coverage, Suggestions, and Self-assessment panels on the right side of spec detail view in adt_center templates. Enable 'Add to standards_refs' button to queue SCR.",
+      "acceptance_criteria": [
+        "Side-panels render on spec detail view",
+        "Add to standards_refs queues SCR against config/specs.json",
+        "Checks highlight green/red/grey dynamically"
+      ],
+      "depends_on": [
+        "task_376",
+        "task_378"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:20.356296Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Frontend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 4,
+      "started_at": "2026-06-24T22:23:27.999502Z",
+      "progress_percent": 100,
+      "progress_message": "Committed coverage UI",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-24T22:28:06.950051Z",
+      "completed_at": "2026-06-24T22:28:28.231673Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_380",
+      "task_id": "task_380",
+      "spec_ref": "SPEC-065",
+      "role": "Frontend_Engineer",
+      "title": "Build Tauri console live coverage drawer",
+      "description": "Create Live Coverage overlay and drawer in Tauri Operator Console Specs tab. Implement WS subscription on tab focus/blur, ensuring no native select elements are used.",
+      "acceptance_criteria": [
+        "Specs tab shows Live Coverage drawer",
+        "Tauri custom dropdown is used for disposition select",
+        "WS subscription connects on focus and terminates on blur"
+      ],
+      "depends_on": [
+        "task_379"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:46:28.102937Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Frontend_Engineer",
+      "build_id": "build_20260624_222224",
+      "wave": 5,
+      "started_at": "2026-06-24T22:28:28.647446Z",
+      "progress_percent": 100,
+      "progress_message": "completed",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-24T22:33:23.558653Z",
+      "completed_at": "2026-06-24T22:33:38.772566Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_381",
+      "task_id": "task_381",
+      "spec_ref": "SPEC-063",
+      "role": "Systems_Architect",
+      "title": "Create AI protocol bootstrap template",
+      "description": "Author the AI_PROTOCOL.md.tmpl template containing the binding project constitution rules.",
+      "acceptance_criteria": [
+        "Template file AI_PROTOCOL.md.tmpl is created under project bootstrap templates."
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:50:36.740069Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Systems_Architect",
+      "build_id": "build_20260624_221906",
+      "wave": 1,
+      "started_at": "2026-06-24T22:19:08.391063Z",
+      "progress_percent": 100,
+      "progress_message": "verified existing template",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-24T22:21:20.593090Z",
+      "completed_at": "2026-06-24T22:21:40.512417Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_382",
+      "task_id": "task_382",
+      "spec_ref": "SPEC-063",
+      "role": "Systems_Architect",
+      "title": "Create master plan bootstrap template",
+      "description": "Author the MASTER_PLAN.md.tmpl template skeleton containing vision and roadmap placeholders.",
+      "acceptance_criteria": [
+        "Template file MASTER_PLAN.md.tmpl is created under project bootstrap templates."
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T14:50:43.750319Z",
+      "created_by": "decompose_worker",
+      "assigned_to": "Systems_Architect",
+      "build_id": "build_20260624_221906",
+      "wave": 1,
+      "started_at": "2026-06-24T22:19:08.391063Z",
+      "progress_percent": 100,
+      "progress_message": "verified existing template",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-24T22:21:20.842082Z",
+      "completed_at": "2026-06-24T22:21:40.512417Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_383",
+      "task_id": "task_383",
+      "spec_ref": "SPEC-064",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Register standards files in registry index",
+      "description": "Register all 8 standards files in index.json and ensure registry.json is populated.",
+      "acceptance_criteria": [
+        "index.json registers 8 files",
+        "registry.json is not empty"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:41:19.831280Z",
+      "created_by": "decompose_worker",
+      "completed_at": "2026-06-24T21:41:25.348012Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "progress_percent": 45,
+      "progress_message": "smoke test",
+      "progress_agent": "manual",
+      "progress_updated_at": "2026-06-24T21:49:45.143258Z"
+    },
+    {
+      "id": "task_384",
+      "task_id": "task_384",
+      "spec_ref": "SPEC-064",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Populate clauses for registry standards",
+      "description": "Author at least 5 clauses per registered standard, totaling at least 40 clauses across the registry.",
+      "acceptance_criteria": [
+        "At least 40 clauses across standard files",
+        "Each standard file has >= 5 clauses"
+      ],
+      "depends_on": [
+        "task_383"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:41:29.778085Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 1,
+      "started_at": "2026-06-24T22:29:08.802111Z",
+      "progress_percent": 100,
+      "progress_message": "Done",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-24T22:31:53.089093Z",
+      "completed_at": "2026-06-24T22:32:00.388756Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_385",
+      "task_id": "task_385",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add standards_refs to schemas",
+      "description": "Add standards_refs list field to Specification and CapabilityIntent schemas and configuration files.",
+      "acceptance_criteria": [
+        "Specification.standards_refs is defined in schema",
+        "CapabilityIntent.standards_refs is defined in schema"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:41:42.931694Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 1,
+      "started_at": "2026-06-24T22:29:08.802111Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:32:11.791968Z"
+    },
+    {
+      "id": "task_386",
+      "task_id": "task_386",
+      "spec_ref": "SPEC-064",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Render Standards tab in Panel",
+      "description": "Implement the Standards tab in templates to display registered standards, clause counts, and disposition summaries.",
+      "acceptance_criteria": [
+        "Standards tab visible on Panel UI",
+        "Tab displays list of standards and clause counts"
+      ],
+      "depends_on": [
+        "task_383"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:41:51.031903Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 1,
+      "started_at": "2026-06-24T22:29:08.802111Z",
+      "progress_percent": 60,
+      "progress_message": "Patching JS to render Standards",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-24T22:36:52.747579Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-24T22:37:20.280640Z"
+    },
+    {
+      "id": "task_387",
+      "task_id": "task_387",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement RationalisedRule schema and ledger",
+      "description": "Define the RationalisedRule dataclass in schema.py and create the append-only, Tier-1 protected ledger file.",
+      "acceptance_criteria": [
+        "RationalisedRule dataclass exists in schema.py",
+        "rationalised_rules.jsonl exists on disk"
+      ],
+      "depends_on": [
+        "task_385"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:41:58.488583Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 2,
+      "started_at": "2026-06-24T22:37:20.554075Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:37:46.968940Z"
+    },
+    {
+      "id": "task_388",
+      "task_id": "task_388",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create RationalisedRule IO module",
+      "description": "Implement or extend rationalisation.py to support loading, appending, and looking up RationalisedRules.",
+      "acceptance_criteria": [
+        "rationalisation.py exports load, append, lookup methods",
+        "RationalisedRules lookup unit tests pass"
+      ],
+      "depends_on": [
+        "task_387"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:42:04.743915Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 3,
+      "started_at": "2026-06-24T22:37:47.122014Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:38:07.079119Z"
+    },
+    {
+      "id": "task_389",
+      "task_id": "task_389",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Register RationalisedRule ADS event types",
+      "description": "Register rationalised_rule_created, rationalised_rule_decided, and rationalised_rule_superseded ADS event types.",
+      "acceptance_criteria": [
+        "ADS schema contains the 3 new event types",
+        "All new events are registered as ASCII-safe"
+      ],
+      "depends_on": [
+        "task_387"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:42:11.206312Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 3,
+      "started_at": "2026-06-24T22:37:47.122014Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:38:07.079119Z"
+    },
+    {
+      "id": "task_390",
+      "task_id": "task_390",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Enforce SCR gating on RationalisedRules",
+      "description": "Implement SCR validation for adapt, dismiss, or supersede operations on RationalisedRules.",
+      "acceptance_criteria": [
+        "Approved SCR is required to adapt/dismiss/supersede RRs",
+        "DTCP denies unapproved RR mutations"
+      ],
+      "depends_on": [
+        "task_388"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:42:20.113549Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 4,
+      "started_at": "2026-06-24T22:38:07.741440Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:38:19.848460Z"
+    },
+    {
+      "id": "task_391",
+      "task_id": "task_391",
+      "spec_ref": "SPEC-064",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Author initial Rationalised Rules set",
+      "description": "Group equivalent clauses across standards and author at least 20 RRs, each with a scope, initial disposition, and rationale.",
+      "acceptance_criteria": [
+        "rationalised_rules.jsonl contains >= 20 RRs",
+        "All authored RRs have valid disposition and rationale"
+      ],
+      "depends_on": [
+        "task_388",
+        "task_384"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:42:42.645962Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_135947",
+      "wave": 1,
+      "started_at": "2026-06-25T13:59:54.868103Z",
+      "progress_percent": 100,
+      "progress_message": "21 RRs committed",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-25T14:11:45.132255Z",
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-06-25T14:12:26.702315Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_392",
+      "task_id": "task_392",
+      "spec_ref": "SPEC-064",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Render Rationalised Rules on Panel UI",
+      "description": "Update the Standards tab to render a table of Rationalised Rules with their derived_from graph.",
+      "acceptance_criteria": [
+        "RR table is visible in Panel Standards tab",
+        "derived_from graph/links are interactive"
+      ],
+      "depends_on": [
+        "task_386",
+        "task_391"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:42:52.812706Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 5,
+      "started_at": "2026-06-24T22:42:35.888788Z",
+      "progress_percent": 20,
+      "progress_message": "20% understood",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-24T22:43:16.504523Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-24T22:47:42.944579Z"
+    },
+    {
+      "id": "task_393",
+      "task_id": "task_393",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement MachineReadableRule schema",
+      "description": "Define MachineReadableRule dataclass in schema.py and create the append-only ledger file on disk.",
+      "acceptance_criteria": [
+        "MachineReadableRule dataclass exists in schema.py",
+        "machine_readable_rules.jsonl exists on disk"
+      ],
+      "depends_on": [
+        "task_387"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:43:01.172345Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 3,
+      "started_at": "2026-06-24T22:37:47.122014Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:38:07.079119Z"
+    },
+    {
+      "id": "task_394",
+      "task_id": "task_394",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement MRR evaluation engine",
+      "description": "Create mrr_engine.py implementing the 6 check types and register machine_readable_rule_created and mrr_evaluation event types.",
+      "acceptance_criteria": [
+        "mrr_engine.py implements check types and exports evaluate",
+        "MRR events registered in ADS schema"
+      ],
+      "depends_on": [
+        "task_393"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:43:09.898062Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 4,
+      "started_at": "2026-06-24T22:38:07.741440Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:38:19.848460Z"
+    },
+    {
+      "id": "task_395",
+      "task_id": "task_395",
+      "spec_ref": "SPEC-064",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Integrate MRR evaluation in DTCP",
+      "description": "Add mrr_evaluation flag to Specification schema and integrate engine check evaluation during DTCP validation.",
+      "acceptance_criteria": [
+        "Specification schema has mrr_evaluation boolean field",
+        "DTCP blocks operations violating required MRRs and returns denied_mrr_violation"
+      ],
+      "depends_on": [
+        "task_394",
+        "task_385"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:43:25.547463Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 5,
+      "started_at": "2026-06-24T22:42:35.888788Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-24T22:47:56.571520Z"
+    },
+    {
+      "id": "task_396",
+      "task_id": "task_396",
+      "spec_ref": "SPEC-064",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Author test MRRs and verify gating",
+      "description": "Author 5 MRRs (one per check_type) and verify gating using a test spec with mrr_evaluation enabled.",
+      "acceptance_criteria": [
+        "At least 5 MRRs written to machine_readable_rules.jsonl",
+        "Test spec with mrr_evaluation: true successfully gates events via DTCP"
+      ],
+      "depends_on": [
+        "task_395"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:43:34.729787Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_135947",
+      "wave": 1,
+      "started_at": "2026-06-25T13:59:54.868103Z",
+      "completed_by_role": "Systems_Architect",
+      "progress_percent": 100,
+      "progress_message": "5 MRRs + gating verified",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-25T14:11:46.227043Z",
+      "completed_at": "2026-06-25T14:12:26.702315Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_397",
+      "task_id": "task_397",
+      "spec_ref": "SPEC-064",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Expose public transparency API and pages",
+      "description": "Implement API endpoints and pages exposing registered standards, rationalised rules, machine readable rules, and traceability graph.",
+      "acceptance_criteria": [
+        "JSON endpoints return standards, RRs, MRRs, and spec-traceability mapping",
+        "RR detail page renders derived_from links and source clauses"
+      ],
+      "depends_on": [
+        "task_392",
+        "task_396"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-24T20:43:43.337312Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260624_222907",
+      "wave": 7,
+      "started_at": "2026-06-24T22:48:06.255840Z",
+      "progress_percent": 20,
+      "progress_message": "Understood task, viewing templates",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-24T22:48:47.882113Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-24T22:53:14.332996Z"
+    },
+    {
+      "id": "task_398",
+      "task_id": "task_398",
+      "spec_ref": "SPEC-001",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Set up project scaffolding and hosting configuration",
+      "description": "Initialize the vr_mats project repository, configure HTTPS hosting, and set up basic deployment pipelines.",
+      "acceptance_criteria": [
+        "Scaffold folder structure exists",
+        "Funnel hosting config file exists"
+      ],
+      "depends_on": [],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:10:08.891167Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_399",
+      "task_id": "task_399",
+      "spec_ref": "SPEC-001",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Set up project scaffolding and hosting configuration",
+      "description": "Initialize the vr_mats project repository, configure HTTPS hosting, and set up basic deployment pipelines.",
+      "acceptance_criteria": [
+        "Scaffold folder structure exists",
+        "Funnel hosting config file exists",
+        "Build script runs successfully"
+      ],
+      "depends_on": [],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:50.514194Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_400",
+      "task_id": "task_400",
+      "spec_ref": "SPEC-001",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Design and compile beer-mat tracking marker",
+      "description": "Design a high feature density beer-mat marker visual, and compile it using the MindAR target compiler tool.",
+      "acceptance_criteria": [
+        "Beer mat marker image asset exists in repository",
+        "MindAR compiler output target file exists"
+      ],
+      "depends_on": [
+        "task_399"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:51.366480Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_401",
+      "task_id": "task_401",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement camera permissions and QR landing flow",
+      "description": "Develop the QR-code launch handler, request camera permissions, and render the initial loading overlay.",
+      "acceptance_criteria": [
+        "Index page requests camera permission on load",
+        "Fallback UI displays if camera permission is denied"
+      ],
+      "depends_on": [
+        "task_399"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:52.720330Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_402",
+      "task_id": "task_402",
+      "spec_ref": "SPEC-001",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement telemetry API client integration",
+      "description": "Create a telemetry service to fetch metrics from the buoy endpoint and handle missing properties gracefully.",
+      "acceptance_criteria": [
+        "Telemetry module handles empty or invalid fields",
+        "Telemetry data structure matches metrics payload"
+      ],
+      "depends_on": [
+        "task_399"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:53.603516Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_403",
+      "task_id": "task_403",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Initialize MindAR and Three.js tracking scene",
+      "description": "Integrate MindAR tracking framework and configure the Three.js scene, camera viewport, and basic renderer.",
+      "acceptance_criteria": [
+        "Three.js rendering context is successfully initialized",
+        "MindAR controller triggers tracking start event"
+      ],
+      "depends_on": [
+        "task_400",
+        "task_401"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:55.552264Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_404",
+      "task_id": "task_404",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement multi-marker tracking and IMU smoothing",
+      "description": "Configure multi-marker targets and implement IMU/gyroscope assisted tracking smoothing logic to eliminate visual flicker.",
+      "acceptance_criteria": [
+        "IMU sensor integration module exists",
+        "Anchor stabilization logic successfully filters high-frequency noise"
+      ],
+      "depends_on": [
+        "task_403"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:56.579047Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_405",
+      "task_id": "task_405",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Build 3D OceanPulse visual panel",
+      "description": "Construct the 3D visual panels using Three.js, matching the orange and blue organic OceanPulse brand style.",
+      "acceptance_criteria": [
+        "3D panel displays placeholder text and icons",
+        "Materials use correct orange/blue brand colors"
+      ],
+      "depends_on": [
+        "task_403"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:58.486486Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_406",
+      "task_id": "task_406",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Integrate live telemetry data with 3D panel",
+      "description": "Bind live data from the telemetry client to the 3D panel elements, ensuring real-time UI updates.",
+      "acceptance_criteria": [
+        "Telemetry updates reflect on 3D panel within 10 seconds",
+        "Panel shows error state on API failure"
+      ],
+      "depends_on": [
+        "task_402",
+        "task_404",
+        "task_405"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:11:59.346190Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_407",
+      "task_id": "task_407",
+      "spec_ref": "SPEC-001",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Deploy project and perform multi-device QA",
+      "description": "Deploy the app to the staging/production host and run integration tests across iOS Safari and Android Chrome.",
+      "acceptance_criteria": [
+        "Staging URL returns 200 via HTTPS",
+        "MindAR loads and initializes on Android and iOS"
+      ],
+      "depends_on": [
+        "task_406"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:12:00.814181Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_408",
+      "task_id": "task_408",
+      "spec_ref": "SPEC-001",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Initialize vr_mats repository and migrate prototype",
+      "description": "Initialize the project repository, set up standard directory structure, and copy prototype files.",
+      "acceptance_criteria": [
+        "Repository initialized",
+        "Prototype files copied to src directory"
+      ],
+      "depends_on": [],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:14:19.649171Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_409",
+      "task_id": "task_409",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Optimize beer mat tracking marker design",
+      "description": "Design and optimize the beer mat marker image to meet tracking-friendly contrast requirements while keeping size under 500 KB.",
+      "acceptance_criteria": [
+        "Marker image size is under 500 KB",
+        "MindAR feature points generated successfully"
+      ],
+      "depends_on": [],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:14:27.903448Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_410",
+      "task_id": "task_410",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement stable MindAR tracking and rendering",
+      "description": "Integrate MindAR and Three.js to render the 3D scene anchored on the beer mat marker, targeting at least 30 fps on mid-range devices.",
+      "acceptance_criteria": [
+        "3D scene renders anchored to the mat marker",
+        "Frame rate is at least 30 fps on target mobile browser"
+      ],
+      "depends_on": [
+        "task_408",
+        "task_409"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:14:34.109087Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_411",
+      "task_id": "task_411",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement IMU tracking smoothing strategy",
+      "description": "Combine MindAR multi-marker tracking with device gyroscope/IMU inputs to smooth anchoring and prevent flicker or drift.",
+      "acceptance_criteria": [
+        "No visible panel flicker during 30s of natural movement",
+        "Smoothing logic handles brief marker tracking loss gracefully"
+      ],
+      "depends_on": [
+        "task_410"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:14:40.290745Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_412",
+      "task_id": "task_412",
+      "spec_ref": "SPEC-001",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Build 3D OceanPulse telemetry panel",
+      "description": "Create a translucent 3D UI panel in Three.js featuring brand colors (orange/blue, cyan/teal accents) to display live metrics.",
+      "acceptance_criteria": [
+        "Panel complies with brand visual identity",
+        "Panel includes placeholders for live metrics"
+      ],
+      "depends_on": [
+        "task_410"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-06-25T20:14:47.342121Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_413",
+      "task_id": "task_413",
+      "spec_ref": "SPEC-066",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Define schemas and append helpers for RR and MRR",
+      "description": "Verify or add RationalisedRule and MachineReadableRule dataclasses. Implement append and lookup helper functions in adt_core.",
+      "acceptance_criteria": [
+        "adt_core/standards/schema.py defines classes",
+        "adt_core/standards/rationalisation.py implements append/lookup helpers",
+        "adt_core/ads/schema.py registers ADS events"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:26.972705Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_221239",
+      "wave": 1,
+      "started_at": "2026-06-25T22:12:40.529720Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-25T22:12:54.304577Z"
+    },
+    {
+      "id": "task_414",
+      "task_id": "task_414",
+      "spec_ref": "SPEC-066",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add Backend Endpoints for Rationalised Rules",
+      "description": "Implement POST, GET, and PUT endpoints in governance_routes.py for Rationalised Rules. Ensure appropriate ADS events are emitted.",
+      "acceptance_criteria": [
+        "POST /governance/standards/rationalised-rules returns 201",
+        "GET /governance/standards/rationalised-rules returns list",
+        "PUT /governance/standards/rationalised-rules/<rr_id> updates disposition"
+      ],
+      "depends_on": [
+        "task_413"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:36.097060Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260627_115709",
+      "wave": 1,
+      "started_at": "2026-06-27T11:57:13.815382Z",
+      "_verification_note": "Reset to ready: claimed deliverable not present on disk",
+      "completed_by_role": "Backend_Engineer",
+      "progress_percent": 100,
+      "progress_message": "PUT+GET+SCR done",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-27T12:01:38.784096Z",
+      "assigned_harness": "claude",
+      "assigned_model": null,
+      "completed_at": "2026-06-27T12:01:54.926153Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Backend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_415",
+      "task_id": "task_415",
+      "spec_ref": "SPEC-066",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add Backend Endpoints for Machine Readable Rules",
+      "description": "Implement POST and GET endpoints for Machine Readable Rules under governance_routes.py.",
+      "acceptance_criteria": [
+        "POST /governance/standards/machine-readable-rules returns 201",
+        "GET /governance/standards/machine-readable-rules returns list",
+        "GET /governance/standards/machine-readable-rules/<mrr_id> returns detail"
+      ],
+      "depends_on": [
+        "task_413"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:41.397443Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260627_112532",
+      "wave": 1,
+      "started_at": "2026-06-27T11:25:35.153748Z",
+      "_verification_note": "Reset to ready: claimed deliverable not present on disk",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-27T12:07:31.946767Z"
+    },
+    {
+      "id": "task_416",
+      "task_id": "task_416",
+      "spec_ref": "SPEC-066",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add Spec Coverage Backend Endpoint",
+      "description": "Implement GET /governance/specs/<spec_id>/coverage endpoint to resolve the Spec -> RR -> Clause chain.",
+      "acceptance_criteria": [
+        "GET /governance/specs/<spec_id>/coverage returns resolved JSON structure"
+      ],
+      "depends_on": [
+        "task_414",
+        "task_415"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:46.793685Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_221239",
+      "wave": 3,
+      "started_at": "2026-06-25T22:18:13.832466Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-25T22:18:24.813411Z"
+    },
+    {
+      "id": "task_417",
+      "task_id": "task_417",
+      "spec_ref": "SPEC-066",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Add Clause Disposition UI to Standards Registry",
+      "description": "Update standards.html template with Adopt/Adapt/Dismiss action buttons and rationale modal.",
+      "acceptance_criteria": [
+        "Adopt button triggers immediate PUT request",
+        "Adapt/Dismiss buttons open rationale modal",
+        "Row updates dynamically in place"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:52.886386Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_221239",
+      "wave": 1,
+      "started_at": "2026-06-25T22:12:40.529720Z",
+      "progress_percent": 100,
+      "progress_message": "Task complete",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-25T22:17:50.180682Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-25T22:17:59.717861Z"
+    },
+    {
+      "id": "task_418",
+      "task_id": "task_418",
+      "spec_ref": "SPEC-066",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Create Rationalised Rules Tab UI",
+      "description": "Create standards_rules.html template displaying RR table, scope/disposition filters, Author RR modal, and details side-drawer.",
+      "acceptance_criteria": [
+        "New page standards_rules.html exists",
+        "+ Author RR form successfully posts to backend",
+        "Clicking row opens side-drawer with details"
+      ],
+      "depends_on": [
+        "task_414"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:11:59.073339Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260627_111412",
+      "wave": 2,
+      "started_at": "2026-06-27T11:15:10.054761Z",
+      "progress_percent": 100,
+      "progress_message": "Added RR details drawer",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-27T11:20:04.395024Z",
+      "_verification_note": "Reset to ready: claimed deliverable not present on disk",
+      "completed_at": "2026-06-27T11:20:21.947734Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_419",
+      "task_id": "task_419",
+      "spec_ref": "SPEC-066",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Create Machine Readable Rules Tab UI",
+      "description": "Create standards_mrr.html template showing MRR table, Author MRR modal, and detail side-drawer.",
+      "acceptance_criteria": [
+        "New page standards_mrr.html exists",
+        "+ Author MRR form successfully posts to backend"
+      ],
+      "depends_on": [
+        "task_415"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:12:04.198181Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260627_111412",
+      "wave": 2,
+      "started_at": "2026-06-27T11:15:10.054761Z",
+      "progress_percent": 100,
+      "progress_message": "Added MRR details drawer",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-27T11:19:52.991685Z",
+      "_verification_note": "Reset to ready: claimed deliverable not present on disk",
+      "completed_at": "2026-06-27T11:20:21.947734Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_420",
+      "task_id": "task_420",
+      "spec_ref": "SPEC-066",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Add Per-Spec Coverage and Sub-navigation UI",
+      "description": "Add spec dropdown and coverage chain visualization panel to standards.html, and implement sub-navigation tabs (Registry / RR / MRR).",
+      "acceptance_criteria": [
+        "Coverage panel renders Spec -> RR -> Clause chain",
+        "Sub-navigation links function correctly within base layout"
+      ],
+      "depends_on": [
+        "task_416",
+        "task_417",
+        "task_418",
+        "task_419"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-25T22:12:14.404444Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260625_221239",
+      "wave": 4,
+      "started_at": "2026-06-25T22:23:34.083690Z",
+      "progress_percent": 80,
+      "progress_message": "UI implemented",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-25T22:28:27.970411Z",
+      "completed_at": "2026-06-25T22:28:37.544307Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_421",
+      "task_id": "task_421",
+      "spec_ref": "SPEC-067",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Define forge ADS schema events",
+      "description": "Extend the ADS schema in adt_core/ads/schema.py to include all FORGE_EVENTS constants.",
+      "acceptance_criteria": [
+        "FORGE_EVENTS defined in adt_core/ads/schema.py"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:43:53.712660Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_213156",
+      "wave": 1,
+      "started_at": "2026-06-26T21:31:57.432408Z",
+      "progress_percent": 100,
+      "progress_message": "FORGE_EVENTS verified",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-26T21:32:54.176602Z",
+      "completed_by_role": "Backend_Engineer",
+      "assigned_at": "2026-06-26T21:00:27.621633Z",
+      "completed_at": "2026-06-26T21:33:05.585597Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Backend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_422",
+      "task_id": "task_422",
+      "spec_ref": "SPEC-067",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create spec creation endpoint",
+      "description": "Add POST /api/specs endpoint in adt_center/api/governance_routes.py to write spec files and update config.",
+      "acceptance_criteria": [
+        "POST /api/specs returns 201 on success",
+        "Markdown spec file created under _cortex/specs"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:03.234126Z",
+      "created_by": "decompose_worker",
+      "build_id": "diag_manual_call",
+      "wave": 1,
+      "started_at": "2026-06-26T21:38:35.498864Z",
+      "progress_percent": 10,
+      "progress_message": "Starting",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-26T21:38:56.113088Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-26T21:42:33.126685Z"
+    },
+    {
+      "id": "task_423",
+      "task_id": "task_423",
+      "spec_ref": "SPEC-067",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add architect worker prompt template",
+      "description": "Create new template file adt_center/api/forge_prompts/architect.md with Phase A and B prompts.",
+      "acceptance_criteria": [
+        "File adt_center/api/forge_prompts/architect.md exists"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:08.604327Z",
+      "created_by": "decompose_worker",
+      "build_id": "diag_manual_call",
+      "wave": 1,
+      "started_at": "2026-06-26T21:38:35.498864Z",
+      "completed_by_role": "Backend_Engineer",
+      "progress_percent": 10,
+      "progress_message": "Starting",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-26T21:38:56.393208Z",
+      "completed_at": "2026-06-26T21:42:33.126685Z"
+    },
+    {
+      "id": "task_424",
+      "task_id": "task_424",
+      "spec_ref": "SPEC-067",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Extend project forge endpoint",
+      "description": "Extend api_forge_project() in adt_center/api/governance_routes.py to write brief, spawn worker, and return session status.",
+      "acceptance_criteria": [
+        "POST /api/governance/forge accepts new fields",
+        "brief file is written and worker is spawned"
+      ],
+      "depends_on": [
+        "task_421",
+        "task_423"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:14.301785Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_222511",
+      "wave": 1,
+      "started_at": "2026-06-26T22:25:13.174149Z",
+      "progress_percent": 100,
+      "progress_message": "Task fully implemented",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-26T22:29:45.854701Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-26T22:30:21.328916Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Backend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_425",
+      "task_id": "task_425",
+      "spec_ref": "SPEC-067",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create forge status endpoint",
+      "description": "Implement GET /api/governance/forge/<forge_session_id>/status to check worker state, ADS events, and logs.",
+      "acceptance_criteria": [
+        "GET /api/governance/forge/status returns correct state and logs"
+      ],
+      "depends_on": [
+        "task_421",
+        "task_424"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:19.269500Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_222511",
+      "wave": 2,
+      "started_at": "2026-06-26T22:30:22.257077Z",
+      "progress_percent": 100,
+      "progress_message": "endpoint completed",
+      "progress_agent": "Backend_Engineer",
+      "progress_updated_at": "2026-06-26T22:34:02.796858Z",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-06-26T22:34:29.587820Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Backend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_426",
+      "task_id": "task_426",
+      "spec_ref": "SPEC-067",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Build two-screen wizard UI",
+      "description": "Implement the two-screen input form flow for Wish and Completeness signals in adt-console/src/js/launcher.js.",
+      "acceptance_criteria": [
+        "Wizard has 2 screens with 5 total inputs",
+        "Required validation checks are active"
+      ],
+      "depends_on": [
+        "task_424"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:24.433516Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_204210",
+      "wave": 3,
+      "started_at": "2026-06-26T20:52:31.939244Z",
+      "progress_percent": 100,
+      "progress_message": "UI fully integrated",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-26T20:57:17.996269Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-26T20:57:43.725332Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_427",
+      "task_id": "task_427",
+      "spec_ref": "SPEC-067",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement wizard live progress view",
+      "description": "Implement progress polling, complete/failed states, and the retry flow in adt-console/src/js/launcher.js.",
+      "acceptance_criteria": [
+        "Wizard displays progress bar and details",
+        "Failed state shows logs and retry button"
+      ],
+      "depends_on": [
+        "task_425",
+        "task_426"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:29.010059Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_204210",
+      "wave": 4,
+      "started_at": "2026-06-26T20:57:44.298995Z",
+      "progress_percent": 100,
+      "progress_message": "Task completed",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-26T21:00:00.571751Z",
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-06-26T21:00:18.776829Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_428",
+      "task_id": "task_428",
+      "spec_ref": "SPEC-067",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Add launcher wizard css styling",
+      "description": "Add classes and transitions for progress bar, complete, and failed states to adt-console/src/css/launcher.css.",
+      "acceptance_criteria": [
+        "launcher.css contains wizard modal and progress classes",
+        "Responsive layout styles for modal screens exist"
+      ],
+      "depends_on": [
+        "task_426",
+        "task_427"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:35.685465Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_195813",
+      "wave": 5,
+      "started_at": "2026-06-26T20:24:17.921764Z",
+      "progress_percent": 100,
+      "progress_message": "css appended",
+      "progress_agent": "Frontend_Engineer",
+      "progress_updated_at": "2026-06-26T20:26:29.533758Z",
+      "completed_at": "2026-06-26T20:29:26.806192Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_429",
+      "task_id": "task_429",
+      "spec_ref": "SPEC-067",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Verify full forge wizard workflow",
+      "description": "Execute integration and end-to-end tests for the entire wizard flow from input submission to spec creation and decomposition verification.",
+      "acceptance_criteria": [
+        "E2e flow generates SPEC-001 and child specs successfully",
+        "Decomposition of child specs yields technical tasks"
+      ],
+      "depends_on": [
+        "task_422",
+        "task_425",
+        "task_427",
+        "task_428"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-06-26T19:44:40.632521Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260626_195813",
+      "wave": 6,
+      "started_at": "2026-06-26T20:29:28.303875Z",
+      "progress_percent": 100,
+      "progress_message": "Verification done",
+      "progress_agent": "Systems_Architect",
+      "progress_updated_at": "2026-06-26T20:34:17.918752Z",
+      "completed_at": "2026-06-26T20:34:33.375516Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_430",
+      "task_id": "task_430",
+      "spec_ref": "SPEC-062-H",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Create auto forge architect prompt template",
+      "description": "Create the prompt template for the Systems_Architect worker at adt_center/api/forge_prompts/auto_forge_architect.md with the specified template variables.",
+      "acceptance_criteria": [
+        "File adt_center/api/forge_prompts/auto_forge_architect.md exists",
+        "File contains template variables intent_id and intent_title"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:24:39.539114Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_211850",
+      "wave": 1,
+      "started_at": "2026-07-02T21:18:54.279780Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "assigned_harness": "antigravity",
+      "assigned_model": "Claude Sonnet 4.6 (Thinking)",
+      "assigned_at": "2026-07-02T19:29:28.326543Z",
+      "reset_at": "2026-07-02T19:29:41.618532Z",
+      "progress_agent": "Systems_Architect",
+      "auto_retry_count": 1,
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T21:18:58.069775Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_at": "2026-07-02T22:11:52Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/decompose_prompts/anti_narration.md",
+          "size": 3166,
+          "note": "Fork B hand-implementation"
+        }
+      ]
+    },
+    {
+      "id": "task_431",
+      "task_id": "task_431",
+      "spec_ref": "SPEC-062-H",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement IntentAutoForge orchestrator service",
+      "description": "Create adt_center/services/intent_auto_forge.py to run the background pipeline orchestrating draft_spec, fire_decompose, and fire_build.",
+      "acceptance_criteria": [
+        "File adt_center/services/intent_auto_forge.py exists",
+        "IntentAutoForge class is defined with start, _draft_spec, _fire_decompose, and _fire_build methods"
+      ],
+      "depends_on": [
+        "task_430"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:24:47.007145Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_203702",
+      "wave": 2,
+      "started_at": "2026-07-02T20:41:41.467383Z",
+      "completed_by_role": "Backend_Engineer",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T19:54:09.591667Z",
+      "progress_source": "synthetic_file_activity",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_at": "2026-07-02T22:11:52Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/services/intent_auto_forge.py",
+          "size": 15253,
+          "note": "Fork B hand-implementation"
+        }
+      ]
+    },
+    {
+      "id": "task_432",
+      "task_id": "task_432",
+      "spec_ref": "SPEC-062-H",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Expose intent summary API endpoint",
+      "description": "Add GET /api/governance/capabilities/intents/summary endpoint returning count of intents grouped by status.",
+      "acceptance_criteria": [
+        "Endpoint /api/governance/capabilities/intents/summary returns JSON with counts key",
+        "Response matches counts of intents on disk"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:24:52.843499Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_211850",
+      "wave": 1,
+      "started_at": "2026-07-02T21:18:54.279780Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Backend_Engineer",
+      "progress_agent": "Backend_Engineer",
+      "auto_retry_count": 2,
+      "completed_at": "2026-07-02T22:14:48Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 243904,
+          "note": "/api/governance/capabilities/intents/summary endpoint added"
+        }
+      ]
+    },
+    {
+      "id": "task_433",
+      "task_id": "task_433",
+      "spec_ref": "SPEC-062-H",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Trigger auto forge from governance routes",
+      "description": "Modify api_add_intent in adt_center/api/governance_routes.py to run IntentAutoForge on a daemon thread for OPERATOR intents, and respect ADT_DISABLE_AUTO_FORGE environment variable.",
+      "acceptance_criteria": [
+        "governance_routes.py imports and triggers IntentAutoForge on background thread",
+        "API returns auto_forge: true for OPERATOR intents",
+        "Setting ADT_DISABLE_AUTO_FORGE=1 bypasses auto-forge logic"
+      ],
+      "depends_on": [
+        "task_431"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:24:59.188886Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_203702",
+      "wave": 3,
+      "started_at": "2026-07-02T20:48:33.644434Z",
+      "completed_by_role": "Backend_Engineer",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T19:59:52.218189Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Backend_Engineer",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_at": "2026-07-02T22:11:52Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 243904,
+          "note": "Fork B hand-implementation"
+        }
+      ]
+    },
+    {
+      "id": "task_434",
+      "task_id": "task_434",
+      "spec_ref": "SPEC-062-H",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement intents badge component",
+      "description": "Create adt-console/src/js/intents_badge.js to render a purple intents pill and dropdown in the spec map header.",
+      "acceptance_criteria": [
+        "File adt-console/src/js/intents_badge.js exists",
+        "Renders a dropdown listing intent titles, statuses, and timestamps when clicked"
+      ],
+      "depends_on": [
+        "task_432"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:25:10.672008Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_203702",
+      "wave": 2,
+      "started_at": "2026-07-02T20:41:41.467383Z",
+      "completed_by_role": "Frontend_Engineer",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T20:47:48.350905Z",
+      "progress_source": "synthetic_file_activity",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "progress_agent": "Frontend_Engineer",
+      "completed_at": "2026-07-02T22:11:52Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/intents_badge.js",
+          "size": 5829,
+          "note": "Fork B hand-implementation"
+        }
+      ]
+    },
+    {
+      "id": "task_435",
+      "task_id": "task_435",
+      "spec_ref": "SPEC-062-H",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Integrate intents badge in spec map console UI",
+      "description": "Modify adt-console/src/index.html to add the badge placeholder and adt-console/src/js/spec_map.js to initialize it and refresh on spec_drafted event.",
+      "acceptance_criteria": [
+        "Placeholder span sm-intents-badge exists in index.html",
+        "spec_map.js imports and initializes the badge component",
+        "spec_map.js refreshes the spec list and auto-selects newly-drafted specs"
+      ],
+      "depends_on": [
+        "task_434"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:25:16.954327Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_203702",
+      "wave": 3,
+      "started_at": "2026-07-02T20:48:33.644434Z",
+      "completed_by_role": "Frontend_Engineer",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "auto_retry_count": 1,
+      "completed_at": "2026-07-02T22:14:48Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/intents_badge.js",
+          "size": 5829,
+          "note": "badge placeholder in index.html + spec-map-header wire"
+        }
+      ]
+    },
+    {
+      "id": "task_436",
+      "task_id": "task_436",
+      "spec_ref": "SPEC-062-H",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Update AI protocol documentation for auto forge",
+      "description": "Record the auto-forge fast path in the operator-originated flow section of _cortex/AI_PROTOCOL.md.",
+      "acceptance_criteria": [
+        "_cortex/AI_PROTOCOL.md contains description of operator intent auto forge"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:25:23.227096Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_211850",
+      "wave": 1,
+      "started_at": "2026-07-02T21:18:54.279780Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "auto_retry_count": 1,
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T21:18:58.069775Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_at": "2026-07-02T22:42:28.110638Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/app.py",
+          "size": 30216
+        },
+        {
+          "path": "adt_center/services/intent_auto_forge.py",
+          "size": 15493
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 245925
+        },
+        {
+          "path": "adt-console/src/index.html",
+          "size": 42394
+        },
+        {
+          "path": "adt-console/src/js/spec_map.js",
+          "size": 114084
+        },
+        {
+          "path": "adt-console/src/js/intents_badge.js",
+          "size": 7893
+        },
+        {
+          "path": "adt-console/src/css/console.css",
+          "size": 64148
+        }
+      ]
+    },
+    {
+      "id": "task_437",
+      "task_id": "task_437",
+      "spec_ref": "SPEC-062-H",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement intent status auto forge failure handling",
+      "description": "Implement failure state updates so that if any step in IntentAutoForge throws, the status becomes 'Auto-Forge Failed' and details are stored.",
+      "acceptance_criteria": [
+        "Failed forge attempts log auto_forge_failed ADS event",
+        "Intent status is set to Auto-Forge Failed on disk on failure"
+      ],
+      "depends_on": [
+        "task_431"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-02T19:25:30.846698Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260702_203702",
+      "wave": 3,
+      "started_at": "2026-07-02T20:48:33.644434Z",
+      "completed_by_role": "Backend_Engineer",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-02T19:59:52.218189Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Backend_Engineer",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_at": "2026-07-02T22:14:48Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/services/intent_auto_forge.py",
+          "size": 15253,
+          "note": "IntentAutoForge._mark_failed sets intent status Auto-Forge Failed + emits auto_forge_failed ADS event"
+        }
+      ]
+    },
+    {
+      "id": "task_438",
+      "task_id": "task_438",
+      "spec_ref": "SPEC-100",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Design Fork B smoke test architecture",
+      "description": "Define the integration test harness structure to verify Auto-Forge spec generation, task decomposition, and build event emission.",
+      "acceptance_criteria": [
+        "Design document for Fork B test harness created",
+        "Integration test architecture approved"
+      ],
+      "depends_on": [],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:35:10.374701Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_439",
+      "task_id": "task_439",
+      "spec_ref": "SPEC-100",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Scaffold Fork B smoke test harness",
+      "description": "Create test scaffolding and setup environments to simulate the operator trigger action for INT-20260702_213414.",
+      "acceptance_criteria": [
+        "Smoke test file scaffolded in tests directory",
+        "Mock context for INT-20260702_213414 loaded successfully"
+      ],
+      "depends_on": [
+        "task_438"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:35:26.932055Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_440",
+      "task_id": "task_440",
+      "spec_ref": "SPEC-100",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Verify auto-forge spec generation",
+      "description": "Implement assertions to verify that triggering Auto-Forge produces the SPEC-100 markdown file in the expected path.",
+      "acceptance_criteria": [
+        "Test checks path SPEC-100_AUTO_FORK_B_SMOKE_TEST.md exists",
+        "Test fails if SPEC-100 markdown is missing"
+      ],
+      "depends_on": [
+        "task_439"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:36:04.677074Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_441",
+      "task_id": "task_441",
+      "spec_ref": "SPEC-100",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Verify spec decomposition flow",
+      "description": "Verify the spec decomposition process reads SPEC-100 and populates tasks via the spec tasks API.",
+      "acceptance_criteria": [
+        "Verification code invokes task decomposition",
+        "Decomposition result contains valid task structure"
+      ],
+      "depends_on": [
+        "task_440"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:36:48.841786Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_442",
+      "task_id": "task_442",
+      "spec_ref": "SPEC-100",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Emit intent_completed event to ADS",
+      "description": "Log a build event of type intent_completed to ADS containing action_data with intent_id INT-20260702_213414 and spec_id SPEC-100.",
+      "acceptance_criteria": [
+        "ADS event client generates intent_completed event",
+        "event contains INT-20260702_213414 and SPEC-100 in action_data"
+      ],
+      "depends_on": [
+        "task_441"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:36:59.268802Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_443",
+      "task_id": "task_443",
+      "spec_ref": "SPEC-100",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Wire smoke test to task runner",
+      "description": "Integrate the smoke test execution script into the project s default CLI task runner or integration script.",
+      "acceptance_criteria": [
+        "Smoke test executes correctly via integration suite script",
+        "Script reports 0 exit code on successful verification"
+      ],
+      "depends_on": [
+        "task_442"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:37:07.418658Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_444",
+      "task_id": "task_444",
+      "spec_ref": "SPEC-100",
+      "role": "Overseer",
+      "assigned_to": "Overseer",
+      "title": "Verify regression and launch app functionality",
+      "description": "Ensure existing user flows are not regression-affected by executing the main path via app launcher.",
+      "acceptance_criteria": [
+        "Main path smoke test passes without error",
+        "App launches and operates correctly under test environment"
+      ],
+      "depends_on": [
+        "task_443"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-02T21:37:13.640417Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_445",
+      "task_id": "task_445",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Scaffold AuthorizationRegistry and persistence",
+      "description": "Create adt_core/dtcp/authorization_registry.py and implement serialization logic for authorizations in config/specs.json.",
+      "acceptance_criteria": [
+        "File adt_core/dtcp/authorization_registry.py exists",
+        "Authorizations are serialized under authorizations key in config/specs.json"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:16.818662Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 1,
+      "started_at": "2026-07-03T10:28:59.719382Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:29:06.236474Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_446",
+      "task_id": "task_446",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement registry check and revoke methods",
+      "description": "Implement check, revoke, and cleanup_expired methods in AuthorizationRegistry, validating paths/actions and removing expired authorizations.",
+      "acceptance_criteria": [
+        "check method returns boolean for matching spec/role/path/action",
+        "revoke method removes authorizations from config/specs.json"
+      ],
+      "depends_on": [
+        "task_445"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:20.859391Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 2,
+      "started_at": "2026-07-03T10:30:34.399640Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:31:46.285142Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Backend_Engineer",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_447",
+      "task_id": "task_447",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Integrate registry checks into action check",
+      "description": "Modify adt_core/dtcp/actions.py to query AuthorizationRegistry before applying the default role-path checks.",
+      "acceptance_criteria": [
+        "Modified adt_core/dtcp/actions.py calls AuthorizationRegistry.check",
+        "Pre-registered spec-scoped paths allow action types and fall back to legacy jurisdictions.json if not found"
+      ],
+      "depends_on": [
+        "task_446"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:25.983392Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 3,
+      "started_at": "2026-07-03T10:31:57.403499Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:32:03.482285Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_448",
+      "task_id": "task_448",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Expose DTCP authorize endpoints in API",
+      "description": "Add POST /api/dtcp/authorize and DELETE /api/dtcp/authorize/spec_id routes in adt_center/api/dtcp_routes.py.",
+      "acceptance_criteria": [
+        "POST /api/dtcp/authorize registers spec-role authorization with 200/201 response",
+        "DELETE /api/dtcp/authorize/spec_id revokes grants and returns success status"
+      ],
+      "depends_on": [
+        "task_446"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:29.588507Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 3,
+      "started_at": "2026-07-03T10:31:57.403499Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:32:03.482285Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_449",
+      "task_id": "task_449",
+      "spec_ref": "SPEC-068",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Integrate DTCP authorize in auto-forge",
+      "description": "In adt_center/services/intent_auto_forge.py, replace _grant_jurisdictions with _register_spec_authorizations to register paths by role.",
+      "acceptance_criteria": [
+        "_grant_jurisdictions method is removed or replaced",
+        "Auto-forge groups paths by role and invokes the authorize registry for the drafted spec"
+      ],
+      "depends_on": [
+        "task_448"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:35.206804Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 4,
+      "started_at": "2026-07-03T10:33:24.023926Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:33:33.253981Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_450",
+      "task_id": "task_450",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Revoke authorizations on build completion",
+      "description": "Add revocation logic to the build completion/verification hook to clean up registered authorizations for the spec.",
+      "acceptance_criteria": [
+        "Verify build completion triggers DELETE or revoke calls for the spec_id",
+        "config/specs.json authorizations are cleared after verification"
+      ],
+      "depends_on": [
+        "task_449"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:38.816630Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 5,
+      "started_at": "2026-07-03T10:34:57.545286Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:35:15.082039Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_451",
+      "task_id": "task_451",
+      "spec_ref": "SPEC-068",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add tests for per-spec authorizations",
+      "description": "Write unit and integration tests validating registry, API endpoints, auto-forge integration, and build revocation.",
+      "acceptance_criteria": [
+        "Tests verify that legacy fallback behaves correctly",
+        "Tests cover register, check, revoke, and TTL cleanup functionality"
+      ],
+      "depends_on": [
+        "task_447",
+        "task_450"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:27:42.722982Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_102857",
+      "wave": 6,
+      "started_at": "2026-07-03T10:36:37.673074Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:36:40.248100Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_452",
+      "task_id": "task_452",
+      "spec_ref": "SPEC-101",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Identify project stack and locate entry points",
+      "description": "Inspect the workspace to determine the technology stack and locate the files handling the blablvla functionality.",
+      "acceptance_criteria": [
+        "Stack identified and documented",
+        "Relevant source files located"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:45:42.676344Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_104545",
+      "wave": 1,
+      "started_at": "2026-07-03T10:45:49.821063Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-03T10:45:59.417311Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-03T12:29:20.907448Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 37888
+        }
+      ]
+    },
+    {
+      "id": "task_453",
+      "task_id": "task_453",
+      "spec_ref": "SPEC-101",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create reproduction test case for blablvla defect",
+      "description": "Write a test case or script that simulates the blablvla action to observe the defect or failure mode.",
+      "acceptance_criteria": [
+        "Reproduction script or test is created",
+        "Test successfully reproduces the defect"
+      ],
+      "depends_on": [
+        "task_452"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:45:48.752680Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_454",
+      "task_id": "task_454",
+      "spec_ref": "SPEC-101",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Fix the blablvla defect in the codebase",
+      "description": "Modify the identified source files to correct the behavior of the blablvla functionality.",
+      "acceptance_criteria": [
+        "Source code is modified",
+        "Defect no longer reproduces with the test script"
+      ],
+      "depends_on": [
+        "task_453"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:45:54.878788Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_455",
+      "task_id": "task_455",
+      "spec_ref": "SPEC-101",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Write and run regression tests",
+      "description": "Verify that existing application flows are unaffected and execute standard test suite.",
+      "acceptance_criteria": [
+        "Regression tests pass successfully",
+        "No existing functionality is broken"
+      ],
+      "depends_on": [
+        "task_454"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:46:01.786716Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_456",
+      "task_id": "task_456",
+      "spec_ref": "SPEC-101",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement ADS event audit trail logging",
+      "description": "Generate an ADS audit trail event of type intent_completed for INT-20260703_104519.",
+      "acceptance_criteria": [
+        "ADS event of type intent_completed is sent",
+        "event contains correct intent_id and spec_id"
+      ],
+      "depends_on": [
+        "task_454"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:46:09.363378Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_457",
+      "task_id": "task_457",
+      "spec_ref": "SPEC-101",
+      "role": "Overseer",
+      "assigned_to": "Overseer",
+      "title": "Verify intent completion and audit trail",
+      "description": "Perform final verification of the changes, verify the audit log presence, and review changes.",
+      "acceptance_criteria": [
+        "Git status shows modifications",
+        "ADS event is confirmed in logs",
+        "All checks pass"
+      ],
+      "depends_on": [
+        "task_455",
+        "task_456"
+      ],
+      "status": "ready",
+      "priority": "normal",
+      "created_at": "2026-07-03T10:46:16.288796Z",
+      "created_by": "decompose_worker"
+    },
+    {
+      "id": "task_458",
+      "task_id": "task_458",
+      "spec_ref": "SPEC-070",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create screenshot capture service on peer",
+      "description": "Implement the MirrorScreenshotCapture service class in adt_center/services/mirror_screenshot_capture.py that handles periodic capture using mss or import fallback and posts to the collector URL.",
+      "acceptance_criteria": [
+        "File adt_center/services/mirror_screenshot_capture.py exists",
+        "Class MirrorScreenshotCapture is defined with start, stop, and status methods"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:00.455562Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_235855",
+      "wave": 1,
+      "started_at": "2026-07-03T23:58:56.720662Z",
+      "progress_percent": 75,
+      "progress_message": "3 file(s) modified",
+      "progress_updated_at": "2026-07-04T00:03:20.497320Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Backend_Engineer",
+      "completed_at": "2026-07-04T00:04:32Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src-tauri/tauri.conf.json",
+          "size": 1454
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/adt-console",
+          "size": 18858440
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/adt-console.d",
+          "size": 11052
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/deps/adt_console-1192a528686f404e",
+          "size": 18858440
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/deps/libadt_console-159d6f52d3dd61f2.rlib",
+          "size": 22933228
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/deps/adt_console-159d6f52d3dd61f2.d",
+          "size": 41839
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/deps/libadt_console-159d6f52d3dd61f2.rmeta",
+          "size": 4608376
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/deps/adt_console-1192a528686f404e.d",
+          "size": 255
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/build/adt-console-73ec9f5f70d1b578/output",
+          "size": 755
+        },
+        {
+          "path": "adt-console/src-tauri/target/release/build/adt-console-73ec9f5f70d1b578/out/__global-api-script.js",
+          "size": 435
+        }
+      ]
+    },
+    {
+      "id": "task_459",
+      "task_id": "task_459",
+      "spec_ref": "SPEC-070",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Expose capture and collector API routes",
+      "description": "Add endpoints /api/mirror/capture/start, /api/mirror/capture/stop, /api/mirror/capture/status for peers, and /mirror/frame, /mirror/frame/latest for operators in adt_center/api/governance_routes.py.",
+      "acceptance_criteria": [
+        "Endpoint /api/mirror/capture/start starts the screenshot capture thread",
+        "Endpoint /mirror/frame accepts raw JPEG and stores in memory",
+        "Endpoint /mirror/frame/latest returns the stored JPEG or 204"
+      ],
+      "depends_on": [
+        "task_458"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:05.383765Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260704_114103",
+      "wave": 1,
+      "started_at": "2026-07-04T11:41:04.647909Z",
+      "progress_percent": 30,
+      "progress_message": "1 file(s) modified",
+      "progress_updated_at": "2026-07-04T11:45:03.685401Z",
+      "progress_source": "synthetic_file_activity",
+      "last_failed_reason": "silent_exit",
+      "harness_escalation_offered": true,
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "completed_by_role": "Backend_Engineer",
+      "progress_agent": "Backend_Engineer",
+      "completed_at": "2026-07-04T11:45:25.335377Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Backend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_460",
+      "task_id": "task_460",
+      "spec_ref": "SPEC-070",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Add frontend mirror control triggers",
+      "description": "Modify adt-console/src/js/mirror.js and adt-console/src/js/remote.js to dispatch mirror_capture_start and mirror_capture_stop commands on toggle-on and toggle-off.",
+      "acceptance_criteria": [
+        "mirror.js sends start/stop command to peer local capture endpoint",
+        "remote.js dispatches these commands correctly to the peer adt_center"
+      ],
+      "depends_on": [
+        "task_459"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:29.111201Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260704_114103",
+      "wave": 2,
+      "started_at": "2026-07-04T11:45:26.895224Z",
+      "progress_percent": 55,
+      "progress_message": "2 file(s) modified",
+      "progress_updated_at": "2026-07-04T11:48:15.636955Z",
+      "progress_source": "synthetic_file_activity",
+      "last_failed_reason": "silent_exit",
+      "harness_escalation_offered": true,
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "completed_by_role": "Frontend_Engineer",
+      "progress_agent": "Frontend_Engineer",
+      "completed_at": "2026-07-04T11:48:36.321098Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_461",
+      "task_id": "task_461",
+      "spec_ref": "SPEC-070",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Create Assistant Monitor frontend panel",
+      "description": "Create adt-console/src/js/mirror_monitor.js to define window.MirrorMonitor which manages a floating, resizable, and minimizable panel showing the mirrored screenshots.",
+      "acceptance_criteria": [
+        "File adt-console/src/js/mirror_monitor.js exists",
+        "window.MirrorMonitor defines init, show, hide, minimize, and expand methods"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:34.121483Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260703_235855",
+      "wave": 1,
+      "started_at": "2026-07-03T23:58:56.720662Z",
+      "progress_percent": 75,
+      "progress_message": "4 file(s) modified",
+      "progress_updated_at": "2026-07-04T00:08:30.226577Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Frontend_Engineer",
+      "last_failed_reason": "silent_exit",
+      "harness_escalation_offered": true,
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-04T00:09:23.354430Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/spec_map.js",
+          "size": 119468
+        }
+      ]
+    },
+    {
+      "id": "task_462",
+      "task_id": "task_462",
+      "spec_ref": "SPEC-070",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Integrate monitor panel into index.html",
+      "description": "Register mirror_monitor.js script tag in adt-console/src/index.html before spec_map.js.",
+      "acceptance_criteria": [
+        "adt-console/src/index.html includes mirror_monitor.js script element before spec_map.js"
+      ],
+      "depends_on": [
+        "task_461"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:40.295620Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260704_003552",
+      "wave": 1,
+      "started_at": "2026-07-04T00:35:54.676184Z",
+      "progress_percent": 55,
+      "progress_message": "2 file(s) modified",
+      "progress_updated_at": "2026-07-04T11:35:37.976268Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Frontend_Engineer",
+      "last_failed_reason": "silent_exit",
+      "harness_escalation_offered": true,
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-04T11:36:39.938659Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
+    },
+    {
+      "id": "task_463",
+      "task_id": "task_463",
+      "spec_ref": "SPEC-070",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement monitor persistence and fallback displays",
+      "description": "Integrate localStorage persistence for panel state/position and support displaying error/placeholder JPEGs when the capture is unavailable.",
+      "acceptance_criteria": [
+        "Panel position and minimized/collapsed state are restored from localStorage",
+        "Panel displays placeholder when peer capture returns error or is offline"
+      ],
+      "depends_on": [
+        "task_461"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-03T23:53:45.357205Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260704_003552",
+      "wave": 1,
+      "started_at": "2026-07-04T00:35:54.676184Z",
+      "progress_percent": 100,
+      "progress_message": "monitor persistence implemented",
+      "progress_updated_at": "2026-07-04T11:36:29.997279Z",
+      "progress_source": "synthetic_file_activity",
+      "progress_agent": "Frontend_Engineer",
+      "last_failed_reason": "silent_exit",
+      "harness_escalation_offered": true,
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-04T11:36:39.938659Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Frontend_Engineer",
+        "synced_via": "log_event.py"
+      }
     }
   ]
 }

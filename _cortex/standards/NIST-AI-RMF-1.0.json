@@ -2,5 +2,92 @@
   "id": "NIST-AI-RMF-1.0",
   "title": "NIST-AI-RMF-1.0",
   "version": "latest",
-  "clauses": []
+  "clauses": [
+    {
+      "id": "R-G.1",
+      "title": "Govern: cultivate risk management culture",
+      "text": "A culture of risk management shall be cultivated and present in AI design, development, deployment, evaluation and acquisition.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "governance"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-M.1",
+      "title": "Map: context and risks identified",
+      "text": "Context for the AI system shall be established and risks identified, mapped to organizational goals and the rights of affected populations.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "mapping",
+        "risk"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-MS.1",
+      "title": "Measure: identified risks assessed",
+      "text": "Identified AI risks shall be analyzed, assessed, benchmarked and monitored using qualitative and quantitative methods.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "measurement"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-MG.1",
+      "title": "Manage: risks prioritized and acted on",
+      "text": "AI risks shall be prioritized, treated and monitored on an ongoing basis, with documented decisions and rationale.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "management"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-T.1",
+      "title": "Trustworthy characteristics",
+      "text": "AI systems shall be valid, reliable, safe, secure, resilient, accountable, transparent, explainable, interpretable, privacy-enhanced and fair with harmful bias managed.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "trustworthiness"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    }
+  ],
+  "scope": "operational",
+  "source_url": "https://www.nist.gov/itl/ai-risk-management-framework",
+  "publisher": "",
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
 }

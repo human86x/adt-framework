@@ -96,10 +96,29 @@
                             </span>
                             &middot; {{ event.role }}
                         </div>
-                        <div class="event-body">
-                            <span class="event-action">{{ event.action_type }}:</span>
-                            {% set desc = event.description or event.rationale or "No description provided" %}
-                            {{ desc[:120] }}{% if desc|length > 120 %}...{% endif %}
+                        <div class="event-body d-flex justify-content-between align-items-start">
+                            <div>
+                                {% set icon_map = {
+                                    'session_start': 'bi-play-circle',
+                                    'session_end': 'bi-stop-circle',
+                                    'task_complete': 'bi-check-circle-fill',
+                                    'pending_edit': 'bi-pencil-square',
+                                    'completed_edit': 'bi-check-all',
+                                    'denied_edit': 'bi-shield-slash-fill'
+                                } %}
+                                <i class="bi {{ icon_map.get(event.action_type, 'bi-dot') }} me-1" style="opacity:0.7;"></i>
+                                <span class="event-action">{{ event.action_type }}:</span>
+                                {% set desc = event.description or event.rationale or "No description provided" %}
+                                {{ desc[:120] }}{% if desc|length > 120 %}...{% endif %}
+                            </div>
+                            {% set spec = specs_map.get(event.spec_ref) if specs_map else none %}
+                            <div class="d-flex flex-wrap gap-1 justify-content-end ms-2">
+                                {% if spec and spec.standards_refs %}
+                                    {% for std in spec.standards_refs %}
+                                    <span class="badge bg-dark border border-secondary text-info" style="font-size: 0.55rem; padding: 0.1rem 0.2rem;">{{ std.split('-')[0] }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                             {% if event.spec_ref %}
                                 <span class="badge-adt badge-spec ms-1">{{ event.spec_ref }}</span>
                             {% endif %}

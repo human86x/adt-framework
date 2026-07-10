@@ -12,7 +12,7 @@ mkdir -p "$LOG_DIR"
 wait_for_service() {
     local url="$1"
     local name="$2"
-    local max_attempts=15
+    local max_attempts=60
     local attempt=0
     while [ $attempt -lt $max_attempts ]; do
         if curl -s "$url" > /dev/null 2>&1; then
@@ -61,17 +61,28 @@ fi
 # 3. Start Operator Console (Tauri)
 echo "[+] Starting ADT Operator Console (Tauri)..."
 CONSOLE_BIN=""
-# Check in order: release build, debug build, install.sh bin/, system-installed (.deb)
-for candidate in \
-    "$PROJECT_ROOT/adt-console/src-tauri/target/release/adt-console" \
-    "$PROJECT_ROOT/adt-console/src-tauri/target/debug/adt-console" \
-    "$PROJECT_ROOT/bin/adt-console.AppImage" \
-    "$(which adt-console 2>/dev/null || true)"; do
-    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
-        CONSOLE_BIN="$candidate"
-        break
+# Find candidates and pick the one with the latest modification time
+RELEASE_BIN="$PROJECT_ROOT/adt-console/src-tauri/target/release/adt-console"
+DEBUG_BIN="$PROJECT_ROOT/adt-console/src-tauri/target/debug/adt-console"
+APPIMAGE_BIN="$PROJECT_ROOT/bin/adt-console.AppImage"
+SYSTEM_BIN="$(which adt-console 2>/dev/null || true)"
+
+if [ -x "$RELEASE_BIN" ] && [ -x "$DEBUG_BIN" ]; then
+    if [ "$RELEASE_BIN" -nt "$DEBUG_BIN" ]; then
+        CONSOLE_BIN="$RELEASE_BIN"
+    else
+        CONSOLE_BIN="$DEBUG_BIN"
     fi
-done
+elif [ -x "$RELEASE_BIN" ]; then
+    CONSOLE_BIN="$RELEASE_BIN"
+elif [ -x "$DEBUG_BIN" ]; then
+    CONSOLE_BIN="$DEBUG_BIN"
+elif [ -x "$APPIMAGE_BIN" ]; then
+    CONSOLE_BIN="$APPIMAGE_BIN"
+elif [ -n "$SYSTEM_BIN" ] && [ -x "$SYSTEM_BIN" ]; then
+    CONSOLE_BIN="$SYSTEM_BIN"
+fi
+
 if [ -n "$CONSOLE_BIN" ]; then
     echo "    Using: $CONSOLE_BIN"
     "$CONSOLE_BIN" > "$LOG_DIR/console.log" 2>&1 &

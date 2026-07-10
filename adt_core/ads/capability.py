@@ -321,7 +321,7 @@ class GateManager:
     GATE_FIELDS = {
         1: ["classification", "priority", "validator"],
         2: ["concept_id", "prototype_required", "architecture_concept", "concept_owner"],
-        3: ["financial_feasibility", "operational_feasibility", "technical_feasibility", "strategic_alignment"],
+        3: ["financial_feasibility", "operational_feasibility", "technical_feasibility", "strategic_alignment", "standards_alignment"],
         4: ["architecture_review", "risk_rating", "compliance_status", "review_board"],
         5: ["portfolio_priority", "portfolio_manager", "estimated_resources", "target_delivery_window"],
         6: ["investment_decision", "investment_board", "decision_date", "approved_budget"],

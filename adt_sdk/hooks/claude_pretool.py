@@ -356,18 +356,20 @@ def main():
     agent = os.environ.get("ADT_AGENT", "CLAUDE")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
 
-    # SPEC-037: Fix role priority (env var first, then file fallback)
-    role = os.environ.get("ADT_ROLE")
+    # File-first (mirrors SPEC-042 pattern for spec resolution)
+    role = None
+    role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
+    if os.path.exists(role_file):
+        try:
+            with open(role_file) as rf:
+                file_role = rf.read().strip()
+                if file_role:
+                    role = file_role
+        except OSError:
+            pass
+
     if not role:
-        role_file = os.path.join(project_dir, "_cortex", "ops", "active_role.txt")
-        if os.path.exists(role_file):
-            try:
-                with open(role_file) as rf:
-                    file_role = rf.read().strip()
-                    if file_role:
-                        role = file_role
-            except OSError:
-                pass  # Fall back to default
+        role = os.environ.get("ADT_ROLE")
     
     # SPEC-042: Prioritize file-based spec override to fix stale env var issues
     spec_id = None
@@ -449,6 +451,25 @@ def main():
                 # Claude Code hook format for allowing/denying
                 print(json.dumps(make_allow(f"Request transparently filed via governed API: {result.get('req_id')}")))
                 sys.exit(0)
+
+    # SPEC-049: Intent field enforcement for new spec files.
+    # Only fires when a Write tool creates a file that does not yet exist.
+    # Existing specs are grandfathered — edits and patches are never blocked.
+    if (tool_name == "Write"
+            and rel_path.startswith("_cortex/specs/")
+            and rel_path.endswith(".md")
+            and not os.path.exists(abs_path)):
+        content = tool_input.get("content", "")
+        required = ["**Intent:**", "**Triggering Event:**", "**Success Condition:**"]
+        missing = [f for f in required if f not in content]
+        if missing:
+            print(json.dumps(make_deny(
+                f"SPEC GOVERNANCE: New spec file '{rel_path}' is missing required intent fields: "
+                f"{', '.join(missing)}. "
+                f"All new specs must declare these fields before the first section heading. "
+                f"See SPEC-049 §Intent Requirements."
+            )))
+            sys.exit(0)
 
     # Build DTCP action and params
     action, params = build_dtcp_params(tool_name, tool_input, rel_path)

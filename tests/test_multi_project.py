@@ -13,10 +13,19 @@ class Args:
         self.__dict__.update(kwargs)
 
 @pytest.fixture
-def temp_home(tmp_path):
+def temp_home(tmp_path, monkeypatch):
     """Mock home directory for project registry."""
     home = tmp_path / "home"
     home.mkdir()
+    registry_path = str(home / ".adt" / "projects.json")
+    
+    import adt_core.cli
+    import adt_center.api.governance_routes
+    import adt_core.registry
+    
+    monkeypatch.setattr(adt_core.cli, "ProjectRegistry", lambda *a, **kw: adt_core.registry.ProjectRegistry(registry_path))
+    monkeypatch.setattr(adt_center.api.governance_routes, "ProjectRegistry", lambda *a, **kw: adt_core.registry.ProjectRegistry(registry_path))
+    
     return home
 
 @pytest.fixture
@@ -178,7 +187,8 @@ def test_dtcp_isolation(tmp_path):
         action="edit", params={"file": SOVEREIGN_PATHS[0], "content": "ok"},
         rationale="modifying config/specs.json in external project"
     )
-    assert resp["status"] == "allowed"
+    assert resp["status"] == "denied"
+    assert resp["reason"] == "governance_file_protected"
 
 def test_registry_deregister(registry, tmp_path):
     """Test removing a project from the registry."""

@@ -11,8 +11,8 @@ def _get_dtcp_url(project_name=None):
         return current_app.config["DTCP_URL"]
         
     project = current_app.project_registry.get_project(project_name)
-    if project and project.get("dtcp_port"):
-        return f"http://localhost:{project['dtcp_port']}"
+    if project and project.get("dttp_port"):
+        return f"http://localhost:{project['dttp_port']}"
     
     return current_app.config["DTCP_URL"]
 

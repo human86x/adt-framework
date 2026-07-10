@@ -93,6 +93,10 @@ class ActionHandler:
 
         return {"status": "success", "result": "file_patched", "bytes": len(new_content)}
 
+    def _handle_pty_io(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Virtual action for PTY I/O authorization."""
+        return {"status": "success", "result": "pty_io_authorized"}
+
     def _handle_deploy(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "success", "result": "deploy_simulated", "target": params.get("target")}
 

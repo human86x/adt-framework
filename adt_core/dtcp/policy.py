@@ -8,6 +8,39 @@ from .jurisdictions import JurisdictionManager
 
 logger = logging.getLogger(__name__)
 
+# FIND-2026-06-20-001 fix: role-jurisdiction-as-floor for unconditional paths.
+# Some paths represent a role's structural responsibility per AI_PROTOCOL.md
+# section 2 and must be writable without active-spec path authorization,
+# regardless of which SPEC happens to be in flight. Each role's
+# unconditional list is a subset of its declared jurisdiction; jurisdiction
+# is still enforced (defense in depth), and Tier-1 sovereign / Tier-2
+# constitutional protections in gateway.py run BEFORE policy.py and are
+# unaffected by this exemption.
+ROLE_UNCONDITIONAL_PATHS = {
+    "Systems_Architect": [
+        "_cortex/specs",
+        "_cortex/reports",
+        "_cortex/work_logs",
+        "_cortex/standards",
+        "_cortex/capabilities",
+    ],
+    "Overseer": [
+        "_cortex/ads",
+        "_cortex/reports",
+        "_cortex/work_logs",
+    ],
+    "Backend_Engineer": [
+        "_cortex/work_logs",
+    ],
+    "Frontend_Engineer": [
+        "_cortex/work_logs",
+    ],
+    "DevOps_Engineer": [
+        "_cortex/work_logs",
+    ],
+}
+
+
 
 class PolicyEngine:
     """Fail-closed policy engine for DTCP."""
@@ -51,6 +84,23 @@ class PolicyEngine:
                 and os.path.normpath(path).startswith(os.path.normpath("_cortex/specs"))):
             if self.jurisdictions.is_in_jurisdiction(role, path):
                 return True, "Authorized: Systems_Architect spec-creation exemption"
+
+        # FIND-2026-06-20-001 fix: role-unconditional-path exemption.
+        # If the path lies within the role's unconditional path list AND
+        # within the role's declared jurisdiction, permit without
+        # requiring the active spec to enumerate the path. Tier-1
+        # sovereign and Tier-2 constitutional protections are enforced
+        # upstream in gateway.py and remain in effect.
+        if (action_type in ("edit", "patch", "create")
+                and path is not None
+                and role in ROLE_UNCONDITIONAL_PATHS):
+            normalized = os.path.normpath(path)
+            for unconditional in ROLE_UNCONDITIONAL_PATHS[role]:
+                unconditional_norm = os.path.normpath(unconditional)
+                if normalized == unconditional_norm or normalized.startswith(unconditional_norm + os.sep):
+                    if self.jurisdictions.is_in_jurisdiction(role, path):
+                        return True, f"Authorized: {role} unconditional path ({unconditional})"
+                    break
 
         # 1. Check spec authorization
         if not self.validator.is_authorized(spec_id, role, action_type):

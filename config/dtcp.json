@@ -3,5 +3,10 @@
   "mode": "development",
   "enforcement_mode": "production",
   "project_name": "adt-framework",
-  "service": "dtcp"
+  "service": "dtcp",
+  "solo_mode": true
 }
+
+# test
+# test
+# test

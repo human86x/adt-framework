@@ -2,14 +2,14 @@
   "hooks": {
     "BeforeTool": [
       {
-        "matcher": "write_file|replace",
         "hooks": [
           {
-            "type": "command",
             "command": "python3 /home/human/Projects/adt-framework/adt_sdk/hooks/gemini_pretool.py",
-            "timeout": 15000
+            "timeout": 15000,
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "write_file|replace|read_file|list_files|search_files|run_shell|shell"
       }
     ]
   }

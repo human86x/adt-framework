@@ -13,7 +13,28 @@ const ProjectLauncher = (() => {
   let forgeData = {};
   let forgePollInterval = null;
 
+  // Resolved from /api/system/info on first use — avoids hardcoding /home/human/
+  let _serverHome = null;
+  let _serverProjects = null;
+
   const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
+
+  async function _getServerPaths() {
+    if (_serverHome) return { home: _serverHome, projects: _serverProjects };
+    try {
+      const r = await fetch(`${getCenterUrl()}/api/system/info`);
+      if (r.ok) {
+        const d = await r.json();
+        _serverHome = d.home || '/home/user';
+        _serverProjects = d.projects_dir || _serverHome + '/Projects';
+      }
+    } catch (_) {}
+    if (!_serverHome) {
+      _serverHome = '/home/user';
+      _serverProjects = '/home/user/Projects';
+    }
+    return { home: _serverHome, projects: _serverProjects };
+  }
 
   function init() {
     const main = document.getElementById("terminal-area");
@@ -334,7 +355,8 @@ const ProjectLauncher = (() => {
     }
   }
 
-  function openCreateWizard() {
+  async function openCreateWizard() {
+    const { projects } = await _getServerPaths();
     showWizard(`
       <h2>Create New Project</h2>
       <div class="wizard-field">
@@ -343,7 +365,7 @@ const ProjectLauncher = (() => {
       </div>
       <div class="wizard-field">
         <label>Absolute Path</label>
-        <input type="text" id="wiz-create-path" placeholder="/home/human/Projects/my-app">
+        <input type="text" id="wiz-create-path" placeholder="${projects}/my-app">
       </div>
       <div class="wizard-actions">
         <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
@@ -360,12 +382,13 @@ const ProjectLauncher = (() => {
     }, 100);
   }
 
-  function openImportWizard() {
+  async function openImportWizard() {
+    const { projects } = await _getServerPaths();
     showWizard(`
       <h2>Import Project</h2>
       <div class="wizard-field">
         <label>Absolute Path</label>
-        <input type="text" id="wiz-import-path" placeholder="/home/human/Projects/existing">
+        <input type="text" id="wiz-import-path" placeholder="${projects}/existing">
       </div>
       <div class="wizard-actions">
         <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
@@ -554,7 +577,8 @@ const ProjectLauncher = (() => {
     }
   ];
 
-  function showForgeScreen1() {
+  async function showForgeScreen1() {
+    const { projects: projsDir } = await _getServerPaths();
     showWizard(`
       <h2>Forge Application (1/2)</h2>
       <p class="wiz-subtitle">Describe your vision. The Architect will formalize a specification and build the foundation autonomously.</p>
@@ -564,7 +588,7 @@ const ProjectLauncher = (() => {
       </div>
       <div class="wizard-field">
         <label>Project path <span class="wiz-required">*</span></label>
-        <input type="text" id="wiz-forge-path" placeholder="/home/human/Projects/my-new-app" value="` + (forgeData.path || "") + `">
+        <input type="text" id="wiz-forge-path" placeholder="${projsDir}/my-new-app" value="` + (forgeData.path || "") + `" data-projects-dir="${projsDir}">
       </div>
       <div class="wizard-field">
         <label>Project name <span class="wiz-optional">(auto-detected from path)</span></label>
@@ -606,7 +630,8 @@ const ProjectLauncher = (() => {
           const pathEl = document.getElementById("wiz-forge-path");
           const nameEl = document.getElementById("wiz-forge-name");
           if (wish) wish.value = tpl.wish;
-          if (pathEl) pathEl.value = `/home/human/Projects/${tpl.slug}_${ts}`;
+          const projsBase = (pathEl && pathEl.dataset.projectsDir) || _serverProjects || '/home/user/Projects';
+          if (pathEl) pathEl.value = `${projsBase}/${tpl.slug}_${ts}`;
           if (nameEl) nameEl.value = `${tpl.slug}_${ts}`;
           forgeData.users = tpl.users;
           forgeData.success = tpl.success;

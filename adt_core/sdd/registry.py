@@ -11,6 +11,21 @@ class SpecRegistry:
     def __init__(self, specs_dir: str):
         self.specs_dir = specs_dir
 
+    @staticmethod
+    def _extract_spec_id(filename: str) -> str:
+        """Derive a unique spec ID from a filename, distinguishing amendments.
+
+        SPEC-062_SPEC_SKILL_TREE_MAP.md          -> "SPEC-062"
+        SPEC-062_AMENDMENT_H_AUTO_FORGE_...md    -> "SPEC-062-H"
+        SPEC-062_AMENDMENT_C1_MAP_LEGIBILITY.md  -> "SPEC-062-C1"
+        """
+        m = re.match(r"(SPEC-\d+)(?:_AMENDMENT_([A-Z0-9]+))?", filename)
+        if not m:
+            return filename.split("_")[0]
+        parent = m.group(1)
+        amend = m.group(2)
+        return f"{parent}-{amend}" if amend else parent
+
     def list_specs(self) -> List[Dict[str, str]]:
         """Lists all specs found in the specs directory with their status."""
         specs = []
@@ -19,7 +34,7 @@ class SpecRegistry:
 
         for filename in os.listdir(self.specs_dir):
             if filename.endswith(".md") and filename.startswith("SPEC-"):
-                spec_id = filename.split("_")[0]
+                spec_id = self._extract_spec_id(filename)
                 status = self._parse_status(os.path.join(self.specs_dir, filename))
                 path = os.path.join(self.specs_dir, filename)
                 specs.append({
@@ -33,9 +48,15 @@ class SpecRegistry:
         return sorted(specs, key=lambda x: x["id"])
 
     def get_spec_detail(self, spec_id: str) -> Optional[Dict[str, Any]]:
-        """Returns detailed metadata for a specific spec."""
+        """Returns detailed metadata for a specific spec.
+
+        Matches on extracted spec ID so amendments (SPEC-062-H) resolve
+        to their own file, not the parent SPEC-062.
+        """
         for filename in os.listdir(self.specs_dir):
-            if filename.startswith(spec_id):
+            if not (filename.endswith(".md") and filename.startswith("SPEC-")):
+                continue
+            if self._extract_spec_id(filename) == spec_id:
                 path = os.path.join(self.specs_dir, filename)
                 return {
                     "id": spec_id,

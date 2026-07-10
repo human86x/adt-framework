@@ -45,6 +45,12 @@ class ProjectRegistry:
                     if "project_type" not in config:
                         config["project_type"] = "forge" if config.get("is_framework") else "governed"
                         updated = True
+                    if "dttp_port" in config and "dtcp_port" not in config:
+                        config["dtcp_port"] = config["dttp_port"]
+                        updated = True
+                    if "dtcp_port" in config and "dttp_port" not in config:
+                        config["dttp_port"] = config["dtcp_port"]
+                        updated = True
                 if updated:
                     self._save_registry(data)
                 return data
@@ -82,6 +88,7 @@ class ProjectRegistry:
         projects[name] = {
             "path": path,
             "dttp_port": port,
+            "dtcp_port": port,
             "panel_port": 5001 if is_framework else None,
             "status": "active",
             "registered_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),

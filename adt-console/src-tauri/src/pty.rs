@@ -66,7 +66,47 @@ fn resolve_command(command: &str, user_path: &str) -> String {
             }
         }
     }
+    // Env var override: AGY_EXECPATH, CLAUDE_EXECPATH, GEMINI_EXECPATH, etc.
+    let env_var = format!("{}_EXECPATH", command.to_uppercase().replace('-', "_"));
+    if let Ok(p) = std::env::var(&env_var) {
+        if PathBuf::from(&p).exists() { return p; }
+    }
+    // Common install locations beyond PATH (covers Tauri-from-Apps-grid case
+    // where PATH is stripped down to /usr/bin:/bin).
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let extras = vec![
+        format!("{}/.local/bin/{}", home, command),
+        format!("{}/.npm-global/bin/{}", home, command),
+        format!("{}/.cargo/bin/{}", home, command),
+        format!("/usr/local/bin/{}", command),
+        format!("/usr/bin/{}", command),
+        format!("/opt/antigravity/bin/{}", command),
+        format!("/snap/bin/{}", command),
+    ];
+    for p in &extras {
+        if PathBuf::from(p).exists() { return p.clone(); }
+    }
     command.to_string()
+}
+
+/// Pre-spawn validation: confirms resolved binary exists. Returns operator-friendly error
+/// if missing, with searched paths + install hint.
+fn validate_agent_binary(agent: &str, resolved: &str, user_path: &str) -> Result<String, String> {
+    let p = PathBuf::from(resolved);
+    if p.exists() && p.is_file() {
+        return Ok(resolved.to_string());
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
+    let install_hint = match agent {
+        "agy" | "antigravity" => "Install agy from https://antigravity.google then re-launch the Console.",
+        "claude" => "Install Claude Code CLI from https://docs.claude.com/en/docs/claude-code then re-launch.",
+        "gemini" => "Install via: npm install -g @google/gemini-cli",
+        _ => "Install the missing CLI and re-launch the Console.",
+    };
+    Err(format!(
+        "{} binary not found. Searched PATH ({}) plus {}/.local/bin/, {}/.npm-global/bin/, /usr/local/bin/, /opt/antigravity/bin/, /snap/bin/. {}",
+        agent, user_path.split(':').collect::<Vec<_>>().join(", "), home, home, install_hint
+    ))
 }
 
 
@@ -80,6 +120,14 @@ const SANDBOX_ENV_ALLOWLIST: &[&str] = &[
     "GEMINI_API_KEY",
     "CLAUDE_CONFIG_DIR",
     "GEMINI_CONFIG_DIR",
+    // SPEC-062 Amendment D: pass-through for keyring access so agy can re-use
+    // cached OAuth from the host gnome-keyring-daemon instead of forcing OAuth
+    // on every spawn.
+    "DBUS_SESSION_BUS_ADDRESS",
+    "XDG_RUNTIME_DIR",
+    "GNOME_KEYRING_CONTROL",
+    "XDG_SESSION_TYPE",
+    "DISPLAY",
 ];
 
 const SANDBOX_ENV_DENYLIST: &[&str] = &[
@@ -330,6 +378,23 @@ fn apply_sandbox_env(
         "[SANDBOX] Environment sanitized for {} session (namespace_mode={})",
         agent, namespace_mode
     );
+}
+
+
+/// Ensure the spawned child can reach the operator's gnome-keyring so that
+/// agy (and any agent using libsecret / go-keyring / python-keyring) reuses
+/// cached OAuth tokens instead of re-prompting on every spawn.
+///
+/// These are safe to set unconditionally — they point at the user's own
+/// session bus and runtime dir, both populated by systemd at login.
+/// Overriding covers the case where the console was launched via a GTK
+/// .desktop entry with a stripped env (no DBUS_SESSION_BUS_ADDRESS).
+fn apply_keyring_env(cmd: &mut CommandBuilder) {
+    let uid = nix::unistd::getuid().as_raw();
+    let runtime_dir = format!("/run/user/{}", uid);
+    let dbus_addr = format!("unix:path={}/bus", runtime_dir);
+    cmd.env("XDG_RUNTIME_DIR", &runtime_dir);
+    cmd.env("DBUS_SESSION_BUS_ADDRESS", &dbus_addr);
 }
 
 /// Determine if a session should be sandboxed.
@@ -1017,12 +1082,20 @@ impl PtyManager {
         // Tauri apps launched from desktop environments inherit a minimal PATH.
         let user_path = resolve_user_path();
         let resolved_command = resolve_command(&final_command, &user_path);
+        // Pre-spawn validation: surface a clear "binary not found + install hint"
+        // instead of the cryptic "os error 2" Paul saw.
+        if agent == "agy" || agent == "claude" || agent == "gemini" {
+            if let Err(msg) = validate_agent_binary(agent, &resolved_command, &user_path) {
+                log::error!("[PTY VALIDATE] {}", msg);
+                return Err(msg);
+            }
+        }
         // Canonicalize to resolve symlinks (crucial for sandboxing npm-global modules)
         let canonical_command = PathBuf::from(&resolved_command)
             .canonicalize()
             .unwrap_or_else(|_| PathBuf::from(&resolved_command));
         let command_to_run = canonical_command.to_string_lossy().to_string();
-        log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')", 
+        log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')",
                   final_command, resolved_command, command_to_run);
 
         // SPEC-027: In production mode, wrap agent commands with sudo -u agent.
@@ -1122,6 +1195,10 @@ impl PtyManager {
             }
             c
         };
+
+        // Inject keyring/DBUS env unconditionally so agy reuses its OAuth token
+        // (regardless of whether the console itself was launched with these set).
+        apply_keyring_env(&mut cmd);
 
         // Bug 6 fix: skip cmd.cwd() when bwrap handles it via --chdir /project
         if phase_b_wrap.is_none() {
@@ -1757,7 +1834,7 @@ impl PtyManager {
     pub fn close_session(&self, session_id: &str) -> Result<(), String> {
         let sandbox_info: Option<(PathBuf, String)>;
         let bridge_processes: Vec<std::process::Child>;
-        let mut child_to_kill: Option<Box<dyn Child + Send>> = None;
+        let mut main_child: Option<Box<dyn Child + Send>> = None;
         
         {
             let mut sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
@@ -1773,11 +1850,11 @@ impl PtyManager {
 
             // Take bridge processes and the main child to kill them outside the lock
             bridge_processes = std::mem::take(&mut session.bridge_processes);
-            child_to_kill = Some(session.child);
+            main_child = Some(session.child);
         }
 
         // Kill the main agent process
-        if let Some(mut child) = child_to_kill {
+        if let Some(mut child) = main_child {
             log::info!("[PTY CLOSE] Terminating main process for session {}", session_id);
             let _ = child.kill();
             

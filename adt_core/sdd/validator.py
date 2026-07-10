@@ -68,6 +68,19 @@ class SpecValidator:
             return []
         return spec_info.get("paths", [])
 
+
+    def get_standards_refs(self, spec_id: str) -> List[str]:
+        """SPEC-063: Returns the list of RationalisedRule ids the spec compliesWith.
+
+        Returns an empty list for specs without `standards_refs` set.
+        Used by transparency surface and (opt-in) MRR evaluation in DTCP.
+        """
+        self._reload_config()
+        spec_info = self._config.get("specs", {}).get(spec_id)
+        if not spec_info:
+            return []
+        return spec_info.get("standards_refs", []) or []
+
     def get_all_specs(self) -> Dict[str, Any]:
         """Returns all loaded specs (read-only)."""
         self._reload_config()

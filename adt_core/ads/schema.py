@@ -54,7 +54,11 @@ class ADSEventSchema:
 
     # SPEC-039: Orchestration and Steering Event Types
     ORCHESTRATION_EVENTS = [
-        "human_steering"
+        "human_steering",
+        "pty_write",
+        "pty_subscribe",
+        "spec_decompose_requested",  # SPEC-062 Amendment D: empty-spec auto-decompose
+        "spec_decompose_complete",
     ]
 
     # SPEC-042: Swarm Governance Event Types
@@ -71,7 +75,58 @@ class ADSEventSchema:
         "clause_adopted",
         "clause_adapted",
         "clause_dismissed",
-        "standards_registry_changed"
+        "clause_dispositioned",
+        "standards_registry_changed",
+        "standards_ref_overridden",
+        "standards_override_set"
+    ]
+
+    # SPEC-066: Standards Workbench (Rationalised / Machine-Readable Rules)
+    STANDARDS_WORKBENCH_EVENTS = [
+        "rationalised_rule_created",
+        "rationalised_rule_dispositioned",
+        "machine_readable_rule_created",
+    ]
+
+    # SPEC-054: Console Self-Bootstrap Event Types
+    CONSOLE_BOOTSTRAP_EVENTS = [
+        "console_bootstrap_start",      # setup() probe begins
+        "console_bootstrap_spawned",    # child process spawned (per service)
+        "console_bootstrap_ready",      # all services healthy
+        "console_bootstrap_failed",     # timeout or spawn error
+    ]
+
+    # SPEC-062 Amendment E: Build Worker Lifecycle event types
+    BUILD_LIFECYCLE_EVENTS = [
+        "build_worker_spawned",       # PID, role, harness, model, log_path, task_ids
+        "build_worker_health_check",  # PID, alive, tasks_completed, stall_count
+        "build_worker_stalled",       # PID, role, stall_count, completed_age_sec
+        "build_worker_timeout",       # PID, role, timeout_sec OR reason
+        "build_worker_failed",        # PID, role, returncode, stderr_tail, log_path
+        "build_worker_silent_exit",   # PID, role, returncode=0, 0 tasks completed
+        "build_worker_orphaned",      # PID disappeared without exit notification
+        "build_worker_completed",     # PID, role, tasks_completed, log_path
+    ]
+
+    # SPEC-062 Amendment F: Build Verification Loop event types
+    VERIFICATION_EVENTS = [
+        "build_verification_started",          # build_id, spec_id, iteration, verifier_pid
+        "build_verification_finding",          # task_id, criterion, status, evidence, severity
+        "build_verification_complete",         # build_id, passed, failed, partial, cannot_verify, recommendation
+        "build_fix_dispatched",                # build_id, fix_task_ids, iteration
+        "build_verification_max_iterations",   # build_id, last_failed_count
+        "build_verified",                      # build_id (terminal success)
+        "build_verified_failed",               # build_id (terminal failure after fix loop)
+    ]
+
+    # SPEC-055: Build Orchestration Engine Event Types
+    BUILD_EVENTS = [
+        "build_initiated",      # POST /build received, record created
+        "build_started",        # Orchestrator SA begins execution
+        "build_role_spawned",   # Worker PTY session spawned for a role
+        "build_blocked",        # Task failure blocks the build
+        "build_complete",       # All tasks completed successfully
+        "build_aborted",        # Build manually aborted
     ]
 
     # SPEC-049: Cross-AI Orchestration Event Types
@@ -82,11 +137,64 @@ class ADSEventSchema:
         "cross_ai_progress_update",
         "cross_ai_task_complete",
         "cross_ai_task_aborted",
-        "cross_ai_orchestration_complete"
+        "cross_ai_orchestration_complete",
+        "cross_ai_task_verified",
+        "cross_ai_task_rejected",
+        "cross_ai_task_retasked",
+        "forge_approval_received"
+    ]
+
+    # SPEC-057: Agent Mailbox & Messaging Bus Event Types
+    AGENT_MAILBOX_EVENTS = [
+        "agent_message_sent",
+        "agent_message_delivered",
+        "agent_message_queued",
+        "agent_message_flushed",
+        "agent_message_discarded",
+        "agent_reply_received",
+        "agent_broadcast_sent",
+        "agent_mode_changed",
+    ]
+
+    # SPEC-045: SCR Authorization Hardening Event Types
+    HARDENING_EVENTS = [
+        "auth_spoofing_attempt",
+    ]
+
+    # SPEC-033: Sovereign Change Request Event Types
+    SCR_EVENTS = [
+        "sovereign_change_proposed",
+        "sovereign_change_authorized",
+        "sovereign_change_rejected",
+        "sovereign_change_edited",
+        "sovereign_change_applied"
+    ]
+
+    # SPEC-058: Real-Time Token Telemetry
+    TELEMETRY_EVENTS = [
+        "token_usage_updated",
+        "budget_limit_reached",
+        "telemetry_cache_flushed"
+    ]
+
+    # SPEC-063: Project Bootstrap Scaffold
+    SCAFFOLD_EVENTS = [
+        "project_scaffold_extended"
+    ]
+
+    # SPEC-067: Forge Wizard lifecycle event types
+    FORGE_EVENTS = [
+        "forge_initiated",          # path, intent, name
+        "forge_brief_written",      # forge_session_id, fields_count
+        "forge_worker_spawned",     # forge_session_id, pid
+        "forge_vision_filled",      # forge_session_id, spec_id="SPEC-001"
+        "forge_child_spec_created", # forge_session_id, spec_id, title
+        "forge_complete",           # forge_session_id, spec_ids
+        "forge_failed",             # forge_session_id, reason, log_path
     ]
 
     # SPEC-020 Amendment B: Canonical values for normalization
-    CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN", "SYSTEM"]
+    CANONICAL_AGENTS = ["CLAUDE", "GEMINI", "HUMAN", "SYSTEM", "ANTIGRAVITY", "CLI", "UNKNOWN"]
     CANONICAL_ROLES: Optional[List[str]] = None  # Loaded at startup
 
     @staticmethod
@@ -177,3 +285,28 @@ class ADSEventSchema:
         
         event.update(kwargs)
         return event
+
+_CANONICAL_AGENTS = {"CLAUDE", "GEMINI", "ANTIGRAVITY", "HUMAN", "SYSTEM", "CLI", "UNKNOWN"}
+
+def resolve_agent(default: str = "UNKNOWN") -> str:
+    """Derive the running agent label.
+
+    Order:
+      1. ADT_AGENT env var (explicit; wins).
+      2. Heuristic on argv[0] / parent binary path.
+      3. The supplied default.
+    """
+    import os
+    import sys
+    env = os.environ.get("ADT_AGENT", "").strip().upper()
+    if env in _CANONICAL_AGENTS:
+        return env
+    argv0 = (sys.argv[0] if sys.argv else "").lower()
+    if "agy" in argv0 or "antigravity" in argv0:
+        return "ANTIGRAVITY"
+    if "claude" in argv0:
+        return "CLAUDE"
+    if "gemini" in argv0:
+        return "GEMINI"
+    return default if default in _CANONICAL_AGENTS else "UNKNOWN"
+

@@ -16,6 +16,22 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs border-secondary">
+            <li class="nav-item">
+                <a class="nav-link active bg-dark text-light border-secondary border-bottom-0" href="/standards">Registry</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-muted" href="/standards/rules">Rationalised Rules</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-muted" href="/standards/mrr">Machine Readable Rules</a>
+            </li>
+        </ul>
+    </div>
+</div>
+
 <div class="row">
     <!-- Registry Table -->
     <div class="col-lg-8">
@@ -49,6 +65,26 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Spec Coverage Panel -->
+        <div class="card card-adt mt-4">
+            <div class="card-header">
+                <i class="bi bi-diagram-3"></i> Per-Spec Coverage
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="spec-coverage-select" class="form-label">Select Spec</label>
+                        <select class="form-select bg-black text-light border-secondary" id="spec-coverage-select">
+                            <option value="">-- Choose a Spec --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="coverage-visualization" class="p-3 bg-black rounded border border-secondary text-muted text-center">
+                    Select a spec to view its coverage chain.
                 </div>
             </div>
         </div>
@@ -115,7 +151,7 @@
                         <th>Title</th>
                         <th>Disposition</th>
                         <th>Coverage</th>
-                        <th></th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="clause-list">
@@ -131,7 +167,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content bg-dark text-light border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title">Change Disposition: <span id="disp-clause-id"></span></h5>
+                <h5 class="modal-title"><span class="text-capitalize" id="disp-action-title">Change</span> Disposition: <span id="disp-clause-id"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -139,18 +175,10 @@
                     <label class="form-label">Clause Text</label>
                     <div class="p-3 bg-black rounded border border-secondary text-muted" id="disp-clause-text"></div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Disposition</label>
-                    <select class="form-select bg-black text-light border-secondary" id="disp-select">
-                        <option value="pending">Pending</option>
-                        <option value="adopted">Adopted</option>
-                        <option value="adapted">Adapted</option>
-                        <option value="dismissed">Dismissed</option>
-                    </select>
-                </div>
-                <div class="mb-3 d-none" id="rationale-container">
+                <input type="hidden" id="disp-select">
+                <div class="mb-3" id="rationale-container">
                     <label class="form-label">Rationale <span class="text-danger">*</span></label>
-                    <textarea class="form-control bg-black text-light border-secondary" id="disp-rationale" rows="4" placeholder="Mandatory rationale for adapt/dismiss..."></textarea>
+                    <textarea class="form-control bg-black text-light border-secondary" id="disp-rationale" rows="4" placeholder="Mandatory rationale (min 20 chars)..." minlength="20"></textarea>
                 </div>
             </div>
             <div class="modal-footer border-secondary">

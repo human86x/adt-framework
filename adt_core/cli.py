@@ -475,12 +475,12 @@ DTCP runs at `http://localhost:{dtcp_port}`.
 def _install_hive_commands(project_path: str, framework_root: str):
     """SPEC-031: Install hive activation commands for both Gemini and Claude Code."""
     # Read project config for name and port
-    dtcp.json = os.path.join(project_path, "config", "dtcp.json")
+    dtcp_json = os.path.join(project_path, "config", "dtcp.json")
     project_name = os.path.basename(project_path)
     dtcp_port = 5002
-    if os.path.exists(dtcp.json):
+    if os.path.exists(dtcp_json):
         try:
-            with open(dtcp.json, "r") as f:
+            with open(dtcp_json, "r") as f:
                 cfg = json.load(f)
             project_name = cfg.get("name", project_name)
             dtcp_port = cfg.get("port", dtcp_port)

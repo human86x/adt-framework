@@ -372,7 +372,7 @@ def api_forge_project():
         prompt_text = _re.sub(r"\{(\w+)\}", _sub_one, _prompt_template)
         forge_model = os.environ.get("ADT_FORGE_MODEL", "Gemini 3.1 Pro (High)")
         _stdbuf_bin = shutil.which("stdbuf") or "/usr/bin/stdbuf"
-        _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--model", forge_model]
+        _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--print-timeout", "30m", "--model", forge_model]
         cmd = ([_stdbuf_bin, "-oL"] + _forge_base) if (_stdbuf_bin and os.path.exists(_stdbuf_bin)) else _forge_base
         # Truncate log file so /status shows fresh content
         with open(log_path, "w") as log_f:
@@ -6090,6 +6090,20 @@ def api_task_worker_log_tail(task_id: str):
         })
     except Exception as e:
         return jsonify({"error": str(e), "lines": []}), 500
+
+@governance_bp.route("/system/info", methods=["GET"])
+@governance_bp.route("/api/system/info", methods=["GET"])
+def api_system_info():
+    """Return server-side filesystem context so the frontend can build correct default paths."""
+    home = os.path.expanduser("~")
+    projects = os.path.join(home, "Projects")
+    if not os.path.isdir(projects):
+        projects = home
+    return jsonify({
+        "home": home,
+        "projects_dir": projects,
+        "username": os.environ.get("USER") or os.environ.get("LOGNAME") or os.path.basename(home),
+    })
 
 @governance_bp.route("/governance/capabilities/intents/summary", methods=["GET"])
 def api_intents_summary():

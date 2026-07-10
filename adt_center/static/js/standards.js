@@ -90,15 +90,21 @@ async function showStandardDetail(standardId) {
             if (clause.disposition === 'adapted') dispClass = 'bg-info';
             if (clause.disposition === 'dismissed') dispClass = 'bg-danger';
 
+            const adoptedClass = clause.disposition === 'adopted' ? 'btn-success' : 'btn-outline-success';
+            const adaptedClass = clause.disposition === 'adapted' ? 'btn-warning' : 'btn-outline-warning';
+            const dismissedClass = clause.disposition === 'dismissed' ? 'btn-danger' : 'btn-outline-danger';
+            
             row.innerHTML = `
                 <td><small>${clause.id}</small></td>
                 <td>${clause.title}</td>
                 <td><span class="badge ${dispClass}">${clause.disposition}</span></td>
                 <td><span class="badge bg-outline-warning">-</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-light" onclick="event.stopPropagation(); openDispositionModal('${standard.id}', '${clause.id}')">
-                        <i class="bi bi-pencil"></i>
-                    </button>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn ${adoptedClass}" onclick="event.stopPropagation(); quickAdopt('${standard.id}', '${clause.id}')">Adopt</button>
+                        <button class="btn ${adaptedClass}" onclick="event.stopPropagation(); openDispositionModal('${standard.id}', '${clause.id}', 'adapted')">Adapt</button>
+                        <button class="btn ${dismissedClass}" onclick="event.stopPropagation(); openDispositionModal('${standard.id}', '${clause.id}', 'dismissed')">Dismiss</button>
+                    </div>
                 </td>
             `;
             clauseList.appendChild(row);
@@ -113,7 +119,31 @@ async function showStandardDetail(standardId) {
 let activeStandardId = null;
 let activeClauseId = null;
 
-async function openDispositionModal(standardId, clauseId) {
+window.quickAdopt = async function(standardId, clauseId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const project = urlParams.get('project');
+    let url = `/api/governance/standards/${standardId}/clauses/${clauseId}/disposition`;
+    if (project) url += '?project=' + project;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ disposition: 'adopted', rationale: '' })
+        });
+        if (response.ok) {
+            loadStandards();
+            showStandardDetail(standardId);
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'Failed to adopt clause'));
+        }
+    } catch (error) {
+        console.error('Error adopting clause:', error);
+    }
+};
+
+window.openDispositionModal = async function(standardId, clauseId, actionType) {
     activeStandardId = standardId;
     activeClauseId = clauseId;
 
@@ -127,12 +157,11 @@ async function openDispositionModal(standardId, clauseId) {
         const clause = await response.json();
 
         document.getElementById('disp-clause-id').innerText = `${standardId} §${clauseId}`;
+        document.getElementById('disp-action-title').innerText = actionType;
         document.getElementById('disp-clause-text').innerText = clause.text;
-        document.getElementById('disp-select').value = clause.disposition;
+        document.getElementById('disp-select').value = actionType;
         document.getElementById('disp-rationale').value = clause.rationale || '';
         
-        toggleRationale(clause.disposition);
-
         const modal = new bootstrap.Modal(document.getElementById('dispositionModal'));
         modal.show();
     } catch (error) {
@@ -140,25 +169,12 @@ async function openDispositionModal(standardId, clauseId) {
     }
 }
 
-document.getElementById('disp-select').addEventListener('change', (e) => {
-    toggleRationale(e.target.value);
-});
-
-function toggleRationale(disposition) {
-    const container = document.getElementById('rationale-container');
-    if (disposition === 'adapted' || disposition === 'dismissed') {
-        container.classList.remove('d-none');
-    } else {
-        container.classList.add('d-none');
-    }
-}
-
 document.getElementById('save-disposition').onclick = async () => {
     const disposition = document.getElementById('disp-select').value;
-    const rationale = document.getElementById('disp-rationale').value;
+    const rationale = document.getElementById('disp-rationale').value.trim();
     
-    if ((disposition === 'adapted' || disposition === 'dismissed') && !rationale) {
-        alert('Rationale is required for adapted or dismissed dispositions.');
+    if (rationale.length < 20) {
+        alert('Rationale must be at least 20 characters.');
         return;
     }
 
@@ -251,4 +267,80 @@ function renderMutations(events) {
         `;
         list.appendChild(li);
     });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSpecsForCoverage();
+    document.getElementById('spec-coverage-select').addEventListener('change', (e) => {
+        const specId = e.target.value;
+        if (specId) {
+            loadSpecCoverage(specId);
+        } else {
+            document.getElementById('coverage-visualization').innerHTML = 'Select a spec to view its coverage chain.';
+        }
+    });
+});
+
+async function loadSpecsForCoverage() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const project = urlParams.get('project');
+        let url = '/api/specs';
+        if (project) url += '?project=' + project;
+        
+        const response = await fetch(url);
+        const specs = await response.json();
+        const select = document.getElementById('spec-coverage-select');
+        specs.forEach(spec => {
+            const opt = document.createElement('option');
+            opt.value = spec.id;
+            opt.innerText = `${spec.id} - ${spec.title}`;
+            select.appendChild(opt);
+        });
+    } catch (error) {
+        console.error('Error loading specs:', error);
+    }
+}
+
+async function loadSpecCoverage(specId) {
+    const viz = document.getElementById('coverage-visualization');
+    viz.innerHTML = '<div class="spinner-border text-primary spinner-border-sm"></div> Loading...';
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const project = urlParams.get('project');
+        let url = `/api/governance/specs/${specId}/coverage`;
+        if (project) url += '?project=' + project;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch coverage');
+        const data = await response.json();
+        
+        if (!data.standards_refs || data.standards_refs.length === 0) {
+            viz.innerHTML = `This spec is not linked to any Rationalised Rule. Edit the spec markdown to add <code>standards_refs: [RR-xxx]</code> in the header block.`;
+            return;
+        }
+        
+        let html = `<div class="text-start">`;
+        html += `<div class="mb-2"><strong>${data.spec_id}</strong> covers:</div>`;
+        data.rationalised_rules.forEach(rr => {
+            html += `<div class="card bg-dark border-secondary mb-2 p-2">`;
+            html += `<div><span class="badge bg-secondary">${rr.id}</span> ${rr.title || ''}</div>`;
+            html += `<div class="ms-3 mt-1 small text-muted">Derived from:</div>`;
+            html += `<ul class="mb-0 ms-1 ps-3">`;
+            if (rr.derived_from && rr.derived_from.length > 0) {
+                rr.derived_from.forEach(df => {
+                    html += `<li>${df}</li>`;
+                });
+            } else {
+                html += `<li>No source clauses</li>`;
+            }
+            html += `</ul></div>`;
+        });
+        html += `</div>`;
+        viz.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading spec coverage:', error);
+        viz.innerHTML = '<span class="text-danger">Failed to load coverage</span>';
+    }
 }

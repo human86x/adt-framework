@@ -31,25 +31,18 @@ Jurisdiction is structurally enforced by DTCP. Attempting to act outside your ro
 ### 3.1 Session Lifecycle
 1.  **Summoning:** You MUST assumed the role specified by the human (e.g., `/summon backend_engineer`).
 2.  **Initialisation:** Read the Protocol, Master Plan, Tasks, and latest ADS events.
-3.  **ADS Log:** Append a "session_start" event to `_cortex/ads/events.jsonl` immediately.
+3.  **ADS Log:** Append a `session_start` event to `_cortex/ads/events.jsonl` immediately.
 4.  **Execution:** Follow the Plan -> Act -> Validate cycle.
 5.  **Commitment:** Significant changes should be committed to Git frequently, linked to the Spec ID.
 
 ### 3.2 Tiered Protections
-*   **Tier 1 (Sovereign):** `_cortex/AI_PROTOCOL.md`, `_cortex/MASTER_PLAN.md`, config/*.json. Agent modification is BLOCKED. Use Sovereign Change Requests (SCR).
-*   **Tier 2 (Constitutional):** DTCP core code (gateway.py, policy.py, etc.). Requires elevated justification and explicit spec authorization.
+*   **Tier 1 (Sovereign):** `_cortex/AI_PROTOCOL.md`, `_cortex/MASTER_PLAN.md`, `config/*.json`. Agent modification is BLOCKED. Use Sovereign Change Requests (SCR).
+*   **Tier 2 (Constitutional):** DTCP core code (`gateway.py`, `policy.py`, etc.). Requires elevated justification and explicit spec authorization.
 *   **Tier 3 (Operational):** All other application code. Standard jurisdiction rules apply.
 
 ### 3.3 Interactive Orchestration (SPEC-039)
 *   **Human Steering:** Respect `human_steering` events in the ADS. If the human prioritizes a task via the Console, shift focus immediately.
-*   **Thinking Feedback:** Use the "dry_run" flag in DTCP to validate actions before execution. This provides real-time "thinking" feedback to the Console.
-
-### 3.4 Governance-Guided Adaptation (The "Blueprint" Strategy)
-To maximize engineering efficiency, agents should adopt the following "Governance-Guided Adaptation" workflow when implementing features inspired by external open-source projects (e.g., Claw Code, Hermes IDE):
-1.  **Deconstruction (Research):** Analyze the external source code to identify the "Golden Path" for the required logic.
-2.  **Abstraction (The 'What'):** Extract the core functional algorithm, stripping away all "Feature Fat" (unnecessary UI polish, edge-case bloat, or generic error handling).
-3.  **Governance Injection (The 'How'):** Rebuild the lean logic natively within the ADT Framework, ensuring that **DTCP Authorization** and **ADS Logging** are baked into the core execution paths.
-4.  **Lean Reconstruction:** Prioritize performance, type safety, and minimal dependencies over direct code replication.
+*   **Thinking Feedback:** Use the `dry_run` flag in DTCP to validate actions before execution. This provides real-time "thinking" feedback to the Console.
 
 ## 4. Capability Governance (SPEC-038)
 
@@ -63,10 +56,10 @@ To maximize engineering efficiency, agents should adopt the following "Governanc
 *   **Security Risk:** If you detect a loophole or security vulnerability in the framework, escalate to the human immediately.
 *   **Inconsistency:** If a Spec contradicts the Protocol, the Protocol takes precedence.
 
-## 6. Terminology & Supersessions
+## 6. Supersedes
 
-*   **DTCP:** The Digital Transformation Control Protocol (DTCP) supersedes the prior Digital Transformation Transfer Protocol (DTTP) terminology (SPEC-044). DTCP and DTTP refer to the same protocol; new code and documentation use DTCP.
+DTCP supersedes the prior DTTP terminology (SPEC-044). DTCP and DTTP refer to the same protocol; new code uses DTCP.
 
 ---
 
-"Governance is the process by which we ensure that the outcomes we create are the outcomes we intended."
+*"Governance is the process by which we ensure that the outcomes we create are the outcomes we intended."*

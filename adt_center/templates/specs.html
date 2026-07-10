@@ -36,12 +36,16 @@
                         {% endfor %}
                     </div>
                     {% if spec.status|upper == 'DRAFT' %}
-                    <button class="btn btn-success btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;" 
+                    <button class="btn btn-success btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;"
                             onclick="event.stopPropagation(); updateStatusDirect('{{ spec.id }}', 'APPROVED')">
                         Approve
                     </button>
                     {% elif spec.status|upper == 'APPROVED' or spec.status|upper == 'ACTIVE' %}
-                    <button class="btn btn-purple btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;" 
+                    <button class="btn btn-sm me-1" style="font-size:0.65rem; padding:0.1rem 0.4rem; background:#1d4ed8; color:#fff; border:none; border-radius:4px;"
+                            onclick="event.stopPropagation(); triggerBuild('{{ spec.id }}')">
+                        &#9654; Build
+                    </button>
+                    <button class="btn btn-purple btn-sm me-2" style="font-size:0.65rem; padding:0.1rem 0.4rem;"
                             onclick="event.stopPropagation(); updateStatusDirect('{{ spec.id }}', 'COMPLETED')">
                         Complete
                     </button>
@@ -83,15 +87,43 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="specModalBody" class="modal-spec-viewer">
-                    <!-- Content injected here -->
+            <div class="modal-body p-0">
+                <div class="row g-0 m-0 h-100">
+                    <div class="col-lg-8 p-3 border-end border-adt" style="overflow-y: auto; max-height: 70vh;">
+                        <div id="specModalBody" class="modal-spec-viewer">
+                            <!-- Content injected here -->
+                        </div>
+                    </div>
+                    <div class="col-lg-4 p-3 bg-dark" style="overflow-y: auto; max-height: 70vh;">
+                        <h6 class="text-info fw-bold mb-3"><i class="bi bi-shield-check"></i> Live Spec Coverage</h6>
+                        
+                        <div class="card bg-black border-secondary mb-3">
+                            <div class="card-header py-2 text-info small fw-bold">
+                                SELF-ASSESSMENT
+                            </div>
+                            <div class="card-body py-2" id="specSelfAssessmentPanel">
+                                <div class="text-center text-adt-muted small py-2">Loading assessment...</div>
+                            </div>
+                        </div>
+
+                        <div class="card bg-black border-secondary mb-3">
+                            <div class="card-header py-2 text-info small fw-bold">
+                                COVERAGE SUGGESTIONS
+                            </div>
+                            <div class="card-body py-2" id="specSuggestionsPanel">
+                                <div class="text-center text-adt-muted small py-2">Loading suggestions...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-adt d-flex justify-content-between">
                 <div>
                     <button type="button" id="btn-approve-spec" class="btn btn-sm btn-success d-none" onclick="updateStatus('APPROVED')">
                         <i class="bi bi-patch-check-fill me-1"></i> Approve Spec
+                    </button>
+                    <button type="button" id="btn-build-spec" class="btn btn-sm d-none" style="background:#1d4ed8;color:#fff;border:none;" onclick="triggerBuildFromModal()">
+                        &#9654; Build
                     </button>
                     <button type="button" id="btn-complete-spec" class="btn btn-sm btn-purple d-none" onclick="updateStatus('COMPLETED')">
                         <i class="bi bi-check-all me-1"></i> Mark Complete
@@ -179,19 +211,113 @@ async function viewSpec(id, name, el) {
     
     // Toggle buttons based on status
     const approveBtn = document.getElementById('btn-approve-spec');
+    const buildBtn = document.getElementById('btn-build-spec');
     const completeBtn = document.getElementById('btn-complete-spec');
-    
+
     approveBtn.classList.add('d-none');
+    buildBtn.classList.add('d-none');
     completeBtn.classList.add('d-none');
-    
+    buildBtn.dataset.specId = id;
+
     if (currentStatus === 'DRAFT') {
         approveBtn.classList.remove('d-none');
     } else if (currentStatus === 'APPROVED' || currentStatus === 'ACTIVE') {
+        buildBtn.classList.remove('d-none');
         completeBtn.classList.remove('d-none');
     }
     
     const myModal = new bootstrap.Modal(document.getElementById('specModal'));
     myModal.show();
+    
+    fetchCoverageInfo(id);
+}
+
+async function fetchCoverageInfo(id) {
+    const assessmentPanel = document.getElementById('specSelfAssessmentPanel');
+    const suggestionsPanel = document.getElementById('specSuggestionsPanel');
+    
+    if (assessmentPanel) assessmentPanel.innerHTML = '<div class="text-center text-adt-muted small py-2">Loading assessment...</div>';
+    if (suggestionsPanel) suggestionsPanel.innerHTML = '<div class="text-center text-adt-muted small py-2">Loading suggestions...</div>';
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const project = urlParams.get('project');
+        const query = project ? `?project=${project}` : '';
+        const resA = await fetch(`/api/governance/specs/${id}/self_assessment${query}`);
+        if (resA.ok) {
+            const data = await resA.json();
+            let html = '<ul class="list-unstyled mb-0" style="font-size:0.8rem;">';
+            for (const [checkName, checkInfo] of Object.entries(data)) {
+                const icon = checkInfo.passed ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-danger"></i>';
+                html += `<li class="mb-2">${icon} <span class="fw-bold">${checkName}</span>`;
+                if (!checkInfo.passed && checkInfo.hint) {
+                    html += `<br><span class="text-muted ms-3" style="font-size:0.75rem;">${checkInfo.hint}</span>`;
+                }
+                html += '</li>';
+            }
+            html += '</ul>';
+            assessmentPanel.innerHTML = html;
+        } else {
+            if (assessmentPanel) assessmentPanel.innerHTML = '<div class="text-muted small py-2">Self-assessment not available.</div>';
+        }
+    } catch(e) {
+        if (assessmentPanel) assessmentPanel.innerHTML = '<div class="text-danger small py-2">Error loading assessment.</div>';
+    }
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const project = urlParams.get('project');
+        const query = project ? `?project=${project}` : '';
+        const resS = await fetch(`/api/governance/specs/${id}/suggest${query}`);
+        if (resS.ok) {
+            const data = await resS.json();
+            if (!data.suggested_rrs || data.suggested_rrs.length === 0) {
+                if (suggestionsPanel) suggestionsPanel.innerHTML = '<div class="text-muted small py-2">No suggestions.</div>';
+            } else {
+                let html = '<div class="d-flex flex-column gap-2">';
+                data.suggested_rrs.forEach(rr => {
+                    const rrId = typeof rr === 'string' ? rr : (rr.id || rr);
+                    const rationaleObj = data.rationale_per_rr && data.rationale_per_rr[rrId] ? data.rationale_per_rr[rrId] : null;
+                    const score = rationaleObj && rationaleObj.score !== undefined ? rationaleObj.score.toFixed(2) : '';
+                    html += `<div class="p-2 border border-secondary rounded" style="font-size:0.8rem; background: rgba(255,255,255,0.05);">
+                        <div class="fw-bold text-info">${rrId}</div>
+                        <div class="text-muted small mb-2">Score: ${score}</div>
+                        <button class="btn btn-sm btn-outline-info w-100" style="font-size:0.7rem; padding: 0.1rem 0.3rem;" onclick="addStandardRef('${id}', '${rrId}')">Add to standards_refs</button>
+                    </div>`;
+                });
+                html += '</div>';
+                if (suggestionsPanel) suggestionsPanel.innerHTML = html;
+            }
+        } else {
+            if (suggestionsPanel) suggestionsPanel.innerHTML = '<div class="text-muted small py-2">Suggestions not available.</div>';
+        }
+    } catch(e) {
+        if (suggestionsPanel) suggestionsPanel.innerHTML = '<div class="text-danger small py-2">Error loading suggestions.</div>';
+    }
+}
+
+window.addStandardRef = async function(specId, rrId) {
+    if (!confirm(`Queue SCR to add ${rrId} to ${specId} standards_refs?`)) return;
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const project = urlParams.get('project');
+        const query = project ? `?project=${project}` : '';
+        // Endpoint specified in requirements / spec logic if applicable
+        const res = await fetch(`/api/governance/specs/${specId}/add_standard_ref${query}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ rr_id: rrId })
+        });
+        if (res.ok) {
+            alert(`SCR queued to add ${rrId} to ${specId}`);
+            fetchCoverageInfo(specId);
+        } else {
+            const err = await res.json().catch(() => ({error: 'Unknown error'}));
+            alert('Failed: ' + err.error);
+        }
+    } catch(e) {
+        alert('Failed to add standard reference.');
+    }
 }
 
 async function updateStatusDirect(specId, newStatus) {
@@ -269,6 +395,97 @@ window.removeStandard = (id) => {
 };
 
 document.addEventListener('DOMContentLoaded', loadStandards);
+
+async function triggerBuild(specId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const project = urlParams.get('project');
+    const query = project ? `?project=${project}` : '';
+    try {
+        const res = await fetch(`/api/governance/specs/${specId}/build${query}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ triggered_by: 'panel', harness: 'claude' })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            showBuildBar(specId, data.build_id, `▶ Build registered — ${specId} (${data.build_id}) — waiting for agent…`, 'info');
+            _startBuildPoll(data.build_id, specId);
+            // Signal the Console to spawn an orchestrator PTY window (when running inside Tauri)
+            if (window.__TAURI__) {
+                window.__TAURI__.event.emit('spawn-build-orchestrator', {
+                    spec_id: specId,
+                    build_id: data.build_id,
+                    project: project || null,
+                }).catch(e => console.warn('[BUILD] Could not emit spawn-build-orchestrator:', e));
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert('Build failed: ' + (err.error || res.statusText));
+        }
+    } catch (e) {
+        alert('Build failed: ' + (e.message || 'ADT Center unreachable'));
+    }
+}
+
+function triggerBuildFromModal() {
+    const specId = document.getElementById('btn-build-spec').dataset.specId;
+    if (specId) triggerBuild(specId);
+}
+
+function showBuildBar(specId, buildId, message, type) {
+    let bar = document.getElementById('build-status-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'build-status-bar';
+        bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;display:flex;align-items:center;gap:12px;padding:10px 20px;font-size:0.85rem;box-shadow:0 -2px 8px rgba(0,0,0,0.4);';
+        document.body.appendChild(bar);
+    }
+    const bg = type === 'warn' ? '#92400e' : type === 'done' ? '#166534' : '#1d4ed8';
+    bar.style.background = bg;
+    bar.style.color = '#fff';
+    bar.innerHTML = `<span style="flex:1">${message}</span>`
+        + `<button onclick="document.getElementById('build-status-bar').remove();if(window._buildPollTimer)clearInterval(window._buildPollTimer);" `
+        + `style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;">✕</button>`;
+}
+
+function _startBuildPoll(buildId, specId) {
+    if (window._buildPollTimer) clearInterval(window._buildPollTimer);
+    let attempts = 0;
+    window._buildPollTimer = setInterval(async () => {
+        attempts++;
+        try {
+            const r = await fetch(`/api/governance/builds/${buildId}`);
+            if (!r.ok) return;
+            const d = await r.json();
+            const status = d.status || 'initiated';
+            const hasActivity = (d.ads_events || []).some(e =>
+                ['build_started', 'build_role_spawned', 'build_complete', 'build_blocked'].includes(e.action_type)
+            );
+            if (status === 'complete') {
+                const noWork = (d.sessions || []).length === 0;
+                const msg = noWork
+                    ? `⚠ No pending tasks for ${specId} — all tasks already completed`
+                    : `✓ Build complete — ${specId} (${buildId})`;
+                const type = noWork ? 'warn' : 'done';
+                showBuildBar(specId, buildId, msg, type);
+                clearInterval(window._buildPollTimer);
+            } else if (status === 'aborted') {
+                showBuildBar(specId, buildId, `✕ Build aborted — ${specId}`, 'warn');
+                clearInterval(window._buildPollTimer);
+            } else if (status === 'blocked') {
+                showBuildBar(specId, buildId, `⚠ Build blocked — ${specId} — human steering required`, 'warn');
+                clearInterval(window._buildPollTimer);
+            } else if (hasActivity) {
+                showBuildBar(specId, buildId, `⟳ Building ${specId} — agent active (${buildId})`, 'info');
+            } else if (attempts >= 3) {
+                showBuildBar(specId, buildId,
+                    `⚠ Build registered (${buildId}) — No agent spawned. Open the ADT Console app to execute this build.`,
+                    'warn');
+                clearInterval(window._buildPollTimer);
+            }
+        } catch (_) {}
+    }, 4000);
+}
 
 document.getElementById('createSpecForm').addEventListener('submit', async (e) => {
     e.preventDefault();

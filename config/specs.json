@@ -657,8 +657,7 @@
         "Systems_Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Overseer",
-        "Frontend_Engineer"
+        "Overseer"
       ],
       "action_types": [
         "edit",
@@ -672,7 +671,9 @@
         "adt-console/src-tauri/",
         "config/specs.json",
         "_cortex/ops/",
-        "adt_sdk/hooks/"
+        "adt_sdk/hooks/",
+        "tests/",
+        "_cortex/tasks.json"
       ]
     },
     "SPEC-046": {
@@ -757,7 +758,13 @@
         "Frontend_Engineer",
         "Overseer"
       ],
-      "action_types": ["edit", "patch", "create", "pty_io"],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "pty_io",
+        "cross_ai_delegation"
+      ],
       "paths": [
         "adt_core/ads/schema.py",
         "adt_core/dtcp/policy.py",
@@ -767,12 +774,9 @@
         "adt_sdk/forge.py",
         "adt-console/src-tauri/src/pty.rs",
         "adt-console/src/js/launcher.js",
-        "_cortex/specs/"
-      ],
-      "action_types": [
-        "edit",
-        "patch",
-        "create"
+        "_cortex/specs/",
+        "GEMINI.md",
+        "CLAUDE.md"
       ]
     },
     "SPEC-050": {
@@ -815,6 +819,382 @@
         "adt_center/templates/",
         "adt_center/static/"
       ]
+    },
+    "SPEC-055": {
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/",
+        "adt_center/",
+        "adt-console/src-tauri/",
+        "adt-console/src/",
+        "adt_sdk/hooks/"
+      ],
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer"
+      ],
+      "status": "approved",
+      "title": "Spec Build Orchestration Engine"
+    },
+    "SPEC-056": {
+      "title": "Backend-Triggered Build Orchestration",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_center/",
+        "adt_core/",
+        "adt_sdk/",
+        "start.sh",
+        ".env",
+        ".env.example",
+        "_cortex/ops/active_role.txt",
+        "_cortex/ops/active_spec.txt"
+      ]
+    },
+    "SPEC-057": {
+      "title": "Agent Mailbox & Messaging Bus",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/comms/",
+        "_cortex/ops/",
+        "_cortex/specs/",
+        "_cortex/tasks.json",
+        "adt_center/services/",
+        "adt_center/app.py",
+        "adt_center/api/governance_routes.py",
+        "adt_core/",
+        "adt_core/ads/schema.py",
+        "adt_sdk/cross_ai.py",
+        "adt-console/src-tauri/src/pty.rs",
+        "adt-console/src/js/terminal.js",
+        "adt-console/src/js/context.js",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ]
+    },
+    "SPEC-058": {
+      "title": "Real-Time Token Usage Telemetry & Visualization",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/ads/schema.py",
+        "adt_core/cost/",
+        "adt_center/api/ads_routes.py",
+        "adt_center/api/telemetry_routes.py",
+        "adt-console/src/js/telemetry.js",
+        "adt-console/src/js/components.js",
+        "adt-console/src/css/telemetry.css",
+        "_cortex/specs/SPEC-058_REALTIME_TOKEN_TELEMETRY.md",
+        "config/pricing.json",
+        "tests/"
+      ]
+    },
+    "SPEC-061": {
+      "title": "Antigravity Multi-Model Worker Plane",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Frontend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_sdk/plugins/adt-bridge/",
+        "adt_center/api/build_executor.py",
+        "adt_center/api/workers_routes.py",
+        "adt_center/app.py",
+        "adt_core/ads/schema.py",
+        "adt-console/src/",
+        "adt-console/src-tauri/",
+        "adt_center/api/governance_routes.py"
+      ]
+    },
+    "SPEC-062": {
+      "title": "Spec Skill-Tree Map (Console)",
+      "status": "approved",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/specs/SPEC-062_SPEC_SKILL_TREE_MAP.md",
+        "adt_center/api/governance_routes.py",
+        "adt_core/sdd/tasks.py",
+        "_cortex/ops/build_orchestrator.py",
+        "adt_core/ads/schema.py",
+        "adt-console/src/js/spec_map.js",
+        "adt-console/src/js/graph_renderer.js",
+        "adt-console/src/js/app.js",
+        "adt-console/src/css/spec_map.css",
+        "adt-console/src/css/console.css",
+        "adt-console/src/vendor/cytoscape.min.js",
+        "adt-console/src/vendor/cytoscape-dagre.min.js",
+        "adt-console/src/vendor/dagre.min.js",
+        "adt-console/src/index.html"
+      ]
+    },
+    "SPEC-063": {
+      "title": "Project Bootstrap Scaffold",
+      "status": "approved",
+      "paths": [
+        "adt_center/api/governance_routes.py",
+        "_cortex/AI_PROTOCOL.md",
+        "_cortex/MASTER_PLAN.md",
+        "_cortex/AGENTS.md",
+        "_cortex/MEMORY_BANK.md",
+        "_cortex/specs/SPEC-001_VISION.md",
+        "_cortex/specs/SPEC-063_PROJECT_BOOTSTRAP_SCAFFOLD.md"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer"
+      ],
+      "milestone": "v0.4.0",
+      "tier": "operational",
+      "related_specs": [
+        "SPEC-017",
+        "SPEC-031"
+      ]
+    },
+    "SPEC-TEST": {
+      "title": "Test Spec",
+      "status": "draft"
+    },
+    "SPEC-MRR-TEST": {
+      "title": "MRR Evaluation Test Spec (SPEC-064 task_396)",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "tests/",
+        "_cortex/standards/"
+      ],
+      "milestone": "v0.5.0",
+      "tier": "operational",
+      "mrr_evaluation": true,
+      "standards_refs": [
+        "RR-001",
+        "RR-005",
+        "RR-017",
+        "RR-018"
+      ],
+      "related_specs": [
+        "SPEC-064"
+      ]
+    },
+    "SPEC-064": {
+      "title": "Standards Rationalisation Layer",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/standards/",
+        "adt_core/standards/",
+        "adt_center/api/standards_routes.py",
+        "adt_center/templates/standards.html",
+        "adt_core/ads/schema.py",
+        "_cortex/specs/SPEC-064_STANDARDS_RATIONALISATION_LAYER.md"
+      ],
+      "milestone": "v0.5.0",
+      "tier": "constitutional",
+      "related_specs": [
+        "SPEC-046",
+        "SPEC-047",
+        "SPEC-038",
+        "SPEC-038A",
+        "SPEC-033",
+        "SPEC-017"
+      ]
+    },
+    "SPEC-065": {
+      "title": "Standards Authoring Workbench & Live Spec Coverage",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Frontend_Engineer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/standards/",
+        "adt_core/standards/",
+        "adt_center/api/standards_routes.py",
+        "adt_center/api/spec_coverage.py",
+        "adt_center/templates/standards.html",
+        "adt_center/templates/standards_authoring.html",
+        "adt_center/templates/spec_detail.html",
+        "adt_center/static/js/standards.js",
+        "adt-console/src/js/specs.js",
+        "adt-console/src/js/standards.js",
+        "adt-console/src/index.html",
+        "_cortex/specs/SPEC-065_STANDARDS_WORKBENCH_AND_LIVE_SPEC_COVERAGE.md"
+      ],
+      "milestone": "v0.5.0",
+      "tier": "operational",
+      "related_specs": [
+        "SPEC-064",
+        "SPEC-046",
+        "SPEC-047",
+        "SPEC-038",
+        "SPEC-038A",
+        "SPEC-033",
+        "SPEC-021",
+        "SPEC-062"
+      ]
+    },
+    "SPEC-067": {
+      "status": "approved",
+      "title": "Forge Wizard",
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "adt_core/ads/",
+        "adt_core/standards/",
+        "adt_center/api/",
+        "adt_center/services/",
+        "adt_center/app.py",
+        "adt_sdk/",
+        "tests/",
+        "config/",
+        "tests/integration/",
+        "_cortex/work_logs/",
+        "_cortex/capabilities/"
+      ]
+    },
+    "SPEC-070": {
+      "roles": [
+        "Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Developer",
+        "Frontend_Engineer",
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "create",
+        "delete",
+        "edit",
+        "list",
+        "patch",
+        "read"
+      ],
+      "paths": [
+        ".",
+        "Cargo.toml",
+        "Makefile",
+        "README.md",
+        "_cortex/",
+        "adt-console/",
+        "adt-console/src/",
+        "adt_center/",
+        "adt_core/",
+        "adt_sdk/",
+        "app.py",
+        "app/",
+        "assets/",
+        "config/",
+        "css/",
+        "docker-compose.yml",
+        "docs/",
+        "index.html",
+        "js/",
+        "lib/",
+        "main.py",
+        "package.json",
+        "public/",
+        "requirements.txt",
+        "src/",
+        "static/",
+        "tests/"
+      ],
+      "status": "approved"
     }
   }
 }

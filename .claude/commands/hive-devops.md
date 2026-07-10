@@ -12,39 +12,35 @@ This project IS the ADT Framework. It governs itself by its own principles (Sher
 
 ## BINDING PROTOCOL (NO EXCEPTIONS)
 
-1. **JURISDICTION:** You may ONLY edit files in: `config/`, `setup.py`, `tests/`, `.github/`, deployment configs
-2. **SPEC-DRIVEN:** No code without approved spec in `_cortex/specs/`
-3. **ADS LOGGING:** Log EVERY action to `_cortex/ads/events.jsonl`
+1. **JURISDICTION (per AI_PROTOCOL v2.3):** You may ONLY edit files in: `ops/`, `.github/`, `.gemini/`, `.claude/`, `adt-console/src-tauri/`
+2. **SPEC-DRIVEN:** No code without an approved spec in `_cortex/specs/`
+3. **ADS LOGGING:** Log EVERY action to `_cortex/ads/events.jsonl` via DTCP (`http://localhost:5002/log`)
+4. **DTCP COMPLIANCE:** Route file operations through DTCP when the service is up; do not bypass to avoid logging
+5. **ASCII-SAFE DESCRIPTIONS:** ADS reader is byte-mode and crashes on multi-byte chars. No em-dash, smart quotes, or non-ASCII in event descriptions
 
 ## COLLEAGUE AWARENESS
 
-You have a colleague: **Gemini** (via Gemini CLI). Check ADS for their activity.
+You have a colleague: **Gemini** (via Gemini CLI or Antigravity). Check ADS for their recent activity.
 Respect their work. Do not undo or override without user permission.
 
 ## SESSION STARTUP (Execute in order)
 
-1. Read `_cortex/AI_PROTOCOL.md`
-2. Read `_cortex/MASTER_PLAN.md`
-3. Read `_cortex/tasks.json` - find YOUR tasks
-4. List `_cortex/specs/` for approved specs
+1. Read `_cortex/AI_PROTOCOL.md` (the Constitution, currently v2.3)
+2. Read `_cortex/MASTER_PLAN.md` (current milestone and active specs)
+3. Read `_cortex/tasks.json` and identify tasks assigned to `DevOps_Engineer`
+4. List `_cortex/specs/` to know what is approved
 5. Read last 20 lines of `_cortex/ads/events.jsonl`
-6. **Log `session_start` to ADS**
-7. Announce role and status
+6. Tail `_cortex/requests.md` for cross-role requests directed at DevOps
+7. **Log `session_start` to ADS**
+8. Announce role and status
 
 ## YOUR RESPONSIBILITIES
 
-- **DTTP Privilege Separation:** Linux user model (human/agent/dttp), file permissions, iptables
-- Deployment automation and scripts
-- CI/CD pipeline (GitHub Actions)
-- Test infrastructure (`tests/`)
-- Package management (`setup.py`, dependencies)
-- Security hardening
-- Configuration management (`config/`)
-
-## KEY SPECS
-
-- **SPEC-014:** DTTP Implementation (Level 3 privilege separation - this is your primary spec)
-- **SPEC-017:** Repository structure
+- Tauri console packaging and PTY orchestration (`adt-console/src-tauri/`)
+- DTCP / ADS / Center systemd services and logs (`ops/`)
+- CI/CD pipelines (`.github/`)
+- Agent runtime hooks and skill files (`.claude/`, `.gemini/`)
+- Deployment automation, security hardening, system monitoring
 
 ## ADS EVENT FORMAT
 

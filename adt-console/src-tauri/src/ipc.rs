@@ -4,7 +4,7 @@
 
 use crate::pty::{self, PtyManager, SessionInfo};
 use crate::tray::{self, TrayStatus};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use tauri::{Runtime, State};
@@ -683,6 +683,49 @@ fn check_port(port: u16) -> bool {
     ).is_ok()
 }
 
+/// Bind to port 0 to have the OS assign a free ephemeral port, then release
+/// it — the returned port is highly likely to still be free when the caller
+/// tries to bind it again.
+fn pick_free_port() -> Option<u16> {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok()?;
+    let port = listener.local_addr().ok()?.port();
+    drop(listener);
+    Some(port)
+}
+
+/// Derive a stable port from a project path so re-launching the same project
+/// always uses the same URL. Critical for browser camera/mic permissions —
+/// they are per-origin, so a shifting port re-prompts on every launch.
+///
+/// Port range 8600..=8899 (300 slots), avoiding common dev-server ports.
+/// If the derived port is already in use by *another* process, walks forward
+/// up to 20 slots. Returns the first free port, or None if all are taken.
+fn stable_port_for_project(project_path: &std::path::Path) -> Option<u16> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let key = project_path.to_string_lossy();
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let base = 8600u16 + (hash % 300) as u16;
+    // If our own http.server is already bound to this port (from a previous
+    // launch of the same project), reuse it — we'll skip re-spawning below.
+    for offset in 0..20u16 {
+        let candidate = base.wrapping_add(offset);
+        if candidate < 8600 || candidate > 8999 {
+            continue;
+        }
+        if std::net::TcpListener::bind(("127.0.0.1", candidate)).is_ok() {
+            return Some(candidate);
+        }
+    }
+    // Fall through: use derived port anyway (something else is on it, but our
+    // spawn will fail loudly in the log).
+    Some(base)
+}
+
 fn start_project_dtcp_inner(name: &str) -> Result<String, String> {
     let python = find_python().ok_or("Python not found")?;
     let mut cmd = std::process::Command::new(&python);
@@ -800,6 +843,259 @@ pub fn list_agy_models() -> Vec<String> {
         
         fallback
     }).clone()
+}
+
+// ============================================================================
+// Project launch — detect entry point and run built project
+// ============================================================================
+
+#[derive(Serialize, Debug, Clone)]
+pub struct LaunchInfo {
+    pub launchable: bool,
+    /// "html" | "npm" | "python" | "cargo" | "make" | "docker" | "none"
+    pub kind: String,
+    /// Relative path to entry file inside project (empty if not launchable).
+    pub entry_file: String,
+    /// Human-readable run command (empty if not launchable).
+    pub run_command: String,
+    /// Short description shown in tooltip.
+    pub description: String,
+    /// If not launchable, explains why (shown as disabled-button tooltip).
+    pub reason: Option<String>,
+}
+
+fn detect_launch_inner(project_path: &std::path::Path) -> LaunchInfo {
+    let none = |reason: &str| LaunchInfo {
+        launchable: false,
+        kind: "none".to_string(),
+        entry_file: String::new(),
+        run_command: String::new(),
+        description: String::new(),
+        reason: Some(reason.to_string()),
+    };
+
+    if !project_path.exists() || !project_path.is_dir() {
+        return none("Project path does not exist");
+    }
+
+    // 1. index.html at common locations
+    for rel in [
+        "index.html",
+        "public/index.html",
+        "www/index.html",
+        "dist/index.html",
+        "build/index.html",
+        "src/index.html",
+    ] {
+        if project_path.join(rel).is_file() {
+            return LaunchInfo {
+                launchable: true,
+                kind: "html".to_string(),
+                entry_file: rel.to_string(),
+                run_command: format!("xdg-open {}", rel),
+                description: format!("Open {} in browser", rel),
+                reason: None,
+            };
+        }
+    }
+
+    // 2. package.json with scripts.start (or scripts.dev)
+    let pkg = project_path.join("package.json");
+    if pkg.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&pkg) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if json.get("scripts").and_then(|s| s.get("start")).is_some() {
+                    return LaunchInfo {
+                        launchable: true,
+                        kind: "npm".to_string(),
+                        entry_file: "package.json".to_string(),
+                        run_command: "npm start".to_string(),
+                        description: "Run npm start".to_string(),
+                        reason: None,
+                    };
+                }
+                if json.get("scripts").and_then(|s| s.get("dev")).is_some() {
+                    return LaunchInfo {
+                        launchable: true,
+                        kind: "npm".to_string(),
+                        entry_file: "package.json".to_string(),
+                        run_command: "npm run dev".to_string(),
+                        description: "Run npm run dev".to_string(),
+                        reason: None,
+                    };
+                }
+            }
+        }
+    }
+
+    // 3. Python entry points
+    for candidate in ["main.py", "app.py", "run.py", "__main__.py", "server.py"] {
+        if project_path.join(candidate).is_file() {
+            return LaunchInfo {
+                launchable: true,
+                kind: "python".to_string(),
+                entry_file: candidate.to_string(),
+                run_command: format!("python3 {}", candidate),
+                description: format!("Run python3 {}", candidate),
+                reason: None,
+            };
+        }
+    }
+
+    // 4. Cargo.toml
+    if project_path.join("Cargo.toml").is_file() {
+        return LaunchInfo {
+            launchable: true,
+            kind: "cargo".to_string(),
+            entry_file: "Cargo.toml".to_string(),
+            run_command: "cargo run".to_string(),
+            description: "cargo run (Rust)".to_string(),
+            reason: None,
+        };
+    }
+
+    // 5. Makefile with `run:` target
+    let mk = project_path.join("Makefile");
+    if mk.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&mk) {
+            for line in content.lines() {
+                if line.trim_start().starts_with("run:") {
+                    return LaunchInfo {
+                        launchable: true,
+                        kind: "make".to_string(),
+                        entry_file: "Makefile".to_string(),
+                        run_command: "make run".to_string(),
+                        description: "make run".to_string(),
+                        reason: None,
+                    };
+                }
+            }
+        }
+    }
+
+    // 6. docker-compose
+    for candidate in ["docker-compose.yml", "docker-compose.yaml", "compose.yml"] {
+        if project_path.join(candidate).is_file() {
+            return LaunchInfo {
+                launchable: true,
+                kind: "docker".to_string(),
+                entry_file: candidate.to_string(),
+                run_command: "docker compose up".to_string(),
+                description: "docker compose up".to_string(),
+                reason: None,
+            };
+        }
+    }
+
+    none("No runnable entry point yet — build hasn't produced index.html, package.json+start, main.py, Cargo.toml, Makefile:run, or docker-compose.yml")
+}
+
+#[tauri::command]
+pub fn detect_project_launch(project_path: String) -> LaunchInfo {
+    log::info!("[IPC RECV] detect_project_launch: path={}", project_path);
+    detect_launch_inner(std::path::Path::new(&project_path))
+}
+
+#[tauri::command]
+pub fn launch_project(project_path: String) -> Result<String, String> {
+    log::info!("[IPC RECV] launch_project: path={}", project_path);
+    let p = std::path::Path::new(&project_path);
+    let info = detect_launch_inner(p);
+
+    if !info.launchable {
+        return Err(info.reason.unwrap_or_else(|| "Not launchable".to_string()));
+    }
+
+    let log_path = format!(
+        "/tmp/adt_launch_{}_{}.log",
+        p.file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "project".to_string()),
+        std::process::id()
+    );
+
+    // For HTML: serve over http://127.0.0.1:<port>/ so browsers grant a secure
+    // context (getUserMedia, service workers, etc). `file://` breaks those APIs
+    // in Chromium/WebKit. Steps:
+    //   1. Pick a free port.
+    //   2. Serve the entry file's parent dir (so relative assets resolve).
+    //   3. Start python3 detached with nohup+setsid so it survives console exit.
+    //   4. Wait for the port to actually be listening (poll up to 4s).
+    //   5. Open the browser at http://127.0.0.1:<port>/<entry-basename>.
+    let (effective_cwd, sh_line) = if info.kind == "html" {
+        // Stable port per-project so browser camera/mic permissions are
+        // remembered across re-launches (same origin every time).
+        let port = stable_port_for_project(p).unwrap_or(8765);
+        let entry_path = std::path::Path::new(&info.entry_file);
+        let entry_dir_rel = entry_path
+            .parent()
+            .map(|d| d.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let entry_basename = entry_path
+            .file_name()
+            .map(|f| f.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "index.html".to_string());
+        let effective = if entry_dir_rel.is_empty() {
+            p.to_path_buf()
+        } else {
+            p.join(&entry_dir_rel)
+        };
+
+        // If port already responds (previous launch's server still alive),
+        // just open the browser at the existing URL — no re-spawn.
+        // Otherwise start python3 detached, wait up to 4s for it to listen,
+        // then open the browser.
+        //
+        // IMPORTANT: run python3 from /tmp with --directory pointing at the
+        // project, so an accidental `http/` or `json/` package inside the
+        // project doesn't shadow stdlib and crash the launcher with a
+        // circular-import AttributeError. See eyetoy_test regression 2026-07-05.
+        let serve_dir = effective.to_string_lossy().into_owned();
+        let script = format!(
+            "if (echo > /dev/tcp/127.0.0.1/{port}) 2>/dev/null; then \
+               echo \"[launch] reusing existing server on :{port}\" >> {log}; \
+             else \
+               ( cd /tmp && setsid nohup python3 -m http.server {port} --bind 127.0.0.1 --directory '{dir}' >> {log} 2>&1 & ); \
+               for i in $(seq 1 40); do \
+                 (echo > /dev/tcp/127.0.0.1/{port}) 2>/dev/null && break; \
+                 sleep 0.1; \
+               done; \
+             fi; \
+             xdg-open http://127.0.0.1:{port}/{basename} >> {log} 2>&1",
+            port = port,
+            log = log_path,
+            dir = serve_dir.replace('\'', "'\\''"),
+            basename = entry_basename
+        );
+        (effective, script)
+    } else {
+        // Non-HTML: run the detected command detached, from the project root.
+        let script = format!(
+            "setsid nohup bash -c '{cmd}' >> {log} 2>&1 & disown",
+            cmd = info.run_command.replace('\'', "'\\''"),
+            log = log_path
+        );
+        (p.to_path_buf(), script)
+    };
+
+    let output = std::process::Command::new("bash")
+        .arg("-c")
+        .arg(&sh_line)
+        .current_dir(&effective_cwd)
+        .output()
+        .map_err(|e| format!("Failed to spawn launch: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Launch spawn failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(format!(
+        "Launched: {}  (log: {})",
+        info.run_command, log_path
+    ))
 }
 
 #[cfg(test)]
