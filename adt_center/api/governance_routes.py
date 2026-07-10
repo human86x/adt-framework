@@ -6391,6 +6391,25 @@ def api_mirror_frame_latest():
     resp.headers["X-Frame-Seq"] = str(frame["seq"])
     return resp
 
+@governance_bp.route("/mirror/peer_proxy", methods=["GET"])
+def api_mirror_peer_proxy():
+    """Proxy a GET request to a peer adt_center. Bypasses Tauri CSP for event polling.
+    Query: url=<fully_qualified_url> plus any extra params forwarded to the peer."""
+    url = request.args.get("url", "")
+    if not url or not url.startswith("http"):
+        return jsonify({"error": "valid http url required"}), 400
+    fwd = {k: v for k, v in request.args.items() if k != "url"}
+    try:
+        r = http_client.get(url, timeout=8, params=fwd)
+        from flask import Response
+        ct = r.headers.get("Content-Type", "application/json")
+        resp = Response(r.content, status=r.status_code, content_type=ct)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
 @governance_bp.route("/agy/reauth_launch", methods=["POST"])
 def api_agy_reauth_launch():
     """SPEC-062-H: launch an interactive agy session in a new terminal window
