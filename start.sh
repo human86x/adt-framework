@@ -54,7 +54,7 @@ if curl -s http://localhost:5001/ > /dev/null; then
     echo "[!] Operational Center already running."
 else
     echo "[+] Starting Operational Center UI (:5001)..."
-    nohup "$VENV_PYTHON" -m adt_center.app > "$LOG_DIR/adt_center.log" 2>&1 &
+    DISPLAY=:0 nohup "$VENV_PYTHON" -m adt_center.app > "$LOG_DIR/adt_center.log" 2>&1 &
     wait_for_service "http://localhost:5001/" "ADT Panel"
 fi
 
