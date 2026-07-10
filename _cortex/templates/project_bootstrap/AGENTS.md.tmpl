@@ -1,0 +1,36 @@
+# {{project_name}}: Agent Roster
+
+This document declares the agents that may operate inside this project, the harness that summons each one, and the canonical roles they may assume. The actual jurisdiction enforced at runtime lives in `config/jurisdictions.json`; this file is the human-readable map.
+
+---
+
+## Canonical Agents
+
+| Agent | Harness | Typical Use |
+|-------|---------|-------------|
+| **CLAUDE** | Anthropic Claude Code CLI | Spec authorship, refactors, multi-step engineering |
+| **GEMINI** | Google Gemini CLI | Parallel work alongside CLAUDE; second opinion |
+| **ANTIGRAVITY** | Google Antigravity worker (Architect/Engineer/etc.) | Cross-AI task execution under CAOP |
+| **HUMAN** | Operator using the ADT Console | Authorship, approvals, sovereign changes |
+| **SYSTEM** | Internal ADT services | Automated logging, hook-driven events |
+
+## Default Roles
+
+These are the roles seeded by project init. Add specialised roles (Backend_Engineer, Frontend_Engineer, DevOps_Engineer, Overseer, etc.) by amending `config/jurisdictions.json` and recording the change in MEMORY_BANK.md.
+
+| Role | Jurisdiction (paths) | Responsibility |
+|------|----------------------|----------------|
+| **Architect** | `_cortex/`, `config/`, `docs/` | Strategy, spec authorship, intent definition |
+| **Developer** | `src/`, `tests/`, project-type-specific paths | Implementation |
+
+## Colleague Awareness Protocol
+
+Multiple agents may operate on this project simultaneously. Before starting work, every summoned agent MUST:
+
+1. Read the last 20 entries of `_cortex/ads/events.jsonl` to see recent activity.
+2. Respect changes made by other agents — do not undo or override without operator permission.
+3. Log a `session_start` event before its first action.
+
+---
+
+*Edit this file when the agent roster or role definitions change.*
