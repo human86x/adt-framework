@@ -54,6 +54,12 @@ window.SpecMap.bindEventHandlers = function(cy) {
             if (window.ToastManager) window.ToastManager.show('info', 'Build Dispatched', `Task ${data.task_id} -> build ${d.build_id}`);
             node.addClass('pulse-building');
             setTimeout(() => { try { node.removeClass('pulse-building'); } catch(_){} }, 60000);
+            // Auto-open task detail panel so worker log is immediately visible
+            setTimeout(() => {
+              const detailPanel = document.getElementById('spec-map-detail');
+              if (detailPanel) detailPanel.style.display = 'block';
+              window.SpecMap.showNodeDetail(node);
+            }, 800);
           })
           .catch(err => {
             if (window.ToastManager) window.ToastManager.show('denial', 'Build Failed', String(err));
@@ -811,8 +817,15 @@ window.SpecMap.rerunFailedTask = async function(taskId, currentStatus, specRefHi
       if (btn) { btn.disabled = false; btn.textContent = 'Re-run This Task'; }
       return;
     }
-    if (statusEl) statusEl.textContent = `Build ${data.build_id || 'dispatched'} - watch banner for progress.`;
+    if (statusEl) statusEl.textContent = `Build ${data.build_id || 'dispatched'} — live log loading below...`;
     if (btn) { btn.textContent = 'Dispatched'; }
+    // Refresh the detail panel so smd-live-log repopulates with fresh build_id
+    setTimeout(() => {
+      if (window.SpecMap.state && window.SpecMap.state.cy) {
+        const node = window.SpecMap.state.cy.getElementById(taskId);
+        if (node && node.length) window.SpecMap.showNodeDetail(node);
+      }
+    }, 1200);
   } catch(err) {
     if (statusEl) statusEl.textContent = 'Network error: ' + err.message;
     if (btn) { btn.disabled = false; btn.textContent = 'Re-run This Task'; }

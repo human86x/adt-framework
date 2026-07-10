@@ -371,7 +371,9 @@ def api_forge_project():
             return str(_subs.get(key, m.group(0)))
         prompt_text = _re.sub(r"\{(\w+)\}", _sub_one, _prompt_template)
         forge_model = os.environ.get("ADT_FORGE_MODEL", "Gemini 3.1 Pro (High)")
-        cmd = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--model", forge_model]
+        _stdbuf_bin = shutil.which("stdbuf") or "/usr/bin/stdbuf"
+        _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--model", forge_model]
+        cmd = ([_stdbuf_bin, "-oL"] + _forge_base) if (_stdbuf_bin and os.path.exists(_stdbuf_bin)) else _forge_base
         # Truncate log file so /status shows fresh content
         with open(log_path, "w") as log_f:
             log_f.write(f"=== Forge worker spawned at {datetime.now(timezone.utc).isoformat()} ===\n")
@@ -3590,10 +3592,13 @@ def api_decompose_spec(spec_id):
             child_env["ADT_ROLE"] = "Systems_Architect"
             child_env["ADT_AGENT"] = "ANTIGRAVITY"
             child_env["ADT_SPEC_ID"] = spec_id
+            _stdbuf = shutil.which("stdbuf") or "/usr/bin/stdbuf"
+            _base_cmd = [agy_bin, "-p", worker_prompt, "--dangerously-skip-permissions",
+                         "--print-timeout", "20m",
+                         "--model", "Gemini 3.5 Flash (High)"]
+            _cmd = ([_stdbuf, "-oL"] + _base_cmd) if (_stdbuf and os.path.exists(_stdbuf)) else _base_cmd
             proc = subprocess.Popen(
-                [agy_bin, "-p", worker_prompt, "--dangerously-skip-permissions",
-                 "--print-timeout", "20m",
-                 "--model", "Gemini 3.5 Flash (High)"],
+                _cmd,
                 stdout=log_file, stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,
