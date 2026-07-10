@@ -4182,7 +4182,12 @@ def api_task_progress(task_id):
         msg = data.get("message", "")
         agent = data.get("agent")
         if pct is not None:
-            try: hit["progress_percent"] = max(0, min(100, int(pct)))
+            try:
+                pct_int = max(0, min(100, int(pct)))
+                hit["progress_percent"] = pct_int
+                if pct_int == 100:
+                    hit["status"] = "completed"
+                    hit["completed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00","Z")
             except: pass
         if msg: hit["progress_message"] = str(msg)[:200]
         if agent: hit["progress_agent"] = str(agent)[:60]

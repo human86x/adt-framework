@@ -1974,53 +1974,66 @@ window.SpecMap.render = function(graph) {
         btn.disabled = true;
         btn.textContent = 'Decomposing...';
         const feed = document.getElementById('esc-progress-feed');
-        if (feed) feed.innerHTML = '<div class="esc-feed-item">Spawning Architect worker...</div>';
         const _decProj = (window.SpecMap.state && window.SpecMap.state.currentProject) || 'adt-framework';
-        fetch(`${window.SpecMap.getCenterUrl()}/api/specs/${encodeURIComponent(graph.spec_id)}/decompose?project=${encodeURIComponent(_decProj)}`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({triggered_by: 'spec_map_empty_card', project: _decProj})
-        })
-        .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.error || 'request failed')))
-        .then(data => {
-          const tid = data.task_id;
-          const autoOK = data.auto_spawned === true;
-          const errMsg = data.spawn_error;
-          const pid = data.worker_pid;
-          let html = '';
-          if (autoOK) {
-            html = `<div class="esc-feed-item" style="border-left:3px solid #2ea043;">` +
-              `<strong>Task ${tid} - worker spawned (PID ${pid})</strong><br>` +
-              `<span style="font-size:11px;color:var(--text-muted);">agy worker is decomposing the spec in background. ` +
-              `Watch <code>${data.worker_log || 'worker log'}</code> for progress. Map will auto-refresh in 60s.</span>` +
-              `</div>`;
-            setTimeout(() => window.SpecMap.fetchAndRender(graph.spec_id), 60000);
-          } else {
-            html = `<div class="esc-feed-item" style="border-left:3px solid #f85149;">` +
-              `<strong>Task ${tid} queued, but auto-spawn FAILED.</strong><br>` +
-              `<span style="font-size:11px;color:#f85149;">${errMsg || 'unknown error'}</span><br>` +
-              `<span style="font-size:11px;color:var(--text-muted);">Fall back to manual: spawn an agy session and paste:</span><br>` +
-              `<code style="display:block;background:#0d1117;padding:6px 8px;margin-top:6px;border-radius:3px;font-size:11px;">ADT_TASK_ID=${tid}</code>` +
-              `<button class="esc-btn-copy" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#1f6feb;color:#fff;border:none;border-radius:3px;cursor:pointer;" data-tid="${tid}">Copy task ID</button>` +
-              `</div>`;
+
+        function doDecompose(retriesLeft) {
+          if (feed) {
+            feed.innerHTML = retriesLeft < 2
+              ? '<div class="esc-feed-item">Connection issue — retrying...</div>'
+              : '<div class="esc-feed-item">Spawning Architect worker...</div>';
           }
-          if (feed) feed.insertAdjacentHTML('beforeend', html);
-          // Bind copy button
-          const cbtn = feed && feed.querySelector('.esc-btn-copy');
-          if (cbtn) cbtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(tid).then(() => {
-              if (window.ToastManager) window.ToastManager.show('info', 'Copied', tid);
+          fetch(`${window.SpecMap.getCenterUrl()}/api/specs/${encodeURIComponent(graph.spec_id)}/decompose?project=${encodeURIComponent(_decProj)}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({triggered_by: 'spec_map_empty_card', project: _decProj})
+          })
+          .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.error || 'request failed')))
+          .then(data => {
+            const tid = data.task_id;
+            const autoOK = data.auto_spawned === true;
+            const errMsg = data.spawn_error;
+            const pid = data.worker_pid;
+            let html = '';
+            if (autoOK) {
+              html = `<div class="esc-feed-item" style="border-left:3px solid #2ea043;">` +
+                `<strong>Task ${tid} - worker spawned (PID ${pid})</strong><br>` +
+                `<span style="font-size:11px;color:var(--text-muted);">agy worker is decomposing the spec in background. ` +
+                `Watch <code>${data.worker_log || 'worker log'}</code> for progress. Map will auto-refresh in 60s.</span>` +
+                `</div>`;
+              setTimeout(() => window.SpecMap.fetchAndRender(graph.spec_id), 60000);
+            } else {
+              html = `<div class="esc-feed-item" style="border-left:3px solid #f85149;">` +
+                `<strong>Task ${tid} queued, but auto-spawn FAILED.</strong><br>` +
+                `<span style="font-size:11px;color:#f85149;">${errMsg || 'unknown error'}</span><br>` +
+                `<span style="font-size:11px;color:var(--text-muted);">Fall back to manual: spawn an agy session and paste:</span><br>` +
+                `<code style="display:block;background:#0d1117;padding:6px 8px;margin-top:6px;border-radius:3px;font-size:11px;">ADT_TASK_ID=${tid}</code>` +
+                `<button class="esc-btn-copy" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#1f6feb;color:#fff;border:none;border-radius:3px;cursor:pointer;" data-tid="${tid}">Copy task ID</button>` +
+                `</div>`;
+            }
+            if (feed) feed.insertAdjacentHTML('beforeend', html);
+            const cbtn = feed && feed.querySelector('.esc-btn-copy');
+            if (cbtn) cbtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(tid).then(() => {
+                if (window.ToastManager) window.ToastManager.show('info', 'Copied', tid);
+              });
             });
+            btn.disabled = false;
+            btn.textContent = 'Decompose Now';
+          })
+          .catch(err => {
+            const isNetErr = /Load failed|Failed to fetch|NetworkError|network/i.test(String(err));
+            if (isNetErr && retriesLeft > 0) {
+              setTimeout(() => doDecompose(retriesLeft - 1), 2500);
+            } else {
+              btn.disabled = false;
+              btn.textContent = 'Decompose Now';
+              if (feed) feed.insertAdjacentHTML('beforeend',
+                `<div class="esc-feed-item esc-feed-err">Failed: ${err}</div>`);
+            }
           });
-          btn.disabled = false;
-          btn.textContent = 'Decompose Now';
-        })
-        .catch(err => {
-          btn.disabled = false;
-          btn.textContent = 'Decompose Now';
-          if (feed) feed.insertAdjacentHTML('beforeend',
-            `<div class="esc-feed-item esc-feed-err">Failed: ${err}</div>`);
-        });
+        }
+
+        doDecompose(2); // up to 2 retries on network errors
       };
     }
     return;

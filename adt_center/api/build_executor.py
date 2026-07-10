@@ -838,9 +838,13 @@ def _build_worker_prompt(role, tasks, spec_id, project_root):
         "HOW TO WORK:",
         first_instruction,
         "2. Implement ALL tasks above. Edit files directly with write_file / Edit.",
-        "3. Report progress at 20/50/80/100%% milestones:",
-        "   curl -s -X POST 'http://localhost:5001/api/tasks/<TASK_ID>/progress' -H 'Content-Type: application/json' -d '{\"percent\":50,\"message\":\"short status\"}'",
-        "4. When done, run: python3 _cortex/log_event.py --type task_completed --description 'Completed tasks %s' --spec %s" % (task_ids, spec_id),
+        "3. Report progress at 20/50/80/100%% milestones using curl (replace TASK_ID with the actual id):",
+        "   curl -s -X POST 'http://localhost:5001/api/tasks/TASK_ID/progress' -H 'Content-Type: application/json' -d '{\"percent\":50,\"message\":\"short status\"}'",
+        "4. When EACH task is done (whether you implemented it or confirmed it was already correct), mark it 100%%:",
+        "\n".join(
+            f"   curl -s -X POST 'http://localhost:5001/api/tasks/{tid}/progress' -H 'Content-Type: application/json' -d '{{\"percent\":100,\"message\":\"done\"}}'"
+            for tid in task_ids
+        ),
         "",
         "TIMEOUT WARNING: this session has a hard response cutoff. If you spend too long analyzing before writing anything, you will be killed and lose your work. Write early. Structure your work as WRITE-THINK-WRITE-THINK, never THINK-THINK-THINK-timeout.",
         "",
@@ -1488,6 +1492,34 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         return False
 
     if completed_delta == 0:
+        # Check log for "already done" signals before treating as failure —
+        # workers that verify a task was already correct exit 0 with no file changes
+        log_done_signal = False
+        try:
+            with open(log_path, "rb") as _lf:
+                _lf.seek(0, 2); _end = _lf.tell()
+                _lf.seek(max(0, _end - 4096))
+                _tail = _lf.read().decode("utf-8", errors="replace").lower()
+            log_done_signal = any(
+                kw in _tail for kw in ("already complete", "already correct", "already done",
+                                       "already implemented", "already satisf", "fully satisfied",
+                                       "task_completed", "done ✅", "done ✅", "task done",
+                                       "nothing to implement", "no changes needed", "no changes required")
+            )
+        except Exception:
+            pass
+        if log_done_signal:
+            # Worker confirmed tasks were already done — mark them complete
+            _set_task_status_bulk(project_root, task_ids, "completed",
+                                  {"reconciled_from_failed": True,
+                                   "reconciliation_evidence": [{"path": log_path, "signal": "log_done_signal"}]})
+            _append_ads_event(
+                role, spec_id, build_id, "build_worker_already_done",
+                f"Worker {role} PID {pid} exit 0: tasks already implemented, marked complete.",
+                {"pid": pid, "role": role, "task_ids": task_ids, "log_path": log_path},
+                project_root,
+            )
+            return True
         _append_ads_event(
             role, spec_id, build_id, "build_worker_silent_exit",
             f"Worker {role} PID {pid} exit 0 but 0 of {len(task_ids)} tasks completed.",
