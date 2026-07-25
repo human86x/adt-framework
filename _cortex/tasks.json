@@ -10,11 +10,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 20,
-      "progress_message": "Scaffolding project structure",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-07-10T09:16:17.175471Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-07-25T15:45:21.683611Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-25T15:45:21.683574Z"
     },
     {
       "id": "task_002",
@@ -7128,6 +7129,69 @@
         "source": "log_event:GEMINI:Frontend_Engineer",
         "synced_via": "log_event.py"
       }
+    },
+    {
+      "id": "task_464",
+      "task_id": "task_464",
+      "spec_ref": "SPEC-071",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Backend auth probe hysteresis & retry",
+      "description": "In build_executor.py, add immediate fast-retry to _agy_auth_is_ok on subprocess failure. In governance_routes.py, track consecutive failure count and only set state.ok=False when consecutive_failures >= 3.",
+      "acceptance_criteria": [
+        "Single agy models subprocess timeout does not mark auth state as broken",
+        "state.ok=False requires 3 consecutive probe failures"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "high",
+      "created_at": "2026-07-25T16:51:00Z",
+      "created_by": "Systems_Architect",
+      "completed_at": "2026-07-25T16:52:25Z",
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_465",
+      "task_id": "task_465",
+      "spec_ref": "SPEC-071",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Frontend auth banner debounce",
+      "description": "In auth_badge.js, add frontend failure debounce counter so auth-broken-banner only displays after 2 consecutive failing poll responses.",
+      "acceptance_criteria": [
+        "Single transient failed poll response does not inject auth-broken-banner",
+        "Banner is cleared immediately when state.ok is true"
+      ],
+      "depends_on": [
+        "task_464"
+      ],
+      "status": "completed",
+      "priority": "high",
+      "created_at": "2026-07-25T16:51:00Z",
+      "created_by": "Systems_Architect",
+      "completed_at": "2026-07-25T16:52:25Z",
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_466",
+      "task_id": "task_466",
+      "spec_ref": "SPEC-071",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Responsive topbar layout for small screens & RPi",
+      "description": "In console.css and topbar_nav.css, configure topbar-actions to flex-shrink, auto-scroll horizontally if needed, and add media query breakpoints for 1180px, 960px, and 768px to ensure all topbar buttons fit on small screens.",
+      "acceptance_criteria": [
+        "Topbar action buttons do not overflow outside screen viewport on 768px, 1024px, 1280px displays",
+        "Labels hide gracefully on small viewports while maintaining button accessibility"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "high",
+      "created_at": "2026-07-25T16:51:00Z",
+      "created_by": "Systems_Architect",
+      "completed_at": "2026-07-25T16:52:25Z",
+      "completed_by_role": "Systems_Architect"
     }
+
   ]
 }

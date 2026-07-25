@@ -127,14 +127,18 @@
 
 
 // SPEC-062-H: when auth is broken, show a persistent banner with a
-// "Re-authenticate now" button that spawns an interactive agy session.
+let _authBrokenFailCount = 0;
 function _renderAuthBrokenBanner(state) {
   let banner = document.getElementById('auth-broken-banner');
   if (!state || state.ok) {
+    _authBrokenFailCount = 0;
     if (banner) banner.remove();
     return;
   }
+  _authBrokenFailCount++;
+  if (_authBrokenFailCount < 2 && !banner) return;
   if (banner) return;
+
   banner = document.createElement('div');
   banner.id = 'auth-broken-banner';
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9997;'

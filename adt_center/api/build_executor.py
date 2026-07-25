@@ -165,13 +165,25 @@ def _agy_auth_is_ok(force=False, timeout_sec=30):
         env["NO_BROWSER"] = "1"
         env["DISPLAY"] = ""
         env["WAYLAND_DISPLAY"] = ""
-        r = _sp.run([agy, "models"], capture_output=True, timeout=timeout_sec,
-                    env=env, text=True)
-        ok = (r.returncode == 0) and bool((r.stdout or "").strip())
+
+        def _run_probe():
+            try:
+                r = _sp.run([agy, "models"], capture_output=True, timeout=timeout_sec,
+                            env=env, text=True)
+                return (r.returncode == 0) and bool((r.stdout or "").strip())
+            except Exception:
+                return False
+
+        ok = _run_probe()
+        if not ok:
+            _t.sleep(0.5)
+            ok = _run_probe()
     except Exception:
         ok = False
     _AGY_AUTH_OK_CACHE.update({"checked_at": now, "ok": ok})
     return ok
+
+
 
 
 # --- SPEC-062-H: Fast-Fail Retry for agy narrating-not-executing bug ---

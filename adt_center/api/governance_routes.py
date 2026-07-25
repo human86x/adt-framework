@@ -4394,26 +4394,28 @@ def api_agy_state():
             state.update(_json.load(open(state_path)))
         except Exception: pass
 
-    # Re-probe if state is bad and > 10s old, or if state is good and > 30s old
+    consecutive_failures = state.get("consecutive_failures", 0)
     age = _t.time() - state.get("last_check_at", 0)
     if (age > (10 if not state.get("ok") else 30)) or request.args.get("force") == "1":
-        # Use the REAL probe (agy -p with a tiny prompt) -- same as workers use.
-        # `agy models` would be lighter but it uses cached creds and can show green
-        # while `agy -p` fails on actual API calls. The badge needs to match worker reality.
         try:
-            # Use `agy models` (auth signal) NOT `agy -p PONG` (worker readiness).
-            # Conflating the two forced OAuth re-login loops when auth was fine.
             from adt_center.api.build_executor import _agy_auth_is_ok
             if _agy_auth_is_ok(force=True):
                 state["ok"] = True
                 state["last_good_at"] = _t.time()
                 state["error"] = None
+                state["consecutive_failures"] = 0
             else:
-                state["ok"] = False
+                consecutive_failures += 1
+                state["consecutive_failures"] = consecutive_failures
                 state["error"] = "agy models failed — auth genuinely broken"
+                if consecutive_failures >= 3:
+                    state["ok"] = False
         except Exception as e:
-            state["ok"] = False
+            consecutive_failures += 1
+            state["consecutive_failures"] = consecutive_failures
             state["error"] = f"{type(e).__name__}: {e}"
+            if consecutive_failures >= 3:
+                state["ok"] = False
         state["last_check_at"] = _t.time()
         # agy has no `auth status` subcommand -- identity stays None
         # Persist
@@ -4422,6 +4424,7 @@ def api_agy_state():
             with open(state_path, "w") as f:
                 _json.dump(state, f, indent=2)
         except Exception: pass
+
 
     return jsonify(state), 200
 

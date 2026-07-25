@@ -54,6 +54,8 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 | SPEC-060 | Antigravity Worker Harness Migration | SUPERSEDED (by SPEC-061) |
 | SPEC-061 | Antigravity Multi-Model Worker Plane | APPROVED — CRITICAL, unblocks Hivemind |
 | SPEC-061-A | Harness-Agnostic Role Sessions | APPROVED |
+| SPEC-071 | RPi UI Responsiveness & Auth State Hysteresis | APPROVED |
+
 
 ## 6. Roadmap
 
