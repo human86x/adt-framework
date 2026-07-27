@@ -24,7 +24,7 @@ GEMINI_BIN = (
     or "/home/human/.npm-global/bin/gemini"
 )
 
-AGY_BIN = (os.environ.get('AGY_EXECPATH') or shutil.which('agy') or '/home/human/.local/bin/agy')
+AGY_BIN = (os.environ.get('AGY_EXECPATH') or shutil.which('agy') or os.path.expanduser('~/.local/bin/agy'))
 
 # Wrap subprocess commands with stdbuf -oL to force line-buffered stdout so
 # build worker logs appear in real-time instead of only after the buffer fills.
@@ -106,7 +106,7 @@ def _agy_model_probe(model, timeout_sec=15):
         ttl = _AGY_MODEL_PROBE_TTL_SEC if cached.get("ok") else 120  # OK=5min, FAIL=2min
         if (_t.time() - cached.get("checked_at", 0) < ttl):
             return cached
-    agy = _o.environ.get("AGY_EXECPATH") or _sh.which("agy") or "/home/human/.local/bin/agy"
+    agy = _o.environ.get("AGY_EXECPATH") or _sh.which("agy") or os.path.expanduser("~/.local/bin/agy")
     cmd = [agy, "-p", "Reply with exactly the four characters PONG and nothing else.", "--dangerously-skip-permissions", "--new-project"]
     if model:
         cmd.extend(["--model", model])
@@ -155,7 +155,7 @@ def _agy_auth_is_ok(force=False, timeout_sec=30):
     now = _t.time()
     if not force and (now - _AGY_AUTH_OK_CACHE["checked_at"] < 60):
         return _AGY_AUTH_OK_CACHE["ok"]
-    agy = _o.environ.get("AGY_EXECPATH") or _sh.which("agy") or "/home/human/.local/bin/agy"
+    agy = _o.environ.get("AGY_EXECPATH") or _sh.which("agy") or os.path.expanduser("~/.local/bin/agy")
     if not _o.path.exists(agy):
         _AGY_AUTH_OK_CACHE.update({"checked_at": now, "ok": False})
         return False

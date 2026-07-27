@@ -1,5 +1,22 @@
 {
   "specs": {
+    "SPEC-013": {
+      "title": "ADT Panel UI Refinements",
+      "status": "approved",
+      "roles": [
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_center/templates/",
+        "adt_center/static/"
+      ]
+    },
     "SPEC-014": {
       "title": "DTTP Implementation (Level 3)",
       "status": "approved",
@@ -165,6 +182,25 @@
         "tests/"
       ]
     },
+    "SPEC-023": {
+      "title": "Git Persistence & Push Governance",
+      "status": "approved",
+      "roles": [
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "adt_core/dttp/",
+        "adt_sdk/",
+        "adt-console/",
+        "./"
+      ]
+    },
     "SPEC-025": {
       "title": "ADT Collaborative Bootstrap",
       "status": "approved",
@@ -240,42 +276,6 @@
         "adt_center/templates/",
         "_cortex/specs/",
         "tests/"
-      ]
-    },
-    "SPEC-013": {
-      "title": "ADT Panel UI Refinements",
-      "status": "approved",
-      "roles": [
-        "Overseer"
-      ],
-      "action_types": [
-        "edit",
-        "patch",
-        "create",
-        "delete"
-      ],
-      "paths": [
-        "adt_center/templates/",
-        "adt_center/static/"
-      ]
-    },
-    "SPEC-023": {
-      "title": "Git Persistence & Push Governance",
-      "status": "approved",
-      "roles": [
-        "Overseer"
-      ],
-      "action_types": [
-        "edit",
-        "patch",
-        "create",
-        "delete"
-      ],
-      "paths": [
-        "adt_core/dttp/",
-        "adt_sdk/",
-        "adt-console/",
-        "./"
       ]
     },
     "SPEC-029": {
@@ -483,6 +483,28 @@
         "tests/"
       ]
     },
+    "SPEC-038A": {
+      "title": "Capability Data Model Enrichment and Stage-Gate Engine",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect",
+        "Backend_Engineer",
+        "Overseer"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create",
+        "delete"
+      ],
+      "paths": [
+        "_cortex/capabilities/",
+        "adt_core/ads/capability.py",
+        "adt_center/api/governance_routes.py",
+        "adt_core/ads/schema.py",
+        "config/jurisdictions.json"
+      ]
+    },
     "SPEC-039": {
       "title": "Interactive Governance Orchestration",
       "status": "approved",
@@ -573,28 +595,6 @@
         "adt-console/src-tauri/",
         "adt-console/src/",
         "config/delegation_policy.json"
-      ]
-    },
-    "SPEC-038A": {
-      "title": "Capability Data Model Enrichment and Stage-Gate Engine",
-      "status": "approved",
-      "roles": [
-        "Systems_Architect",
-        "Backend_Engineer",
-        "Overseer"
-      ],
-      "action_types": [
-        "edit",
-        "patch",
-        "create",
-        "delete"
-      ],
-      "paths": [
-        "_cortex/capabilities/",
-        "adt_core/ads/capability.py",
-        "adt_center/api/governance_routes.py",
-        "adt_core/ads/schema.py",
-        "config/jurisdictions.json"
       ]
     },
     "SPEC-043": {
@@ -1015,38 +1015,6 @@
         "SPEC-031"
       ]
     },
-    "SPEC-TEST": {
-      "title": "Test Spec",
-      "status": "draft"
-    },
-    "SPEC-MRR-TEST": {
-      "title": "MRR Evaluation Test Spec (SPEC-064 task_396)",
-      "status": "approved",
-      "roles": [
-        "Systems_Architect"
-      ],
-      "action_types": [
-        "edit",
-        "patch",
-        "create"
-      ],
-      "paths": [
-        "tests/",
-        "_cortex/standards/"
-      ],
-      "milestone": "v0.5.0",
-      "tier": "operational",
-      "mrr_evaluation": true,
-      "standards_refs": [
-        "RR-001",
-        "RR-005",
-        "RR-017",
-        "RR-018"
-      ],
-      "related_specs": [
-        "SPEC-064"
-      ]
-    },
     "SPEC-064": {
       "title": "Standards Rationalisation Layer",
       "status": "approved",
@@ -1195,6 +1163,269 @@
         "tests/"
       ],
       "status": "approved"
+    },
+    "SPEC-072": {
+      "roles": [
+        "Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Developer",
+        "Frontend_Engineer",
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "create",
+        "delete",
+        "edit",
+        "list",
+        "patch",
+        "read"
+      ],
+      "paths": [
+        ".",
+        ".adt/",
+        "Cargo.toml",
+        "Makefile",
+        "README.md",
+        "_cortex/",
+        "adt-console/",
+        "adt-console/src/",
+        "adt_center/",
+        "adt_core/",
+        "adt_sdk/",
+        "app.py",
+        "app/",
+        "assets/",
+        "config/",
+        "css/",
+        "docker-compose.yml",
+        "docs/",
+        "docs/.adt_worker_alive",
+        "index.html",
+        "js/",
+        "lib/",
+        "main.py",
+        "package.json",
+        "public/",
+        "requirements.txt",
+        "src/",
+        "static/",
+        "tests/"
+      ],
+      "status": "approved"
+    },
+    "SPEC-073": {
+      "roles": [
+        "Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Developer",
+        "Frontend_Engineer",
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "create",
+        "delete",
+        "edit",
+        "list",
+        "patch",
+        "read"
+      ],
+      "paths": [
+        ".",
+        ".adt/",
+        "Cargo.toml",
+        "Makefile",
+        "README.md",
+        "_cortex/",
+        "adt-console/",
+        "adt-console/src/",
+        "adt-console/src/css/",
+        "adt-console/src/index.html",
+        "adt-console/src/js/",
+        "adt_center/",
+        "adt_core/",
+        "adt_sdk/",
+        "app.py",
+        "app/",
+        "assets/",
+        "config/",
+        "css/",
+        "docker-compose.yml",
+        "docs/",
+        "docs/.adt_worker_alive",
+        "index.html",
+        "js/",
+        "lib/",
+        "main.py",
+        "package.json",
+        "public/",
+        "requirements.txt",
+        "src/",
+        "static/",
+        "tests/"
+      ],
+      "status": "approved"
+    },
+    "SPEC-074": {
+      "roles": [
+        "Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Developer",
+        "Frontend_Engineer",
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "create",
+        "delete",
+        "edit",
+        "list",
+        "patch",
+        "read"
+      ],
+      "paths": [
+        ".",
+        ".adt/",
+        "Cargo.toml",
+        "Makefile",
+        "README.md",
+        "_cortex/",
+        "adt-console/",
+        "adt-console/src/",
+        "adt-console/src/js/launcher.js",
+        "adt_center/",
+        "adt_center/api/",
+        "adt_core/",
+        "adt_sdk/",
+        "app.py",
+        "app/",
+        "assets/",
+        "config/",
+        "css/",
+        "docker-compose.yml",
+        "docs/",
+        "docs/.adt_worker_alive",
+        "index.html",
+        "js/",
+        "lib/",
+        "main.py",
+        "ops/panel_bridge.py",
+        "package.json",
+        "public/",
+        "requirements.txt",
+        "src/",
+        "static/",
+        "tests/"
+      ],
+      "status": "approved"
+    },
+    "SPEC-075": {
+      "roles": [
+        "Architect",
+        "Backend_Engineer",
+        "DevOps_Engineer",
+        "Developer",
+        "Frontend_Engineer",
+        "Overseer",
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "create",
+        "delete",
+        "edit",
+        "list",
+        "patch",
+        "read"
+      ],
+      "paths": [
+        ".",
+        ".adt/",
+        "Cargo.toml",
+        "Makefile",
+        "README.md",
+        "_cortex/",
+        "adt-console/",
+        "adt-console/src/",
+        "adt_center/",
+        "adt_core/",
+        "adt_sdk/",
+        "app.py",
+        "app/",
+        "assets/",
+        "config/",
+        "css/",
+        "docker-compose.yml",
+        "docs/",
+        "docs/.adt_worker_alive",
+        "index.html",
+        "js/",
+        "lib/",
+        "main.py",
+        "package.json",
+        "public/",
+        "requirements.txt",
+        "src/",
+        "static/",
+        "tests/"
+      ],
+      "status": "approved"
+    },
+    "SPEC-076": {
+      "roles": [
+        "Backend_Engineer",
+        "Frontend_Engineer",
+        "Systems_Architect",
+        "Overseer"
+      ],
+      "action_types": [
+        "create",
+        "edit",
+        "read"
+      ],
+      "paths": [
+        "adt_center/api/",
+        "adt_center/api/build_executor.py",
+        "adt_center/api/governance_routes.py",
+        "adt-console/src/js/",
+        "config/model_tiers.json"
+      ],
+      "status": "approved"
+    },
+    "SPEC-MRR-TEST": {
+      "title": "MRR Evaluation Test Spec (SPEC-064 task_396)",
+      "status": "approved",
+      "roles": [
+        "Systems_Architect"
+      ],
+      "action_types": [
+        "edit",
+        "patch",
+        "create"
+      ],
+      "paths": [
+        "tests/",
+        "_cortex/standards/"
+      ],
+      "milestone": "v0.5.0",
+      "tier": "operational",
+      "mrr_evaluation": true,
+      "standards_refs": [
+        "RR-001",
+        "RR-005",
+        "RR-017",
+        "RR-018"
+      ],
+      "related_specs": [
+        "SPEC-064"
+      ]
+    },
+    "SPEC-TEST": {
+      "title": "Test Spec",
+      "status": "draft"
     }
   }
 }

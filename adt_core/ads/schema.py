@@ -183,6 +183,7 @@ class ADSEventSchema:
     ]
 
     # SPEC-067: Forge Wizard lifecycle event types
+    # SPEC-074: Forge Live Genesis Stream events
     FORGE_EVENTS = [
         "forge_initiated",          # path, intent, name
         "forge_brief_written",      # forge_session_id, fields_count
@@ -191,6 +192,10 @@ class ADSEventSchema:
         "forge_child_spec_created", # forge_session_id, spec_id, title
         "forge_complete",           # forge_session_id, spec_ids
         "forge_failed",             # forge_session_id, reason, log_path
+        "forge_phase_started",      # phase, seq, started_at
+        "forge_phase_completed",    # phase, seq, duration_ms, outcome
+        "forge_phase_failed",       # phase, seq, duration_ms, outcome, error
+        "forge_session_created",    # forge_session_id, project_name, phase_timings
     ]
 
     # SPEC-020 Amendment B: Canonical values for normalization

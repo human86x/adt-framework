@@ -113,12 +113,12 @@ class MirrorScreenshotCapture:
             self._stop_evt.wait(self.INTERVAL)
 
     def _capture_jpeg(self) -> bytes:
-        # Try PowerShell if no X11 display available (WSL without WSLg)
-        if not os.environ.get("DISPLAY"):
-            try:
-                return self._capture_powershell()
-            except Exception as ps_err:
-                log.debug("PowerShell capture failed: %s", ps_err)
+        # Always try PowerShell first on WSL — WSLg X11 display is empty/black
+        # even when DISPLAY is set. Fall back to mss for native Linux desktops.
+        try:
+            return self._capture_powershell()
+        except Exception as ps_err:
+            log.debug("PowerShell capture failed, falling back to mss: %s", ps_err)
 
         with mss.mss() as sct:
             monitor = sct.monitors[1]  # primary monitor
@@ -162,7 +162,7 @@ class MirrorScreenshotCapture:
         except Exception:
             pass
         if _PIL_OK:
-            img = Image.open(io.BytesIO(png_data))
+            img = Image.open(io.BytesIO(png_data)).convert("RGB")
             if img.size[0] > self.MAX_WIDTH:
                 ratio = self.MAX_WIDTH / img.size[0]
                 img = img.resize((self.MAX_WIDTH, int(img.size[1] * ratio)), Image.LANCZOS)

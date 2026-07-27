@@ -35,18 +35,19 @@ if [ -f "$HOME/.adt/production_mode" ] && id -u agent &>/dev/null && id -u dttp 
     echo "[*] Production mode detected (Shatterglass active)"
 fi
 
-# 1. Start DTCP Service (:5002)
-if curl -s http://localhost:5002/status > /dev/null; then
+# 1. Start DTCP Service (:$DTCP_PORT — default 5002; WSL uses 5003 via env)
+DTCP_PORT="${DTCP_PORT:-5002}"
+if curl -s "http://localhost:${DTCP_PORT}/status" > /dev/null; then
     echo "[!] DTCP Service already running."
 else
-    echo "[+] Starting DTCP Enforcement Service (:5002)..."
+    echo "[+] Starting DTCP Enforcement Service (:${DTCP_PORT})..."
     if $PRODUCTION_MODE; then
         echo "    (running as OS user 'dttp')"
         nohup sudo -u dttp "$VENV_PYTHON" -m adt_core.dtcp.service > "$LOG_DIR/dtcp.log" 2>&1 &
     else
         nohup "$VENV_PYTHON" -m adt_core.dtcp.service > "$LOG_DIR/dtcp.log" 2>&1 &
     fi
-    wait_for_service "http://localhost:5002/status" "DTCP"
+    wait_for_service "http://localhost:${DTCP_PORT}/status" "DTCP"
 fi
 
 # 2. Start Operational Center (:5001)
@@ -92,7 +93,7 @@ fi
 
 echo "--------------------------------"
 echo "Services active:"
-echo "  - DTCP Gateway: http://localhost:5002"
+echo "  - DTCP Gateway: http://localhost:${DTCP_PORT}"
 echo "  - ADT Panel:    http://localhost:5001"
 echo ""
 echo "Monitoring logs:"

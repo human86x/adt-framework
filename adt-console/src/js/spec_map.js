@@ -1122,7 +1122,7 @@ window.SpecMap.handleBuild = async function() {
   fetch(`${centerUrl}/api/governance/specs/${encodeURIComponent(specId)}/build?project=${encodeURIComponent(project)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ triggered_by: 'spec_map_build_button', harness: 'antigravity' })
+    body: JSON.stringify({ triggered_by: 'spec_map_build_button', harness: 'antigravity', force: true })
   })
   .then(res => {
      if(!res.ok) return res.json().then(err => { throw new Error(err.error || res.statusText); });

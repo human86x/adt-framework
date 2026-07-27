@@ -168,21 +168,28 @@ window.MirrorMonitor = {
 
     if (this.state.peer_id && this.state.session_id) {
       try {
-        // Use absolute URL — relative paths don't resolve in Tauri webview
+        // Pull frames from peer's own adt_center via peer_proxy (Tailscale inbound ACL blocks direct push)
         const base = this._centerUrl();
-        const url = `${base}/api/mirror/frame/latest?peer_id=${encodeURIComponent(this.state.peer_id)}&session_id=${encodeURIComponent(this.state.session_id)}&_t=${Date.now()}`;
+        const peerBase = (this.state.peer_url || '').replace(/\/$/, '');
+        let url;
+        if (peerBase) {
+          const remoteUrl = `${peerBase}/api/mirror/frame/latest`;
+          url = `${base}/api/mirror/peer_proxy?url=${encodeURIComponent(remoteUrl)}&peer_id=${encodeURIComponent(this.state.peer_id)}&session_id=${encodeURIComponent(this.state.session_id)}`;
+        } else {
+          url = `${base}/api/mirror/frame/latest?peer_id=${encodeURIComponent(this.state.peer_id)}&session_id=${encodeURIComponent(this.state.session_id)}&_t=${Date.now()}`;
+        }
         const res = await fetch(url);
 
         if (res.status === 200) {
           this.noContentCount = 0;
-          const blob = await res.blob();
-          const imgUrl = URL.createObjectURL(blob);
+          const arrayBuf = await res.arrayBuffer();
+          const b64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+          const imgUrl = `data:image/jpeg;base64,${b64}`;
           const imgEl = this.panel.querySelector('#mm-image');
           const overlayEl = this.panel.querySelector('#mm-overlay');
           const ageEl = this.panel.querySelector('#mm-frame-age');
           const stripEl = this.panel.querySelector('#mm-status-strip');
 
-          if (imgEl.src) URL.revokeObjectURL(imgEl.src);
           imgEl.src = imgUrl;
           imgEl.style.display = 'block';
           overlayEl.style.display = 'none';

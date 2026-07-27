@@ -65,7 +65,18 @@
       "Bash(pkill -9 -f \"cargo-tauri tauri build\")",
       "Bash(echo \"rc21 \\(re-kicked\\) PID $!\")",
       "Bash(touch src/js/spec_map.js)",
-      "Bash(echo \"rc25 rebuild PID $!\")"
+      "Bash(echo \"rc25 rebuild PID $!\")",
+      "Bash(rm -f /tmp/agy_pi/*)",
+      "Read(//tmp/agy_pi/**)",
+      "Bash(timeout 180 curl -fSL -o cli_linux_arm64.tar.gz \"https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.6-6535449645285376/linux-arm/cli_linux_arm64.tar.gz\")",
+      "Bash(sha512sum cli_linux_arm64.tar.gz)",
+      "Bash(tar xzvf *)",
+      "Bash(mkdir -p /tmp/pi_backup /tmp/pi_rust /tmp/agy_pi)",
+      "Bash(rsync -a --info=progress2 -e \"ssh -o ServerAliveInterval=15\" lab@10.42.0.155:.cargo/registry/ /tmp/pi_backup/cargo_registry/)",
+      "Bash(timeout 12 curl -sSI \"https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.6-6535449645285376/linux-arm/cli_linux_arm64.tar.gz\")",
+      "Bash(curl -fSL --retry 3 --retry-delay 2 -o cli_linux_arm64.tar.gz \"https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.6-6535449645285376/linux-arm/cli_linux_arm64.tar.gz\")",
+      "Bash(tar tzf *)",
+      "Bash(tar xzf *)"
     ]
   },
   "hooks": {

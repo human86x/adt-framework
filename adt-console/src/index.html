@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ADT Operator Console v2.1</title>
   <script>console.log("ADT Console HTML loaded v2.1");</script>
+  <!-- SPEC-073: Load readiness FIRST so any subsequent module can call begin/end -->
+  <script src="js/readiness.js"></script>
   <link rel="stylesheet" href="css/console.css">
   <link rel="stylesheet" href="css/launcher.css">
   <link rel="stylesheet" href="css/swarm.css">
@@ -12,6 +14,11 @@
   <link rel="stylesheet" href="vendor/xterm.css">
 </head>
 <body>
+  <!-- SPEC-073: Global readiness bar (hidden until a task registers) -->
+  <div id="console-readiness-bar" style="display:none;position:fixed;top:48px;left:0;right:0;height:3px;z-index:9999;background:#161b22">
+    <div id="console-readiness-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#58a6ff,#a5d6ff);transition:width 250ms ease"></div>
+    <div id="console-readiness-label" style="position:absolute;top:6px;right:12px;font-size:10px;color:#8b949e;background:rgba(13,17,23,0.85);padding:2px 8px;border-radius:3px"></div>
+  </div>
   <!-- Top Bar -->
   <header id="topbar">
     <div class="topbar-brand">

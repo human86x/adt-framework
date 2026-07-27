@@ -7,12 +7,32 @@ from dataclasses import dataclass, field, asdict
 logger = logging.getLogger(__name__)
 
 class Disposition:
+    """Governance disposition taxonomy for standards clauses and rationalised rules.
+
+    SPEC-072 Tri-State Governance Disposition Model (primary states for intent-driven governance):
+      - RESOLVED: Rule adopted and anchored to active specs. No rationale required.
+      - NOT_APPLICABLE: Formally excluded with mandatory human rationale string.
+      - PENDING_DETERMINATION: Needs further architect clarification. No rationale required.
+
+    Legacy states (SPEC-046):
+      - PENDING: Default / not yet decided.
+      - ADOPTED: Rule fully accepted.
+      - ADAPTED: Rule accepted with modifications (rationale required).
+      - DISMISSED: Rule rejected (rationale required).
+    """
     PENDING = 'pending'
     ADOPTED = 'adopted'
     ADAPTED = 'adapted'
     DISMISSED = 'dismissed'
-    
-    ALL = [PENDING, ADOPTED, ADAPTED, DISMISSED]
+    # --- SPEC-072 Tri-State Disposition ---
+    RESOLVED = 'resolved'
+    NOT_APPLICABLE = 'not_applicable'
+    PENDING_DETERMINATION = 'pending_determination'
+
+    ALL = [PENDING, ADOPTED, ADAPTED, DISMISSED, RESOLVED, NOT_APPLICABLE, PENDING_DETERMINATION]
+
+    # Dispositions that require a non-empty human rationale string.
+    REQUIRES_RATIONALE = [ADAPTED, DISMISSED, NOT_APPLICABLE]
 
 class StandardScope:
     ETHICAL = 'ethical'
@@ -21,6 +41,12 @@ class StandardScope:
     INTERNAL_CODEX = 'internal_codex'
     
     ALL = [ETHICAL, REGULATORY, OPERATIONAL, INTERNAL_CODEX]
+
+@dataclass
+class AdoptionMetadata:
+    retrospective_remediation: bool = False
+    compliance_deadline: Optional[str] = None
+    exceptions: List[str] = field(default_factory=list)
 
 @dataclass
 class Clause:
@@ -80,9 +106,9 @@ class StandardsSchema:
             logger.error(f'Clause validation failed: invalid disposition {clause_data["disposition"]}')
             return False
             
-        if clause_data['disposition'] in [Disposition.ADAPTED, Disposition.DISMISSED]:
+        if clause_data['disposition'] in Disposition.REQUIRES_RATIONALE:
             if not clause_data.get('rationale'):
-                logger.error('Clause validation failed: rationale required for adapted/dismissed')
+                logger.error('Clause validation failed: rationale required for adapted/dismissed/not_applicable (SPEC-072)')
                 return False
                 
         return True
@@ -160,12 +186,20 @@ class RationalisedRule:
     decided_by: Optional[str] = None
     scr_ref: Optional[str] = None
     tags: List[str] = field(default_factory=list)
+    adoption_metadata: Optional[AdoptionMetadata] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RationalisedRule':
+        data = data.copy()
+        meta = data.get('adoption_metadata')
+        if meta is not None:
+            if isinstance(meta, dict):
+                data['adoption_metadata'] = AdoptionMetadata(**meta)
+            elif isinstance(meta, AdoptionMetadata):
+                data['adoption_metadata'] = meta
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
@@ -185,12 +219,20 @@ class MachineReadableRule:
     created_at: Optional[str] = None
     created_by: Optional[str] = None
     superseded_by: Optional[str] = None
+    adoption_metadata: Optional[AdoptionMetadata] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MachineReadableRule':
+        data = data.copy()
+        meta = data.get('adoption_metadata')
+        if meta is not None:
+            if isinstance(meta, dict):
+                data['adoption_metadata'] = AdoptionMetadata(**meta)
+            elif isinstance(meta, AdoptionMetadata):
+                data['adoption_metadata'] = meta
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
@@ -209,8 +251,8 @@ def validate_rationalised_rule(data: Dict[str, Any]) -> bool:
     if not isinstance(data['derived_from'], list) or not data['derived_from']:
         logger.error('RationalisedRule validation failed: derived_from must be non-empty list')
         return False
-    if data['disposition'] in (Disposition.ADAPTED, Disposition.DISMISSED) and not data.get('rationale'):
-        logger.error('RationalisedRule validation failed: rationale required for adapted/dismissed')
+    if data['disposition'] in Disposition.REQUIRES_RATIONALE and not data.get('rationale'):
+        logger.error('RationalisedRule validation failed: rationale required for adapted/dismissed/not_applicable (SPEC-072)')
         return False
     return True
 

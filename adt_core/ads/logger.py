@@ -156,3 +156,109 @@ class ADSLogger:
             action_data=action_data
         )
         return self.log(event)
+
+    def log_forge_phase_started(self, session_id: str, phase: str, seq: int, started_at: str, agent: str = 'SYSTEM', role: str = 'Architect', spec_ref: str = 'SPEC-074', **kwargs) -> str:
+        """SPEC-074: Log a forge_phase_started event when a forge phase begins."""
+        event_id = ADSEventSchema.generate_id('forge_phase_started')
+        action_data = {
+            'phase': phase,
+            'seq': seq,
+            'started_at': started_at
+        }
+        action_data.update(kwargs)
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=agent,
+            role=role,
+            action_type='forge_phase_started',
+            description=f'Forge phase started: {phase} (seq: {seq})',
+            spec_ref=spec_ref,
+            session_id=session_id,
+            action_data=action_data
+        )
+        return self.log(event)
+
+    def log_forge_phase_completed(self, session_id: str, phase: str, seq: int, duration_ms: int, outcome: str, agent: str = 'SYSTEM', role: str = 'Architect', spec_ref: str = 'SPEC-074', **kwargs) -> str:
+        """SPEC-074: Log a forge_phase_completed event when a forge phase completes."""
+        event_id = ADSEventSchema.generate_id('forge_phase_completed')
+        action_data = {
+            'phase': phase,
+            'seq': seq,
+            'duration_ms': duration_ms,
+            'outcome': outcome
+        }
+        action_data.update(kwargs)
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=agent,
+            role=role,
+            action_type='forge_phase_completed',
+            description=f'Forge phase completed: {phase} (seq: {seq}) with outcome: {outcome}',
+            spec_ref=spec_ref,
+            session_id=session_id,
+            action_data=action_data
+        )
+        return self.log(event)
+
+    def log_forge_phase_failed(self, session_id: str, phase: str, seq: int, duration_ms: int, error: str, agent: str = 'SYSTEM', role: str = 'Architect', spec_ref: str = 'SPEC-074', **kwargs) -> str:
+        """SPEC-074: Log a forge_phase_failed event when a forge phase fails."""
+        event_id = ADSEventSchema.generate_id('forge_phase_failed')
+        action_data = {
+            'phase': phase,
+            'seq': seq,
+            'duration_ms': duration_ms,
+            'outcome': 'failed',
+            'error': error
+        }
+        action_data.update(kwargs)
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=agent,
+            role=role,
+            action_type='forge_phase_failed',
+            description=f'Forge phase failed: {phase} (seq: {seq}) with error: {error}',
+            spec_ref=spec_ref,
+            session_id=session_id,
+            action_data=action_data
+        )
+        return self.log(event)
+
+    def log_forge_session_created(self, session_id: str, project_name: str, phase_timings: dict, agent: str = 'SYSTEM', role: str = 'Architect', spec_ref: str = 'SPEC-074', **kwargs) -> str:
+        """SPEC-074: Log a forge_session_created event when a forge session finishes forging successfully."""
+        event_id = ADSEventSchema.generate_id('forge_session_created')
+        action_data = {
+            'forge_session_id': session_id,
+            'project_name': project_name,
+            'phase_timings': phase_timings
+        }
+        action_data.update(kwargs)
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=agent,
+            role=role,
+            action_type='forge_session_created',
+            description=f'Forge session created: {session_id} for project {project_name}',
+            spec_ref=spec_ref,
+            session_id=session_id,
+            action_data=action_data
+        )
+        return self.log(event)
+
+    def log_forge_failed(self, session_id: str, error: str, agent: str = 'SYSTEM', role: str = 'Architect', spec_ref: str = 'SPEC-074', **kwargs) -> str:
+        """SPEC-074: Log a forge_failed event when a forge session fails globally."""
+        event_id = ADSEventSchema.generate_id('forge_failed')
+        action_data = {
+            'error': error
+        }
+        action_data.update(kwargs)
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent=agent,
+            role=role,
+            action_type='forge_failed',
+            description=f'Forge failed: {error}',
+            spec_ref=spec_ref,
+            session_id=session_id,
+            action_data=action_data
+        )
+        return self.log(event)

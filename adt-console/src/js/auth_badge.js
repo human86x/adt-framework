@@ -139,19 +139,24 @@ function _renderAuthBrokenBanner(state) {
   if (_authBrokenFailCount < 2 && !banner) return;
   if (banner) return;
 
+  // REQ-104 fix (SPEC-071 follow-up): banner sits ABOVE the topbar as a normal
+  // block element so it never covers the Projects / Spec Map / Governance /
+  // ADT Panel buttons. Previously position:fixed;top:0 overlaid the topbar.
   banner = document.createElement('div');
   banner.id = 'auth-broken-banner';
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9997;'
+  banner.style.cssText = 'position:relative;z-index:9997;'
     + 'background:linear-gradient(90deg,#c62828,#ff5555,#c62828);'
-    + 'color:#fff;text-align:center;padding:8px 16px;font-weight:700;font-size:13px;'
+    + 'color:#fff;text-align:center;padding:6px 16px;font-weight:700;font-size:13px;'
     + 'box-shadow:0 2px 12px rgba(198,40,40,0.6);'
-    + 'animation:auth-broken-pulse 2s infinite;';
-  banner.innerHTML = '⚠ agy auth broken — builds will fail. '
-    + '<button id="auth-broken-recheck" style="margin-left:12px;background:#fff;color:#c62828;border:none;'
+    + 'animation:auth-broken-pulse 2s infinite;'
+    + 'display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
+  banner.innerHTML = '<span>⚠ agy auth broken — builds will fail.</span>'
+    + '<button id="auth-broken-recheck" style="background:#fff;color:#c62828;border:none;'
     + 'padding:3px 10px;border-radius:4px;font-weight:800;cursor:pointer">Recheck</button>'
-    + '<button id="auth-broken-launch" style="margin-left:6px;background:rgba(0,0,0,0.25);color:#fff;border:1px solid rgba(255,255,255,0.4);'
+    + '<button id="auth-broken-launch" style="background:rgba(0,0,0,0.25);color:#fff;border:1px solid rgba(255,255,255,0.4);'
     + 'padding:3px 10px;border-radius:4px;font-weight:700;cursor:pointer">Open Login Terminal</button>';
-  document.body.appendChild(banner);
+  // Insert BEFORE the topbar so it pushes everything down naturally.
+  document.body.insertBefore(banner, document.body.firstChild);
   const style = document.createElement('style');
   style.textContent = '@keyframes auth-broken-pulse{0%,100%{opacity:1}50%{opacity:0.88}}';
   document.head.appendChild(style);

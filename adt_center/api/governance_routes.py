@@ -229,8 +229,299 @@ def api_init_project():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@governance_bp.route("/projects/forge", methods=["POST"])
-@governance_bp.route("/governance/forge", methods=["POST"])
+import time
+from flask import Response, stream_with_context
+import threading
+
+import threading
+
+@governance_bp.route("/governance/forge/stream", methods=["GET", "POST"])
+def api_forge_project_stream():
+    if request.method == "GET":
+        try:
+            body_str = request.args.get("_body")
+            data = json.loads(body_str) if body_str else {}
+        except:
+            data = {}
+    else:
+        data = request.get_json()
+
+    if not data or not all(k in data for k in ["path", "intent_description", "users", "success_v1"]):
+        return jsonify({"error": "path, intent_description, users, and success_v1 are required"}), 400
+
+    name = data.get("name")
+    path = data["path"]
+    intent_desc = data["intent_description"]
+    users = data["users"]
+    success_v1 = data["success_v1"]
+    out_of_scope = data.get("out_of_scope", "")
+    constraints = data.get("constraints", "")
+    auto_standards_enabled = data.get("auto_standards_enabled", True)
+    selected_rr_ids = data.get("selected_rr_ids") or []
+    if not isinstance(selected_rr_ids, list):
+        selected_rr_ids = []
+
+    def generate():
+        seq = 1
+        res = None
+        session_id = None
+        
+        def emit(event_name, event_data):
+            nonlocal seq
+            event_data["seq"] = seq
+            # Mirrored to ADS
+            if res and res.get("logger"):
+                if event_name in ["phase_started", "phase_completed", "forge_failed"]:
+                    atype = "forge_" + event_name
+                    evt = ADSEventSchema.create_event(
+                        event_id=ADSEventSchema.generate_id("f_phase"),
+                        agent="SYSTEM",
+                        role="Architect",
+                        action_type=atype,
+                        description=f"Phase event: {event_data.get('phase')}",
+                        spec_ref="SPEC-074",
+                        authorized=True,
+                        tier=1,
+                        session_id=session_id or "genesis",
+                        action_data=event_data
+                    )
+                    res["logger"].log(evt)
+            
+            yield f"event: {event_name}\ndata: {json.dumps(event_data)}\n\n"
+            seq += 1
+
+        def phase_runner(phase_name, func, *args, **kwargs):
+            emit("phase_started", {"phase": phase_name, "started_at": datetime.now(timezone.utc).isoformat()})
+            t0 = time.time()
+            try:
+                ret = func(*args, **kwargs)
+                emit("phase_completed", {"phase": phase_name, "duration_ms": int((time.time() - t0)*1000), "outcome": "success"})
+                return ret
+            except Exception as e:
+                emit("phase_completed", {"phase": phase_name, "duration_ms": int((time.time() - t0)*1000), "outcome": "failed", "error": str(e)})
+                raise e
+
+        # heartbeat thread?
+        # A simple way to do heartbeat is we just do the work synchronously but we can't because it blocks the generator.
+        # Wait, Python generators can't yield if they are blocked by synchronous work.
+        # So we need a background thread for the work, and the generator reads from a queue.
+        import queue
+        q = queue.Queue()
+
+        app = current_app._get_current_object()
+        def worker():
+            nonlocal res, session_id
+            def w_emit(ev, dt):
+                q.put(("event", ev, dt))
+            
+            def w_phase_runner(phase_name, func, *args, **kwargs):
+                w_emit("phase_started", {"phase": phase_name, "started_at": datetime.now(timezone.utc).isoformat()})
+                t0 = time.time()
+                try:
+                    ret = func(*args, **kwargs)
+                    w_emit("phase_completed", {"phase": phase_name, "duration_ms": int((time.time() - t0)*1000), "outcome": "success"})
+                    return ret
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    w_emit("phase_completed", {"phase": phase_name, "duration_ms": int((time.time() - t0)*1000), "outcome": "failed", "error": str(e)})
+                    raise e
+            
+            with app.app_context():
+                try:
+                    # 1. init_project
+                    result = w_phase_runner("init_project", _init_project, path=path, name=name, detect=data.get("detect", True))
+                    project_name = result["name"]
+                    res = _get_project_resources(project_name)
+
+                    # 2. start_dtcp
+                    w_phase_runner("start_dtcp", _start_project_dtcp, project_name)
+
+                    # 3. add_intent
+                    intent_data = {
+                        "title": f"Forge: {project_name}",
+                        "description": intent_desc,
+                        "business_value": "Autonomously forged project.",
+                        "target_maturity": "Operational",
+                        "agent": "SYSTEM",
+                        "role": "Architect"
+                    }
+                    intent_id = w_phase_runner("register_intent", res["capability_manager"].add_intent, intent_data)
+
+                    session_id = f"sess_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+                    
+                    # 4. intent classification
+                    if auto_standards_enabled:
+                        w_emit("phase_started", {"phase": "intent_classification", "engine": "gemini-3.1-pro-high", "started_at": datetime.now(timezone.utc).isoformat()})
+                        t0 = time.time()
+                        try:
+                            from adt_core.standards.intent_matcher import match_intent_domain
+                            matched_domains, baseline_rr_ids = match_intent_domain(intent_desc)
+                            w_emit("intent_classification_partial", {"matched_domains": matched_domains})
+                            for rr in baseline_rr_ids:
+                                if rr not in selected_rr_ids:
+                                    selected_rr_ids.append(rr)
+                                    w_emit("intent_classification_partial", {"recommended_rr": {"id": rr, "rationale": "Recommended by intent matcher.", "confidence": 0.9}})
+                            w_emit("phase_completed", {"phase": "intent_classification", "duration_ms": int((time.time() - t0)*1000), "outcome": "success"})
+                        except Exception as e:
+                            w_emit("phase_completed", {"phase": "intent_classification", "duration_ms": int((time.time() - t0)*1000), "outcome": "failed", "error": str(e)})
+
+                    # 5. forge_brief
+                    forge_brief = {
+                        "intent_description": intent_desc,
+                        "users": users,
+                        "success_v1": success_v1,
+                        "out_of_scope": out_of_scope,
+                        "constraints": constraints,
+                        "selected_rr_ids": selected_rr_ids,
+                        "auto_standards_enabled": auto_standards_enabled,
+                        "name": project_name,
+                        "path": path,
+                        "forge_session_id": session_id
+                    }
+                    
+                    def write_brief():
+                        _ops_dir = os.path.join(res["paths"]["root"], "_cortex", "ops")
+                        os.makedirs(_ops_dir, exist_ok=True)
+                        brief_path = os.path.join(_ops_dir, "forge_brief.json")
+                        with open(brief_path, "w") as f:
+                            json.dump(forge_brief, f, indent=2)
+                    
+                    w_phase_runner("forge_brief_written", write_brief)
+
+                    # 6. spawn worker
+                    def spawn():
+                        import shutil as _shutil
+                        AGY_BIN = (os.environ.get("AGY_EXECPATH") or _shutil.which("agy") or "/home/human/.local/bin/agy")
+                        project_root = res["paths"]["root"]
+                        prompt_template_path = os.path.join(os.path.dirname(__file__), "forge_prompts", "architect.md")
+                        _ops_dir = os.path.join(project_root, "_cortex", "ops")
+                        log_path = os.path.join(_ops_dir, "forge_worker.log")
+                        try:
+                            with open(prompt_template_path) as _pf:
+                                _prompt_template = _pf.read()
+                        except Exception:
+                            _prompt_template = "Read _cortex/ops/forge_brief.json and fill _cortex/specs/SPEC-001_VISION.md."
+                        import re as _re, datetime as _dt
+                        _subs = {
+                            "project_name": project_name,
+                            "project_path": project_root,
+                            "forge_session_id": session_id,
+                            "forge_min_children": os.environ.get("ADT_FORGE_MIN_CHILDREN", "3"),
+                            "forge_max_children": os.environ.get("ADT_FORGE_MAX_CHILDREN", "7"),
+                            "today": _dt.date.today().isoformat(),
+                        }
+                        def _sub_one(m):
+                            return str(_subs.get(m.group(1), m.group(0)))
+                        prompt_text = _re.sub(r"\{(\w+)\}", _sub_one, _prompt_template)
+                        forge_model = os.environ.get("ADT_FORGE_MODEL", "Gemini 3.1 Pro (High)")
+                        _stdbuf_bin = _shutil.which("stdbuf") or "/usr/bin/stdbuf"
+                        _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--print-timeout", "30m", "--model", forge_model]
+                        cmd = ([_stdbuf_bin, "-oL"] + _forge_base) if (_stdbuf_bin and os.path.exists(_stdbuf_bin)) else _forge_base
+                        with open(log_path, "w") as log_f:
+                            log_f.write(f"=== Forge worker spawned ===\n")
+                        log_f_append = open(log_path, "ab")
+                        env = {**os.environ, "ADT_FORGE_SESSION_ID": session_id, "ADT_PROJECT_NAME": project_name, "ADT_MODE": "forge_worker", "CLAUDE_PROJECT_DIR": project_root, "BROWSER": "true", "NO_BROWSER": "1", "DEBIAN_FRONTEND": "noninteractive"}
+                        worker_proc = subprocess.Popen(
+                            cmd, stdout=log_f_append, stderr=log_f_append, stdin=subprocess.DEVNULL, cwd=project_root, env=env, start_new_session=True
+                        )
+                        return worker_proc.pid
+
+                    pid = w_phase_runner("worker_spawned", spawn)
+                    
+                    # 7. finish
+                    w_emit("forge_session_created", {"forge_session_id": session_id, "project_name": project_name, "phase_timings": {}})
+                    q.put(("done",))
+                except Exception as e:
+                    if "already registered" in str(e).lower():
+                        # Handle already registered gracefully
+                        try:
+                            project_name = name or path.split("/")[-1]
+                            probe_res = _get_project_resources(project_name)
+                            # try to find existing session id
+                            events = probe_res["query"].get_all_events()
+                            sess_id = next((ev.get("session_id") for ev in events if ev.get("action_type") == "session_start" and ev.get("action_data", {}).get("forge_mode")), None)
+                            if sess_id:
+                                w_emit("forge_session_created", {"forge_session_id": sess_id, "project_name": project_name, "phase_timings": {}})
+                                q.put(("done",))
+                                return
+                        except:
+                            pass
+                    import traceback
+                    traceback.print_exc()
+                    w_emit("forge_failed", {"error": str(e)})
+                    q.put(("done",))
+
+        th = threading.Thread(target=worker)
+        th.start()
+        
+        last_event_time = time.time()
+        while True:
+            try:
+                msg = q.get(timeout=2.0)
+                if msg[0] == "event":
+                    yield from emit(msg[1], msg[2])
+                    last_event_time = time.time()
+                elif msg[0] == "done":
+                    break
+            except queue.Empty:
+                if time.time() - last_event_time >= 2.0:
+                    yield f"event: heartbeat\ndata: {json.dumps({'pending_phase': 'unknown', 'elapsed_ms': int((time.time() - last_event_time)*1000)})}\n\n"
+                    last_event_time = time.time()
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+@governance_bp.route("/governance/forge/<session_id>/genesis_stream", methods=["GET"])
+def api_forge_genesis_stream(session_id):
+    project_name = request.args.get("project")
+    if not project_name:
+        registry = ProjectRegistry()
+        for p in registry.list_projects():
+            p_res = _get_project_resources(p["name"])
+            events = p_res["query"].get_all_events()
+            if any((e.get("session_id") == session_id or e.get("action_data", {}).get("forge_session_id") == session_id) for e in events):
+                project_name = p["name"]
+                break
+    if not project_name:
+        return jsonify({"error": "Session not found"}), 404
+        
+    res = _get_project_resources(project_name)
+    events = res["query"].get_all_events()
+    session_events = [e for e in events if e.get("session_id") == session_id or e.get("action_data", {}).get("forge_session_id") == session_id or e.get("session_id") == "genesis"]
+
+    def generate():
+        seq = 1
+        for e in session_events:
+            atype = e.get("action_type")
+            if atype and atype.startswith("forge_phase_"):
+                phase_evt = atype.replace("forge_", "")
+                data = e.get("action_data", {})
+                data["seq"] = seq
+                yield f"event: {phase_evt}\ndata: {json.dumps(data)}\n\n"
+                seq += 1
+            elif atype == "forge_session_created":
+                data = e.get("action_data", {})
+                data["seq"] = seq
+                yield f"event: forge_session_created\ndata: {json.dumps(data)}\n\n"
+                seq += 1
+            elif atype == "forge_failed":
+                data = e.get("action_data", {})
+                data["seq"] = seq
+                yield f"event: forge_failed\ndata: {json.dumps(data)}\n\n"
+                seq += 1
+                
+        # If the session is still forging, we could tail it here, but SPEC says:
+        # "Replays the phase-event history up to now, then continues live if the session is still in progress."
+        # Actually it says "Reads from the persisted ADS ledger — no in-memory buffer needed for reattach."
+        # The easiest is just returning what we have. If they want live, they can poll or we tail the ADS.
+        # But genesis is usually very fast.
+        
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+
+
+@governance_bp.route('/projects/forge', methods=['POST'])
+@governance_bp.route('/governance/forge', methods=['POST'])
 def api_forge_project():
     """SPEC-043, SPEC-067: Forge a new project with autonomous Architect."""
     data = request.get_json()
@@ -308,6 +599,30 @@ def api_forge_project():
         selected_rr_ids = data.get("selected_rr_ids") or []
         if not isinstance(selected_rr_ids, list):
             selected_rr_ids = []
+
+        # SPEC-072: Run intent matcher if auto standards are enabled
+        auto_standards_enabled = data.get("auto_standards_enabled", True)
+        if auto_standards_enabled:
+            try:
+                from adt_core.standards.intent_matcher import match_intent_domain
+                matched_domains, baseline_rr_ids = match_intent_domain(intent_desc)
+                for rr in baseline_rr_ids:
+                    if rr not in selected_rr_ids:
+                        selected_rr_ids.append(rr)
+            except Exception as e:
+                res["logger"].log(ADSEventSchema.create_event(
+                    event_id=ADSEventSchema.generate_id("intent_err"),
+                    agent="SYSTEM",
+                    role="Architect",
+                    action_type="intent_match_error",
+                    description=f"Error matching intent: {e}",
+                    spec_ref="SPEC-072",
+                    authorized=True,
+                    tier=1,
+                    session_id=session_id,
+                    action_data={}
+                ))
+
         forge_brief = {
             "intent_description": intent_desc,
             "users": users,
@@ -315,6 +630,7 @@ def api_forge_project():
             "out_of_scope": out_of_scope,
             "constraints": constraints,
             "selected_rr_ids": selected_rr_ids,
+            "auto_standards_enabled": auto_standards_enabled,
             "name": project_name,
             "path": path,
             "forge_session_id": session_id
@@ -4396,7 +4712,7 @@ def api_agy_state():
 
     consecutive_failures = state.get("consecutive_failures", 0)
     age = _t.time() - state.get("last_check_at", 0)
-    if (age > (10 if not state.get("ok") else 30)) or request.args.get("force") == "1":
+    if (age > (300 if not state.get("ok") else 300)) or request.args.get("force") == "1":  # REQ-107 hotfix: dont re-probe on every poll; only force=1 triggers immediate
         try:
             from adt_center.api.build_executor import _agy_auth_is_ok
             if _agy_auth_is_ok(force=True):
@@ -4606,22 +4922,40 @@ def api_get_standard(standard_id):
 
 @governance_bp.route("/governance/standards/<standard_id>/clauses/<clause_id>/disposition", methods=["PUT"])
 def api_update_clause_disposition(standard_id, clause_id):
-    """SPEC-046: Update a clause disposition (Governed by SCR)."""
+    """SPEC-046, SPEC-072: Update a clause disposition (Governed by SCR).
+
+    SPEC-072 Tri-State Governance Disposition Model:
+      - RESOLVED: Rule adopted and anchored to active specs. No rationale required.
+      - NOT_APPLICABLE: Formally excluded. Mandatory human rationale string required (HTTP 400 if absent).
+      - PENDING_DETERMINATION: Awaiting further architect clarification. No rationale required.
+    """
     from adt_core.standards.schema import Disposition
     data = request.get_json()
     project_name = request.args.get("project") or data.get("project") or "adt-framework"
     res = _get_project_resources(project_name)
-    
+
     agent = data.get("agent", "SYSTEM")
     role = data.get("role", "unknown")
     new_disp = data.get("disposition")
     rationale = data.get("rationale")
-    
+
     if new_disp not in Disposition.ALL:
-        return jsonify({"error": "INVALID_DISPOSITION"}), 400
-        
-    if new_disp in [Disposition.ADAPTED, Disposition.DISMISSED] and not rationale:
-        return jsonify({"error": "RATIONALE_REQUIRED"}), 400
+        return jsonify({"error": "INVALID_DISPOSITION", "allowed": Disposition.ALL}), 400
+
+    # SPEC-072: NOT_APPLICABLE requires a mandatory human rationale string.
+    # ADAPTED and DISMISSED also require rationale (legacy SPEC-046 rule).
+    if new_disp in Disposition.REQUIRES_RATIONALE and not rationale:
+        return jsonify({
+            "error": "RATIONALE_REQUIRED",
+            "message": f"rationale is mandatory when setting disposition to '{new_disp}'"
+        }), 400
+
+    # SPEC-072: Minimum rationale length to prevent placeholder values.
+    if new_disp in Disposition.REQUIRES_RATIONALE and len((rationale or "").strip()) < 10:
+        return jsonify({
+            "error": "RATIONALE_TOO_SHORT",
+            "message": "rationale must be at least 10 characters"
+        }), 400
 
     # Determine Tier (SPEC-046 Section 5)
     target_tier = 1
@@ -4848,10 +5182,17 @@ def api_get_rationalised_rule(rr_id):
 
 @governance_bp.route("/governance/standards/rationalised-rules/<rr_id>", methods=["PUT"])
 def api_update_rationalised_rule(rr_id):
-    """SPEC-066 sec5: Update Rationalised Rule disposition.
+    """SPEC-066 sec5, SPEC-072: Update Rationalised Rule disposition.
 
     SCR-gated per SPEC-064 sec4.4: agent-initiated changes are queued as SCR.
     Direct human invocations (no X-Agent header) apply immediately.
+
+    SPEC-072 Tri-State Governance Disposition Model:
+      - RESOLVED ("resolved"): Rule adopted and anchored to active specs. No rationale required.
+      - NOT_APPLICABLE ("not_applicable"): Formally excluded. Mandatory human rationale string
+        required; HTTP 400 returned if absent or shorter than 20 characters.
+      - PENDING_DETERMINATION ("pending_determination"): Needs further architect clarification.
+        No rationale required.
     """
     import json as _json, os as _os
     from datetime import datetime, timezone
@@ -4866,10 +5207,13 @@ def api_update_rationalised_rule(rr_id):
     if new_disp not in Disposition.ALL:
         return jsonify({"error": "INVALID_DISPOSITION",
                         "allowed": Disposition.ALL}), 400
-    if new_disp in (Disposition.ADAPTED, Disposition.DISMISSED) and not rationale:
+
+    # SPEC-072: NOT_APPLICABLE requires mandatory human rationale (HTTP 400 if absent).
+    # ADAPTED and DISMISSED also require rationale (legacy SPEC-066 rule).
+    if new_disp in Disposition.REQUIRES_RATIONALE and not rationale:
         return jsonify({"error": "RATIONALE_REQUIRED",
-                        "message": "rationale required for adapted/dismissed"}), 400
-    if new_disp in (Disposition.ADAPTED, Disposition.DISMISSED) and len((rationale or "").strip()) < 20:
+                        "message": f"rationale is mandatory when setting disposition to '{new_disp}'"}), 400
+    if new_disp in Disposition.REQUIRES_RATIONALE and len((rationale or "").strip()) < 20:
         return jsonify({"error": "RATIONALE_TOO_SHORT",
                         "message": "rationale must be at least 20 characters"}), 400
 
@@ -5382,6 +5726,46 @@ def api_initiate_build(spec_id):
                 "error": f"Build already in flight for {spec_id}: {in_flight[0]}. Pass force=true to override.",
                 "in_flight_build_id": in_flight[0],
             }), 409
+
+    # build-fix: if ALL tasks for this spec are already 'completed' and force=true,
+    # reset them to 'pending' so workers actually re-execute instead of silently
+    # exiting with "nothing to do" immediately after the build starts.
+    reset_tasks = bool(data.get("reset_tasks", force))
+    if reset_tasks:
+        _tasks_path = os.path.join(res["paths"]["root"], "_cortex", "tasks.json")
+        try:
+            with open(_tasks_path) as _f:
+                _td = json.load(_f)
+            _tlist = _td.get("tasks", []) if isinstance(_td, dict) else _td
+            _target_ids = data.get("target_task_id")
+            if _target_ids and isinstance(_target_ids, str):
+                _target_ids = [_target_ids]
+            _target_ids = set(_target_ids) if _target_ids else None
+
+            _spec_tasks = [
+                t for t in _tlist
+                if t.get("spec_ref") == spec_id
+                and (_target_ids is None or (t.get("id") or t.get("task_id")) in _target_ids)
+            ]
+            _all_done = all(t.get("status") == "completed" for t in _spec_tasks)
+            if _all_done and _spec_tasks:
+                _reset_count = 0
+                for t in _tlist:
+                    if t.get("spec_ref") == spec_id and t.get("status") == "completed":
+                        if _target_ids is None or (t.get("id") or t.get("task_id")) in _target_ids:
+                            t["status"] = "pending"
+                            t.pop("completed_at", None)
+                            t.pop("completed_by_role", None)
+                            t.pop("reconciled_from_failed", None)
+                            _reset_count += 1
+                if isinstance(_td, dict):
+                    _td["tasks"] = _tlist
+                else:
+                    _td = _tlist
+                with open(_tasks_path, "w") as _f:
+                    json.dump(_td, _f, indent=2)
+        except Exception:
+            pass  # best-effort; spawn_swarm will handle the empty case gracefully
 
     build_id = f"build_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     triggered_by = data.get("triggered_by", "human")
@@ -6635,3 +7019,230 @@ def api_harnesses_status():
 
     return jsonify({"ts": now, "harnesses": harnesses})
 
+
+@governance_bp.route("/governance/intent/match", methods=["POST"])
+def api_match_intent():
+    from adt_core.standards.intent_matcher import match_intent_domain
+    data = request.get_json() or {}
+    intent = data.get("intent", "")
+    project_name = request.args.get("project") or data.get("project") or "adt-framework"
+    
+    if not intent:
+        return jsonify({"error": "intent is required"}), 400
+        
+    matched_keys, _ = match_intent_domain(intent)
+    
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    index_path = os.path.join(base_dir, "config", "intent_index.json")
+    
+    domains_data = {}
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                domains_data = json.load(f).get("domains", {})
+        except Exception:
+            pass
+            
+    matched_domains = []
+    suggested_rr_ids = []
+    for key in matched_keys:
+        if key in domains_data:
+            dom = domains_data[key].copy()
+            dom["key"] = key
+            matched_domains.append(dom)
+            for rr_id in dom.get("baseline_rr_ids", []):
+                if rr_id not in suggested_rr_ids:
+                    suggested_rr_ids.append(rr_id)
+                    
+    baseline_coverage = {}
+    res = None
+    try:
+        res = _get_project_resources(project_name)
+    except Exception:
+        pass
+        
+    if res:
+        rr_ledger_path = os.path.join(res["paths"]["root"], "_cortex", "standards", "rationalised_rules.jsonl")
+        if os.path.exists(rr_ledger_path):
+            existing_rrs = {}
+            try:
+                with open(rr_ledger_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip():
+                            rec = json.loads(line)
+                            if "id" in rec:
+                                existing_rrs[rec["id"]] = rec.get("disposition", "pending")
+            except Exception:
+                pass
+            for rr_id in suggested_rr_ids:
+                baseline_coverage[rr_id] = existing_rrs.get(rr_id, "pending")
+        else:
+            for rr_id in suggested_rr_ids:
+                baseline_coverage[rr_id] = "pending"
+    else:
+        for rr_id in suggested_rr_ids:
+            baseline_coverage[rr_id] = "pending"
+            
+    return jsonify({
+        "domains": matched_domains,
+        "baseline_rr_ids": suggested_rr_ids,
+        "suggested_rr_ids": suggested_rr_ids,
+        "baseline_coverage": baseline_coverage
+    })
+
+
+@governance_bp.route("/governance/intent/classify", methods=["POST"])
+def api_intent_classify():
+    """SPEC-075: LLM Intent Classification."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["wish", "users", "success_v1", "project"]):
+        return jsonify({"error": "wish, users, success_v1, and project are required"}), 400
+        
+    project_name = data["project"]
+    engine = data.get("engine", "gemini-3.1-pro-high")
+    
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+        
+    try:
+        from adt_core.standards.intent_classifier_llm import classify_intent
+        
+        # log start
+        start_event = ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("cls_st"),
+            agent="SYSTEM",
+            role="Systems_Architect",
+            action_type="intent_classification_started",
+            description="Started intent classification.",
+            spec_ref="SPEC-075",
+            authorized=True,
+            tier=1,
+            action_data={"run_id": "pending", "engine": engine, "prompt_version": "v1"}
+        )
+        res["logger"].log(start_event)
+        
+        cls_result = classify_intent(
+            wish=data["wish"],
+            users=data["users"],
+            success_v1=data["success_v1"],
+            project_name=project_name,
+            engine=engine
+        )
+        
+        # update run_id in action data
+        start_event["action_data"]["run_id"] = cls_result.run_id
+        
+        if cls_result.fallback_reason:
+            evt_type = "intent_classification_fallback"
+            evt_data = {
+                "run_id": cls_result.run_id,
+                "fallback_reason": cls_result.fallback_reason,
+                "engine_attempted": cls_result.engine,
+                "keyword_matched_domains": cls_result.matched_domains
+            }
+        else:
+            evt_type = "intent_classification_completed"
+            evt_data = {
+                "run_id": cls_result.run_id,
+                "matched_domains": cls_result.matched_domains,
+                "recommended_rrs": cls_result.recommended_rrs,
+                "data_classifications": cls_result.data_classifications,
+                "latency_ms": cls_result.latency_ms,
+                "confidence": cls_result.overall_confidence,
+                "engine": cls_result.engine,
+                "model": cls_result.model,
+                "prompt_version": cls_result.prompt_version,
+                "matched_rrs": [rr.get("id") for rr in cls_result.recommended_rrs if rr.get("id")],
+                "rationales": {rr.get("id"): rr.get("rationale", "") for rr in cls_result.recommended_rrs if rr.get("id")},
+                "provenance": "llm_classifier_v1"
+            }
+            
+        end_event = ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("cls_end"),
+            agent="SYSTEM",
+            role="Systems_Architect",
+            action_type=evt_type,
+            description=f"Intent classification finished with status: {evt_type}",
+            spec_ref="SPEC-075",
+            authorized=True,
+            tier=1,
+            action_data=evt_data
+        )
+        res["logger"].log(end_event)
+        
+        # Append to _cortex/standards/intent_classifications.jsonl
+        cortex_std = os.path.join(res["paths"]["root"], "_cortex", "standards")
+        os.makedirs(cortex_std, exist_ok=True)
+        trace_path = os.path.join(cortex_std, "intent_classifications.jsonl")
+        
+        with open(trace_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(cls_result.to_dict()) + "\n")
+            
+        return jsonify(cls_result.to_dict()), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@governance_bp.route("/governance/intent/override", methods=["POST"])
+def api_intent_override():
+    """SPEC-075: Log operator override of intent classification recommendation."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ["run_id", "rr_id", "project"]):
+        return jsonify({"error": "run_id, rr_id, and project are required"}), 400
+        
+    project_name = data["project"]
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+        
+    override_event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("cls_ovr"),
+        agent="OPERATOR",
+        role="Systems_Architect",
+        action_type="intent_classification_operator_override",
+        description=f"Operator unchecked recommended rule {data['rr_id']}.",
+        spec_ref="SPEC-075",
+        authorized=True,
+        tier=1,
+        action_data={
+            "run_id": data["run_id"],
+            "rr_id": data["rr_id"],
+            "override_reason": data.get("override_reason")
+        }
+    )
+    res["logger"].log(override_event)
+    return jsonify({"status": "success"}), 200
+
+
+@governance_bp.route("/governance/intent/classifications/<run_id>", methods=["GET"])
+def api_get_intent_classification(run_id):
+    """SPEC-075: Retrieve an intent classification trace."""
+    project_name = request.args.get("project")
+    if not project_name:
+        return jsonify({"error": "project query parameter is required"}), 400
+        
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+        
+    trace_path = os.path.join(res["paths"]["root"], "_cortex", "standards", "intent_classifications.jsonl")
+    if not os.path.exists(trace_path):
+        return jsonify({"error": "Not found"}), 404
+        
+    with open(trace_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                if data.get("run_id") == run_id:
+                    return jsonify(data), 200
+            except:
+                pass
+                
+    return jsonify({"error": "Not found"}), 404

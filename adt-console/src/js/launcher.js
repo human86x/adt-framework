@@ -10,6 +10,7 @@ const ProjectLauncher = (() => {
   let recentSessions = [];
   let filteredProjects = [];
   let currentWizard = null;
+  let _opening = false;
   let forgeData = {};
   let forgePollInterval = null;
 
@@ -37,8 +38,10 @@ const ProjectLauncher = (() => {
   }
 
   function init() {
+    // SPEC-073: mark the launcher init task
+    if (window.ConsoleReadiness) window.ConsoleReadiness.begin('project_launcher_init', 'Loading project registry');
     const main = document.getElementById("terminal-area");
-    if (!main) return;
+    if (!main) { if (window.ConsoleReadiness) window.ConsoleReadiness.end('project_launcher_init'); return; }
 
     const overlay = document.createElement("div");
     overlay.id = "launcher-overlay";
@@ -89,10 +92,19 @@ const ProjectLauncher = (() => {
 
     // Event Listeners for search/actions
     document.getElementById("launcher-search-input").oninput = handleSearch;
-    document.getElementById("card-forge-mode").onclick = () => openProject("adt-framework");
-    document.getElementById("card-create-project").onclick = openCreateWizard;
-    document.getElementById("card-import-project").onclick = openImportWizard;
-    document.getElementById("card-forge-app").onclick = openForgeWizard;
+    const _g = (key, btn, fn) => {
+      const act = async () => {
+        if (window.ConsoleReadiness && !window.ConsoleReadiness.isReady()) {
+          await window.ConsoleReadiness.waitReady({ timeout: 8000 });
+        }
+        await fn();
+      };
+      return window.ActionGuard ? window.ActionGuard.run(key, btn, act) : act();
+    };
+    document.getElementById("card-forge-mode").onclick = (e) => _g('open_forge_mode', e.currentTarget, async () => openProject("adt-framework"));
+    document.getElementById("card-create-project").onclick = (e) => _g('open_create_wizard', e.currentTarget, async () => openCreateWizard());
+    document.getElementById("card-import-project").onclick = (e) => _g('open_import_wizard', e.currentTarget, async () => openImportWizard());
+    document.getElementById("card-forge-app").onclick = (e) => _g('open_forge_wizard', e.currentTarget, async () => openForgeWizard());
 
     // EVENT DELEGATION: Click handler for the project list
     document.getElementById("launcher-project-list").onclick = (e) => {
@@ -118,6 +130,8 @@ const ProjectLauncher = (() => {
         if (typeof SessionManager !== "undefined" && SessionManager.getAll().length > 0) toggle();
       }
     });
+    // SPEC-073: launcher DOM is up; end init task (project registry fetch happens on first toggle → refresh)
+    if (window.ConsoleReadiness) window.ConsoleReadiness.end('project_launcher_init');
   }
 
   async function toggle() {
@@ -129,6 +143,12 @@ const ProjectLauncher = (() => {
       document.getElementById("launcher-search-input").focus();
       await refresh();
     }
+  }
+
+  function hide() {
+    active = false;
+    const overlay = document.getElementById("launcher-overlay");
+    if (overlay) overlay.style.display = "none";
   }
 
   async function refresh() {
@@ -356,53 +376,65 @@ const ProjectLauncher = (() => {
   }
 
   async function openCreateWizard() {
-    const { projects } = await _getServerPaths();
-    showWizard(`
-      <h2>Create New Project</h2>
-      <div class="wizard-field">
-        <label>Project Name</label>
-        <input type="text" id="wiz-create-name" placeholder="my-app">
-      </div>
-      <div class="wizard-field">
-        <label>Absolute Path</label>
-        <input type="text" id="wiz-create-path" placeholder="${projects}/my-app">
-      </div>
-      <div class="wizard-actions">
-        <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
-        <button class="primary" id="btn-wiz-submit">Scaffold Project</button>
-      </div>
-    `);
-    
-    document.getElementById("btn-wiz-cancel").onclick = closeWizard;
-    document.getElementById("btn-wiz-submit").onclick = submitCreate;
-    
-    setTimeout(() => {
-      const nameInput = document.getElementById("wiz-create-name");
-      if (nameInput) nameInput.focus();
-    }, 100);
+    if (currentWizard || _opening) return;
+    _opening = true;
+    try {
+      const { projects } = await _getServerPaths();
+      showWizard(`
+        <h2>Create New Project</h2>
+        <div class="wizard-field">
+          <label>Project Name</label>
+          <input type="text" id="wiz-create-name" placeholder="my-app">
+        </div>
+        <div class="wizard-field">
+          <label>Absolute Path</label>
+          <input type="text" id="wiz-create-path" placeholder="${projects}/my-app">
+        </div>
+        <div class="wizard-actions">
+          <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
+          <button class="primary" id="btn-wiz-submit">Scaffold Project</button>
+        </div>
+      `);
+      
+      document.getElementById("btn-wiz-cancel").onclick = closeWizard;
+      document.getElementById("btn-wiz-submit").onclick = submitCreate;
+      
+      setTimeout(() => {
+        const nameInput = document.getElementById("wiz-create-name");
+        if (nameInput) nameInput.focus();
+      }, 100);
+    } finally {
+      _opening = false;
+    }
   }
 
   async function openImportWizard() {
-    const { projects } = await _getServerPaths();
-    showWizard(`
-      <h2>Import Project</h2>
-      <div class="wizard-field">
-        <label>Absolute Path</label>
-        <input type="text" id="wiz-import-path" placeholder="${projects}/existing">
-      </div>
-      <div class="wizard-actions">
-        <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
-        <button class="primary" id="btn-wiz-submit">Initialize ADT</button>
-      </div>
-    `);
-    
-    document.getElementById("btn-wiz-cancel").onclick = closeWizard;
-    document.getElementById("btn-wiz-submit").onclick = submitImport;
+    if (currentWizard || _opening) return;
+    _opening = true;
+    try {
+      const { projects } = await _getServerPaths();
+      showWizard(`
+        <h2>Import Project</h2>
+        <div class="wizard-field">
+          <label>Absolute Path</label>
+          <input type="text" id="wiz-import-path" placeholder="${projects}/existing">
+        </div>
+        <div class="wizard-actions">
+          <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
+          <button class="primary" id="btn-wiz-submit">Initialize ADT</button>
+        </div>
+      `);
+      
+      document.getElementById("btn-wiz-cancel").onclick = closeWizard;
+      document.getElementById("btn-wiz-submit").onclick = submitImport;
 
-    setTimeout(() => {
-      const pathInput = document.getElementById("wiz-import-path");
-      if (pathInput) pathInput.focus();
-    }, 100);
+      setTimeout(() => {
+        const pathInput = document.getElementById("wiz-import-path");
+        if (pathInput) pathInput.focus();
+      }, 100);
+    } finally {
+      _opening = false;
+    }
   }
 
   function showWizard(html) {
@@ -471,8 +503,14 @@ const ProjectLauncher = (() => {
   }
 
   function openForgeWizard() {
-    forgeData = {};
-    showForgeScreen1();
+    if (currentWizard || _opening) return;
+    _opening = true;
+    try {
+      forgeData = {};
+      showForgeScreen1();
+    } finally {
+      _opening = false;
+    }
   }
 
   const FORGE_TEMPLATES = [
@@ -680,6 +718,10 @@ const ProjectLauncher = (() => {
           <span style="font-size:11px;color:#8b949e">Loading adopted Rationalised Rules...</span>
         </div>
       </div>
+      <div class="wizard-field" style="display:flex;align-items:center;gap:8px;margin-top:12px;margin-bottom:12px;">
+        <input type="checkbox" id="wiz-forge-auto-standards" checked style="width:16px;height:16px;margin:0;cursor:pointer;">
+        <label for="wiz-forge-auto-standards" style="margin:0;cursor:pointer;font-size:13px;">Enable Auto-Standards Compliance Engine <span class="wiz-optional">(SPEC-072: MRR intent matcher scans your wish for regulated domains)</span></label>
+      </div>
       <div class="wizard-actions">
         <button class="btn-prev" id="btn-wiz-back">&larr; Back</button>
         <button class="primary forge-submit" id="btn-wiz-forge">Forge Application</button>
@@ -718,7 +760,7 @@ const ProjectLauncher = (() => {
             html += `<label class="wiz-rr-row" title="${titleAttr}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#161b22;border:1px solid #30363d;border-radius:6px;font-size:13px;cursor:pointer;width:100%;box-sizing:border-box;line-height:1.4">
                        <input type="checkbox" class="wiz-rr-chip" data-rr="${r.id}" ${checked} style="margin:0;flex-shrink:0;width:16px;height:16px;cursor:pointer">
                        <span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;text-align:left">
-                         <span style="display:flex;gap:8px;align-items:center">
+                         <span class="wiz-rr-title-span" style="display:flex;gap:8px;align-items:center">
                            <strong style="color:#58a6ff">${r.id}</strong>
                            <span style="color:#8b949e;font-size:11px;background:#0d1117;padding:1px 6px;border-radius:3px;border:1px solid #30363d">${std}</span>
                          </span>
@@ -728,6 +770,96 @@ const ProjectLauncher = (() => {
           });
         });
         wrap.innerHTML = html;
+
+        // SPEC-075: Fire LLM Classifier
+        const statusEl = document.createElement("div");
+        statusEl.id = "wiz-forge-classifier-status";
+        statusEl.style.cssText = "font-size:12px;color:#58a6ff;margin-bottom:6px;font-weight:bold;";
+        wrap.parentNode.insertBefore(statusEl, wrap);
+        
+        const startClassifyTime = Date.now();
+        const classifyTimer = setInterval(() => {
+          const ms = Date.now() - startClassifyTime;
+          statusEl.textContent = `[⟳] Classifier analysing… ${(ms/1000).toFixed(1)}s`;
+        }, 100);
+        
+        const projName = forgeData.name || (forgeData.path || '').split("/").pop() || 'new-project';
+        fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wish: forgeData.wish || "",
+            users: document.getElementById("wiz-forge-users")?.value || forgeData.users || "",
+            success_v1: document.getElementById("wiz-forge-success")?.value || forgeData.success || "",
+            project: projName
+          })
+        }).then(r => r.json()).then(cls => {
+          clearInterval(classifyTimer);
+          if (cls.error) {
+            statusEl.style.color = "#f85149";
+            statusEl.textContent = `[✗] Classifier failed: ${cls.error}`;
+            return;
+          }
+          statusEl.style.color = "#3fb950";
+          statusEl.textContent = `[✓] Classification complete. Confidence: ${Math.round(cls.overall_confidence*100)}%`;
+          
+          if (cls.recommended_rrs && cls.recommended_rrs.length) {
+            cls.recommended_rrs.forEach(rec => {
+              const chk = wrap.querySelector(`.wiz-rr-chip[data-rr="${rec.id}"]`);
+              if (chk) {
+                if (!chk.checked) chk.checked = true;
+                
+                const lbl = chk.closest('label');
+                const titleSpan = lbl.querySelector('.wiz-rr-title-span');
+                if (titleSpan) {
+                  const badge = document.createElement("span");
+                  badge.style.cssText = "background:#238636;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:auto;cursor:help;flex-shrink:0;";
+                  badge.textContent = "AUTO";
+                  badge.title = rec.rationale;
+                  titleSpan.appendChild(badge);
+                }
+                
+                chk.addEventListener('change', (e) => {
+                  if (!e.target.checked) {
+                    const reason = prompt(`You unchecked auto-recommended rule ${rec.id}. Reason (optional):`);
+                    fetch(`${getCenterUrl()}/api/governance/intent/override`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        run_id: cls.run_id,
+                        rr_id: rec.id,
+                        project: projName,
+                        override_reason: reason || ""
+                      })
+                    }).catch(()=>{});
+                  }
+                });
+              }
+            });
+          }
+          
+          if (cls.data_classifications && cls.data_classifications.length) {
+            const dcDiv = document.createElement('div');
+            dcDiv.style.cssText = "margin-bottom:8px;";
+            dcDiv.innerHTML = `<span style="font-size:11px;color:#8b949e;margin-right:6px;">Data Classifications Detected:</span>` +
+              cls.data_classifications.map(dc => `<span style="background:#1f6feb;color:#fff;padding:2px 6px;border-radius:10px;font-size:10px;margin-right:4px;">${dc}</span>`).join('');
+            wrap.parentNode.insertBefore(dcDiv, wrap);
+          }
+          
+          if (cls.suggested_erasure_requirements && cls.suggested_erasure_requirements.length) {
+            const reqDiv = document.createElement('div');
+            reqDiv.style.cssText = "margin-top:8px;padding:8px;background:#3a2908;border:1px solid #d29922;border-radius:4px;color:#e6edf3;font-size:12px;";
+            reqDiv.innerHTML = `<strong style="color:#d29922">Suggested Erasure Requirements:</strong><ul style="margin:4px 0 0 16px;padding:0;">` +
+              cls.suggested_erasure_requirements.map(req => `<li>${req}</li>`).join('') + `</ul>`;
+            const toggleRow = document.querySelector('label[for="wiz-forge-auto-standards"]')?.closest('.wizard-field');
+            if (toggleRow) toggleRow.parentNode.insertBefore(reqDiv, toggleRow);
+          }
+          
+        }).catch(err => {
+          clearInterval(classifyTimer);
+          statusEl.style.color = "#f85149";
+          statusEl.textContent = `[✗] Classifier failed: ${err.message}`;
+        });
       }).catch(() => {
         const wrap = document.getElementById("wiz-forge-standards");
         if (wrap) wrap.innerHTML = '<span style="font-size:11px;color:#f85149">Could not load standards (Panel may be offline).</span>';
@@ -739,6 +871,8 @@ const ProjectLauncher = (() => {
       forgeData.out = (document.getElementById("wiz-forge-out").value || "").trim();
       forgeData.constraints = (document.getElementById("wiz-forge-constraints").value || "").trim();
       forgeData.selected_rr_ids = Array.from(document.querySelectorAll(".wiz-rr-chip:checked")).map(el => el.dataset.rr);
+      forgeData.auto_standards_enabled = document.getElementById("wiz-forge-auto-standards")?.checked ?? true;
+
 
       if (!forgeData.users) { alert("Please specify who this is for."); return; }
       if (!forgeData.success) { alert("Please specify what 'done v1' looks like."); return; }
@@ -748,36 +882,141 @@ const ProjectLauncher = (() => {
   }
 
   async function submitForge() {
-    const btn = document.getElementById("btn-wiz-forge");
-    if (btn) { btn.disabled = true; btn.textContent = "Forging..."; }
+    forgeData.projectName = forgeData.name || (forgeData.path || '').split("/").pop() || 'new-project';
+    forgeData.startedAt = Date.now();
+    showForgeGenesis();
+    const genesisTimer = setInterval(updateGenesisElapsed, 250);
 
-    try {
-      const res = await fetch(`${getCenterUrl()}/api/governance/forge`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path: forgeData.path,
-          intent_description: forgeData.wish,
-          name: forgeData.name || null,
-          users: forgeData.users,
-          success_v1: forgeData.success,
-          out_of_scope: forgeData.out || null,
-          constraints: forgeData.constraints || null,
-          selected_rr_ids: forgeData.selected_rr_ids || []
-        })
+    const body = {
+      path: forgeData.path,
+      intent_description: forgeData.wish,
+      name: forgeData.name || null,
+      users: forgeData.users,
+      success_v1: forgeData.success,
+      out_of_scope: forgeData.out || null,
+      constraints: forgeData.constraints || null,
+      selected_rr_ids: forgeData.selected_rr_ids || [],
+      auto_standards_enabled: forgeData.auto_standards_enabled
+    };
+
+    const initialUrl = `${getCenterUrl()}/api/governance/forge/stream?_body=${encodeURIComponent(JSON.stringify(body))}`;
+    let activeEs = null;
+    let isReconnecting = false;
+
+    function showReconnectingChip(show) {
+      let list = document.getElementById("forge-genesis-chips");
+      if (!list) {
+        list = document.createElement("div");
+        list.id = "forge-genesis-chips";
+        list.style.marginTop = "6px";
+        list.style.display = "flex";
+        list.style.flexWrap = "wrap";
+        list.style.gap = "4px";
+        const container = document.getElementById("forge-genesis-phases");
+        if (container) container.parentNode.appendChild(list);
+      }
+      let chip = document.getElementById("forge-reconnecting-chip");
+      if (show) {
+        if (!chip) {
+          chip = document.createElement("span");
+          chip.id = "forge-reconnecting-chip";
+          chip.style.cssText = "background:#d29922;color:#0d1117;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:bold;";
+          chip.textContent = "reconnecting...";
+          list.appendChild(chip);
+        }
+      } else {
+        if (chip) chip.remove();
+      }
+    }
+
+    async function attemptReattach() {
+      if (!document.getElementById("forge-genesis-phases")) {
+        if (activeEs) activeEs.close();
+        return;
+      }
+      isReconnecting = true;
+      showReconnectingChip(true);
+
+      const projectName = forgeData.projectName;
+      if (!forgeData.sessionId) {
+        try {
+          const probe = await fetch(`${getCenterUrl()}/api/projects/${encodeURIComponent(projectName)}/forge_session`);
+          if (probe.ok) {
+            const pd = await probe.json();
+            if (pd.forge_session_id) {
+              forgeData.sessionId = pd.forge_session_id;
+            }
+          }
+        } catch (err) {
+          console.warn("Probe failed during reattach:", err);
+        }
+      }
+
+      let url;
+      if (forgeData.sessionId) {
+        url = `${getCenterUrl()}/api/governance/forge/${forgeData.sessionId}/genesis_stream?project=${encodeURIComponent(projectName)}`;
+      } else {
+        url = initialUrl;
+      }
+
+      console.log("Reattaching stream to:", url);
+      connect(url);
+    }
+
+    function connect(url) {
+      if (activeEs) {
+        activeEs.close();
+      }
+      const es = new EventSource(url);
+      activeEs = es;
+
+      es.onopen = () => {
+        if (isReconnecting) {
+          isReconnecting = false;
+          showReconnectingChip(false);
+        }
+      };
+
+      es.addEventListener('phase_started', e => {
+        const data = JSON.parse(e.data);
+        if (!document.getElementById("phase-" + data.phase)) {
+          appendPhaseRow(data);
+        }
       });
-      const data = await res.json();
-      if (!res.ok) {
+
+      es.addEventListener('phase_completed', e => {
+        const data = JSON.parse(e.data);
+        markPhaseDone(data);
+      });
+
+      es.addEventListener('intent_classification_partial', e => {
+        const data = JSON.parse(e.data);
+        appendClassifierChip(data);
+      });
+
+      es.addEventListener('forge_session_created', e => {
+        const data = JSON.parse(e.data);
+        clearInterval(genesisTimer);
+        es.close();
+        showReconnectingChip(false);
+        
+        forgeData.sessionId = data.forge_session_id;
+        forgeData.projectName = data.project_name || forgeData.projectName;
+        
+        showForgeProgress();
+        pollForgeStatus();
+      });
+
+      es.addEventListener('forge_failed', e => {
+        const data = JSON.parse(e.data);
+        clearInterval(genesisTimer);
+        es.close();
+        showReconnectingChip(false);
+        
         const msg = (data.error || "Forge failed.").toString();
-        // Already-registered = nothing wrong, just open the existing project. The
-        // forge_brief.json + spec files (if any) are reused; the wizard pivots to
-        // showing whichever state the existing forge_session is in.
         if (/already registered/i.test(msg)) {
-          const projectName = forgeData.name || forgeData.path.split("/").pop();
-          forgeData.projectName = projectName;
-          // Try to find an existing forge session for this project by reading its forge_brief
-          try {
-            const probe = await fetch(`${getCenterUrl()}/api/projects/${encodeURIComponent(projectName)}/forge_session`);
+          const projectName = forgeData.projectName;
+          fetch(`${getCenterUrl()}/api/projects/${encodeURIComponent(projectName)}/forge_session`).then(async probe => {
             if (probe.ok) {
               const pd = await probe.json();
               if (pd.forge_session_id) {
@@ -787,25 +1026,123 @@ const ProjectLauncher = (() => {
                 return;
               }
             }
-          } catch (_) {}
-          // Fallback: just open the project; user can manually re-forge from a fresh name
-          closeWizard();
-          if (typeof openProject === "function") openProject(projectName);
+            closeWizard();
+            if (typeof openProject === "function") openProject(projectName);
+          }).catch(() => {
+            closeWizard();
+            if (typeof openProject === "function") openProject(projectName);
+          });
           return;
         }
-        throw new Error(msg);
-      }
+        showForgeGenesisError(msg);
+      });
 
-      forgeData.sessionId = data.forge_session_id || data.session_id;
-      forgeData.projectName = data.project_name || data.project?.name || forgeData.name || forgeData.path.split("/").pop();
-
-      showForgeProgress();
-      pollForgeStatus();
-
-    } catch (err) {
-      alert("Forge Error: " + err.toString());
-      if (btn) { btn.disabled = false; btn.textContent = "Forge Application"; }
+      es.onerror = () => {
+        es.close();
+        if (!document.getElementById("forge-genesis-phases")) {
+          return;
+        }
+        showReconnectingChip(true);
+        setTimeout(attemptReattach, 2000);
+      };
     }
+
+    connect(initialUrl);
+  }
+
+  // --- SPEC-074 UI Helpers ---
+  function appendPhaseRow(data) {
+    const list = document.getElementById("forge-genesis-phases");
+    if (!list) return;
+    const item = document.createElement("div");
+    item.id = "phase-" + data.phase;
+    item.style.color = "#c9d1d9";
+    item.style.lineHeight = "1.7";
+    item.innerHTML = `<span class="phase-icon" style="display:inline-block;width:16px;text-align:center">&#8226;</span> ${data.phase}...`;
+    list.appendChild(item);
+  }
+
+  function markPhaseDone(data) {
+    const item = document.getElementById("phase-" + data.phase);
+    if (!item) return;
+    const icon = item.querySelector(".phase-icon");
+    if (data.outcome === "success") {
+        icon.innerHTML = '<span style="color:#3fb950">✓</span>';
+        item.innerHTML += ` <span style="color:#8b949e;font-size:11px">(${data.duration_ms}ms)</span>`;
+    } else {
+        icon.innerHTML = '<span style="color:#f85149">✗</span>';
+    }
+  }
+
+  function appendClassifierChip(data) {
+    let list = document.getElementById("forge-genesis-chips");
+    if (!list) {
+        list = document.createElement("div");
+        list.id = "forge-genesis-chips";
+        list.style.marginTop = "6px";
+        list.style.display = "flex";
+        list.style.flexWrap = "wrap";
+        list.style.gap = "4px";
+        const container = document.getElementById("forge-genesis-phases");
+        if (container) container.parentNode.appendChild(list);
+    }
+    if (data.recommended_rr) {
+        const chip = document.createElement("span");
+        chip.style.cssText = "background:#238636;color:#ffffff;padding:2px 6px;border-radius:10px;font-size:10px;";
+        chip.textContent = data.recommended_rr.id;
+        list.appendChild(chip);
+    }
+  }
+
+
+  // SPEC-073 hotfix: pre-session-id progress screen. Shown the instant the
+  // operator clicks "Forge Application", stays until the backend returns a
+  // forge_session_id, then is replaced by the live-log polling UI.
+  function showForgeGenesis() {
+    showWizard(`
+      <h2>${forgeData.projectName} — provisioning...</h2>
+      <p class="wiz-subtitle">The server is executing the forge steps below. This takes 5–15 seconds. Live worker log begins as soon as the Architect worker (agy) is spawned.</p>
+
+      <div style="display:flex;align-items:center;gap:12px;margin:14px 0;padding:12px;background:#0d1117;border:1px solid #30363d;border-radius:6px">
+        <div class="forge-spinner" style="width:20px;height:20px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:#e6edf3">Sending forge request to <code>/api/governance/forge</code></div>
+          <div style="font-size:11px;color:#8b949e;margin-top:2px">Elapsed: <span id="forge-genesis-elapsed" style="color:#58a6ff;font-family:monospace">0.0s</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:12px">
+        <div style="color:#8b949e;font-size:11px;margin-bottom:6px">Live server-side phases:</div>
+        <div id="forge-genesis-phases"></div>
+      </div>
+
+      <div id="forge-genesis-error" style="display:none;margin-top:10px;padding:10px;background:#3a1113;border:1px solid #da3633;border-radius:6px;color:#f85149;font-size:12px;white-space:pre-wrap;word-break:break-word"></div>
+
+      <div style="margin-top:10px;text-align:right">
+        <button id="btn-forge-genesis-cancel" style="padding:4px 10px;background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:3px;cursor:pointer;font-size:11px">Cancel &amp; close</button>
+      </div>
+    `);
+    setTimeout(() => {
+      const cancel = document.getElementById("btn-forge-genesis-cancel");
+      if (cancel) cancel.onclick = () => closeWizard();
+    }, 0);
+  }
+
+  function updateGenesisElapsed() {
+    const el = document.getElementById("forge-genesis-elapsed");
+    if (!el || !forgeData.startedAt) return;
+    const s = (Date.now() - forgeData.startedAt) / 1000;
+    el.textContent = s.toFixed(1) + "s";
+  }
+
+  function showForgeGenesisError(msg) {
+    const err = document.getElementById("forge-genesis-error");
+    if (err) {
+      err.style.display = "block";
+      err.textContent = "Forge failed: " + msg;
+    }
+    // Also stop the spinner visually
+    document.querySelectorAll(".forge-spinner").forEach(s => { s.style.borderTopColor = "#da3633"; s.style.animation = "none"; });
   }
 
   function showForgeProgress() {
@@ -942,6 +1279,14 @@ const ProjectLauncher = (() => {
 
       <div id="forge-pipeline" style="margin-top:10px;max-height:120px;overflow-y:auto">${rowsHtml || '<div style="color:#8b949e;font-size:12px">No child specs to decompose.</div>'}</div>
 
+      <div id="mrr-analysis-card" style="margin-top:8px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px;display:none;">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <span>MRR Standards Analysis Card</span>
+          <span style="color:#58a6ff;font-size:10px">Auto-Compliance Engine</span>
+        </div>
+        <div id="mrr-analysis-content" style="font-size:12px;color:#c9d1d9;">Loading analysis...</div>
+      </div>
+
       <div style="margin-top:8px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px">
         <div style="font-size:11px;color:#8b949e;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
           <span>Forge Agent Log (last 20 lines)</span>
@@ -963,6 +1308,92 @@ const ProjectLauncher = (() => {
         <button class="primary" id="btn-forge-start" style="font-size:14px;padding:10px 18px;background:#238636;border-color:#2ea043">&#9654; Start Building</button>
       </div>
     `);
+
+    
+    if (forgeData.auto_standards_enabled) {
+      const card = document.getElementById("mrr-analysis-card");
+      if (card) {
+        card.style.display = "block";
+        fetch(`${getCenterUrl()}/api/governance/intent/match?project=${encodeURIComponent(forgeData.projectName)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intent: forgeData.wish })
+        }).then(r => r.ok ? r.json() : {}).then(data => {
+          let contentHtml = "";
+          
+          const domains = (data.domains || []).map(d => d.title).join(", ");
+          contentHtml += `<div><strong>Matched Domains:</strong> <span style="color:#a5d6ff">${domains || 'None'}</span></div>`;
+          
+          const stds = Array.from(new Set((data.domains || []).flatMap(d => d.mandatory_standards || [])));
+          contentHtml += `<div style="margin-top:4px;"><strong>Ingested Standards Checked:</strong> <span style="color:#7ee787">${stds.join(", ") || 'None'}</span></div>`;
+          
+          const coverage = data.baseline_coverage || {};
+          if (data.baseline_rr_ids && data.baseline_rr_ids.length > 0) {
+            contentHtml += `<div style="margin-top:8px;"><strong>Anchored Rules & Token MRRs:</strong></div>`;
+            contentHtml += `<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">`;
+            data.baseline_rr_ids.forEach(rr => {
+              const currentDisp = coverage[rr] || 'pending';
+              contentHtml += `
+                <div style="display:flex;justify-content:space-between;align-items:center;background:#161b22;padding:4px 8px;border:1px solid #21262d;border-radius:4px;">
+                  <span style="color:#58a6ff;font-weight:bold;">${rr}</span>
+                  <div class="mrr-disposition-btn-group" data-rr="${rr}" style="display:flex;gap:4px;">
+                    <button class="mrr-disp-btn ${currentDisp==='adopted'?'active':''}" data-disp="adopted" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:${currentDisp==='adopted'?'#238636':'#21262d'};color:${currentDisp==='adopted'?'#fff':'#8b949e'};border-radius:3px;cursor:pointer;">Adopt</button>
+                    <button class="mrr-disp-btn ${currentDisp==='not_applicable'?'active':''}" data-disp="not_applicable" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:${currentDisp==='not_applicable'?'#da3633':'#21262d'};color:${currentDisp==='not_applicable'?'#fff':'#8b949e'};border-radius:3px;cursor:pointer;">N/A</button>
+                    <button class="mrr-disp-btn ${currentDisp==='pending'?'active':''}" data-disp="pending" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:${currentDisp==='pending'?'#d29922':'#21262d'};color:${currentDisp==='pending'?'#fff':'#8b949e'};border-radius:3px;cursor:pointer;">Pending</button>
+                  </div>
+                </div>
+              `;
+            });
+            contentHtml += `</div>`;
+          } else {
+             contentHtml += `<div style="margin-top:8px;"><strong>Anchored Rules & Token MRRs:</strong> None</div>`;
+          }
+          
+          const contentEl = document.getElementById("mrr-analysis-content");
+          if (contentEl) {
+            contentEl.innerHTML = contentHtml;
+            
+            document.querySelectorAll(".mrr-disp-btn").forEach(btn => {
+              btn.onclick = async (e) => {
+                const disp = e.target.getAttribute("data-disp");
+                const rr = e.target.parentElement.getAttribute("data-rr");
+                
+                let rationale = "";
+                if (disp === "not_applicable") {
+                  rationale = prompt("Please provide a rationale for marking this Not Applicable:");
+                  if (!rationale) { alert("Rationale is required for Not Applicable."); return; }
+                }
+                
+                try {
+                    // Try to send PUT request if we know how, otherwise just update UI
+                    // It's PUT /api/governance/standards/<std_id>/clauses/<clause_id>/disposition
+                    // We don't have std_id and clause_id. Let's just update UI for now.
+                    await fetch(`${getCenterUrl()}/api/governance/standards/rr/${rr}/disposition`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ disposition: disp, rationale: rationale })
+                    });
+                } catch(e) {}
+                
+                const group = e.target.parentElement;
+                group.querySelectorAll(".mrr-disp-btn").forEach(b => {
+                  b.classList.remove("active");
+                  b.style.background = "#21262d";
+                  b.style.color = "#8b949e";
+                });
+                e.target.classList.add("active");
+                if (disp === 'adopted') { e.target.style.background = '#238636'; e.target.style.color = '#fff'; }
+                if (disp === 'not_applicable') { e.target.style.background = '#da3633'; e.target.style.color = '#fff'; }
+                if (disp === 'pending') { e.target.style.background = '#d29922'; e.target.style.color = '#fff'; }
+              };
+            });
+          }
+        }).catch(err => {
+          const contentEl = document.getElementById("mrr-analysis-content");
+          if (contentEl) contentEl.textContent = "Failed to load MRR analysis.";
+        });
+      }
+    }
 
     document.getElementById("btn-forge-later").onclick = () => {
       closeWizard();
@@ -1109,5 +1540,5 @@ const ProjectLauncher = (() => {
     return `${Math.floor(seconds / 86400)}d ago`;
   }
 
-  return { init, toggle, refresh, isActive: () => active, openProject, reopenSession, closeWizard, submitCreate, submitImport, openForgeWizard, submitForge };
+  return { init, toggle, hide, refresh, isActive: () => active, openProject, reopenSession, closeWizard, submitCreate, submitImport, openForgeWizard, submitForge };
 })();

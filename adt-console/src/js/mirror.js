@@ -257,12 +257,15 @@
   function updateBadge() {
     const b = document.getElementById('btn-mirror');
     if (!b) return;
-    b.style.background = ACTIVE ? '#238636' : '#21262d';
-    b.style.color = ACTIVE ? '#fff' : '#c9d1d9';
+    b.style.background = ACTIVE ? '#238636' : '';
+    b.style.color = ACTIVE ? '#fff' : '';
     b.title = ACTIVE
-      ? `Mirror ON → ${cfg.peer_url || '(no peer!)'}  (user=${cfg.peer_user}, home=${cfg.peer_home})`
-      : 'Mirror OFF (click to enable — echoes your clicks + inputs to peer console)';
-    b.textContent = ACTIVE ? '🔁 ON' : '🔁';
+      ? `Mirror ON -> ${cfg.peer_url || '(no peer!)'}  (user=${cfg.peer_user}, home=${cfg.peer_home})`
+      : 'Mirror OFF (click to enable -- echoes your clicks + inputs to peer console)';
+    // REQ-104: preserve .btn-label span rather than wiping via textContent.
+    const glyph = ACTIVE ? '🔁 ON' : '🔁';
+    const labelHtml = ' <span class="btn-label">Mirror</span>';
+    b.innerHTML = glyph + labelHtml;
   }
 
   function configureFlow() {
@@ -294,8 +297,9 @@
       if (ACTIVE) {
         startHeartbeat(); _startAckPoll();
         const localUrl = (window.SpecMap && window.SpecMap.getCenterUrl) ? window.SpecMap.getCenterUrl().replace(/\/$/,'') : 'http://localhost:5001';
-        // collectorUrl is where Paul's capture service sends frames TO — must be our Tailscale/external IP
-        const collectorUrl = cfg.my_external_url || localUrl;
+        // Frames store at peer's own adt_center (localhost); we pull via peer_proxy.
+        // Direct push to our Tailscale IP was blocked by ACL — pull model avoids that.
+        const collectorUrl = 'http://localhost:5001';
         // Use server-side proxy to start capture — direct fetch to peer_url is blocked by Tauri CSP
         fetch(`${localUrl}/api/mirror/start_peer_capture`, {
           method: 'POST',

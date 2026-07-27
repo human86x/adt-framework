@@ -717,37 +717,51 @@ const GitStatusManager = (() => {
   });
 
   // --- Dashboard button ---
-  document.getElementById('btn-dashboard').addEventListener('click', () => {
-    DashboardManager.toggle();
+  const _AG = (key, ev, fn) => {
+    const act = async () => {
+      if (window.ConsoleReadiness && !window.ConsoleReadiness.isReady()) {
+        await window.ConsoleReadiness.waitReady({ timeout: 8000 });
+      }
+      await fn();
+    };
+    return window.ActionGuard ? window.ActionGuard.run(key, ev.currentTarget, act) : act();
+  };
+
+  document.getElementById('btn-dashboard').addEventListener('click', (e) => {
+    _AG('dashboard_toggle', e, async () => DashboardManager.toggle());
   });
 
-  document.getElementById('btn-projects').addEventListener('click', () => {
-    ProjectLauncher.toggle();
+  document.getElementById('btn-projects').addEventListener('click', (e) => {
+    _AG('projects_toggle', e, async () => ProjectLauncher.toggle());
   });
 
-  document.getElementById('btn-governance').addEventListener('click', () => {
-    GovernanceManager.toggle();
+  document.getElementById('btn-governance').addEventListener('click', (e) => {
+    _AG('governance_toggle', e, async () => GovernanceManager.toggle());
   });
 
-  document.getElementById('btn-adt-panel').addEventListener('click', () => {
-    PanelManager.toggle();
+  document.getElementById('btn-adt-panel').addEventListener('click', (e) => {
+    _AG('adt_panel_toggle', e, async () => PanelManager.toggle());
   });
 
   // SPEC-062 task_350: Spec Map tab (architect direct implementation 2026-06-20)
   const specMapBtn = document.getElementById('btn-spec-map');
   if (specMapBtn) {
-    specMapBtn.addEventListener('click', () => {
-      const view = document.getElementById('spec-map-view');
-      if (!view) return;
-      const open = view.style.display !== 'none' && view.style.display !== '';
-      if (open) {
-        if (window.SpecMap && window.SpecMap.hide) window.SpecMap.hide();
-        specMapBtn.classList.remove('active');
-      } else {
-        if (window.SpecMap && window.SpecMap.show) window.SpecMap.show();
-        if (window.SpecMap && window.SpecMap.init) window.SpecMap.init();
-        specMapBtn.classList.add('active');
-      }
+    specMapBtn.addEventListener('click', (e) => {
+      _AG('spec_map_toggle', e, async () => {
+        const view = document.getElementById('spec-map-view');
+        if (!view) return;
+        const open = view.style.display !== 'none' && view.style.display !== '';
+        if (open) {
+          if (window.SpecMap && window.SpecMap.hide) window.SpecMap.hide();
+          specMapBtn.classList.remove('active');
+        } else {
+          // Close project launcher before showing spec map
+          ProjectLauncher.hide();
+          if (window.SpecMap && window.SpecMap.show) window.SpecMap.show();
+          if (window.SpecMap && window.SpecMap.init) window.SpecMap.init();
+          specMapBtn.classList.add('active');
+        }
+      });
     });
   }
 
@@ -1247,18 +1261,38 @@ const GitStatusManager = (() => {
   })();
 
   // --- Initialize ---
+  // SPEC-073: register init tasks with ConsoleReadiness so the global bar reflects real progress.
+  const CR = window.ConsoleReadiness;
+  if (CR) {
+    CR.begin('session_restore', 'Restoring sessions');
+    CR.begin('governance_bootstrap', 'Loading governance state');
+    CR.begin('agy_auth_probe', 'Checking agy auth');
+    CR.begin('spec_map_init', 'Initialising spec map');
+  }
+
   initOverlayTabs();
   initSettings();
   ProjectLauncher.init();
   GuideSystem.init();
   ContextPanel.initWatchers();
   SCRAlerts.init();
-  
+
   SessionManager.restore().then(() => {
+    if (CR) CR.end('session_restore');
     if (SessionManager.getAll().length === 0) {
       ProjectLauncher.toggle();
     }
-  });
+  }).catch(() => { if (CR) CR.end('session_restore'); });
+
+  // Best-effort: mark the other tasks done shortly after DOM boot completes.
+  // Individual modules can call end() earlier if they finish sooner.
+  setTimeout(() => {
+    if (!CR) return;
+    if (typeof GovernancePanel !== 'undefined') CR.end('governance_bootstrap');
+    if (window.SpecMap) CR.end('spec_map_init');
+    // agy probe is genuinely long-running; give it its own 8s window
+    setTimeout(() => CR.end('agy_auth_probe'), 5000);
+  }, 1200);
 
   SessionManager.updateStatusBar();
   GitStatusManager.startPolling();

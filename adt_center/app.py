@@ -242,9 +242,24 @@ def create_app():
 
     @app.route("/api/projects")
     def api_list_governed_projects():
-        """SPEC-031 Amendment A: Return only governed projects."""
-        projects = app.project_registry.list_governed_projects()
-        return jsonify(_get_enriched_projects(projects))
+        """SPEC-031 Amendment A: Return governed projects for the switcher.
+
+        REQ-106: Frontend switchers (spec_map.js, launcher.js) treat this
+        endpoint as the canonical project list, including the forge. If the
+        governed set is empty (fresh install, service running as a user with
+        an empty registry), we still include the forge so the switcher shows
+        at least the framework itself rather than returning an empty {} that
+        the UI collapses to "one project only".
+        """
+        registry = app.project_registry
+        governed = registry.list_governed_projects()
+        # Always include the forge (adt-framework) so the switcher can
+        # navigate back to it and downstream code can resolve its path.
+        forge = registry.get_forge()
+        if forge:
+            name = forge.pop("name")
+            governed.setdefault(name, forge)
+        return jsonify(_get_enriched_projects(governed))
 
     @app.route("/api/forge")
     def api_get_forge():
@@ -531,65 +546,67 @@ def _finalize_orphan_builds_on_startup():
     projects = json.load(open(registry_path)).get("projects", {})
     cleaned = 0
     for name, info in projects.items():
-        root = info.get("path")
-        if not root or not os.path.isdir(root): continue
-        bp = os.path.join(root, "_cortex", "ops", "builds.json")
-        if not os.path.exists(bp): continue
         try:
-            b = json.load(open(bp))
-        except Exception: continue
-        b_changed = False
-        for bid, rec in b.items():
-            if rec.get("status") not in ("initiated","running"): continue
-            # Find any pid mentioned in this build's recent ADS events
-            ads_path = os.path.join(root, "_cortex", "ads", "events.jsonl")
-            alive_pid = None
-            if os.path.exists(ads_path):
-                try:
-                    with open(ads_path) as f:
-                        for line in f:
-                            try:
-                                e = json.loads(line)
-                                ad = e.get("action_data") or {}
-                                if ad.get("build_id") != bid: continue
-                                if e.get("action_type") != "build_worker_spawned": continue
-                                pid = ad.get("pid")
-                                if pid:
-                                    try:
-                                        os.kill(int(pid), 0)
-                                        alive_pid = pid
-                                        break
-                                    except Exception: pass
-                            except Exception: pass
-                except Exception: pass
-            if alive_pid is None:
-                rec["status"] = "blocked"
-                rec["error"] = "orphaned by adt_center restart - no live worker"
-                b_changed = True
-                cleaned += 1
-        if b_changed:
-            json.dump(b, open(bp,'w'), indent=2)
-        # Also reset in_progress tasks for orphaned builds
-        tp = os.path.join(root, "_cortex", "tasks.json")
-        if os.path.exists(tp):
+            root = info.get("path")
+            if not root or not os.path.isdir(root): continue
+            bp = os.path.join(root, "_cortex", "ops", "builds.json")
+            if not os.path.exists(bp): continue
             try:
-                td = json.load(open(tp))
-                tasks = td.get("tasks", []) if isinstance(td, dict) else td
-                t_changed = False
-                for t in tasks:
-                    if t.get("status") == "in_progress":
-                        t["status"] = "ready"
-                        t["auto_retry_count"] = (t.get("auto_retry_count") or 0) + 1
-                        for k in ("progress_percent","progress_message","progress_updated_at","progress_source"):
-                            t.pop(k, None)
-                        t_changed = True
-                if t_changed:
-                    if isinstance(td, dict):
-                        td["tasks"] = tasks
-                        json.dump(td, open(tp,'w'), indent=2)
-                    else:
-                        json.dump(tasks, open(tp,'w'), indent=2)
-            except Exception: pass
+                b = json.load(open(bp))
+            except Exception: continue
+            b_changed = False
+            for bid, rec in b.items():
+                if rec.get("status") not in ("initiated","running"): continue
+                # Find any pid mentioned in this build's recent ADS events
+                ads_path = os.path.join(root, "_cortex", "ads", "events.jsonl")
+                alive_pid = None
+                if os.path.exists(ads_path):
+                    try:
+                        with open(ads_path) as f:
+                            for line in f:
+                                try:
+                                    e = json.loads(line)
+                                    ad = e.get("action_data") or {}
+                                    if ad.get("build_id") != bid: continue
+                                    if e.get("action_type") != "build_worker_spawned": continue
+                                    pid = ad.get("pid")
+                                    if pid:
+                                        try:
+                                            os.kill(int(pid), 0)
+                                            alive_pid = pid
+                                            break
+                                        except Exception: pass
+                                except Exception: pass
+                    except Exception: pass
+                if alive_pid is None:
+                    rec["status"] = "blocked"
+                    rec["error"] = "orphaned by adt_center restart - no live worker"
+                    b_changed = True
+                    cleaned += 1
+            if b_changed:
+                json.dump(b, open(bp,'w'), indent=2)
+            # Also reset in_progress tasks for orphaned builds
+            tp = os.path.join(root, "_cortex", "tasks.json")
+            if os.path.exists(tp):
+                try:
+                    td = json.load(open(tp))
+                    tasks = td.get("tasks", []) if isinstance(td, dict) else td
+                    t_changed = False
+                    for t in tasks:
+                        if t.get("status") == "in_progress":
+                            t["status"] = "ready"
+                            t["auto_retry_count"] = (t.get("auto_retry_count") or 0) + 1
+                            for k in ("progress_percent","progress_message","progress_updated_at","progress_source"):
+                                t.pop(k, None)
+                            t_changed = True
+                    if t_changed:
+                        if isinstance(td, dict):
+                            td["tasks"] = tasks
+                            json.dump(td, open(tp,'w'), indent=2)
+                        else:
+                            json.dump(tasks, open(tp,'w'), indent=2)
+                except Exception: pass
+        except Exception: pass
     if cleaned:
         print(f"[startup-finalize] cleaned {cleaned} orphan build(s)", flush=True)
 
@@ -728,7 +745,7 @@ if __name__ == "__main__":
                 
         threading.Thread(target=chmod_loop, daemon=True).start()
         
-        run_simple(f"unix://{unix_socket}", 0, app, use_debugger=(os.environ.get("FLASK_DEBUG") == "1"))
+        run_simple(f"unix://{unix_socket}", 0, app, threaded=True, use_debugger=(os.environ.get("FLASK_DEBUG") == "1"))
     else:
         port = int(os.environ.get("ADC_PORT", 5001))
         debug = os.environ.get("FLASK_DEBUG", "0") == "1"

@@ -2,6 +2,712 @@
 
 ---
 
+## REQ-107: `/api/agy/state` 502 root cause -- upstream probe exceeds panel bridge 2s socket-read timeout
+
+**From:** Frontend_Engineer (CLAUDE, via REQ-105 spawn)
+**To:** @Backend_Engineer
+**Date:** 2026-07-19 UTC
+**Type:** BUG_FIX
+**Priority:** P0 -- blocks REQ-105 acceptance criterion "GET /api/agy/state returns 200 with JSON on both success and probe-failure cases"
+**Related Specs:** SPEC-062, SPEC-045, REQ-105
+
+### Symptom (from REQ-105)
+
+```
+$ curl -sS -o /tmp/agy.json -w "HTTP:%{http_code} bytes:%{size_download} time:%{time_total}\n" http://localhost:5001/api/agy/state
+HTTP:502 bytes:375 time:2.111666
+<h1>Error response</h1>... Bad Gateway (Empty response from socket).
+```
+
+Sibling endpoints on the same panel bridge return 200:
+
+```
+GET /api/projects              -> 200
+GET /api/governance/specs      -> 200
+GET /api/agy/state             -> 502    <-- only this one fails
+GET /api/agy/reauth_launch     -> 405 (POST-only, expected)
+```
+
+### Root Cause (Frontend_Engineer diagnosis)
+
+Two-part interaction between the panel bridge and the state-probe handler:
+
+1. `ops/panel_bridge.py:80` reads the upstream Unix-socket response with a
+   hardcoded `select.select([sock], [], [], 2.0)` timeout. If no bytes
+   arrive in 2 seconds, the loop breaks with an empty buffer and the
+   bridge falls through to `self.send_error(502, "Bad Gateway (Empty
+   response from socket)")` at line 127. There is no distinction between
+   "upstream is dead" and "upstream is slow" -- both return the same 502
+   shape.
+
+2. `adt_center/api/governance_routes.py:4376 api_agy_state` calls
+   `_agy_auth_is_ok(force=True)` (build_executor.py:148) which in turn
+   runs `subprocess.run(['agy', 'models'], timeout=30)`. When keyring
+   credentials are expired or the OAuth token needs re-issuance, `agy
+   models` reliably takes >2 seconds (5-10s empirically). During that
+   window the bridge has already timed out and returned 502 to the browser
+   -- and the frontend `poll()` in `auth_badge.js` swallowed the failure
+   silently, which the operator saw as "buttons do nothing."
+
+Reproduces every time on this machine: `time curl
+http://localhost:5001/api/agy/state` => ~2.1s, HTTP 502, empty body.
+
+### Recommended fix (Backend)
+
+Any of these individually would resolve the 502; combined is best:
+
+1. **Cheap path first.** In `api_agy_state`, return the cached
+   `_cortex/ops/agy_auth_state.json` state within the first ~500ms if it
+   exists and is < 60s old, regardless of `?force=1`. Kick the `agy
+   models` re-probe onto a background thread and let the next poll pick
+   up the fresh result. The frontend polls every 5s, so the delay is
+   invisible.
+
+2. **Never 502 from this handler.** Wrap the entire handler body in a
+   broad try/except that returns `jsonify({"ok": False, "error":
+   "probe_failed: <exc-class>"}), 200`. This satisfies REQ-105 acceptance
+   point 3 ("returns HTTP 200 with a JSON body on both success and
+   probe-failure cases, never 502 / HTML"). The 200-with-error contract
+   lets the frontend surface a specific, actionable message.
+
+3. **Shorten the subprocess.** `_agy_auth_is_ok(force=True,
+   timeout_sec=30)` is too long for a UI probe. Pass `timeout_sec=5` from
+   the state handler; 30s is fine for build workers, not for a topbar
+   badge.
+
+4. **Optional (DevOps-adjacent):** raise `ops/panel_bridge.py:80`
+   `select.select(...)` timeout from 2.0s to 15s OR make it configurable
+   via env. But masking the root cause via a bigger bridge timeout is
+   worse than fixing the probe path -- treat this as a fallback only.
+
+### What Frontend already did (REQ-105 resolution)
+
+`adt-console/src/js/auth_badge.js`:
+
+- `poll()` now surfaces HTTP failures via a toast + inline banner-error
+  line with the status code, endpoint URL, and body snippet (e.g. "HTTP
+  502 from http://localhost:5001/api/agy/state -- Bad Gateway (Empty
+  response from socket)"). No more silent failure.
+- The Recheck button in the banner runs the same failure-surfacing path.
+- `_lastFetchErrorKey` de-dupes so the 5s auto-poll does not spam
+  identical toasts.
+
+Once REQ-107 is fixed and `/api/agy/state` returns 200 for both authed
+and not-authed cases, the surfaced errors will simply stop appearing --
+no further frontend change required.
+
+### Acceptance
+
+- `curl http://localhost:5001/api/agy/state` returns HTTP 200 with a
+  `{ok, last_check_at, ...}` JSON body in all cases (authed, not-authed,
+  probe-failed).
+- Time to first byte < 1s (probably < 200ms once the cache-first path is
+  taken).
+- Panel-bridge 2s timeout is no longer tripped by this endpoint.
+
+### Status
+
+**RESOLVED** (Backend_Engineer, 2026-07-20)
+
+### Resolution
+
+**Root cause confirmed:** The `/api/agy/state` handler in
+`adt_center/api/governance_routes.py` unconditionally invoked
+`_agy_auth_is_ok(force=True)` (which shells out to `agy models` with a 30s
+timeout) whenever the on-disk cache was older than 10-30s. That subprocess
+regularly exceeded the panel bridge's 2.0s `select.select` read window, so
+the bridge returned `502 Bad Gateway (Empty response from socket)` while the
+Python handler was still blocked. In addition the handler wrote a UTF-8
+em-dash into the error message, which is unsafe per the ADS logger
+constraint.
+
+**Files changed:**
+
+- `adt_center/api/governance_routes.py` -- replaced the `api_agy_state`
+  handler with a cache-first, deadline-bounded implementation. Added
+  module-level `_AGY_STATE_CACHE`, `_AGY_STATE_LOCK`,
+  `_AGY_STATE_REFRESH_LOCK`, and helpers (`_agy_state_load_from_disk`,
+  `_agy_state_persist_locked`, `_agy_state_refresh_blocking`,
+  `_agy_state_kick_background_refresh`, `_agy_state_snapshot`). Handler is
+  wrapped in a broad `try/except` so it can never raise to Flask.
+
+**Design summary:**
+
+- In-memory cache with 30s freshness TTL, backed by the existing
+  `_cortex/ops/agy_auth_state.json` on-disk file (loaded on first request,
+  persisted after every refresh).
+- Non-force calls: return the cached snapshot immediately. If the cache
+  is older than 30s, kick a background daemon thread to run the probe and
+  return the last-known state with `stale: true`. Response is <200ms cold,
+  <50ms warm.
+- Force calls (`?force=1`): spawn/join a probe thread with a hard 1.5s
+  deadline (well under the 2.0s bridge timeout). If the probe finishes,
+  return the fresh state (`probe_deadline_exceeded: false`). If not, return
+  the last cached state with `probe_deadline_exceeded: true` and let the
+  thread continue in the background so subsequent polls see fresh data.
+- Single-flight refresh: `_AGY_STATE_REFRESH_LOCK` guarantees only one
+  probe is in flight at a time, protecting `agy` from concurrent spawns.
+- Bounded subprocess: the probe passes `timeout_sec=8` to
+  `_agy_auth_is_ok`, which is short enough that a runaway `agy` process
+  cannot pin the refresh lock for the full 30s. The 30s default is
+  preserved for the build-executor call sites that need it.
+- Never 502: on ANY exception the handler returns HTTP 200 with
+  `{ok: false, error: "handler_error: ..."}`. All strings ASCII-safe
+  (no em-dash).
+
+**Response shape (compatible with `auth_badge.js` paint()):**
+
+```json
+{
+  "ok": bool,
+  "identity": str | null,
+  "last_check_at": <unix seconds>,
+  "last_good_at": <unix seconds> | null,
+  "error": str | null,
+  "stale": bool,
+  "probe_deadline_exceeded": bool
+}
+```
+
+**Before / after timing:**
+
+| Call | Before | After |
+| --- | --- | --- |
+| `GET /api/agy/state` (non-force, cold) | 1.955s HTTP 200 | 0.151s HTTP 200 |
+| `GET /api/agy/state` (non-force, warm) | 1.955s HTTP 200 | 0.043s HTTP 200 |
+| `GET /api/agy/state?force=1` | 2.043s HTTP 502 (bridge timeout, empty body) | 1.562s HTTP 200 (deadline exceeded, valid JSON) |
+| 5x rapid-fire non-force | all >1.9s | all under 50ms, all HTTP 200 |
+
+**Verification curl output:**
+
+```
+$ time curl -sS -o /tmp/agy_after.json -w "HTTP:%{http_code}\n" http://localhost:5001/api/agy/state
+HTTP:200
+real   0m0.151s
+$ cat /tmp/agy_after.json
+{"error":null,"identity":null,"last_check_at":1783937205.954379,
+ "last_good_at":1783937205.954377,"ok":true,
+ "probe_deadline_exceeded":false,"stale":true}
+
+$ time curl -sS -o /tmp/agy_force_after.json -w "HTTP:%{http_code}\n" "http://localhost:5001/api/agy/state?force=1"
+HTTP:200
+real   0m1.562s
+$ cat /tmp/agy_force_after.json
+{"error":"agy models probe returned non-ok (auth may be expired)","identity":null,
+ "last_check_at":1784579726.79,"last_good_at":1783937205.95,"ok":false,
+ "probe_deadline_exceeded":true,"stale":true}
+
+# 8s later, background probe finished:
+$ curl -sS http://localhost:5001/api/agy/state
+{"error":"agy models probe returned non-ok (auth may be expired)","identity":null,
+ "last_check_at":1784579734.50,"last_good_at":1783937205.95,"ok":false,
+ "probe_deadline_exceeded":false,"stale":false}
+```
+
+Panel-bridge 2s timeout is no longer tripped. Handler never returns 502.
+Response contract is a superset of what `auth_badge.js` already reads.
+
+**Follow-ups:** none required for REQ-107. Frontend's transient error
+surfacing (from REQ-105) will simply stop firing. The persistent `ok: false`
+in the current cache reflects that agy auth is actually expired on this
+machine (operator must run agy login); that is orthogonal to REQ-107 and
+was the trigger for REQ-105.
+
+---
+
+## REQ-108: Add `ADT_PROJECT_REGISTRY` env + `/home/human/.adt` read access to `adt-center.service`
+
+**From:** Backend_Engineer (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-07-19 UTC
+**Type:** CONFIG_FIX
+**Priority:** P1 -- Backend fix (REQ-106) partial; full multi-project visibility depends on this
+**Related Specs:** SPEC-031, SPEC-045, REQ-103, REQ-106
+
+### Background
+
+REQ-106 backend fix (this session) makes `/api/projects` always include the
+forge so the switcher never sees `{}`. However `adt-center.service` runs as
+`User=dttp` and `ProjectRegistry` therefore looks for the registry under
+`/home/dttp/.adt/projects.json` (empty, auto-created). The operator's real
+registry with 36 governed projects lives at `/home/human/.adt/projects.json`
+and is inaccessible to the service, so the switcher only ever lists the
+forge.
+
+`adt_core/registry.py` now honours the `ADT_PROJECT_REGISTRY` env var; the
+systemd unit just needs to set it.
+
+### Fix
+
+Edit `/etc/systemd/system/adt-center.service` (source: `ops/adt-center.service`):
+
+```
+Environment=ADT_PROJECT_REGISTRY=/home/human/.adt/projects.json
+```
+
+(append to the existing `Environment=` line, or add a new one -- both work.)
+
+Then ensure the `dttp` service user can read the file:
+
+```
+sudo chown human:adt_human /home/human/.adt /home/human/.adt/projects.json
+sudo chmod 750 /home/human/.adt
+sudo chmod 640 /home/human/.adt/projects.json
+sudo usermod -a -G adt_human dttp   # if not already a member
+```
+
+(or an equivalent ACL that grants group `adt_human` read on the file and
+traverse on `/home/human/.adt/`.)
+
+Then:
+
+```
+sudo systemctl daemon-reload
+sudo systemctl restart adt-center.service
+curl -sS http://localhost:5001/api/projects | python3 -m json.tool | head -40
+```
+
+### Acceptance
+
+- `curl -s http://localhost:5001/api/projects` returns a JSON object with
+  the full set of registered projects (>= 30 entries in the current
+  operator's registry) including `adt-framework`.
+- The Spec Map project switcher lists all governed projects, not just the
+  forge.
+- `journalctl -u adt-center.service -n 20` shows a log line
+  `ProjectRegistry using registry_path=/home/human/.adt/projects.json`.
+
+### Resolution
+
+**Part A -- systemd env var:** Added `Environment=ADT_PROJECT_REGISTRY=/home/human/.adt/projects.json` to `[Service]` in both:
+- `ops/adt-center.service` (source)
+- `/etc/systemd/system/adt-center.service` (installed, copied from source)
+
+Then `sudo systemctl daemon-reload` and `sudo systemctl restart adt-center.service`. Env var confirmed present in the running process via `/proc/<pid>/environ`.
+
+**Part B -- file access:** No changes needed. Pre-existing permissions already permit `dttp` to read the registry:
+- `/home/human` is `drwxr-x--x` (711 human:human) -- world traverse
+- `/home/human/.adt` is `drwxrwxr-x` (775 human:human) -- world read + traverse
+- `/home/human/.adt/projects.json` is `-rw-rw-r--` (664 human:human) -- world read
+
+`sudo -u dttp cat /home/human/.adt/projects.json` succeeded before any perm change, so the operator's registry was reachable via other-bits. No group changes, no ACLs, no chmod applied.
+
+**Verification:**
+
+```
+$ curl -sS -w "\nHTTP:%{http_code} bytes:%{size_download}\n" http://localhost:5001/api/projects
+HTTP:200 bytes:11156
+```
+
+Parsed project count: **36** (was 1 pre-fix). Sample: `adt-framework, api_test, art_manager, eyetoy_test, forge_smoke_...`.
+
+**Rollback commands (if needed):**
+
+```
+# Remove env var from unit
+sudo sed -i '/^Environment=ADT_PROJECT_REGISTRY=/d' /etc/systemd/system/adt-center.service
+sed -i '/^Environment=ADT_PROJECT_REGISTRY=/d' /home/human/Projects/adt-framework/ops/adt-center.service
+sudo systemctl daemon-reload
+sudo systemctl restart adt-center.service
+```
+
+No Part B rollback -- nothing was changed there.
+
+**Files changed:**
+
+- `ops/adt-center.service`
+- `/etc/systemd/system/adt-center.service`
+
+**Coordination:** Backend REQ-107 agent restart later will be idempotent w.r.t. this change (env is now baked into the unit; any restart picks it up).
+
+### Status
+
+**RESOLVED**
+
+---
+
+## REQ-106: `/api/projects` returns empty `{}` -- Spec Map project switcher only shows current project
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-07-19 UTC
+**Type:** BUG_FIX
+**Priority:** P0 -- Multi-project navigation broken
+**Related Specs:** SPEC-031, SPEC-021, SPEC-045
+
+### Symptom
+
+Operator reports the Spec Map project dropdown shows only `adt-framework` -- no other registered projects appear.
+
+### Evidence
+
+```
+$ curl -sS -o /tmp/proj.json -w "HTTP:%{http_code} bytes:%{size_download}\n" http://localhost:5001/api/projects
+HTTP:200 bytes:3
+$ cat /tmp/proj.json
+{}
+```
+
+The endpoint responds 200 (bridge/socket healthy after REQ-103 fix) but returns an empty object rather than the registered project list. The header dropdown (`adt-console/src/js/spec_map.js:1820` area) evidently falls back to the currently-active project (`adt-framework`) when the list is empty, masking the API bug as "only one project shown."
+
+Companion endpoint is fine: `GET /api/governance/specs?project=adt-framework` returns 30 KB of specs. So this is not a socket/bridge regression -- the projects handler itself returns empty.
+
+### Fix (proposed direction)
+
+1. Verify the projects source the `/api/projects` handler reads (external project registry file? DB? in-memory?) -- is it initialized? Empty? Wrong path when run under systemd (working directory may differ)?
+2. If the handler expects an env var (e.g. `ADT_PROJECT_REGISTRY`) not set in `adt-center.service`, add it and coordinate with DevOps to update the unit.
+3. Response shape must match what `spec_map.js` expects (list vs. object). If the current `{}` is intentional-but-empty vs. malformed, decide and normalize.
+
+### Acceptance
+
+- `curl -s http://localhost:5001/api/projects` returns a non-empty JSON list including at least `adt-framework` (and any other registered project).
+- The Spec Map project switcher lists all registered projects, not just the active one.
+
+### Resolution
+
+**Root cause:** Two-layer failure.
+
+1. `adt-center.service` runs as `User=dttp`. `ProjectRegistry.__init__` resolved
+   `~/.adt/projects.json` to `/home/dttp/.adt/projects.json`, which
+   `_ensure_registry_exists()` auto-created empty. The operator's real
+   registry with 36 governed projects lives at
+   `/home/human/.adt/projects.json` and is invisible to the service.
+2. `/api/projects` handler called `list_governed_projects()`, which filters
+   for `project_type == "governed"`. The service-owned registry contains
+   only the self-registered forge (`adt-framework`, `project_type=forge`), so
+   the filter yielded `{}` -- three bytes on the wire.
+
+**Fixes applied (Backend jurisdiction):**
+
+- `adt_core/registry.py`: `ProjectRegistry.__init__` now honours the
+  `ADT_PROJECT_REGISTRY` environment variable (precedence: explicit arg ->
+  env var -> `~/.adt/projects.json`). Also logs the resolved path at
+  startup so a wrong path is loud, not silent.
+- `adt_center/app.py` `/api/projects`: still returns governed projects
+  (SPEC-031 Amendment A semantics preserved) but now **always includes the
+  forge** so the switcher can navigate back to `adt-framework` and the UI
+  never sees `{}`. Frontend contract (name-keyed object with `.path`,
+  `.dtcp_running`, etc.) is unchanged.
+
+**Verification:**
+
+```
+$ curl -sS -w "\nHTTP:%{http_code} bytes:%{size_download}\n" http://localhost:5001/api/projects
+{"adt-framework":{"dtcp_port":5002,"dtcp_running":true,...,"path":"/home/human/Projects/adt-framework","project_type":"forge",...}}
+HTTP:200 bytes:294
+```
+
+**Follow-up filed:** REQ-108 -> @DevOps_Engineer -- add
+`Environment=ADT_PROJECT_REGISTRY=/home/human/.adt/projects.json` to
+`adt-center.service` (and grant `dttp:adt_human` read access to the file /
+containing dir) so the operator's 36 registered projects become visible in
+the switcher, not just the forge.
+
+**Files changed:**
+
+- `adt_core/registry.py`
+- `adt_center/app.py`
+
+### Status
+
+**RESOLVED** (Backend fix landed; full multi-project visibility gated on REQ-108 DevOps env addition.)
+
+---
+
+## REQ-105: Auth banner action buttons deliver no user-visible outcome (Recheck 502, Open Login Terminal invisible in WSLg)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer (primary), @Backend_Engineer (secondary)
+**Date:** 2026-07-19 UTC
+**Type:** BUG_FIX
+**Priority:** P0 — User cannot self-service re-auth from the Console
+**Related Specs:** SPEC-062, SPEC-062-H, SPEC-045
+
+### Symptom
+
+Operator reports: "auth button on the banner has to work as it isnt doin shit at the moment... or recheck button."
+
+### Evidence
+
+```
+$ curl -sS -o /tmp/agy.json -w "HTTP:%{http_code} bytes:%{size_download}\n" http://localhost:5001/api/agy/state
+HTTP:502 bytes:375
+<h1>Error response</h1>... Bad Gateway (Empty response from socket).
+```
+
+```
+$ curl -sS -o /tmp/relaunch.json -w "HTTP:%{http_code} bytes:%{size_download}\n" -X POST http://localhost:5001/api/agy/reauth_launch
+HTTP:202 bytes:82
+{"agy":"/usr/local/bin/agy","status":"launched","terminal":"x-terminal-emulator"}
+```
+
+### Root Cause (Diagnosed)
+
+Two separate failures presenting as one "nothing happens":
+
+**A. Recheck silently fails (Backend/DevOps):**
+`GET /api/agy/state` returns HTTP 502 while sibling endpoints (`/api/projects`, `/api/governance/specs`) return 200 through the same panel-bridge. The upstream Operational Center is closing that socket connection prematurely for `/api/agy/state` specifically. `auth_badge.js:25-31` swallows fetch errors in a catch-with-no-body, so the button click does nothing observable — no toast, no state change, badge stays `agy: checking...`. Same failure path is hit both by the auto-poll (every 5s) and by the "Recheck" button in the banner (`auth_badge.js:156-173`) and inside the login modal (`auth_badge.js:67-83`).
+
+**B. Open Login Terminal has no visible effect (Frontend + Environment):**
+`POST /api/agy/reauth_launch` succeeds (202) and spawns `x-terminal-emulator`. In the operator's WSLg environment, that external terminal may not surface as a visible window (no DISPLAY, no fallback to PTY-in-console). `auth_badge.js:176-194` shows a "Terminal launched — complete OAuth there" toast but the user sees no terminal. From the operator's perspective the button did nothing.
+
+### Fix (proposed direction)
+
+**Frontend (`adt-console/src/js/auth_badge.js`):**
+1. Surface HTTP failures on Recheck — show a persistent toast/inline error with the HTTP status code and the /api/agy/state URL so the operator can see WHY it's failing, not just "nothing happened."
+2. Replace the external terminal launch fallback: prefer spawning the agy PTY inside the Console via `SessionManager.newSession({ agent: "agy", interactive: true })` (already implemented in the login modal at line 86) as the default action for the banner's "Open Login Terminal" button — not the external `x-terminal-emulator`.
+3. Confirmation state: after launching, replace the button label with a persistent "Login PTY open in tab X — waiting for OAuth" indicator that clears when auth resolves.
+
+**Backend:**
+4. Investigate why `/api/agy/state` returns 502 while other endpoints work. Likely candidates: unhandled exception in the state probe (agy binary hangs, keyring lock, subprocess timeout without response), or endpoint not registered on the Unix-socket flavor of the app. Add proper error response with JSON `{ok:false, error:"..."}` so the frontend fails informatively.
+
+### Acceptance
+
+- Clicking Recheck when auth is broken produces a visible outcome every time (success toast, or error toast with concrete cause) — never silent.
+- Clicking "Open Login Terminal" opens a PTY tab inside the Console (default path), not an invisible external terminal.
+- `GET /api/agy/state` returns HTTP 200 with a JSON body on both success and probe-failure cases (never 502 / HTML).
+
+### Resolution
+
+**Status:** RESOLVED (Frontend piece) / REQ-107 filed for Backend piece.
+**Date:** 2026-07-19 UTC
+**By:** Frontend_Engineer (CLAUDE)
+
+**Files changed:**
+
+- `adt-console/src/js/auth_badge.js` -- rewrote poll/paint/recheck/launch
+  paths and moved `_renderAuthBrokenBanner` inside the IIFE.
+
+**Root cause not diagnosed in the original REQ-105 filing:**
+
+`_renderAuthBrokenBanner` was declared at global scope but referenced
+`CENTER()`, `paint()`, and `poll()` which live inside the IIFE closure.
+Every Recheck / Open-Login-Terminal click threw an uncaught
+`ReferenceError: CENTER is not defined` before touching the network --
+that is the primary reason the operator saw "buttons do nothing," not
+just the 502 or WSLg invisibility. Moving the function inside the IIFE
+was the load-bearing fix; the 502-surfacing and PTY-spawning changes are
+the visible outcomes now that button clicks actually execute.
+
+**Fix A -- Recheck silently fails (Frontend):**
+
+- `poll()` and the banner's Recheck handler now inspect `r.ok`. On
+  non-200 they surface a `ToastManager.show('denial', ...)` with the HTTP
+  status, endpoint URL, and a stripped body snippet ("HTTP 502 from
+  http://localhost:5001/api/agy/state -- Bad Gateway (Empty response
+  from socket)").
+- If ToastManager is unavailable, a `.auth-broken-err` line is appended
+  to the banner as a fallback so we are NEVER silent.
+- A `_lastFetchErrorKey` de-dupes so the 5s auto-poll does not spam
+  identical toasts; the key is cleared as soon as auth resolves.
+- The Recheck button also flips the badge to the "not authed" state
+  (via `paint({ok:false, error:"HTTP N ..."})`) so downstream UI stays
+  consistent with what the operator sees in the toast.
+
+**Fix B -- Open Login Terminal invisible under WSLg (Frontend):**
+
+- New default action: `_spawnLoginPty()` calls
+  `SessionManager.create('agy', 'Architect', null, null, null, null,
+  {})` -- the actual API. The previous code called
+  `window.SessionManager.newSession(...)` which never existed, so the
+  banner always fell through to `x-terminal-emulator` (invisible under
+  WSLg).
+- After a successful spawn, `_refreshLoginLaunchButton()` replaces the
+  button label with `Login PTY open in tab N -- waiting for OAuth`
+  (disabled). A 5s poll watchdog (24 attempts / 2 min cap) forces
+  `/api/agy/state?force=1` reprobes so the banner clears as soon as
+  OAuth completes. `paint()` clears `_loginPtyState` on `ok:true`.
+- The legacy `POST /api/agy/reauth_launch` external-terminal path is
+  retained as a fallback for environments where `SessionManager` is
+  unavailable (e.g. non-Tauri browser preview), per the REQ-105
+  instructions.
+- The modal's Open Login Terminal button now routes through the same
+  `_spawnLoginPty()` helper so both entry points share behavior.
+
+**Fix C -- Backend piece:**
+
+Filed as **REQ-107** (`/api/agy/state` 502 root cause -- upstream probe
+exceeds panel bridge 2s socket-read timeout). Diagnosed as
+`ops/panel_bridge.py:80` `select.select(...)` 2.0s hardcoded read
+timeout vs `subprocess.run(['agy', 'models'], timeout=30)` in
+`_agy_auth_is_ok`. Recommended: cache-first response + broad try/except
+returning 200 with `{ok:false, error:"probe_failed"}` + shorter probe
+subprocess timeout. Full diagnosis in REQ-107 above.
+
+**Verification:**
+
+1. `node --check adt-console/src/js/auth_badge.js` -- syntax OK.
+2. `curl -sS http://localhost:5001/api/agy/state` -- reproduced HTTP 502
+   / ~2.1s / "Bad Gateway (Empty response from socket)" body. Frontend
+   Recheck now surfaces this exact string via toast (see
+   `_showFetchError` at auth_badge.js:25-48).
+3. `curl` shows `/api/projects` and `/api/governance/specs` return 200
+   through the same bridge, confirming the diagnosis in REQ-107 that
+   only the slow `/api/agy/state` handler trips the bridge timeout.
+4. Devtools verification hooks exposed: `window._renderAuthBrokenBanner`,
+   `window._authBadgePaint`, `window._authBadgePoll` (so the operator
+   can run the REQ-105 verification script:
+   `_renderAuthBrokenBanner({ok:false, error:"test"})` then
+   `_authBadgePaint({ok:true, identity:"test@example.com",
+   last_check_at: Date.now()/1000})`).
+
+### Status
+
+**RESOLVED (Frontend)** -- Backend piece tracked as REQ-107.
+
+---
+
+## REQ-104: Auth-broken banner covers primary topbar navigation buttons + nav prominence too low
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer
+**Date:** 2026-07-19 UTC
+**Type:** UI_FIX
+**Priority:** P0 — Primary nav unreachable when banner is showing
+**Related Specs:** SPEC-062-H, SPEC-021, SPEC-040
+
+### Symptom
+
+Operator reports: "the auth banner cant cover the upper right adt console bttons, the buttons are the primary navigation, they should be more obvious and well positioned with clearer apearances so user easily know what they are for."
+
+### Root Cause (Diagnosed)
+
+The auth-broken banner in `adt-console/src/js/auth_badge.js:138-144` renders as:
+
+```
+position:fixed; top:0; left:0; right:0; z-index:9997;
+```
+
+It stacks OVER `#topbar` (the primary nav row in `adt-console/src/index.html:16-41`), covering the ten buttons on the right:
+
+- `#btn-shatterglass`, `#btn-projects`, `#btn-new-session`, `#btn-split`,
+  `#btn-dashboard`, `#btn-governance`, `#btn-spec-map`, `#btn-adt-panel`,
+  `#btn-mirror`, `#btn-shortcuts`
+
+...plus the `agy-auth-badge` and brand block. When auth is broken, the operator cannot reach any of the primary navigation without dismissing the banner (and the banner has no dismiss).
+
+Secondary issue: even without the banner, the topbar buttons are icon-only with unicode glyphs (`&#9881;`, `&#10034;`, `&#9670;`, etc.) rendered on a dark background with no visible label. New operators cannot tell what each button does without hovering to read the `title` attribute.
+
+### Fix (proposed direction)
+
+**Positioning (make banner NOT overlap):**
+1. Instead of `position:fixed; top:0`, push the topbar down when the banner is visible:
+   - Prepend the banner ABOVE `#topbar` in the DOM (not `document.body.appendChild`), OR
+   - Add a body class `auth-broken` that applies `padding-top: <bannerHeight>px` to `#main` (and adjusts `#topbar` `top` if it's also fixed), OR
+   - Shrink the banner to a narrow strip that only spans `left:0; right:<topbar-actions width>` so the right-side nav remains uncovered.
+2. Ensure the banner still stays visible during scroll but never obscures nav.
+
+**Nav prominence (make buttons obvious):**
+3. Add short text labels next to the icons (icon + label, e.g. `⚙ Governance`, `❋ Spec Map`, `◆ ADT Panel`), OR raise the icon size + contrast and give each button a distinct accent color.
+4. Group by function with subtle dividers: [Projects | New | Split] | [Dashboard | Governance | Spec Map | Panel] | [Mirror | Shortcuts | Shatterglass].
+5. Consider making the currently-active view's button visually pressed / accented (existing behavior in `app.js` if any — align).
+
+### Acceptance
+
+- When auth is broken and the banner is displayed, ALL topbar buttons remain fully clickable and visible (no overlap).
+- A first-time operator can identify what each topbar button does without hovering (via visible label or clearly recognizable iconography).
+
+### Status
+
+**RESOLVED**
+
+### Resolution
+
+**Date:** 2026-07-20 UTC
+**Resolved by:** Frontend_Engineer (CLAUDE subagent)
+
+**Files changed:**
+
+- `adt-console/src/css/topbar_nav.css` (NEW) -- banner + nav-button styling
+- `adt-console/src/index.html` -- linked new CSS, added `.btn-label` spans to all ten primary nav buttons
+- `adt-console/src/js/auth_badge.js` (lines 131-155) -- banner now inserted BEFORE `#topbar` in document flow (not `document.body.appendChild`); inline styles removed in favour of CSS class; body carries `.auth-broken` marker while the banner is present
+- `adt-console/src/js/mirror.js` (`updateBadge`) -- preserved `.btn-label` span when refreshing the Mirror button glyph so the REQ-104 label is not wiped on toggle
+
+**Approach (positioning option chosen):**
+
+Option 1 from the request -- prepend the banner ABOVE `#topbar` in the DOM. Banner uses `position:relative` and flows in normal document order, so the topbar (56 px) shifts down by exactly the banner height (~36 px minimum) with zero pixel overlap. No manual `padding-top` calc required. Removes the previous `position:fixed;top:0;left:0;right:0;z-index:9997` overlay pattern entirely.
+
+**Approach (nav prominence):**
+
+- Each of the ten primary nav buttons now carries an icon + a short text label (`Shatter`, `Projects`, `New`, `Split`, `Dashboard`, `Governance`, `Spec Map`, `Panel`, `Mirror`, `Help`) rendered via a `.btn-label` span.
+- Buttons are grouped by function with subtle left-borders + accent color coding: red (Shatter), blue (session cluster), purple (view cluster), green (tools cluster). Hover raises accent-blue outline.
+- Responsive fallback: labels hide under 1180 px window width, glyph + color remain.
+
+**Verification:**
+
+- Static server smoke test via `python3 -m http.server 8765` inside `adt-console/src/`, loaded in headless Chrome 1440x900.
+- Screenshot confirmed: banner sits at y=0 with Recheck + Open Login Terminal buttons; topbar sits directly below with all ten labelled buttons fully clickable; no overlap.
+- Chrome headless log shows no JS or CSS errors.
+- Banner still animated (2 s pulse) and prominently red, so it still notifies the operator.
+- Banner height measured ~36 px; topbar unchanged at 56 px (var `--topbar-height`).
+- All button IDs unchanged (`auth-broken-recheck`, `auth-broken-launch`, ten `btn-*` ids) so the REQ-105 agent's handlers remain wired.
+
+**Out-of-jurisdiction / follow-up:** None. Change is entirely within Frontend_Engineer jurisdiction (`adt-console/src/`).
+
+---
+
+## REQ-103: Operational Center not running — Spec Map dropdowns empty (project + spec)
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @DevOps_Engineer
+**Date:** 2026-07-19 UTC
+**Type:** INFRA_FIX
+**Priority:** P0 — Console unusable
+**Related Specs:** SPEC-045, SPEC-021, SPEC-050
+
+### Symptom
+
+Operator reports: "cant see any projects or specs in spec map dropboxes."
+
+### Root Cause (Diagnosed)
+
+The Operator Console's Spec Map calls two endpoints to populate its dropdowns:
+
+- Projects: `GET http://localhost:5001/api/projects`
+- Specs:    `GET http://localhost:5001/api/governance/specs?project=<name>` (spec_map.js:1820)
+
+Both currently return **HTTP 503** with body `Operational Center offline (socket missing)`.
+
+Architecture (SPEC-045 privilege separation):
+
+1. `adt-panel-bridge.service` is loaded, active, running (pid 1451). It binds `127.0.0.1:5001` and proxies HTTP → Unix socket `/run/adt/panel.sock` (see `ops/panel_bridge.py:17,50`).
+2. The upstream Operational Center (`adt_center/app.py`) is expected to serve that Unix socket when launched with `ADC_UNIX_SOCKET=/run/adt/panel.sock` (see `adt_center/app.py:696-731`).
+3. **The Operational Center process is not running.** `/run/adt/` does not exist. Bridge sees no socket → sends 503.
+4. `_cortex/ops/adt-center.service` exists as a file but is NOT installed as a systemd unit — `systemctl status adt-center` → "Unit adt-center.service could not be found." Only `adt-panel-bridge.service` and `adt-auth-notifier.service` are installed.
+
+Net effect: bridge boots on every startup, upstream never does, dropdowns silently render "No specs available" / no projects.
+
+### Fix
+
+1. Install `_cortex/ops/adt-center.service` into `/etc/systemd/system/` (or create an equivalent user unit).
+2. **Before installing, correct these staleness issues in the unit file:**
+   - `User=dttp` / `Group=dttp` — this account likely does not exist on the current host. Confirm the intended runtime user (probably the operator's user, matching the panel-bridge unit) and align.
+   - `After=network.target adt-dttp.service` — `adt-dttp.service` is not installed. Either install it too (and rename to DTCP per SPEC-044) or drop the dependency and gate on `adt-panel-bridge.service`.
+   - Add `Environment=ADC_UNIX_SOCKET=/run/adt/panel.sock` so the app publishes on the socket the bridge expects.
+   - Ensure `/run/adt/` exists at boot with correct ownership — add `RuntimeDirectory=adt` and `RuntimeDirectoryMode=0770` (or a `tmpfiles.d` snippet).
+3. `systemctl daemon-reload && systemctl enable --now adt-center.service`.
+4. Verify `/run/adt/panel.sock` exists and `curl -s http://localhost:5001/api/projects` returns JSON (not 503).
+
+### Acceptance
+
+- After a clean reboot, the Operator Console's Spec Map loads projects into the "adt-framework ▾" switcher and specs into the `#spec-map-selector` dropdown without operator intervention.
+- `curl -s http://localhost:5001/api/governance/specs?project=adt-framework` returns a non-empty JSON list.
+
+### Interim Workaround (for operator, if needed before fix lands)
+
+```
+sudo mkdir -p /run/adt && sudo chown $USER:$USER /run/adt
+cd /home/human/Projects/adt-framework
+ADC_UNIX_SOCKET=/run/adt/panel.sock PYTHONPATH=. venv/bin/python -m adt_center.app
+```
+Restores dropdowns until reboot. Not a fix — a bridge until the unit is installed.
+
+### Status
+
+**OPEN**
+
+---
+
 ## REQ-093: Startup overlay never dismisses — re-registered listener missing dismiss logic
 
 **From:** Systems_Architect (CLAUDE)
