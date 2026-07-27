@@ -1314,19 +1314,38 @@ const ProjectLauncher = (() => {
       const card = document.getElementById("mrr-analysis-card");
       if (card) {
         card.style.display = "block";
-        fetch(`${getCenterUrl()}/api/governance/intent/match?project=${encodeURIComponent(forgeData.projectName)}`, {
+        fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ intent: forgeData.wish })
+          body: JSON.stringify({
+            wish: forgeData.wish,
+            users: forgeData.users || "",
+            success_v1: forgeData.success || "",
+            project: forgeData.projectName || "adt-framework",
+            engine: "gemini-3.5-flash-medium"
+          })
         }).then(r => r.ok ? r.json() : {}).then(data => {
           let contentHtml = "";
-          
-          const domains = (data.domains || []).map(d => d.title).join(", ");
+
+          // REQ-113: wired to SPEC-075 LLM classifier response shape
+          const domains = (data.matched_domains || []).join(", ");
           contentHtml += `<div><strong>Matched Domains:</strong> <span style="color:#a5d6ff">${domains || 'None'}</span></div>`;
-          
-          const stds = Array.from(new Set((data.domains || []).flatMap(d => d.mandatory_standards || [])));
-          contentHtml += `<div style="margin-top:4px;"><strong>Ingested Standards Checked:</strong> <span style="color:#7ee787">${stds.join(", ") || 'None'}</span></div>`;
-          
+
+          const stds = (data.data_classifications || []).join(", ");
+          contentHtml += `<div style="margin-top:4px;"><strong>Data Classifications Detected:</strong> <span style="color:#f0b429">${stds || 'None'}</span></div>`;
+
+          if (data.suggested_erasure_requirements && data.suggested_erasure_requirements.length) {
+            contentHtml += `<div style="margin-top:4px;"><strong>Erasure Requirements:</strong><ul style="margin:4px 0 0 20px;color:#7ee787">${data.suggested_erasure_requirements.map(e=>`<li>${e.replace(/</g,'&lt;')}</li>`).join('')}</ul></div>`;
+          }
+
+          if (data.fallback_reason) {
+            contentHtml += `<div style="margin-top:4px;color:#f85149;font-size:11px"><strong>Fallback:</strong> ${data.fallback_reason}</div>`;
+          } else {
+            contentHtml += `<div style="margin-top:4px;color:#8b949e;font-size:11px">Engine: ${data.engine || 'unknown'} · confidence ${((data.overall_confidence||0)*100).toFixed(0)}% · ${data.latency_ms || '?'}ms</div>`;
+          }
+
+          // Convert LLM recommended_rrs to fake baseline_rr_ids so downstream buttons still render
+          data.baseline_rr_ids = (data.recommended_rrs || []).map(r => r.id).filter(Boolean);
           const coverage = data.baseline_coverage || {};
           if (data.baseline_rr_ids && data.baseline_rr_ids.length > 0) {
             contentHtml += `<div style="margin-top:8px;"><strong>Anchored Rules & Token MRRs:</strong></div>`;

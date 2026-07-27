@@ -1,0 +1,311 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "domains": {
+    "health_and_fitness": {
+      "title": "Personal Health & Fitness Tracking",
+      "keywords": [
+        "health",
+        "fitness",
+        "calories",
+        "biometric",
+        "vitals"
+      ],
+      "baseline_rr_ids": [
+        "RR-012",
+        "RR-045"
+      ],
+      "mandatory_standards": [
+        "ISO-IEC-42001-2023",
+        "COMPANY-CODEX"
+      ]
+    },
+    "payment_processing": {
+      "title": "Payment & Financial Transactions",
+      "keywords": [
+        "payment",
+        "credit_card",
+        "stripe",
+        "billing",
+        "checkout"
+      ],
+      "baseline_rr_ids": [
+        "RR-003",
+        "RR-018"
+      ],
+      "mandatory_standards": [
+        "COBIT-2019",
+        "COMPANY-CODEX"
+      ]
+    },
+    "personal_data_storage": {
+      "title": "Personal Data Storage & Behavioural Tracking",
+      "keywords": [
+        "track",
+        "log",
+        "journal",
+        "note",
+        "record",
+        "save",
+        "history",
+        "streak",
+        "habit",
+        "diary",
+        "personal",
+        "my",
+        "user",
+        "profile"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "GDPR",
+        "ISO-IEC-42001-2023"
+      ]
+    },
+    "wellbeing_and_lifestyle": {
+      "title": "Wellbeing, Habits & Lifestyle",
+      "keywords": [
+        "habit",
+        "meditate",
+        "exercise",
+        "sleep",
+        "mood",
+        "wellness",
+        "wellbeing",
+        "routine",
+        "goal",
+        "streak"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-009"
+      ],
+      "mandatory_standards": [
+        "ISO-IEC-42001-2023",
+        "COMPANY-CODEX"
+      ]
+    },
+    "productivity_and_tasks": {
+      "title": "Productivity & Task Management",
+      "keywords": [
+        "task",
+        "todo",
+        "project",
+        "productivity",
+        "kanban",
+        "pomodoro",
+        "focus",
+        "reminder",
+        "planner",
+        "calendar"
+      ],
+      "baseline_rr_ids": [
+        "RR-015",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "ITIL-4",
+        "COMPANY-CODEX"
+      ]
+    },
+    "media_and_content": {
+      "title": "Media, Music & Content Consumption",
+      "keywords": [
+        "music",
+        "audio",
+        "video",
+        "podcast",
+        "player",
+        "stream",
+        "playlist",
+        "mp3",
+        "ogg",
+        "flac",
+        "movie",
+        "book",
+        "reader"
+      ],
+      "baseline_rr_ids": [
+        "RR-013"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ]
+    },
+    "education_and_learning": {
+      "title": "Education & Learning",
+      "keywords": [
+        "learn",
+        "quiz",
+        "flashcard",
+        "study",
+        "course",
+        "lesson",
+        "student",
+        "teacher",
+        "typing",
+        "practice",
+        "tutor"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-015"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ]
+    },
+    "communication_and_messaging": {
+      "title": "Communication & Messaging",
+      "keywords": [
+        "chat",
+        "message",
+        "email",
+        "notification",
+        "conversation",
+        "inbox",
+        "send",
+        "compose",
+        "contact"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-013",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "GDPR",
+        "COMPANY-CODEX"
+      ]
+    },
+    "developer_tools": {
+      "title": "Developer Tools & Code",
+      "keywords": [
+        "editor",
+        "IDE",
+        "debug",
+        "compiler",
+        "linter",
+        "repository",
+        "commit",
+        "diff",
+        "code",
+        "syntax"
+      ],
+      "baseline_rr_ids": [
+        "RR-015"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ]
+    },
+    "networking_and_monitoring": {
+      "title": "Networking & System Monitoring",
+      "keywords": [
+        "network",
+        "monitor",
+        "bandwidth",
+        "traffic",
+        "process",
+        "cpu",
+        "memory",
+        "disk",
+        "system",
+        "alert"
+      ],
+      "baseline_rr_ids": [
+        "RR-013",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "COBIT-2019"
+      ]
+    },
+    "gaming_and_entertainment": {
+      "title": "Games & Entertainment",
+      "keywords": [
+        "game",
+        "play",
+        "score",
+        "level",
+        "puzzle",
+        "arcade",
+        "canvas",
+        "sprite"
+      ],
+      "baseline_rr_ids": [
+        "RR-008"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ]
+    },
+    "iot_and_embedded": {
+      "title": "IoT, Sensors & Embedded",
+      "keywords": [
+        "sensor",
+        "IoT",
+        "raspberry",
+        "arduino",
+        "device",
+        "GPIO",
+        "temperature",
+        "camera",
+        "webcam",
+        "microcontroller"
+      ],
+      "baseline_rr_ids": [
+        "RR-007",
+        "RR-008"
+      ],
+      "mandatory_standards": [
+        "ISO-IEC-42001-2023"
+      ]
+    },
+    "financial_personal": {
+      "title": "Personal Finance (non-payment)",
+      "keywords": [
+        "budget",
+        "expense",
+        "money",
+        "spending",
+        "income",
+        "saving",
+        "financial",
+        "wallet",
+        "invoice"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-013",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "GDPR",
+        "COBIT-2019"
+      ]
+    },
+    "location_and_maps": {
+      "title": "Location, Maps & Geospatial",
+      "keywords": [
+        "map",
+        "location",
+        "gps",
+        "geo",
+        "route",
+        "navigate",
+        "coordinates",
+        "distance"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "GDPR"
+      ]
+    }
+  }
+}

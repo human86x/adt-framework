@@ -93,7 +93,7 @@ AGY_BROKEN_PRINT_MODELS = {"Claude Sonnet 4.6 (Thinking)", "Claude Opus 4.6 (Thi
 _AGY_MODEL_PROBE_CACHE = {}
 _AGY_MODEL_PROBE_TTL_SEC = 300  # 5 min
 
-def _agy_model_probe(model, timeout_sec=15):
+def _agy_model_probe(model, timeout_sec=45):  # REQ-113 hotfix: was 15s, too tight for cold Center subprocess spawn
     """Probe a specific model in non-interactive mode. Cached: OK=5min, FAIL=30min.
     Returns {ok: bool, error: str|None, auth_url: str|None}.
 
@@ -107,7 +107,7 @@ def _agy_model_probe(model, timeout_sec=15):
         if (_t.time() - cached.get("checked_at", 0) < ttl):
             return cached
     agy = _o.environ.get("AGY_EXECPATH") or _sh.which("agy") or os.path.expanduser("~/.local/bin/agy")
-    cmd = [agy, "-p", "Reply with exactly the four characters PONG and nothing else.", "--dangerously-skip-permissions", "--new-project"]
+    cmd = [agy, "-p", "Reply with exactly the four characters PONG and nothing else.", "--dangerously-skip-permissions"]  # REQ-113 hotfix: dropped --new-project (scaffolds a project every probe, wasteful)
     if model:
         cmd.extend(["--model", model])
     # Suppress browser auto-open on auth failure -- we capture the URL from stderr ourselves
@@ -200,19 +200,21 @@ def _agy_auth_is_ok(force=False, timeout_sec=30):
 # risk analysis picked); attempts 4-5 escalate to Claude; beyond that we
 # alert the operator.
 ESCALATION_LADDER = [
-    # Rungs 1-4: cycle through Google models (Gemini variants) — cheap first
+    # Rungs 1-6: cycle through Google models (Gemini variants) starting from low effort options
+    ("Gemini 3.5 Flash (Low)",         "gemini_flash_low"),
     ("Gemini 3.5 Flash (Medium)",      "gemini_flash_medium"),
     ("Gemini 3.5 Flash (High)",        "gemini_flash_high"),
     ("Gemini 3.1 Pro (Low)",           "gemini_pro_low"),
+    ("Gemini 3.1 Pro (Medium)",        "gemini_pro_medium"),
     ("Gemini 3.1 Pro (High)",          "gemini_pro_high"),
-    # Rungs 5-6: escalate to Claude only after all Google failed
+    # Rungs 7-8: escalate to Claude only after all Google failed
     ("Claude Sonnet 4.6 (Thinking)",   "escalate_claude_sonnet"),
     ("Claude Opus 4.6 (Thinking)",     "escalate_claude_opus"),
 ]
 
-FAST_FAIL_NARRATION_THRESHOLD = 20  # allow up to 20 planning lines
-FAST_FAIL_WINDOW_SEC = 1200  # 20 min — patience game, let it think
-FAST_FAIL_MAX_ATTEMPTS = 3
+FAST_FAIL_NARRATION_THRESHOLD = 200  # REQ-113 operator override: agy needs more thinking room; do not kill at 20 lines
+FAST_FAIL_WINDOW_SEC = 3600  # REQ-113 operator override: 60 min patience — operator believes agy delivers if given time
+FAST_FAIL_MAX_ATTEMPTS = 5
 
 _NARR_RE = __import__("re").compile(
     r"^\s*(I will|I'll|Let me|I'm going to|First, I|Now I|Next, I)\b",
@@ -225,10 +227,15 @@ _TOOL_MARKERS = (
 )
 
 
-def _worker_startup_verdict(log_path, window_sec=FAST_FAIL_WINDOW_SEC):
+def _worker_startup_verdict(log_path, proc=None, window_sec=FAST_FAIL_WINDOW_SEC):
     """Return 'productive' if any tool markers appeared,
        'narrator' if narration>=threshold and 0 tool markers,
-       'unknown' if not enough data yet."""
+       'unknown' if not enough data yet.
+
+    SPEC-062-H Fix E: accepts optional proc (subprocess.Popen). If proc is
+    provided and proc.poll() is not None inside the wait loop, the worker has
+    already exited and the log will not grow further — break immediately
+    instead of sleeping the remaining window_sec (up to 20 min)."""
     import time as _t
     end = _t.time() + window_sec
     while _t.time() < end:
@@ -249,6 +256,10 @@ def _worker_startup_verdict(log_path, window_sec=FAST_FAIL_WINDOW_SEC):
             if tools_late > 0:
                 return "productive"
             return "narrator"
+        # SPEC-062-H Fix E: worker already exited — log won't grow further.
+        # Break immediately rather than burning the remaining window_sec.
+        if proc is not None and proc.poll() is not None:
+            break
         _t.sleep(2)
     # window elapsed with no clear signal
     try:
@@ -1211,7 +1222,7 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         if harness != "antigravity":
             _spawn_stall_monitor(proc, log_path, role, spec_id, build_id, project_root)
             break
-        verdict = _worker_startup_verdict(log_path)
+        verdict = _worker_startup_verdict(log_path, proc=proc)
         if verdict == "productive":
             if attempt > 1:
                 _append_ads_event(

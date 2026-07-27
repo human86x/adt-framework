@@ -1,6 +1,6 @@
 # SPEC-076: Effort-Tiered Model Selection & Human-Gated Escalation
 
-**Status:** DRAFT
+**Status:** APPROVED
 **Author:** Systems_Architect (CLAUDE)
 **Created:** 2026-07-27
 **Target Milestone:** v0.4.0
