@@ -178,9 +178,10 @@
     if (!init.signal) {
       const ac = new AbortController();
       init.signal = ac.signal;
-      // Long enough to cover our slow endpoints (see REQ-113 profile),
-      // short enough to release the socket if truly wedged.
-      setTimeout(() => { try { ac.abort(); } catch(_) {} }, 20000);
+      // REQ-113 rc69: bumped 20s → 60s to cover the LLM intent classifier
+      // (25-45s p95). Still catches truly hung requests. Callers that need
+      // longer can pass their own signal to bypass this guard.
+      setTimeout(() => { try { ac.abort(); } catch(_) {} }, 60000);
     }
     return _origFetch(input, init);
   };
