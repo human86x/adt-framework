@@ -1350,11 +1350,22 @@ const ProjectLauncher = (() => {
           if (data.baseline_rr_ids && data.baseline_rr_ids.length > 0) {
             contentHtml += `<div style="margin-top:8px;"><strong>Anchored Rules & Token MRRs:</strong></div>`;
             contentHtml += `<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">`;
+            // REQ-113: hydrate rr → {title, rationale, text} from the full recommended_rrs list
+            const _rrLookup = {};
+            (data.recommended_rrs || []).forEach(r => { if (r && r.id) _rrLookup[r.id] = r; });
             data.baseline_rr_ids.forEach(rr => {
               const currentDisp = coverage[rr] || 'pending';
+              const _meta = _rrLookup[rr] || {};
+              const _title = (_meta.title || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              const _rationale = (_meta.rationale || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              const _clauseText = (_meta.text || '').replace(/</g, '&lt;').replace(/"/g, '&quot;').slice(0, 400);
+              const _derived = (_meta.derived_from || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              const _unmapped = _meta && _meta.catalog_match === false;
+              const _tooltip = `${rr}${_title ? ' — ' + _title : ''}${_unmapped ? '\n\n⚠ This ID is not in the RR catalog — the LLM classifier invented it. Consider manually mapping to a real RR.' : ''}\n\nRationale (why the classifier picked this):\n${_rationale || '(no rationale)'}${_clauseText ? '\n\nClause text:\n' + _clauseText : ''}${_derived ? '\n\nSource standard: ' + _derived : ''}`;
               contentHtml += `
-                <div style="display:flex;justify-content:space-between;align-items:center;background:#161b22;padding:4px 8px;border:1px solid #21262d;border-radius:4px;">
-                  <span style="color:#58a6ff;font-weight:bold;">${rr}</span>
+                <div title="${_tooltip}" style="display:flex;justify-content:space-between;align-items:center;background:#161b22;padding:4px 8px;border:1px solid ${_unmapped ? '#d29922' : '#21262d'};border-radius:4px;cursor:help">
+                  <span style="color:${_unmapped ? '#d29922' : '#58a6ff'};font-weight:bold;flex-shrink:0;">${rr}${_unmapped ? ' ⚠' : ''}</span>
+                  <span style="color:#c9d1d9;font-size:11px;flex:1;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_title || '(no title in catalog)'}</span>
                   <div class="mrr-disposition-btn-group" data-rr="${rr}" style="display:flex;gap:4px;">
                     <button class="mrr-disp-btn ${currentDisp==='adopted'?'active':''}" data-disp="adopted" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:${currentDisp==='adopted'?'#238636':'#21262d'};color:${currentDisp==='adopted'?'#fff':'#8b949e'};border-radius:3px;cursor:pointer;">Adopt</button>
                     <button class="mrr-disp-btn ${currentDisp==='not_applicable'?'active':''}" data-disp="not_applicable" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:${currentDisp==='not_applicable'?'#da3633':'#21262d'};color:${currentDisp==='not_applicable'?'#fff':'#8b949e'};border-radius:3px;cursor:pointer;">N/A</button>

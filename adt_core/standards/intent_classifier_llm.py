@@ -153,7 +153,46 @@ def classify_intent(
                 return fallback(f"JSON Decode Error: {je}", raw_response)
                 
             latency_ms = int((time.time() - start_time) * 1000)
-            
+
+            # REQ-113: enrich each recommended_rr with title + text from the catalog,
+            # and drop any hallucinated IDs the LLM invented despite the prompt.
+            _rr_lookup = {r["id"]: r for r in all_rrs}
+            _raw_rrs = parsed.get("recommended_rrs", []) or []
+            _enriched_rrs = []
+            _dropped_invalid = []
+            for rec in _raw_rrs:
+                if not isinstance(rec, dict): continue
+                rid = rec.get("id")
+                if not rid: continue
+                catalog_entry = _rr_lookup.get(rid)
+                if catalog_entry:
+                    _enriched_rrs.append({
+                        "id": rid,
+                        "title": catalog_entry.get("title", rid),
+                        "text": catalog_entry.get("text", ""),
+                        "derived_from": catalog_entry.get("derived_from", ""),
+                        "scope": catalog_entry.get("scope", ""),
+                        "rationale": rec.get("rationale", ""),
+                        "confidence": rec.get("confidence", 0.0),
+                        "catalog_match": True,
+                    })
+                else:
+                    # LLM invented an ID — keep it visible so operator knows,
+                    # but flag catalog_match=False so frontend can style differently
+                    _dropped_invalid.append(rid)
+                    _enriched_rrs.append({
+                        "id": rid,
+                        "title": "(not in RR catalog — LLM-invented)",
+                        "text": "",
+                        "derived_from": "",
+                        "scope": "",
+                        "rationale": rec.get("rationale", ""),
+                        "confidence": rec.get("confidence", 0.0),
+                        "catalog_match": False,
+                    })
+            if _dropped_invalid:
+                print(f"[classify_intent] dropped {len(_dropped_invalid)} hallucinated RR IDs: {_dropped_invalid[:8]}")
+
             return ClassificationResult(
                 run_id=run_id,
                 engine=engine,
@@ -161,7 +200,7 @@ def classify_intent(
                 prompt_version=prompt_version,
                 latency_ms=latency_ms,
                 matched_domains=parsed.get("matched_domains", []),
-                recommended_rrs=parsed.get("recommended_rrs", []),
+                recommended_rrs=_enriched_rrs,
                 data_classifications=parsed.get("data_classifications", []),
                 suggested_erasure_requirements=parsed.get("suggested_erasure_requirements", []),
                 overall_confidence=parsed.get("overall_confidence", 0.0),
