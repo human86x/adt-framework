@@ -191,7 +191,7 @@ def main():
 
     logger.info("Starting DTCP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
     app = create_dtcp_app(config)
-    app.run(host="::", port=config.port, debug=(config.mode == "development"), use_reloader=False)
+    app.run(host="::", port=config.port, debug=(config.mode == "development"), use_reloader=False, threaded=True)  # REQ-113: prevent slow hook from blocking all others
 
 
 if __name__ == "__main__":

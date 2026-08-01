@@ -421,7 +421,7 @@ def _start_zombie_watcher():
 def _synthetic_progress_loop():
     import time, json, os
     from datetime import datetime, timezone
-    INTERVAL = int(os.environ.get("ADT_SYNTH_PROGRESS_INTERVAL_SEC", "15"))
+    INTERVAL = int(os.environ.get("ADT_SYNTH_PROGRESS_INTERVAL_SEC", "30"))  # REQ-113: raised 15→30 per Paul WSL analysis
     CODE_DIRS = ("src", "tests", "lib", "app", "public", "scripts",
                  "adt_center", "adt_core", "adt_sdk", "adt-console/src",
                  "docs", "css", "js", "assets", "static", "components",
@@ -620,7 +620,7 @@ def _finalize_orphan_builds_on_startup():
 def _reality_audit_loop():
     import time, json, os
     from datetime import datetime, timezone
-    INTERVAL = int(os.environ.get("ADT_REALITY_AUDIT_INTERVAL_SEC", "60"))
+    INTERVAL = int(os.environ.get("ADT_REALITY_AUDIT_INTERVAL_SEC", "120"))  # REQ-113: raised 60→120 per Paul WSL analysis
     CODE_DIRS = ("src", "tests", "lib", "app", "public", "scripts",
                  "adt_center", "adt_core", "adt_sdk", "adt-console/src",
                  "docs", "css", "js", "assets", "static", "components",

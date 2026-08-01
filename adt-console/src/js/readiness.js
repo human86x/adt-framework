@@ -162,3 +162,50 @@
   if (document.readyState === 'complete' || document.readyState === 'interactive') _bootEnd();
   else document.addEventListener('DOMContentLoaded', _bootEnd);
 })();
+
+
+// REQ-113 (Paul WSL analysis): global fetch guard + SafePoll to prevent
+// duplicate in-flight polls from piling up when backend slows.
+(function () {
+  // 1. Wrap global fetch: add a default AbortController with 20s timeout
+  // to any request that doesn't already provide a signal. Fixes the
+  // "webview connection pool exhausted → UI freeze" pattern.
+  if (window.__ADT_FETCH_GUARD_INSTALLED) return;
+  window.__ADT_FETCH_GUARD_INSTALLED = true;
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    init = init || {};
+    if (!init.signal) {
+      const ac = new AbortController();
+      init.signal = ac.signal;
+      // Long enough to cover our slow endpoints (see REQ-113 profile),
+      // short enough to release the socket if truly wedged.
+      setTimeout(() => { try { ac.abort(); } catch(_) {} }, 20000);
+    }
+    return _origFetch(input, init);
+  };
+
+  // 2. SafePoll: setInterval that skips ticks while a previous tick is still
+  // running. Prevents duplicate-request storms.
+  window.SafePoll = {
+    _guards: new Map(),  // key -> { running, id }
+    register(key, intervalMs, fn) {
+      this.cancel(key);
+      const state = { running: false };
+      const id = setInterval(async () => {
+        if (state.running) return;
+        state.running = true;
+        try { await fn(); }
+        catch (e) { console.warn('[SafePoll:'+key+']', e); }
+        finally { state.running = false; }
+      }, intervalMs);
+      state.id = id;
+      this._guards.set(key, state);
+      return id;
+    },
+    cancel(key) {
+      const g = this._guards.get(key);
+      if (g && g.id) { clearInterval(g.id); this._guards.delete(key); }
+    }
+  };
+})();

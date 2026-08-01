@@ -1334,7 +1334,7 @@ window.SpecMap._showThoughtCloud = function(taskId, project, x, y) {
     } catch (e) {}
   };
   refresh();
-  state.pollId = setInterval(refresh, 2000);
+  state.pollId = window.SafePoll ? window.SafePoll.register("thoughtCloud", 2000, refresh) : setInterval(refresh, 2000);  // REQ-113: skip tick if prev in-flight
 };
 
 window.SpecMap._hideThoughtCloud = function() {
