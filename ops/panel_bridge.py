@@ -78,7 +78,7 @@ class PanelBridgeHandler(BaseHTTPRequestHandler):
             response_data = b""
             header_end = -1
             while True:
-                ready = select.select([sock], [], [], 45.0)
+                ready = select.select([sock], [], [], 90.0)
                 if ready[0]:
                     chunk = sock.recv(4096)
                     if not chunk:

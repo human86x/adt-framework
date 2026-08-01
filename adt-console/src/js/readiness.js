@@ -181,7 +181,7 @@
       // REQ-113 rc69: bumped 20s → 60s to cover the LLM intent classifier
       // (25-45s p95). Still catches truly hung requests. Callers that need
       // longer can pass their own signal to bypass this guard.
-      setTimeout(() => { try { ac.abort(); } catch(_) {} }, 60000);
+      setTimeout(() => { try { ac.abort(); } catch(_) {} }, 180000);  // rc70: 60→180s (classifier can take 60+s)
     }
     return _origFetch(input, init);
   };
@@ -210,3 +210,36 @@
     }
   };
 })();
+
+
+// rc70 devtools helper: test MRR classifier without touching the Forge wizard.
+// Usage from Tauri devtools console:
+//   testMRR("habit tracker")                    // uses defaults
+//   testMRR("markdown notes app", "gemini-3.5-flash-medium", 180000)
+window.testMRR = async function(wish, engine, timeoutMs) {
+  engine = engine || "gemini-3.5-flash-medium";
+  timeoutMs = timeoutMs || 180000;
+  const ac = new AbortController();
+  setTimeout(() => ac.abort(), timeoutMs);
+  const t0 = Date.now();
+  console.log("[testMRR] firing", { wish, engine, timeoutMs });
+  try {
+    const r = await fetch("http://localhost:5001/api/governance/intent/classify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wish, users: "self", success_v1: "test", project: "adt-framework", engine }),
+      signal: ac.signal
+    });
+    const elapsed = Date.now() - t0;
+    if (!r.ok) { console.error("[testMRR] HTTP", r.status, "in", elapsed, "ms"); return; }
+    const d = await r.json();
+    console.log("[testMRR] ✓ response in", elapsed, "ms:", d);
+    console.table((d.recommended_rrs || []).map(x => ({
+      id: x.id, catalog_match: x.catalog_match, title: (x.title || "").slice(0, 40), confidence: x.confidence
+    })));
+    return d;
+  } catch (e) {
+    const elapsed = Date.now() - t0;
+    console.error("[testMRR] ✗", e.name, e.message, "in", elapsed, "ms");
+  }
+};

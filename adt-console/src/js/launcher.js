@@ -1314,16 +1314,21 @@ const ProjectLauncher = (() => {
       const card = document.getElementById("mrr-analysis-card");
       if (card) {
         card.style.display = "block";
+        console.log('[MRR] firing classifier with', { wish_len: (forgeData.wish||'').length, project: forgeData.projectName, engine: 'gemini-3.5-flash-medium' });
+        const _mrrPayload = {
+          wish: forgeData.wish || "",
+          users: forgeData.users || "",
+          success_v1: forgeData.success || "",
+          project: forgeData.projectName || "adt-framework",
+          engine: "gemini-3.5-flash-medium"
+        };
+        if (!_mrrPayload.wish) {
+          console.warn('[MRR] no wish text in forgeData — this is the bug');
+        }
         fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wish: forgeData.wish,
-            users: forgeData.users || "",
-            success_v1: forgeData.success || "",
-            project: forgeData.projectName || "adt-framework",
-            engine: "gemini-3.5-flash-medium"
-          })
+          body: JSON.stringify(_mrrPayload)
         }).then(r => r.ok ? r.json() : {}).then(data => {
           let contentHtml = "";
 
@@ -1420,7 +1425,11 @@ const ProjectLauncher = (() => {
           }
         }).catch(err => {
           const contentEl = document.getElementById("mrr-analysis-content");
-          if (contentEl) contentEl.textContent = "Failed to load MRR analysis.";
+          if (contentEl) contentEl.innerHTML = `
+            <div style="color:#f85149;font-weight:bold;">MRR fetch error</div>
+            <div style="font-size:11px;margin-top:4px;color:#8b949e">${(err && err.name) || 'Error'}: ${((err && err.message) || String(err)).replace(/</g, '&lt;').slice(0, 300)}</div>
+            <div style="font-size:11px;margin-top:4px;color:#8b949e">URL: ${getCenterUrl()}/api/governance/intent/classify · wish len: ${(forgeData.wish||'').length}</div>
+            <div style="font-size:11px;margin-top:4px;color:#7ee787">Curl test: <code>curl -X POST 'http://localhost:5001/api/governance/intent/classify' -H 'Content-Type: application/json' -d '{"wish":"...","users":"...","success_v1":"...","project":"${forgeData.projectName}"}'</code></div>`;
         });
       }
     }
