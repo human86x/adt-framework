@@ -45,3 +45,8 @@ bin/
 fix_logger.py
 .adt/
 adt-framework/
+
+# SPEC-076-A: per-attempt build logs are noisy runtime artifacts.
+# Keep the summary.md files (diff-friendly) but ignore raw per-attempt logs.
+_cortex/build/scratchpad/*.log
+_cortex/build/*/*.log

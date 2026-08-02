@@ -4779,6 +4779,18 @@ def api_agy_state():
                 _json.dump(state, f, indent=2)
         except Exception: pass
 
+    # SPEC-076-B: attach two-bucket quota state so topbar can render chips
+    try:
+        from adt_center.api.build_executor import _agy_quota_state_read, _agy_quota_bucket_exhausted
+        _q = _agy_quota_state_read()
+        # Also auto-clear expired outages on read
+        for _bkt in ("gemini", "nongemini"):
+            _exh, _rst = _agy_quota_bucket_exhausted(_bkt)
+            _q.setdefault("buckets", {}).setdefault(_bkt, {})
+            _q["buckets"][_bkt]["state"] = "exhausted" if _exh else "ok"
+            if _exh: _q["buckets"][_bkt]["resets_at"] = _rst
+        state["quota"] = _q
+    except Exception: pass
 
     return jsonify(state), 200
 

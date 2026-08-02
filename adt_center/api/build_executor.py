@@ -528,24 +528,330 @@ def _score_task_risk(task, role, wave_size, project_root):
     return score, reasons
 
 
+
+# SPEC-076 Amendment A: build-attempt scratchpad. Persists what failed workers tried
+# and threads a summary into the escalated worker's prompt so it doesn't repeat mistakes.
+def _build_scratch_dir(project_root):
+    import os as _o
+    d = _o.path.join(project_root, "_cortex", "build", "scratchpad")
+    _o.makedirs(d, exist_ok=True)
+    return d
+
+
+def _save_attempt_snapshot(project_root, task_ids, attempt_num, model, log_path, outcome):
+    """Copy the failing worker's log to a per-attempt archive + append a summary line
+    to the shared scratchpad markdown. Called BEFORE the log gets truncated for the
+    next attempt so no output is lost."""
+    import os as _o, shutil as _sh, time as _t
+    if not log_path or not _o.path.exists(log_path):
+        return None
+    scratch = _build_scratch_dir(project_root)
+    tid = (task_ids[0] if task_ids else "unknown").replace("/", "_")
+    dst_log = _o.path.join(scratch, f"{tid}_attempt{attempt_num:02d}_{(model or 'default').replace(' ','_').replace('(','').replace(')','')}.log")
+    try:
+        _sh.copyfile(log_path, dst_log)
+    except Exception:
+        return None
+
+    # Summarize what the worker did (narration lines vs tool markers vs files touched)
+    try:
+        content = open(log_path, "r", errors="replace").read()
+    except Exception:
+        content = ""
+    lines = content.splitlines()
+    narr_lines = [l for l in lines if _NARR_RE.match(l)][:6]
+    tool_lines = [l for l in lines if any(m.lower() in l.lower() for m in _TOOL_MARKERS)][:6]
+
+    # Which files got modified during this attempt (heuristic: mtimes newer than log start)
+    import stat as _st
+    log_stat = _o.stat(log_path)
+    log_start = log_stat.st_mtime - (log_stat.st_size / 1000.0)  # very rough
+    touched = []
+    for _root, _dirs, _files in _o.walk(project_root):
+        if any(skip in _root for skip in ("_cortex", ".git", "node_modules", "venv", "__pycache__", "build/scratchpad")):
+            continue
+        for _f in _files:
+            if _f.startswith("."): continue
+            _fp = _o.path.join(_root, _f)
+            try:
+                if _o.stat(_fp).st_mtime >= log_start:
+                    touched.append(_o.relpath(_fp, project_root))
+            except Exception:
+                pass
+        if len(touched) > 30: break
+    touched = touched[:12]
+
+    summary_path = _o.path.join(scratch, f"{tid}_summary.md")
+    header_needed = not _o.path.exists(summary_path)
+    with open(summary_path, "a") as f:
+        if header_needed:
+            f.write(f"# Build attempt history for task `{tid}`\n\n")
+        f.write(f"## Attempt {attempt_num} — model=`{model or 'default'}` — outcome=`{outcome}`\n")
+        f.write(f"- log: `{_o.path.relpath(dst_log, project_root)}`\n")
+        if touched:
+            f.write("- files touched:\n")
+            for x in touched: f.write(f"  - `{x}`\n")
+        else:
+            f.write("- files touched: (none detected)\n")
+        if narr_lines:
+            f.write("- narration observed:\n")
+            for x in narr_lines: f.write(f"  - {x.strip()[:120]}\n")
+        if tool_lines:
+            f.write("- tool calls observed:\n")
+            for x in tool_lines: f.write(f"  - {x.strip()[:120]}\n")
+        f.write("\n")
+    return summary_path
+
+
+def _inject_previous_attempts_context(cmd, project_root, task_ids, attempt_num):
+    """Rewrite the ``agy -p PROMPT`` string in cmd to prepend a PREVIOUS ATTEMPTS block
+    so the escalated worker inherits context. No-op if scratchpad missing."""
+    import os as _o
+    if attempt_num <= 1 or not task_ids:
+        return cmd
+    tid = task_ids[0].replace("/", "_")
+    summary_path = _o.path.join(project_root, "_cortex", "build", "scratchpad", f"{tid}_summary.md")
+    if not _o.path.exists(summary_path):
+        return cmd
+    try:
+        with open(summary_path) as f:
+            history_md = f.read()[:6000]
+    except Exception:
+        return cmd
+    context_block = (
+        "\n\n!!! PREVIOUS ATTEMPT HISTORY — READ FIRST !!!\n"
+        "This task has been attempted before. A prior worker (probably at a lower tier)\n"
+        "produced the summary below. Files it touched are already on disk — read them\n"
+        "before you overwrite. Do NOT restart from scratch: continue or fix what exists.\n\n"
+        + history_md
+        + "\n!!! END PREVIOUS ATTEMPT HISTORY !!!\n\n"
+    )
+    # Find -p flag and modify its prompt argument in place
+    try:
+        pi = cmd.index("-p")
+        if pi + 1 < len(cmd):
+            # Only inject once — avoid stacking history on every rung
+            if "PREVIOUS ATTEMPT HISTORY" not in cmd[pi + 1]:
+                cmd[pi + 1] = cmd[pi + 1] + context_block
+            else:
+                # Replace the previous block with the freshly-updated one
+                import re as _re
+                cmd[pi + 1] = _re.sub(
+                    r"!!! PREVIOUS ATTEMPT HISTORY .*?!!! END PREVIOUS ATTEMPT HISTORY !!!\n\n",
+                    "", cmd[pi + 1], flags=_re.DOTALL
+                ) + context_block
+    except (ValueError, IndexError):
+        pass
+    return cmd
+
+
+
+
+def check_quota_before_spawn(model_or_bucket):
+    """SPEC-076-B: pre-flight check before spawning any agy worker. Returns
+    (ok, reason_dict). ok=False means the caller should refuse to spawn."""
+    bucket = model_or_bucket if model_or_bucket in ("gemini", "nongemini") else _agy_bucket_for_model(model_or_bucket)
+    exhausted, resets_at = _agy_quota_bucket_exhausted(bucket)
+    if not exhausted:
+        return True, None
+    return False, {
+        "blocked_reason": "quota_exhausted",
+        "bucket": bucket,
+        "resets_at": resets_at,
+        "message": f"{bucket} quota exhausted; resets at {resets_at}. Try another bucket or wait.",
+    }
+
+
+# ============================================================
+# SPEC-076-B: Two-bucket quota outage detection + graceful gate
+# ============================================================
+# Model → bucket map. Gemini one bucket, everything else shared.
+def _agy_bucket_for_model(model_name):
+    if not model_name: return "gemini"  # agy default is gemini
+    m = model_name.lower()
+    if "gemini" in m: return "gemini"
+    if "claude" in m or "gpt" in m or "codex" in m or "sonnet" in m or "opus" in m:
+        return "nongemini"
+    return "gemini"
+
+
+_QUOTA_STATE_PATH_CACHE = None
+def _agy_quota_state_path():
+    global _QUOTA_STATE_PATH_CACHE
+    if _QUOTA_STATE_PATH_CACHE: return _QUOTA_STATE_PATH_CACHE
+    import os as _o
+    fw_root = _o.path.dirname(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))))
+    _QUOTA_STATE_PATH_CACHE = _o.path.join(fw_root, "_cortex", "ops", "agy_quota_state.json")
+    return _QUOTA_STATE_PATH_CACHE
+
+
+def _agy_quota_state_read():
+    import json as _j, os as _o
+    p = _agy_quota_state_path()
+    if not _o.path.exists(p):
+        return {"buckets": {"gemini": {"state": "ok"}, "nongemini": {"state": "ok"}}}
+    try:
+        return _j.load(open(p))
+    except Exception:
+        return {"buckets": {"gemini": {"state": "ok"}, "nongemini": {"state": "ok"}}}
+
+
+def _agy_quota_state_write(state):
+    import json as _j, os as _o
+    p = _agy_quota_state_path()
+    _o.makedirs(_o.path.dirname(p), exist_ok=True)
+    with open(p, "w") as f:
+        _j.dump(state, f, indent=2)
+
+
+# Regex patterns Google/agy emit when quota hit
+import re as _re_quota
+_QUOTA_PATTERNS = [
+    _re_quota.compile(r"(?:individual\s+)?quota\s+reach(?:ed)?", _re_quota.IGNORECASE),
+    _re_quota.compile(r"rate\s*limit(?:ed)?", _re_quota.IGNORECASE),
+    _re_quota.compile(r"resource_exhausted", _re_quota.IGNORECASE),
+    _re_quota.compile(r"429"),
+    _re_quota.compile(r"upgrade\s+your\s+subscription", _re_quota.IGNORECASE),
+    _re_quota.compile(r"too\s+many\s+requests", _re_quota.IGNORECASE),
+]
+# "Resets in 2h10m22s" / "Resets in 45m" / "Reset at 2026-08-02T22:57"
+_RESET_PATTERNS = [
+    _re_quota.compile(r"resets?\s+in\s+(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", _re_quota.IGNORECASE),
+    _re_quota.compile(r"reset\s+at\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)", _re_quota.IGNORECASE),
+]
+
+
+def _agy_detect_quota_exhaustion(log_text, model_used):
+    """Scan a worker's log for quota-exhaustion markers. If found, return
+    (True, reset_iso, bucket, error_line); else (False, None, None, None)."""
+    if not log_text: return False, None, None, None
+    hit = None
+    for pat in _QUOTA_PATTERNS:
+        m = pat.search(log_text)
+        if m:
+            hit = m.group(0); break
+    if not hit: return False, None, None, None
+
+    # Find surrounding context for error line
+    error_line = ""
+    for line in log_text.splitlines():
+        if any(p.search(line) for p in _QUOTA_PATTERNS):
+            error_line = line.strip()[:200]; break
+
+    # Parse reset time
+    import datetime as _dt
+    reset_iso = None
+    for pat in _RESET_PATTERNS:
+        m = pat.search(log_text)
+        if not m: continue
+        if len(m.groups()) == 3 and any(m.groups()):
+            h = int(m.group(1) or 0); mn = int(m.group(2) or 0); sc = int(m.group(3) or 0)
+            delta = _dt.timedelta(hours=h, minutes=mn, seconds=sc)
+            reset_iso = (_dt.datetime.now(_dt.timezone.utc) + delta).isoformat().replace("+00:00", "Z")
+            break
+        elif m.groups():
+            reset_iso = m.group(1) + "Z"; break
+    # Default: assume 1h reset if we couldn't parse
+    if not reset_iso:
+        reset_iso = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+
+    bucket = _agy_bucket_for_model(model_used)
+    return True, reset_iso, bucket, error_line
+
+
+def _agy_quota_record_outage(bucket, reset_iso, error_line, project_root):
+    """Persist an outage to the state file + emit ADS event."""
+    import datetime as _dt
+    state = _agy_quota_state_read()
+    state.setdefault("buckets", {}).setdefault(bucket, {})
+    state["buckets"][bucket] = {
+        "state": "exhausted",
+        "detected_at": _dt.datetime.now(_dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "resets_at": reset_iso,
+        "last_error": error_line,
+    }
+    _agy_quota_state_write(state)
+    try:
+        _append_ads_event(
+            "system", None, None, "agy_quota_outage_detected",
+            f"Quota outage detected on {bucket} bucket; resets at {reset_iso}.",
+            {"bucket": bucket, "resets_at": reset_iso, "error": error_line},
+            project_root,
+        )
+    except Exception:
+        pass
+
+
+def _agy_quota_bucket_exhausted(bucket):
+    """Return (bool, resets_at). Auto-clears state when reset time passed."""
+    import datetime as _dt
+    state = _agy_quota_state_read()
+    b = state.get("buckets", {}).get(bucket, {})
+    if b.get("state") != "exhausted":
+        return False, None
+    try:
+        resets = _dt.datetime.fromisoformat(b.get("resets_at", "").replace("Z", "+00:00"))
+        now = _dt.datetime.now(_dt.timezone.utc)
+        if now >= resets:
+            # Reset window passed → clear
+            state["buckets"][bucket] = {"state": "ok"}
+            _agy_quota_state_write(state)
+            return False, None
+    except Exception:
+        pass
+    return True, b.get("resets_at")
+
+
 def _pick_routing_for_task(task, role, score):
     """Pick (harness_override, model, via). Honour explicit task assignment first.
 
-    For high-risk tasks (score>=3), upgrade MODEL within agy to Gemini 3.1 Pro (High)
-    (the highest-capability model that actually works in agy -p mode). Operator can
-    manually force claude harness via the reassign UI if they need real Claude.
+    SPEC-076 Amendment A: risk-gated initial tier. Instead of "start LOW, escalate
+    on failure", pick the initial tier based on the task's risk score:
+      score < 2   → LOW    (Gemini 3.5 Flash Low)     — trivial ops
+      score 2-3   → MEDIUM (Gemini 3.5 Flash Medium)  — normal impl
+      score >= 4  → HIGH   (Gemini 3.5 Flash High)    — heavy design/refactor
+    Systems_Architect always starts one tier above the numeric default
+    (planning is harder than execution).
     """
     if task.get("assigned_harness"):
         return task["assigned_harness"], task.get("assigned_model"), "explicit"
     if task.get("assigned_model"):
         return None, task["assigned_model"], "explicit"
-    base = ROLE_MODEL_DEFAULTS.get(role)
-    # If the role default is a known-broken agy model, force it to RISK_HIGH_MODEL
-    if base in AGY_BROKEN_PRINT_MODELS:
-        return None, RISK_HIGH_MODEL, "default_avoided_broken"
-    if score >= 3 and base != RISK_HIGH_MODEL:
-        return None, RISK_HIGH_MODEL, "risk_upgraded"
-    return None, base, "default"
+
+    # Risk-gated tier
+    if score >= 4:
+        tier_model = "Gemini 3.5 Flash (High)"
+        via = "risk_high_start"
+    elif score >= 2:
+        tier_model = "Gemini 3.5 Flash (Medium)"
+        via = "risk_medium_start"
+    else:
+        # SPEC-076 MVP defaults: engineers LOW, SA MEDIUM
+        if role == "Systems_Architect":
+            tier_model = "Gemini 3.5 Flash (Medium)"
+        else:
+            tier_model = "Gemini 3.5 Flash (Low)"
+        via = "risk_low_default"
+
+    # SA always one tier above the numeric default
+    if role == "Systems_Architect" and via == "risk_low_default":
+        tier_model = "Gemini 3.5 Flash (Medium)"; via = "sa_baseline_medium"
+    elif role == "Systems_Architect" and via == "risk_medium_start":
+        tier_model = "Gemini 3.5 Flash (High)"; via = "sa_bumped_high"
+    elif role == "Systems_Architect" and via == "risk_high_start":
+        tier_model = "Gemini 3.1 Pro (Low)"; via = "sa_bumped_pro_low"
+
+    # Safety net for broken models list
+    if tier_model in AGY_BROKEN_PRINT_MODELS:
+        tier_model = RISK_HIGH_MODEL; via += "_avoided_broken"
+
+    # Operator env override (per SPEC-076 MVP) still wins
+    import os as _os
+    env_override = _os.environ.get("ADT_BUILD_MODEL_" + (role or "default").upper())
+    if env_override:
+        return None, env_override, "env_override_" + via
+
+    return None, tier_model, via
 
 
 def _pick_model_for_task(task, role, score):
@@ -984,6 +1290,13 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         m_picked = task_model
         via = "caller_override"
 
+    if first.get("id") or first.get("task_id"):
+        try:
+            _emit_task_risk(role, spec_id, build_id, first.get("id") or first.get("task_id"),
+                            score, reasons, m_picked or "default", via, project_root)
+        except Exception:
+            pass
+
     harness = h_override or ROLE_HARNESS_DEFAULTS.get(role, "antigravity")
     model = m_picked
 
@@ -1086,12 +1399,6 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         if model:
             cmd.extend(['--model', model])
         agent_label = 'ANTIGRAVITY'
-        if first.get("id") or first.get("task_id"):
-            try:
-                _emit_task_risk(role, spec_id, build_id, first.get("id") or first.get("task_id"),
-                                score, reasons, model or "default-agy", via, project_root)
-            except Exception:
-                pass
     elif harness == 'gemini':
         cmd = _unbuffered([GEMINI_BIN, '-p', prompt, '--yolo'])
         agent_label = 'GEMINI'
@@ -1198,8 +1505,14 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
                      "task_ids": [t.get("id") or t.get("task_id") for t in tasks]},
                     project_root,
                 )
-        # Truncate log between attempts so verdict is fresh
+        # SPEC-076 Amendment A: inject context from prior attempts and truncate the log
         if attempt > 1:
+            _task_ids = [t.get("id") or t.get("task_id") for t in tasks if (t.get("id") or t.get("task_id"))]
+            try:
+                cmd = _inject_previous_attempts_context(cmd, project_root, _task_ids, attempt)
+            except Exception:
+                pass
+            # NOW safe to truncate the log for the fresh attempt
             try: open(log_path, "wb").close()
             except Exception: pass
         try:
@@ -1245,13 +1558,37 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
             )
             _spawn_stall_monitor(proc, log_path, role, spec_id, build_id, project_root)
             break
-        # narrator: kill and try again — record to history so operator sees the full trail
+        # narrator: kill worker
         try: proc.kill(); proc.wait(timeout=3)
         except Exception: pass
+        # SPEC-076-B: was this a quota exhaustion, not real narration?
+        try:
+            _log_content = open(log_path, "r", errors="replace").read()
+        except Exception:
+            _log_content = ""
+        _q_hit, _q_reset, _q_bucket, _q_err = _agy_detect_quota_exhaustion(_log_content, actual_model)
+        if _q_hit:
+            _agy_quota_record_outage(_q_bucket, _q_reset, _q_err, project_root)
+            _append_ads_event(
+                role, spec_id, build_id, "build_blocked_quota",
+                f"Build blocked: {_q_bucket} quota exhausted; resets at {_q_reset}. NOT escalating.",
+                {"role": role, "bucket": _q_bucket, "resets_at": _q_reset,
+                 "model_hit": actual_model, "attempt": attempt,
+                 "task_ids": [t.get("id") or t.get("task_id") for t in tasks]},
+                project_root,
+            )
+            return False  # graceful stop — operator will retry after reset
         _attempt_history.append({
             "attempt": attempt, "model": actual_model or "default",
             "outcome": "narrator_killed",
         })
+        # Save the failed attempt's log immediately before any truncation or next steps
+        _task_ids = [t.get("id") or t.get("task_id") for t in tasks if (t.get("id") or t.get("task_id"))]
+        try:
+            _save_attempt_snapshot(project_root, _task_ids, attempt,
+                                   actual_model, log_path, "narrator_killed")
+        except Exception as _se:
+            pass
         _append_ads_event(
             role, spec_id, build_id, "fast_fail_narrator_killed",
             f"Worker {role} narrated on attempt {attempt}/{_max_attempts}; respawning.",
