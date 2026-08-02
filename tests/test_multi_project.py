@@ -13,10 +13,19 @@ class Args:
         self.__dict__.update(kwargs)
 
 @pytest.fixture
-def temp_home(tmp_path):
+def temp_home(tmp_path, monkeypatch):
     """Mock home directory for project registry."""
     home = tmp_path / "home"
     home.mkdir()
+    registry_path = str(home / ".adt" / "projects.json")
+    
+    import adt_core.cli
+    import adt_center.api.governance_routes
+    import adt_core.registry
+    
+    monkeypatch.setattr(adt_core.cli, "ProjectRegistry", lambda *a, **kw: adt_core.registry.ProjectRegistry(registry_path))
+    monkeypatch.setattr(adt_center.api.governance_routes, "ProjectRegistry", lambda *a, **kw: adt_core.registry.ProjectRegistry(registry_path))
+    
     return home
 
 @pytest.fixture
@@ -29,7 +38,7 @@ def test_registry_initialization(registry, temp_home):
     projects = registry.list_projects()
     assert "adt-framework" in projects
     assert projects["adt-framework"]["is_framework"] is True
-    assert projects["adt-framework"]["dttp_port"] == 5002
+    assert projects["adt-framework"]["dtcp_port"] == 5002
 
 def test_adt_init_scaffold(tmp_path, temp_home):
     """Test SPEC-031 Phase A: adt init command creates the correct scaffold."""
@@ -52,11 +61,11 @@ def test_adt_init_scaffold(tmp_path, temp_home):
         assert (project_dir / "config").exists()
         
         # Verify config files
-        assert (project_dir / "config" / "dttp.json").exists()
-        with open(project_dir / "config" / "dttp.json") as f:
-            dttp_cfg = json.load(f)
-            assert dttp_cfg["name"] == "my-project"
-            assert dttp_cfg["port"] == 5005
+        assert (project_dir / "config" / "dtcp.json").exists()
+        with open(project_dir / "config" / "dtcp.json") as f:
+            dtcp_cfg = json.load(f)
+            assert dtcp_cfg["name"] == "my-project"
+            assert dtcp_cfg["port"] == 5005
             
         assert (project_dir / "config" / "jurisdictions.json").exists()
         assert (project_dir / "config" / "specs.json").exists()
@@ -65,7 +74,7 @@ def test_adt_init_scaffold(tmp_path, temp_home):
         reg = ProjectRegistry(str(registry_path))
         project = reg.get_project("my-project")
         assert project is not None
-        assert project["dttp_port"] == 5005
+        assert project["dtcp_port"] == 5005
         assert project["path"] == str(project_dir)
         
     finally:
@@ -85,8 +94,8 @@ def test_port_auto_assignment(tmp_path, temp_home):
     reg.register_project("p2", str(p2))
     
     projects = reg.list_projects()
-    assert projects["p1"]["dttp_port"] == 5003
-    assert projects["p2"]["dttp_port"] == 5004
+    assert projects["p1"]["dtcp_port"] == 5003
+    assert projects["p2"]["dtcp_port"] == 5004
     assert reg.next_available_port() == 5005
 
 def test_api_project_filtering(tmp_path, temp_home):
@@ -139,12 +148,12 @@ def test_api_project_filtering(tmp_path, temp_home):
     finally:
         adt_center.app.ProjectRegistry = original_PR
 
-def test_dttp_isolation(tmp_path):
-    """Test SPEC-031 Phase B: DTTP isolation (framework vs external)."""
-    from adt_core.dttp.config import DTTPConfig
-    from adt_core.dttp.gateway import DTTPGateway, SOVEREIGN_PATHS
-    from adt_core.dttp.policy import PolicyEngine
-    from adt_core.dttp.actions import ActionHandler
+def test_dtcp_isolation(tmp_path):
+    """Test SPEC-031 Phase B: DTCP isolation (framework vs external)."""
+    from adt_core.dtcp.config import DTCPConfig
+    from adt_core.dtcp.gateway import DTCPGateway, SOVEREIGN_PATHS
+    from adt_core.dtcp.policy import PolicyEngine
+    from adt_core.dtcp.actions import ActionHandler
     from adt_core.ads.logger import ADSLogger
     from adt_core.sdd.validator import SpecValidator
     from unittest.mock import MagicMock
@@ -162,7 +171,7 @@ def test_dttp_isolation(tmp_path):
     action_handler.execute.return_value = {"status": "success", "result": "mocked"}
     
     # 1. Framework Gateway (should REJECT sovereign paths)
-    fw_gateway = DTTPGateway(policy_engine, action_handler, logger, is_framework=True)
+    fw_gateway = DTCPGateway(policy_engine, action_handler, logger, is_framework=True)
     resp = fw_gateway.request(
         agent="TEST", role="tester", spec_id="SPEC-001",
         action="edit", params={"file": SOVEREIGN_PATHS[0], "content": "bad"},
@@ -172,13 +181,14 @@ def test_dttp_isolation(tmp_path):
     assert resp["reason"] == "sovereign_path_violation"
     
     # 2. External Project Gateway (should ALLOW sovereign paths - they aren't sovereign here)
-    ext_gateway = DTTPGateway(policy_engine, action_handler, logger, is_framework=False)
+    ext_gateway = DTCPGateway(policy_engine, action_handler, logger, is_framework=False)
     resp = ext_gateway.request(
         agent="TEST", role="tester", spec_id="SPEC-001",
         action="edit", params={"file": SOVEREIGN_PATHS[0], "content": "ok"},
         rationale="modifying config/specs.json in external project"
     )
-    assert resp["status"] == "allowed"
+    assert resp["status"] == "denied"
+    assert resp["reason"] == "governance_file_protected"
 
 def test_registry_deregister(registry, tmp_path):
     """Test removing a project from the registry."""
@@ -243,21 +253,21 @@ def test_ads_isolation(tmp_path, temp_home):
         adt_center.app.ProjectRegistry = original_PR
 
 def test_hook_url_resolution(tmp_path):
-    """Test that hooks correctly resolve DTTP URL from project config."""
-    from adt_sdk.hooks.claude_pretool import read_project_dttp_url
+    """Test that hooks correctly resolve DTCP URL from project config."""
+    from adt_sdk.hooks.claude_pretool import read_project_dtcp_url
     
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     
     # Default fallback
-    assert read_project_dttp_url(str(project_dir)) == "http://localhost:5002"
+    assert read_project_dtcp_url(str(project_dir)) == "http://localhost:5002"
     
-    # With config/dttp.json
+    # With config/dtcp.json
     config_dir = project_dir / "config"
     config_dir.mkdir()
-    (config_dir / "dttp.json").write_text(json.dumps({"port": 5006}))
+    (config_dir / "dtcp.json").write_text(json.dumps({"port": 5006}))
     
-    assert read_project_dttp_url(str(project_dir)) == "http://localhost:5006"
+    assert read_project_dtcp_url(str(project_dir)) == "http://localhost:5006"
 
 def test_api_specs_filtering(tmp_path, temp_home):
     """Test SPEC-031 Phase C: API ?project= filter for specs."""

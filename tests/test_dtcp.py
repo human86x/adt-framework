@@ -3,13 +3,13 @@ import json
 import pytest
 from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.validator import SpecValidator
-from adt_core.dttp.jurisdictions import JurisdictionManager
-from adt_core.dttp.policy import PolicyEngine
-from adt_core.dttp.actions import ActionHandler
-from adt_core.dttp.gateway import DTTPGateway
+from adt_core.dtcp.jurisdictions import JurisdictionManager
+from adt_core.dtcp.policy import PolicyEngine
+from adt_core.dtcp.actions import ActionHandler
+from adt_core.dtcp.gateway import DTCPGateway
 
 @pytest.fixture
-def dttp_setup(tmp_path):
+def dtcp_setup(tmp_path):
     # Configs
     spec_path = tmp_path / "specs.json"
     spec_config = {
@@ -36,12 +36,12 @@ def dttp_setup(tmp_path):
     jurisdictions = JurisdictionManager(str(juris_path))
     policy_engine = PolicyEngine(validator, jurisdictions)
     action_handler = ActionHandler(str(project_root))
-    gateway = DTTPGateway(policy_engine, action_handler, logger)
+    gateway = DTCPGateway(policy_engine, action_handler, logger)
     
     return gateway, project_root
 
-def test_gateway_allowed(dttp_setup):
-    gateway, project_root = dttp_setup
+def test_gateway_allowed(dtcp_setup):
+    gateway, project_root = dtcp_setup
     resp = gateway.request(
         agent="GEMINI", role="tester", spec_id="SPEC-001",
         action="edit", params={"file": "data/test.txt", "content": "hi"},
@@ -50,8 +50,8 @@ def test_gateway_allowed(dttp_setup):
     assert resp["status"] == "allowed"
     assert os.path.exists(project_root / "data/test.txt")
 
-def test_gateway_denied(dttp_setup):
-    gateway, project_root = dttp_setup
+def test_gateway_denied(dtcp_setup):
+    gateway, project_root = dtcp_setup
     resp = gateway.request(
         agent="GEMINI", role="dev", spec_id="SPEC-001",
         action="edit", params={"file": "data/test.txt", "content": "hi"},

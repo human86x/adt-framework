@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
-class DTTPConfig:
+class DTCPConfig:
     port: int = 5002
     mode: str = 'development'
     ads_path: str = ''
@@ -26,23 +26,23 @@ class DTTPConfig:
             return os.path.expanduser('~/.adt')
 
     @classmethod
-    def from_env(cls, defaults: dict = None) -> 'DTTPConfig':
+    def from_env(cls, defaults: dict = None) -> 'DTCPConfig':
         d = defaults or {}
         return cls(
-            port=int(os.environ.get('DTTP_PORT', d.get('port', 5002))),
-            mode=os.environ.get('DTTP_MODE', d.get('mode', 'development')),
-            ads_path=os.environ.get('DTTP_ADS_PATH', d.get('ads_path', '')),
-            specs_config=os.environ.get('DTTP_SPECS_CONFIG', d.get('specs_config', '')),
-            jurisdictions_config=os.environ.get('DTTP_JURISDICTIONS_CONFIG', d.get('jurisdictions_config', '')),
-            project_root=os.environ.get('DTTP_PROJECT_ROOT', d.get('project_root', '')),
-            project_name=os.environ.get('DTTP_PROJECT_NAME', d.get('project_name', '')),
-            enforcement_mode=os.environ.get('DTTP_ENFORCEMENT_MODE', d.get('enforcement_mode', 'development')),
+            port=int(os.environ.get('DTCP_PORT', d.get('port', 5002))),
+            mode=os.environ.get('DTCP_MODE', d.get('mode', 'development')),
+            ads_path=os.environ.get('DTCP_ADS_PATH', d.get('ads_path', '')),
+            specs_config=os.environ.get('DTCP_SPECS_CONFIG', d.get('specs_config', '')),
+            jurisdictions_config=os.environ.get('DTCP_JURISDICTIONS_CONFIG', d.get('jurisdictions_config', '')),
+            project_root=os.environ.get('DTCP_PROJECT_ROOT', d.get('project_root', '')),
+            project_name=os.environ.get('DTCP_PROJECT_NAME', d.get('project_name', '')),
+            enforcement_mode=os.environ.get('DTCP_ENFORCEMENT_MODE', d.get('enforcement_mode', 'development')),
             access_token=os.environ.get('ADT_ACCESS_TOKEN', d.get('access_token')),
             is_framework_project=os.environ.get('ADT_IS_FRAMEWORK', 'false').lower() == 'true'
         )
 
     @classmethod
-    def from_project_root(cls, project_root: str, **overrides) -> 'DTTPConfig':
+    def from_project_root(cls, project_root: str, **overrides) -> 'DTCPConfig':
         project_root = os.path.abspath(project_root)
         
         # Check if it is the framework project
@@ -59,12 +59,12 @@ class DTTPConfig:
             is_framework_project=is_framework
         )
         
-        # Merge from config/dttp.json if it exists
-        dttp_json = os.path.join(project_root, "config", "dttp.json")
-        if os.path.exists(dttp_json):
+        # Merge from config/dtcp.json if it exists
+        dtcp_json = os.path.join(project_root, "config", "dtcp.json")
+        if os.path.exists(dtcp_json):
             try:
                 import json
-                with open(dttp_json, "r") as f:
+                with open(dtcp_json, "r") as f:
                     data = json.load(f)
                     if "port" in data: config.port = data["port"]
                     if "name" in data: config.project_name = data["name"]

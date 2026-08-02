@@ -3,13 +3,13 @@ import os
 import shutil
 from typing import Dict, Any
 
-from adt_core.dttp.sync import GitSync
+from adt_core.dtcp.sync import GitSync
 
 logger = logging.getLogger(__name__)
 
 
 class ActionHandler:
-    """Handles execution of authorized DTTP actions."""
+    """Handles execution of authorized DTCP actions."""
 
     def __init__(self, project_root: str):
         self.project_root = os.path.realpath(project_root)
@@ -92,6 +92,10 @@ class ActionHandler:
         self.git_sync.commit_and_push(file_path, f"patch {params["file"]}", agent=self.current_agent, role=self.current_role)
 
         return {"status": "success", "result": "file_patched", "bytes": len(new_content)}
+
+    def _handle_pty_io(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Virtual action for PTY I/O authorization."""
+        return {"status": "success", "result": "pty_io_authorized"}
 
     def _handle_deploy(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "success", "result": "deploy_simulated", "target": params.get("target")}

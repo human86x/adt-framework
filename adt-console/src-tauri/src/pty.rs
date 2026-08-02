@@ -2,16 +2,26 @@
 // SPEC-021 Phase A: portable-pty based process management
 // SPEC-021 S9: Persistence and stability improvements
 // SPEC-036: Agent Filesystem Sandbox (Phase A)
+// SPEC-057: Agent Mailbox spawn-time AUTO/MANUAL mode + comms dirs
 
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 use tauri::{Emitter, Runtime};
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+#[cfg(unix)]
+use nix::sys::signal::{self, Signal};
+#[cfg(unix)]
+use nix::unistd::Pid;
 
 /// Resolve the user's login shell PATH.
 /// Tauri apps launched from desktop environments often inherit a minimal PATH
@@ -56,7 +66,47 @@ fn resolve_command(command: &str, user_path: &str) -> String {
             }
         }
     }
+    // Env var override: AGY_EXECPATH, CLAUDE_EXECPATH, GEMINI_EXECPATH, etc.
+    let env_var = format!("{}_EXECPATH", command.to_uppercase().replace('-', "_"));
+    if let Ok(p) = std::env::var(&env_var) {
+        if PathBuf::from(&p).exists() { return p; }
+    }
+    // Common install locations beyond PATH (covers Tauri-from-Apps-grid case
+    // where PATH is stripped down to /usr/bin:/bin).
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let extras = vec![
+        format!("{}/.local/bin/{}", home, command),
+        format!("{}/.npm-global/bin/{}", home, command),
+        format!("{}/.cargo/bin/{}", home, command),
+        format!("/usr/local/bin/{}", command),
+        format!("/usr/bin/{}", command),
+        format!("/opt/antigravity/bin/{}", command),
+        format!("/snap/bin/{}", command),
+    ];
+    for p in &extras {
+        if PathBuf::from(p).exists() { return p.clone(); }
+    }
     command.to_string()
+}
+
+/// Pre-spawn validation: confirms resolved binary exists. Returns operator-friendly error
+/// if missing, with searched paths + install hint.
+fn validate_agent_binary(agent: &str, resolved: &str, user_path: &str) -> Result<String, String> {
+    let p = PathBuf::from(resolved);
+    if p.exists() && p.is_file() {
+        return Ok(resolved.to_string());
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
+    let install_hint = match agent {
+        "agy" | "antigravity" => "Install agy from https://antigravity.google then re-launch the Console.",
+        "claude" => "Install Claude Code CLI from https://docs.claude.com/en/docs/claude-code then re-launch.",
+        "gemini" => "Install via: npm install -g @google/gemini-cli",
+        _ => "Install the missing CLI and re-launch the Console.",
+    };
+    Err(format!(
+        "{} binary not found. Searched PATH ({}) plus {}/.local/bin/, {}/.npm-global/bin/, /usr/local/bin/, /opt/antigravity/bin/, /snap/bin/. {}",
+        agent, user_path.split(':').collect::<Vec<_>>().join(", "), home, home, install_hint
+    ))
 }
 
 
@@ -64,6 +114,22 @@ fn resolve_command(command: &str, user_path: &str) -> String {
 
 /// Environment variables that must NEVER be passed to sandboxed agent sessions.
 /// These could leak sensitive credentials or paths outside the sandbox.
+
+/// Environment variables that are EXPLICITLY allowed to pass into sandboxed sessions.
+const SANDBOX_ENV_ALLOWLIST: &[&str] = &[
+    "GEMINI_API_KEY",
+    "CLAUDE_CONFIG_DIR",
+    "GEMINI_CONFIG_DIR",
+    // SPEC-062 Amendment D: pass-through for keyring access so agy can re-use
+    // cached OAuth from the host gnome-keyring-daemon instead of forcing OAuth
+    // on every spawn.
+    "DBUS_SESSION_BUS_ADDRESS",
+    "XDG_RUNTIME_DIR",
+    "GNOME_KEYRING_CONTROL",
+    "XDG_SESSION_TYPE",
+    "DISPLAY",
+];
+
 const SANDBOX_ENV_DENYLIST: &[&str] = &[
     "SSH_AUTH_SOCK", "SSH_AGENT_PID",
     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
@@ -102,10 +168,10 @@ fn create_sandbox_dir(project_root: &Path, session_id: &str) -> Result<PathBuf, 
     // The Tauri process runs as 'human' and creates dirs owned by human:human,
     // but sudo -u agent needs the agent user to write to HOME/TMPDIR inside the sandbox.
     if is_production_mode() {
-        let _ = Command::new("/bin/chmod")
-            .args(["-R", "777", &sandbox_root.to_string_lossy()])
+        let _ = Command::new("/usr/bin/sudo")
+            .args(["/bin/chmod", "-R", "777", &sandbox_root.to_string_lossy()])
             .output();
-        log::info!("[SANDBOX] Set sandbox permissions for agent user");
+        log::info!("[SANDBOX] Set sandbox permissions for agent user via sudo");
     }
 
     log::info!("[SANDBOX] Created sandbox at {:?}", sandbox_root);
@@ -254,10 +320,11 @@ fn apply_sandbox_env(
     sandbox_root: &Path,
     project_root: &Path,
     agent: &str,
-    dttp_url: &str,
+    dtcp_url: &str,
     namespace_mode: bool,
     session_id: &str,
 ) {
+
     if namespace_mode {
         // Inside bwrap: project is at /project, framework at /adt-framework
         let ns_sandbox_home = format!("/project/.adt/sandbox/{}/home", session_id);
@@ -266,7 +333,8 @@ fn apply_sandbox_env(
         cmd.env("ADT_SANDBOX", "1");
         cmd.env("ADT_SANDBOX_ROOT", "/project");
         cmd.env("ADT_PROJECT_DIR", "/project");
-        cmd.env("DTTP_URL", dttp_url);
+        cmd.env("DTCP_URL", dtcp_url);
+        cmd.env("DTTP_URL", dtcp_url); // Fallback
         cmd.env("PYTHONPATH", "/adt-framework");
     } else {
         // Phase A only: host absolute paths
@@ -279,7 +347,15 @@ fn apply_sandbox_env(
         cmd.env("ADT_SANDBOX", "1");
         cmd.env("ADT_SANDBOX_ROOT", &project_str);
         cmd.env("ADT_PROJECT_DIR", &project_str);
-        cmd.env("DTTP_URL", dttp_url);
+        cmd.env("DTCP_URL", dtcp_url);
+        cmd.env("DTTP_URL", dtcp_url); // Fallback
+    }
+
+    // Pass through allowed variables from the host environment
+    for var in SANDBOX_ENV_ALLOWLIST {
+        if let Ok(val) = std::env::var(var) {
+            cmd.env(var, val);
+        }
     }
 
     // Remove sensitive environment variables
@@ -304,12 +380,36 @@ fn apply_sandbox_env(
     );
 }
 
+
+/// Ensure the spawned child can reach the operator's gnome-keyring so that
+/// agy (and any agent using libsecret / go-keyring / python-keyring) reuses
+/// cached OAuth tokens instead of re-prompting on every spawn.
+///
+/// These are safe to set unconditionally — they point at the user's own
+/// session bus and runtime dir, both populated by systemd at login.
+/// Overriding covers the case where the console was launched via a GTK
+/// .desktop entry with a stripped env (no DBUS_SESSION_BUS_ADDRESS).
+fn apply_keyring_env(cmd: &mut CommandBuilder) {
+    let uid = nix::unistd::getuid().as_raw();
+    let runtime_dir = format!("/run/user/{}", uid);
+    let dbus_addr = format!("unix:path={}/bus", runtime_dir);
+    cmd.env("XDG_RUNTIME_DIR", &runtime_dir);
+    cmd.env("DBUS_SESSION_BUS_ADDRESS", &dbus_addr);
+}
+
 /// Determine if a session should be sandboxed.
 /// Returns true for agent sessions with a project CWD that differs from the framework root,
 /// OR for any agent session when sandbox is explicitly desired.
 fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
     // Only sandbox agent sessions, not human shell sessions
     if agent == "shell" || agent == "human" {
+        return false;
+    }
+
+    // SPEC-045: Support developer-mode escape hatch.
+    // If ADT_DEV_MODE=1 is set in the environment, disable all sandboxing.
+    if std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false) {
+        log::warn!("[SANDBOX] Sandboxing DISABLED via ADT_DEV_MODE=1 (SPEC-045 escape hatch)");
         return false;
     }
 
@@ -344,6 +444,37 @@ fn get_framework_root() -> PathBuf {
     }
     // Final fallback: current directory
     PathBuf::from(".")
+}
+
+/// SPEC-057: Determine the default messaging mode for a session based on role.
+/// Systems_Architect spawns in MANUAL (human is directly engaged there).
+/// All worker roles spawn in AUTO (automated orchestration expected).
+fn default_messaging_mode_for_role(role: &str) -> &'static str {
+    if role == "Systems_Architect" {
+        "MANUAL"
+    } else {
+        "AUTO"
+    }
+}
+
+/// SPEC-057: Create the per-session mailbox directory tree under
+/// `<framework_root>/_cortex/comms/agents/<session_id>/{inbox,outbox,pending}`.
+/// Failure is logged but non-fatal: PTY spawn should not abort if the comms
+/// tree cannot be created (the watcher will recreate on first message).
+fn create_comms_dirs(framework_root: &Path, session_id: &str) {
+    let session_root = framework_root
+        .join("_cortex")
+        .join("comms")
+        .join("agents")
+        .join(session_id);
+    for subdir in &["inbox", "outbox", "pending"] {
+        let path = session_root.join(subdir);
+        if let Err(e) = fs::create_dir_all(&path) {
+            log::warn!("[COMMS] Failed to create {:?}: {}", path, e);
+            return;
+        }
+    }
+    log::info!("[COMMS] Created mailbox at {:?}", session_root);
 }
 
 /// Check if a project path is the framework itself.
@@ -386,11 +517,12 @@ fn has_user_namespaces() -> bool {
 /// This creates a minimal filesystem view containing only the project root
 /// and essential system directories (read-only).
 /// NOTE: --unshare-net is enabled in Phase B (SPEC-036 task_148).
-/// Network communication to host DTTP (localhost:5002) and ADT Panel (localhost:5001)
+/// Network communication to host DTCP (localhost:5002) and ADT Panel (localhost:5001)
 /// is bridged via socat.
 fn build_bwrap_args(
     project_root: &Path,
-    _dttp_port: u16,
+    _dtcp_port: u16,
+
     agent_binary_path: &str,
     framework_root: &Path,
 ) -> Vec<String> {
@@ -508,7 +640,7 @@ fn build_bwrap_args(
 /// This is the preferred method when user namespaces are available.
 fn build_unshare_script(
     project_root: &Path,
-    _dttp_port: u16,
+    _dtcp_port: u16,
     framework_root: &Path,
     agent_binary_path: &str,
 ) -> String {
@@ -557,7 +689,7 @@ fn build_unshare_script(
     )
 }
 
-/// Spawn socat background processes to bridge DTTP/Panel ports from host into the namespace.
+/// Spawn socat background processes to bridge DTCP/Panel ports from host into the namespace.
 /// Since bwrap's --unshare-net creates a new network namespace with only loopback,
 /// the agent cannot reach localhost:5002 on the host.
 /// We use a two-step bridge:
@@ -565,25 +697,25 @@ fn build_unshare_script(
 /// 2. Namespace Host-Port (localhost) -> Namespace Unix-Socket (in sandbox)
 fn spawn_network_bridges(
     sandbox_root: &Path,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
 ) -> Vec<std::process::Child> {
     let mut bridges = Vec::new();
 
-    let dttp_sock = sandbox_root.join("dttp.sock");
+    let dtcp_sock = sandbox_root.join("dtcp.sock");
     let panel_sock = sandbox_root.join("panel.sock");
 
-    // 1. DTTP Bridge (Host Side: TCP -> Unix Socket)
-    // socat UNIX-LISTEN:/path/to/dttp.sock,fork TCP:127.0.0.1:5002
+    // 1. DTCP Bridge (Host Side: TCP -> Unix Socket)
+    // socat UNIX-LISTEN:/path/to/dtcp.sock,fork TCP:127.0.0.1:5002
     match Command::new("/usr/bin/socat")
         .args([
-            &format!("UNIX-LISTEN:{},fork,reuseaddr", dttp_sock.to_string_lossy()),
-            &format!("TCP:127.0.0.1:{}", dttp_port),
+            &format!("UNIX-LISTEN:{},fork,reuseaddr", dtcp_sock.to_string_lossy()),
+            &format!("TCP:127.0.0.1:{}", dtcp_port),
         ])
         .spawn()
     {
         Ok(child) => bridges.push(child),
-        Err(e) => log::error!("[SANDBOX] Failed to spawn host DTTP bridge: {}", e),
+        Err(e) => log::error!("[SANDBOX] Failed to spawn host DTCP bridge: {}", e),
     }
 
     // 2. ADT Panel Bridge (Host Side: TCP -> Unix Socket)
@@ -606,10 +738,10 @@ fn build_bridge_wrapper(
     command: &str,
     args: &[String],
     session_id: &str,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
 ) -> (String, Vec<String>) {
-    let dttp_sock = format!("/project/.adt/sandbox/{}/dttp.sock", session_id);
+    let dtcp_sock = format!("/project/.adt/sandbox/{}/dtcp.sock", session_id);
     let panel_sock = format!("/project/.adt/sandbox/{}/panel.sock", session_id);
 
     let agent_cmd = if args.is_empty() {
@@ -620,11 +752,15 @@ fn build_bridge_wrapper(
 
     // The wrapper starts background socat bridges inside the namespace (Unix Socket -> TCP)
     // then execs the agent command.
+    // The wrapper starts background socat bridges inside the namespace (Unix Socket -> TCP)
+    // then execs the agent command.
+    // We also bring up the loopback interface (lo) inside the new network namespace.
     let script = format!(
-        "socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
+        "/usr/sbin/ip link set lo up || true; \
+         socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          socat TCP-LISTEN:{},fork,reuseaddr,bind=127.0.0.1 UNIX-CONNECT:{} & \
          exec {}",
-        dttp_port, dttp_sock,
+        dtcp_port, dtcp_sock,
         panel_port, panel_sock,
         agent_cmd
     );
@@ -650,7 +786,7 @@ fn wrap_with_namespace(
     command: &str,
     args: &[String],
     project_root: &Path,
-    dttp_port: u16,
+    dtcp_port: u16,
     panel_port: u16,
     framework_root: &Path,
     session_id: &str,
@@ -659,10 +795,10 @@ fn wrap_with_namespace(
 
     match method {
         "bwrap" => {
-            let mut bwrap_args = build_bwrap_args(project_root, dttp_port, command, framework_root);
+            let mut bwrap_args = build_bwrap_args(project_root, dtcp_port, command, framework_root);
             
             // Wrap the agent command with the network bridge script
-            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dtcp_port, panel_port);
             bwrap_args.push(bridge_cmd);
             bwrap_args.extend(bridge_args);
 
@@ -676,10 +812,10 @@ fn wrap_with_namespace(
         }
         "unshare" => {
             // unshare with mount namespace
-            let setup_script = build_unshare_script(project_root, dttp_port, framework_root, command);
+            let setup_script = build_unshare_script(project_root, dtcp_port, framework_root, command);
             
             // Wrap the agent command with the network bridge script
-            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dttp_port, panel_port);
+            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dtcp_port, panel_port);
             let agent_script = format!("{} {}", bridge_cmd, bridge_args.join(" "));
             
             let full_script = format!("{}; {}", setup_script, agent_script);
@@ -692,6 +828,7 @@ fn wrap_with_namespace(
                 "/usr/bin/unshare".to_string(),
                 vec![
                     "--mount".to_string(),
+                    "--net".to_string(),
                     "--map-root-user".to_string(),
                     "--fork".to_string(),
                     "--".to_string(),
@@ -722,6 +859,11 @@ pub struct SessionInfo {
     pub agent_user: Option<String>,
     pub sandboxed: Option<bool>,
     pub sandbox_tier: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
+    // SPEC-057: AUTO or MANUAL. Default derived from role at spawn.
+    #[serde(default)]
+    pub messaging_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -734,17 +876,25 @@ pub struct PersistentSession {
     pub command: String,
     pub args: Vec<String>,
     pub cwd: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
+    // SPEC-057: persisted so restored sessions keep their toggle state.
+    #[serde(default)]
+    pub messaging_mode: Option<String>,
 }
 
 struct PtySession {
     master: Box<dyn MasterPty + Send>,
+    child: Box<dyn Child + Send>,
     writer: Box<dyn Write + Send>,
     info: SessionInfo,
     metadata: PersistentSession,
     sandbox_root: Option<PathBuf>,
     bridge_processes: Vec<std::process::Child>,
+    output_buffer: Arc<Mutex<VecDeque<u8>>>,
 }
 
+#[derive(Clone)]
 pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     next_id: Arc<Mutex<u32>>,
@@ -870,6 +1020,13 @@ impl PtyManager {
         command: &str,
         args: &[String],
         cwd: Option<String>,
+        parent_session_id: Option<String>,
+        task_id: Option<String>,
+        build_id: Option<String>,
+        adt_mode: Option<String>,
+        adt_task_ids: Option<String>,
+        context_hint: Option<String>,
+        skip_permissions: bool,
         cols: u16,
         rows: u16,
         app_handle: tauri::AppHandle<R>,
@@ -885,18 +1042,61 @@ impl PtyManager {
             })
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
+        // Build command and args
+        let mut final_command = command.to_string();
+        let mut final_args = args.to_vec();
+
+        // SPEC-042: Build harness command with correct flags if not already provided
+        if (agent == "claude" || agent == "gemini" || agent == "agy") && (final_command == "claude" || final_command == "gemini" || final_command == "agy" || final_command == "bash" || final_command == "") {
+             if agent == "gemini" {
+                 final_command = "gemini".to_string();
+                 if !final_args.iter().any(|a| a.contains("/summon")) {
+                     final_args.push("-i".to_string());
+                     final_args.push(format!("/summon {}", role.to_lowercase()));
+                     final_args.push("--yolo".to_string());
+                 }
+             } else if agent == "claude" {
+                 final_command = "claude".to_string();
+                 if !final_args.iter().any(|a| a.contains("/hive")) {
+                     let role_suffix = role.replace("_Engineer", "").replace("Systems_", "").to_lowercase();
+                     final_args.push(format!("/hive-{}", role_suffix));
+                 }
+                 if skip_permissions && !final_args.iter().any(|a| a == "--dangerously-skip-permissions") {
+                     final_args.push("--dangerously-skip-permissions".to_string());
+                 }
+             } else if agent == "agy" {
+                 final_command = "agy".to_string();
+                 if !final_args.iter().any(|a| a.contains("/summon")) {
+                     let role_suffix = role.replace("_Engineer", "").replace("Systems_", "").to_lowercase();
+                     final_args.push("-i".to_string());
+                     final_args.push(format!("/summon {}", role_suffix));
+                 }
+                 if skip_permissions && !final_args.iter().any(|a| a == "--dangerously-skip-permissions") {
+                     final_args.push("--dangerously-skip-permissions".to_string());
+                 }
+             }
+        }
+
         // Resolve the user's full PATH so we can find agent CLIs (gemini, claude)
         // that may be installed in non-standard locations (e.g. ~/.npm-global/bin/).
         // Tauri apps launched from desktop environments inherit a minimal PATH.
         let user_path = resolve_user_path();
-        let resolved_command = resolve_command(command, &user_path);
+        let resolved_command = resolve_command(&final_command, &user_path);
+        // Pre-spawn validation: surface a clear "binary not found + install hint"
+        // instead of the cryptic "os error 2" Paul saw.
+        if agent == "agy" || agent == "claude" || agent == "gemini" {
+            if let Err(msg) = validate_agent_binary(agent, &resolved_command, &user_path) {
+                log::error!("[PTY VALIDATE] {}", msg);
+                return Err(msg);
+            }
+        }
         // Canonicalize to resolve symlinks (crucial for sandboxing npm-global modules)
         let canonical_command = PathBuf::from(&resolved_command)
             .canonicalize()
             .unwrap_or_else(|_| PathBuf::from(&resolved_command));
         let command_to_run = canonical_command.to_string_lossy().to_string();
-        log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')", 
-                  command, resolved_command, command_to_run);
+        log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')",
+                  final_command, resolved_command, command_to_run);
 
         // SPEC-027: In production mode, wrap agent commands with sudo -u agent.
         // Shell sessions requested by the human remain as the human user.
@@ -918,11 +1118,14 @@ impl PtyManager {
             id
         };
 
-        // Determine DTTP and Panel ports
-        let dttp_port_num = if let Some(path) = &cwd {
-            let config_path = PathBuf::from(path).join("config").join("dttp.json");
-            if config_path.exists() {
-                fs::read_to_string(&config_path).ok()
+        // Determine DTCP and Panel ports
+        let dtcp_port_num = if let Some(path) = &cwd {
+            let config_path = PathBuf::from(path).join("config").join("dtcp.json");
+            let old_config_path = PathBuf::from(path).join("config").join("dttp.json");
+            let final_path = if config_path.exists() { config_path } else { old_config_path };
+
+            if final_path.exists() {
+                fs::read_to_string(&final_path).ok()
                     .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
                     .and_then(|j| j.get("port").and_then(|p| p.as_u64()))
                     .map(|p| p as u16)
@@ -938,16 +1141,18 @@ impl PtyManager {
         // SPEC-036 Phase B: Determine if namespace isolation applies
         // Must be decided before building CommandBuilder
         let framework_root = get_framework_root();
-        let phase_b_wrap: Option<(String, Vec<String>)> = if production_mode && is_agent_session {
+        let sandbox_disabled = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
+
+        let phase_b_wrap: Option<(String, Vec<String>)> = if is_agent_session && !sandbox_disabled {
             if let Some(ref cwd_path) = cwd {
                 let project_root = PathBuf::from(cwd_path);
                 let is_fw = is_framework_project(&project_root, &framework_root);
                 if !is_fw {
                     wrap_with_namespace(
                         &command_to_run,
-                        args,
+                        &final_args,
                         &project_root,
-                        dttp_port_num,
+                        dtcp_port_num,
                         panel_port_num,
                         &framework_root,
                         &session_id,
@@ -979,17 +1184,21 @@ impl PtyManager {
             c.arg("-u");
             c.arg("agent");
             c.arg(&command_to_run);
-            for arg in args {
+            for arg in &final_args {
                 c.arg(arg);
             }
             c
         } else {
             let mut c = CommandBuilder::new(&command_to_run);
-            for arg in args {
+            for arg in &final_args {
                 c.arg(arg);
             }
             c
         };
+
+        // Inject keyring/DBUS env unconditionally so agy reuses its OAuth token
+        // (regardless of whether the console itself was launched with these set).
+        apply_keyring_env(&mut cmd);
 
         // Bug 6 fix: skip cmd.cwd() when bwrap handles it via --chdir /project
         if phase_b_wrap.is_none() {
@@ -998,8 +1207,8 @@ impl PtyManager {
             }
         }
 
-        // Determine DTTP_URL for SDK communication
-        let dttp_url = format!("http://localhost:{}", dttp_port_num);
+        // Determine DTCP_URL for SDK communication
+        let dtcp_url = format!("http://localhost:{}", dtcp_port_num);
 
         // SPEC-036: Set up sandbox for agent sessions
         let namespace_mode = phase_b_wrap.is_some();
@@ -1029,16 +1238,201 @@ impl PtyManager {
                                 log::error!("[SANDBOX] Claude config generation failed: {}", e);
                             }
                         }
-                    } else if agent == "gemini" {
+
+                        // Credential Inheritance for Claude: copy ~/.claude/.credentials.json
+                        // and symlink user-level config so the sandboxed CLI doesn't ask to log in.
+                        if let Some(host_home) = dirs::home_dir() {
+                            let sandbox_home_dir = sb_root.join("home");
+                            let host_claude_dir = host_home.join(".claude");
+                            let sandbox_claude_dir = sandbox_home_dir.join(".claude");
+
+                            #[cfg(unix)]
+                            {
+                                use std::os::unix::fs::PermissionsExt;
+                                use std::os::unix::fs::symlink;
+
+                                if let Err(e) = fs::create_dir_all(&sandbox_claude_dir) {
+                                    log::warn!("[SANDBOX] Failed to create sandbox .claude dir: {}", e);
+                                } else {
+                                    let _ = fs::set_permissions(
+                                        &sandbox_claude_dir,
+                                        fs::Permissions::from_mode(0o777),
+                                    );
+
+                                    if host_claude_dir.exists() {
+                                        for name in &[
+                                            "settings.json",
+                                            "commands",
+                                            "agents",
+                                            "plugins",
+                                            "CLAUDE.md",
+                                            "statsig",
+                                        ] {
+                                            let host_file = host_claude_dir.join(name);
+                                            if host_file.exists() {
+                                                let sandbox_link = sandbox_claude_dir.join(name);
+                                                let _ = fs::remove_file(&sandbox_link);
+                                                if let Err(e) = symlink(&host_file, &sandbox_link) {
+                                                    log::warn!("[SANDBOX] Failed to symlink .claude/{}: {}", name, e);
+                                                }
+                                            }
+                                        }
+
+                                        let host_creds = host_claude_dir.join(".credentials.json");
+                                        if host_creds.exists() {
+                                            let sandbox_creds = sandbox_claude_dir.join(".credentials.json");
+                                            let _ = fs::remove_file(&sandbox_creds);
+                                            match fs::copy(&host_creds, &sandbox_creds) {
+                                                Ok(_) => {
+                                                    let _ = fs::set_permissions(
+                                                        &sandbox_creds,
+                                                        fs::Permissions::from_mode(0o666),
+                                                    );
+                                                    log::info!("[SANDBOX] Copied fresh .credentials.json for Claude");
+                                                }
+                                                Err(e) => log::warn!("[SANDBOX] Failed to copy .credentials.json: {}", e),
+                                            }
+                                        }
+
+                                        log::info!("[SANDBOX] Claude credentials set up in sandbox .claude dir");
+                                    }
+
+                                    // Claude Code keeps the user-identity record at $HOME/.claude.json
+                                    // (a sibling of .claude/, not inside it). Without this, the CLI
+                                    // creates a fresh empty .claude.json and treats the user as logged out.
+                                    let host_claude_json = host_home.join(".claude.json");
+                                    if host_claude_json.exists() {
+                                        let sandbox_claude_json = sandbox_home_dir.join(".claude.json");
+                                        let _ = fs::remove_file(&sandbox_claude_json);
+                                        match fs::copy(&host_claude_json, &sandbox_claude_json) {
+                                            Ok(_) => {
+                                                let _ = fs::set_permissions(
+                                                    &sandbox_claude_json,
+                                                    fs::Permissions::from_mode(0o666),
+                                                );
+                                                log::info!("[SANDBOX] Copied fresh .claude.json for Claude (user identity)");
+                                            }
+                                            Err(e) => log::warn!("[SANDBOX] Failed to copy .claude.json: {}", e),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if agent == "gemini" || agent == "agy" {
                         if let Err(e) = generate_gemini_sandbox_config(
                             &sb_root, &project_root, &framework_root, namespace_mode
                         ) {
                             log::error!("[SANDBOX] Gemini config generation failed: {}", e);
                         }
-                        // Note: Do NOT inject --sandbox flag. Gemini's --sandbox requires
-                        // docker/podman for container isolation. Our sandbox is DTTP-based
-                        // (hook enforcement + env isolation), not container-based.
-                        log::info!("[SANDBOX] Gemini DTTP hook sandbox configured (no --sandbox flag)");
+                        
+                        // Credential Inheritance: Link global credentials and npm-global from host home to sandbox home
+                        if let Some(host_home) = dirs::home_dir() {
+                            let sandbox_home_dir = sb_root.join("home");
+                            
+                            // 1. .gemini directory (auth tokens)
+                            // We create a REAL directory (not a symlink) so agent can write inside it.
+                            // host's trustedFolders.json is root:600 and inaccessible to agent user,
+                            // so we generate a fresh one pre-trusting the project root.
+                            let host_gemini_dir = host_home.join(".gemini");
+                            let sandbox_gemini_dir = sandbox_home_dir.join(".gemini");
+
+                            #[cfg(unix)]
+                            {
+                                use std::os::unix::fs::PermissionsExt;
+                                use std::os::unix::fs::symlink;
+
+                                // Create real directory
+                                if let Err(e) = fs::create_dir_all(&sandbox_gemini_dir) {
+                                    log::warn!("[SANDBOX] Failed to create sandbox .gemini dir: {}", e);
+                                } else {
+                                    // chmod 777 so agent user can write inside it
+                                    let _ = fs::set_permissions(
+                                        &sandbox_gemini_dir,
+                                        fs::Permissions::from_mode(0o777),
+                                    );
+
+                                    // Write a fresh trustedFolders.json pre-trusting the project root.
+                                    // Gemini CLI expects flat { "<path>": "<trustLevel>" } — not a wrapped array.
+                                    let trusted_json = format!(
+                                        "{{\"{}\":\"TRUST_FOLDER\"}}\n",
+                                        project_root.to_string_lossy()
+                                    );
+                                    let tf_path = sandbox_gemini_dir.join("trustedFolders.json");
+                                    match fs::write(&tf_path, &trusted_json) {
+                                        Ok(_) => {
+                                            let _ = fs::set_permissions(
+                                                &tf_path,
+                                                fs::Permissions::from_mode(0o666),
+                                            );
+                                            log::info!("[SANDBOX] Wrote trustedFolders.json for Gemini");
+                                        }
+                                        Err(e) => log::warn!("[SANDBOX] Failed to write trustedFolders.json: {}", e),
+                                    }
+
+                                    if host_gemini_dir.exists() {
+                                        // Symlink read-only / non-secret files from host .gemini
+                                        for name in &[
+                                            "settings.json",
+                                            "trusted_hooks.json",
+                                            "state.json",
+                                            "installation_id",
+                                            "google_accounts.json",
+                                            "projects.json",
+                                            "config",
+                                        ] {
+                                            let host_file = host_gemini_dir.join(name);
+                                            if host_file.exists() {
+                                                let sandbox_link = sandbox_gemini_dir.join(name);
+                                                if let Err(e) = symlink(&host_file, &sandbox_link) {
+                                                    log::warn!("[SANDBOX] Failed to symlink .gemini/{}: {}", name, e);
+                                                }
+                                            }
+                                        }
+
+                                        // Copy oauth_creds.json — remove first so human (Tauri) can overwrite agent-owned file on restart
+                                        let host_oauth = host_gemini_dir.join("oauth_creds.json");
+                                        if host_oauth.exists() {
+                                            let sandbox_oauth = sandbox_gemini_dir.join("oauth_creds.json");
+                                            let _ = fs::remove_file(&sandbox_oauth);
+                                            match fs::copy(&host_oauth, &sandbox_oauth) {
+                                                Ok(_) => {
+                                                    #[cfg(unix)]
+                                                    {
+                                                        use std::os::unix::fs::PermissionsExt;
+                                                        let _ = fs::set_permissions(
+                                                            &sandbox_oauth,
+                                                            fs::Permissions::from_mode(0o666),
+                                                        );
+                                                    }
+                                                    log::info!("[SANDBOX] Copied fresh oauth_creds.json (mode 666 so 'agent' user can read regardless of group)");
+                                                }
+                                                Err(e) => log::warn!("[SANDBOX] Failed to copy oauth_creds.json: {}", e),
+                                            }
+                                        }
+
+                                        log::info!("[SANDBOX] Gemini credentials set up in sandbox .gemini dir");
+                                    }
+                                }
+                            }
+
+                            // 2. .npm-global directory (Gemini CLI binaries)
+                            let host_npm_dir = host_home.join(".npm-global");
+                            let sandbox_npm_dir = sandbox_home_dir.join(".npm-global");
+                            
+                            if host_npm_dir.exists() {
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::symlink;
+                                    if let Err(e) = symlink(&host_npm_dir, &sandbox_npm_dir) {
+                                        log::warn!("[SANDBOX] Failed to symlink .npm-global: {}", e);
+                                    } else {
+                                        log::info!("[SANDBOX] npm-global symlinked from host");
+                                    }
+                                }
+                            }
+                        }
+
+                        log::info!("[SANDBOX] Gemini DTCP hook sandbox configured");
                     }
 
                     // Apply sandbox environment (sanitize env vars, redirect HOME/TMPDIR)
@@ -1047,7 +1441,7 @@ impl PtyManager {
                     // because sudo -u agent sets HOME=/home/agent which may not exist
                     if !is_framework {
                         apply_sandbox_env(
-                            &mut cmd, &sb_root, &project_root, agent, &dttp_url,
+                            &mut cmd, &sb_root, &project_root, agent, &dtcp_url,
                             namespace_mode, &session_id,
                         );
                     } else if production_mode && is_agent_session {
@@ -1057,7 +1451,8 @@ impl PtyManager {
                         let sandbox_tmp = sb_root.join("tmp");
                         cmd.env("HOME", sandbox_home.to_string_lossy().as_ref());
                         cmd.env("TMPDIR", sandbox_tmp.to_string_lossy().as_ref());
-                        cmd.env("DTTP_URL", &dttp_url);
+                        cmd.env("DTCP_URL", &dtcp_url);
+                        cmd.env("DTTP_URL", &dtcp_url); // Fallback
                         log::info!(
                             "[SANDBOX] Framework project production mode: HOME={:?}, TMPDIR={:?}",
                             sandbox_home, sandbox_tmp
@@ -1079,36 +1474,147 @@ impl PtyManager {
             None
         };
 
+        // SPEC-057: Resolve spawn-time messaging mode default by role.
+        let messaging_mode = default_messaging_mode_for_role(role).to_string();
+
+        // SPEC-057: Create per-session mailbox directories before spawn so the
+        // first inbox/outbox writes from the agent or watcher race-free.
+        create_comms_dirs(&framework_root, &session_id);
+
         // Set environment variables for ADT context
         cmd.env("ADT_AGENT", agent);
         cmd.env("ADT_ROLE", role);
         cmd.env("ADT_SPEC_ID", spec_id);
+        cmd.env("ADT_HARNESS", agent);
+        cmd.env("ADT_SESSION_ID", &session_id);
+        cmd.env("ADT_MSG_MODE", &messaging_mode);
+        cmd.env("ADT_FRAMEWORK_ROOT", framework_root.to_string_lossy().as_ref());
+        
+        if let Some(path) = &cwd {
+            cmd.env("ADT_PROJECT_DIR", path);
+        }
+
+        if let Some(pid) = &parent_session_id {
+            cmd.env("ADT_PARENT_SESSION_ID", pid);
+        }
+        if let Some(tid) = &task_id {
+            cmd.env("ADT_TASK_ID", tid);
+        }
+        if let Some(mode) = &adt_mode {
+            cmd.env("ADT_MODE", mode);
+        }
+        if let Some(bid) = &build_id {
+            cmd.env("ADT_BUILD_ID", bid);
+        }
+        if let Some(tids) = &adt_task_ids {
+            cmd.env("ADT_TASK_IDS", tids);
+        }
         if sandbox_root.is_none() {
-            // Only set DTTP_URL here if not already set by sandbox env
-            cmd.env("DTTP_URL", &dttp_url);
+            // Only set DTCP_URL here if not already set by sandbox env
+            cmd.env("DTCP_URL", &dtcp_url);
+            cmd.env("DTTP_URL", &dtcp_url); // Fallback
         }
         cmd.env("TERM", "xterm-256color");
         cmd.env("PATH", &user_path);
 
-        if let Some(path) = &cwd {
-            if sandbox_root.is_none() {
-                cmd.env("CLAUDE_PROJECT_DIR", path);
-                cmd.env("GEMINI_PROJECT_DIR", path);
-            }
+        let agy_model = if let Some(pos) = final_args.iter().position(|x| x == "--model") {
+            final_args.get(pos + 1).cloned()
+        } else {
+            None
+        };
+        if let Some(m) = agy_model {
+            cmd.env("AGY_MODEL", &m);
         }
 
-        let _child = pair
+        if let Some(path) = &cwd {
+            let project_dir_val = if namespace_mode {
+                "/project".to_string()
+            } else {
+                path.clone()
+            };
+            cmd.env("CLAUDE_PROJECT_DIR", &project_dir_val);
+            cmd.env("GEMINI_PROJECT_DIR", &project_dir_val);
+        }
+
+        let child = pair
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("Failed to spawn process: {}", e))?;
 
-        let writer = pair
+        let mut writer = pair
             .master
             .take_writer()
             .map_err(|e| format!("Failed to get PTY writer: {}", e))?;
 
         if production_mode && is_agent_session {
             log::info!("[PTY PRODUCTION] Spawning as OS user 'agent' (sudo -u agent {})", command);
+        }
+
+        // SPEC-042 §7.1: Inject context_hint into PTY stdin after a 1.5s startup delay
+        if let Some(hint) = context_hint {
+            let sessions_clone = Arc::clone(&self.sessions);
+            let sid_clone = session_id.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if let Ok(mut sessions) = sessions_clone.lock() {
+                    if let Some(session) = sessions.get_mut(&sid_clone) {
+                        let _ = session.writer.write_all(hint.as_bytes());
+                        let _ = session.writer.write_all(b"\n");
+                        let _ = session.writer.flush();
+                        log::info!("[SWARM] Injected context_hint for session {}", sid_clone);
+                    }
+                }
+            });
+        }
+
+        // SPEC-049 task_306: Inject bootstrap hook if task_id is present
+        if let Some(ref tid) = task_id {
+            if agent == "gemini" || agent == "claude" {
+                let bootstrap = format!(
+                    "\n# --- CROSS-AI BOOTSTRAP ---\n\
+                     # ADT_TASK_ID={}\n\
+                     # Instructions: GET {}/governance/cross_ai/task/{} to fetch your manifest.\n\
+                     # Log cross_ai_task_accepted to ADS immediately.\n\
+                     # --- END BOOTSTRAP ---\n\n",
+                    tid, dtcp_url, tid
+                );
+                // We don't use inject_command here because we want it to be part of the initial PTY stream
+                // but not necessarily executed as a shell command yet.
+                // However, for Gemini CLI/Claude to see it as a "message", we might need to steer it.
+                // For MVP, we'll write it to the writer.
+                let _ = writer.write_all(bootstrap.as_bytes());
+                let _ = writer.flush();
+                log::info!("[PTY BOOTSTRAP] Injected bootstrap hook for task {}", tid);
+            }
+        }
+
+        // SPEC-055 Amendment A: Run orchestrator/worker boot hook and inject preamble
+        if adt_mode.as_deref() == Some("orchestrator") || adt_mode.as_deref() == Some("worker") {
+            let hook_path = if adt_mode.as_deref() == Some("orchestrator") {
+                "adt_sdk/hooks/orchestrator_boot.py"
+            } else {
+                "adt_sdk/hooks/worker_boot.py"
+            };
+            let hook_cwd = cwd.as_deref().unwrap_or(".");
+            match std::process::Command::new("python3")
+                .arg(hook_path)
+                .current_dir(hook_cwd)
+                .env("ADT_MODE", adt_mode.as_deref().unwrap_or(""))
+                .env("ADT_ROLE", role)
+                .env("ADT_SPEC_ID", spec_id)
+                .env("ADT_BUILD_ID", build_id.as_deref().unwrap_or(""))
+                .env("ADT_TASK_IDS", adt_task_ids.as_deref().unwrap_or(""))
+                .env("ADT_PARENT_SESSION_ID", parent_session_id.as_deref().unwrap_or(""))
+                .output()
+            {
+                Ok(output) if !output.stdout.is_empty() => {
+                    let _ = writer.write_all(&output.stdout);
+                    let _ = writer.flush();
+                    log::info!("[PTY BOOT] Injected {} for session {}", hook_path, session_id);
+                }
+                Ok(_) => log::warn!("[PTY BOOT] {} produced no output", hook_path),
+                Err(e) => log::error!("[PTY BOOT] Failed to run {}: {}", hook_path, e),
+            }
         }
 
         let info = SessionInfo {
@@ -1128,6 +1634,9 @@ impl PtyManager {
             } else {
                 None
             },
+            parent_session_id: parent_session_id.clone(),
+            task_id: task_id.clone(),
+            messaging_mode: Some(messaging_mode.clone()),
         };
 
         let metadata = PersistentSession {
@@ -1139,6 +1648,9 @@ impl PtyManager {
             command: command.to_string(),
             args: args.to_vec(),
             cwd: cwd.clone(),
+            parent_session_id: parent_session_id,
+            task_id: task_id,
+            messaging_mode: Some(messaging_mode),
         };
 
         // Start reader thread — forwards PTY output to frontend via events
@@ -1149,6 +1661,9 @@ impl PtyManager {
 
         let event_session_id = session_id.clone();
         let app_handle_clone = app_handle.clone();
+        let output_buffer = Arc::new(Mutex::new(VecDeque::with_capacity(65536)));
+        let thread_buffer = output_buffer.clone();
+
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             loop {
@@ -1162,7 +1677,16 @@ impl PtyManager {
                         break;
                     }
                     Ok(n) => {
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                        let data_bytes = &buf[..n];
+                        // Update ring buffer
+                        if let Ok(mut buffer) = thread_buffer.lock() {
+                            buffer.extend(data_bytes);
+                            while buffer.len() > 65536 {
+                                buffer.pop_front();
+                            }
+                        }
+
+                        let data = String::from_utf8_lossy(data_bytes).to_string();
                         // Use trace level to avoid log flooding
                         log::trace!("[PTY -> FE] session: {}, bytes: {}", event_session_id, n);
                         if let Err(e) = app_handle_clone.emit(
@@ -1184,17 +1708,19 @@ impl PtyManager {
         let mut bridge_processes = Vec::new();
         if namespace_mode {
             if let Some(ref sb_root) = sandbox_root {
-                bridge_processes = spawn_network_bridges(sb_root, dttp_port_num, panel_port_num);
+                bridge_processes = spawn_network_bridges(sb_root, dtcp_port_num, panel_port_num);
             }
         }
 
         let session = PtySession {
             master: pair.master,
+            child,
             writer,
             info: info.clone(),
             metadata,
             sandbox_root,
             bridge_processes,
+            output_buffer,
         };
 
         {
@@ -1255,6 +1781,37 @@ impl PtyManager {
         Ok(())
     }
 
+    pub fn replay_session_output<R: Runtime>(
+        &self,
+        session_id: &str,
+        app_handle: tauri::AppHandle<R>,
+    ) -> Result<(), String> {
+        let sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
+        let session = sessions.get(session_id).ok_or_else(|| format!("Session not found: {}", session_id))?;
+        
+        let buffer = session.output_buffer.lock().map_err(|_| "Buffer mutex poisoned")?;
+        if buffer.is_empty() {
+            return Ok(());
+        }
+
+        let data = String::from_utf8_lossy(&buffer.iter().cloned().collect::<Vec<u8>>()).to_string();
+        
+        app_handle.emit(&format!("pty-output-{}", session_id), data)
+            .map_err(|e| format!("Failed to emit replay: {}", e))?;
+        
+        log::info!("[PTY REPLAY] Replayed {} bytes for session {}", buffer.len(), session_id);
+        Ok(())
+    }
+
+    pub fn get_session_output(&self, session_id: &str) -> Result<String, String> {
+        let sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
+        let session = sessions.get(session_id).ok_or_else(|| format!("Session not found: {}", session_id))?;
+        
+        let buffer = session.output_buffer.lock().map_err(|_| "Buffer mutex poisoned")?;
+        let data = String::from_utf8_lossy(&buffer.iter().cloned().collect::<Vec<u8>>()).to_string();
+        Ok(data)
+    }
+
     pub fn resize_session(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), String> {
         let sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
         let session = sessions
@@ -1277,6 +1834,8 @@ impl PtyManager {
     pub fn close_session(&self, session_id: &str) -> Result<(), String> {
         let sandbox_info: Option<(PathBuf, String)>;
         let bridge_processes: Vec<std::process::Child>;
+        let mut main_child: Option<Box<dyn Child + Send>> = None;
+        
         {
             let mut sessions = self.sessions.lock().map_err(|_| "Mutex poisoned")?;
             let mut session = sessions.remove(session_id)
@@ -1289,8 +1848,23 @@ impl PtyManager {
                 (project_root, session_id.to_string())
             });
 
-            // Take bridge processes to kill them outside the lock
+            // Take bridge processes and the main child to kill them outside the lock
             bridge_processes = std::mem::take(&mut session.bridge_processes);
+            main_child = Some(session.child);
+        }
+
+        // Kill the main agent process
+        if let Some(mut child) = main_child {
+            log::info!("[PTY CLOSE] Terminating main process for session {}", session_id);
+            let _ = child.kill();
+            
+            // Wait up to 500ms for child to exit
+            for _ in 0..10 {
+                if let Ok(Some(_)) = child.try_wait() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
         }
 
         // Kill all associated bridge processes
@@ -1348,6 +1922,13 @@ impl PtyManager {
                 &s.command,
                 &s.args,
                 s.cwd,
+                s.parent_session_id,
+                s.task_id,
+                None, // build_id
+                None, // adt_mode
+                None, // adt_task_ids
+                None, // context_hint
+                false, // skip_permissions
                 120, // Default cols
                 30,  // Default rows
                 app_handle.clone(),
@@ -1371,12 +1952,16 @@ mod tests {
             command: "bash".to_string(),
             args: vec!["-c".to_string(), "ls".to_string()],
             cwd: Some("/tmp".to_string()),
+            parent_session_id: None,
+            task_id: None,
+            messaging_mode: Some("AUTO".to_string()),
         };
 
         let json = serde_json::to_string(&session).unwrap();
         let decoded: PersistentSession = serde_json::from_str(&json).unwrap();
         assert_eq!(session.id, decoded.id);
         assert_eq!(session.args, decoded.args);
+        assert_eq!(decoded.messaging_mode, Some("AUTO".to_string()));
     }
 
     #[test]
@@ -1392,6 +1977,9 @@ mod tests {
             agent_user: Some("agent".to_string()),
             sandboxed: Some(true),
             sandbox_tier: Some("phase_b".to_string()),
+            parent_session_id: None,
+            task_id: None,
+            messaging_mode: Some("AUTO".to_string()),
         };
 
         let json = serde_json::to_string(&info).unwrap();
@@ -1400,6 +1988,7 @@ mod tests {
         assert_eq!(info.alive, decoded.alive);
         assert_eq!(decoded.sandboxed, Some(true));
         assert_eq!(decoded.sandbox_tier, Some("phase_b".to_string()));
+        assert_eq!(decoded.messaging_mode, Some("AUTO".to_string()));
     }
 
     #[test]
@@ -1415,12 +2004,53 @@ mod tests {
             agent_user: None,
             sandboxed: Some(false),
             sandbox_tier: None,
+            parent_session_id: None,
+            task_id: None,
+            messaging_mode: None,
         };
 
         let json = serde_json::to_string(&info).unwrap();
         let decoded: SessionInfo = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.sandboxed, Some(false));
         assert_eq!(decoded.sandbox_tier, None);
+        assert_eq!(decoded.messaging_mode, None);
+    }
+
+    #[test]
+    fn test_default_messaging_mode_for_role() {
+        // SPEC-057: Systems_Architect is the only role spawning in MANUAL by default.
+        assert_eq!(default_messaging_mode_for_role("Systems_Architect"), "MANUAL");
+        assert_eq!(default_messaging_mode_for_role("Backend_Engineer"), "AUTO");
+        assert_eq!(default_messaging_mode_for_role("Frontend_Engineer"), "AUTO");
+        assert_eq!(default_messaging_mode_for_role("DevOps_Engineer"), "AUTO");
+        assert_eq!(default_messaging_mode_for_role("Overseer"), "AUTO");
+        assert_eq!(default_messaging_mode_for_role("unknown_role"), "AUTO");
+    }
+
+    #[test]
+    fn test_create_comms_dirs_makes_subtree() {
+        // SPEC-057: create_comms_dirs must build inbox/outbox/pending under
+        // <framework_root>/_cortex/comms/agents/<session_id>/.
+        let tmp = std::env::temp_dir().join(format!(
+            "adt_comms_test_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        let session_id = "test_session_057";
+        create_comms_dirs(&tmp, session_id);
+
+        let session_root = tmp
+            .join("_cortex")
+            .join("comms")
+            .join("agents")
+            .join(session_id);
+        assert!(session_root.join("inbox").is_dir());
+        assert!(session_root.join("outbox").is_dir());
+        assert!(session_root.join("pending").is_dir());
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]

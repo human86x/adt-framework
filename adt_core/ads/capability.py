@@ -53,6 +53,10 @@ def validate_intent(data: Dict[str, Any]) -> List[str]:
         errors.append("title is required")
     if not data.get("description"):
         errors.append("description is required")
+    if "standards_refs" not in data:
+        errors.append("standards_refs is required (can be empty array for legacy)")
+    elif not isinstance(data["standards_refs"], list):
+        errors.append("standards_refs must be a list of strings")
     if data.get("type") and data["type"] not in INTENT_TYPES:
         errors.append(f"type must be one of: {INTENT_TYPES}")
     if data.get("target_maturity") and data["target_maturity"] not in MATURITY_LEVELS:
@@ -133,6 +137,9 @@ class CapabilityManager:
             intent_data["status"] = "Intent Defined"
         if not intent_data.get("target_maturity"):
             intent_data["target_maturity"] = "Initial"
+        
+        # SPEC-046: Standards Registry integration
+        intent_data.setdefault("standards_refs", [])
         # Default empty nested sections for backward compat
         intent_data.setdefault("org_context", {})
         intent_data.setdefault("capability", {})
@@ -314,7 +321,7 @@ class GateManager:
     GATE_FIELDS = {
         1: ["classification", "priority", "validator"],
         2: ["concept_id", "prototype_required", "architecture_concept", "concept_owner"],
-        3: ["financial_feasibility", "operational_feasibility", "technical_feasibility", "strategic_alignment"],
+        3: ["financial_feasibility", "operational_feasibility", "technical_feasibility", "strategic_alignment", "standards_alignment"],
         4: ["architecture_review", "risk_rating", "compliance_status", "review_board"],
         5: ["portfolio_priority", "portfolio_manager", "estimated_resources", "target_delivery_window"],
         6: ["investment_decision", "investment_board", "decision_date", "approved_budget"],

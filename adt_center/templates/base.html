@@ -47,6 +47,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'standards' %}active{% endif %}" href="{{ url_for('standards_page', project=current_project) }}">
+                            <span class="nav-icon">&#9873;</span>Standards
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if active_page == 'capabilities' %}active{% endif %}" href="{{ url_for('capabilities_page', project=current_project) }}">
                             <span class="nav-icon">&#9670;</span>Capabilities
                         </a>
@@ -57,8 +62,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'dttp' %}active{% endif %}" href="{{ url_for('dttp_monitor', project=current_project) }}">
-                            <span class="nav-icon">&#9889;</span>DTTP
+                        <a class="nav-link {% if active_page == 'dtcp' %}active{% endif %}" href="{{ url_for('dtcp_monitor', project=current_project) }}">
+                            <span class="nav-icon">&#9889;</span>DTCP
                         </a>
                     </li>
                     <li class="nav-item">

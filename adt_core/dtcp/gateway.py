@@ -10,7 +10,7 @@ from .actions import ActionHandler
 SOVEREIGN_PATHS = [
     "config/specs.json",
     "config/jurisdictions.json",
-    "config/dttp.json",
+    "config/dtcp.json",
     "_cortex/AI_PROTOCOL.md",
     "_cortex/MASTER_PLAN.md",
 ]
@@ -19,16 +19,16 @@ SOVEREIGN_PATHS = [
 GOVERNANCE_LOCKED = SOVEREIGN_PATHS
 
 CONSTITUTIONAL_PATHS = [
-    "adt_core/dttp/gateway.py",
-    "adt_core/dttp/policy.py",
-    "adt_core/dttp/service.py",
+    "adt_core/dtcp/gateway.py",
+    "adt_core/dtcp/policy.py",
+    "adt_core/dtcp/service.py",
     "adt_core/ads/logger.py",
     "adt_core/ads/integrity.py",
     "adt_core/ads/crypto.py",
 ]
 
-class DTTPGateway:
-    """The main validation and execution gateway for DTTP requests."""
+class DTCPGateway:
+    """The main validation and execution gateway for DTCP requests."""
 
     def __init__(self, 
                  policy_engine: PolicyEngine, 
@@ -47,9 +47,11 @@ class DTTPGateway:
                 action: str,
                 params: Dict[str, Any],
                 rationale: str,
-                dry_run: bool = False) -> Dict[str, Any]:
+                dry_run: bool = False,
+                session_id: Optional[str] = None,
+                parent_session_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Processes a DTTP request: validates, logs pre-action, executes, logs post-action.
+        Processes a DTCP request: validates, logs pre-action, executes, logs post-action.
         If dry_run=True, runs all validation but skips execution.
         """
         # SPEC-036 / REQ-029: Normalize action type
@@ -70,11 +72,7 @@ class DTTPGateway:
                 self.action_handler._resolve_path(path)
             except PermissionError as e:
                 event_id = ADSEventSchema.generate_id("containment_violation")
-                self.logger.log(ADSEventSchema.create_event(
-                    event_id=event_id, agent=agent, role=role, action_type="denied_containment",
-                    description=f"DENIED: Path {path} escapes project root. Rationale: {rationale}",
-                    spec_ref=spec_id, authorized=False, tier=1, escalation=True
-                ))
+                self.logger.log(ADSEventSchema.create_event(event_id=event_id, agent=agent, role=role, action_type="denied_containment", description=f"DENIED: Path {path} escapes project root. Rationale: {rationale}", spec_ref=spec_id, authorized=False, tier=1, escalation=True, session_id=session_id, parent_session_id=parent_session_id))
                 return {"status": "denied", "reason": "path_outside_project_root"}
 
         # SPEC-038: Intent Validation
@@ -89,8 +87,7 @@ class DTTPGateway:
                     event_id=event_id, agent=agent, role=role, action_type="denied_intent",
                     description=f"DENIED: Intent {intent_id} not found. Rationale: {rationale}",
                     spec_ref=spec_id, authorized=False, tier=3, escalation=True,
-                    intent_id=intent_id
-                ))
+                    intent_id=intent_id, session_id=session_id, parent_session_id=parent_session_id))
                 return {"status": "denied", "reason": "intent_not_found"}
             
             if intent.get("status") in ["Completed", "Cancelled"]:
@@ -99,8 +96,7 @@ class DTTPGateway:
                     event_id=event_id, agent=agent, role=role, action_type="denied_intent",
                     description=f"DENIED: Intent {intent_id} is {intent.get('status')}. Rationale: {rationale}",
                     spec_ref=spec_id, authorized=False, tier=3, escalation=True,
-                    intent_id=intent_id
-                ))
+                    intent_id=intent_id, session_id=session_id, parent_session_id=parent_session_id))
                 return {"status": "denied", "reason": "intent_inactive"}
 
         # 0b. Governance Lock Check (SPEC-031 Amendment A)
@@ -108,11 +104,7 @@ class DTTPGateway:
             if not self.is_framework:
                 # Project's own agents CANNOT modify their own governance files
                 event_id = ADSEventSchema.generate_id("gov_lock_violation")
-                self.logger.log(ADSEventSchema.create_event(
-                    event_id=event_id, agent=agent, role=role, action_type="governance_lock_violation",
-                    description=f"DENIED: Agent attempted to modify governance-locked file {normalized_path}. Rationale: {rationale}",
-                    spec_ref=spec_id, authorized=False, tier=1, escalation=True
-                ))
+                self.logger.log(ADSEventSchema.create_event(event_id=event_id, agent=agent, role=role, action_type="governance_lock_violation", description=f"DENIED: Agent attempted to modify governance-locked file {normalized_path}. Rationale: {rationale}", spec_ref=spec_id, authorized=False, tier=1, escalation=True, session_id=session_id, parent_session_id=parent_session_id))
                 return {"status": "denied", "reason": "governance_file_protected"}
 
         # 1. Sovereign Path Check (Tier 1) - SPEC-020 Section 2.1
@@ -128,9 +120,31 @@ class DTTPGateway:
                 spec_ref=spec_id,
                 authorized=False,
                 tier=1,
-                escalation=True
+                escalation=True,
+                session_id=session_id,
+                parent_session_id=parent_session_id
             ))
             return {"status": "denied", "reason": "sovereign_path_violation"}
+
+
+        # SPEC-042: Delegate Action Handling
+        if action == "delegate":
+            child_role = params.get("child_role")
+            task_id = params.get("task_id")
+            spec_ref = params.get("spec_ref")
+            
+            allowed, reason = self.policy_engine.validate_delegation(role, child_role, task_id, spec_ref)
+            if not allowed:
+                event_id = ADSEventSchema.generate_id("denied_delegate")
+                self.logger.log(ADSEventSchema.create_event(
+                    event_id=event_id, agent=agent, role=role, action_type="denied_delegate",
+                    description=f"DENIED: Delegation to {child_role} for task {task_id} failed. Reason: {reason}",
+                    spec_ref=spec_id, authorized=False, tier=3, escalation=True,
+                    session_id=session_id, parent_session_id=parent_session_id))
+                return {"status": "denied", "reason": reason}
+            
+            # Delegation is virtual, it doesn't have an execution result in ActionHandler
+            return {"status": "allowed", "result": {"status": "success", "message": "Delegation authorized"}}
 
         # 2. Constitutional Path Check (Tier 2) - SPEC-020 Section 2.2
         tier = 3
@@ -170,7 +184,9 @@ class DTTPGateway:
                         spec_ref=spec_id,
                         authorized=False,
                         tier=2,
-                        escalation=True
+                        escalation=True,
+                        session_id=session_id,
+                        parent_session_id=parent_session_id
                     ))
                     return {"status": "denied", "reason": reason}
 
@@ -186,12 +202,14 @@ class DTTPGateway:
                     spec_ref=spec_id,
                     authorized=False,
                     tier=2,
-                    escalation=True
+                    escalation=True,
+                    session_id=session_id,
+                    parent_session_id=parent_session_id
                 ))
                 return {"status": "denied", "reason": reason}
 
         # 3. Standard Policy Validation
-        allowed, reason = self.policy_engine.validate_request(role, spec_id, action, path)
+        allowed, reason = self.policy_engine.validate_request(role, spec_id, action, path, session_id=session_id, params=params)
         
         if not allowed:
             # Log denial
@@ -205,7 +223,9 @@ class DTTPGateway:
                 spec_ref=spec_id,
                 authorized=False,
                 tier=tier,
-                escalation=True
+                escalation=True,
+                session_id=session_id,
+                parent_session_id=parent_session_id
             ))
             return {"status": "denied", "reason": reason}
 
@@ -219,9 +239,7 @@ class DTTPGateway:
                 action_type=f"dry_run_validated_{action}",
                 description=f"Dry-run validated {action} on {path}. Rationale: {rationale}",
                 spec_ref=spec_id,
-                authorized=True,
-                tier=tier,
-            ))
+                authorized=True, tier=tier, session_id=session_id, parent_session_id=parent_session_id))
             return {"status": "allowed", "dry_run": True}
 
         # 5. Log Pre-action
@@ -235,7 +253,9 @@ class DTTPGateway:
             spec_ref=spec_id,
             authorized=True,
             tier=tier,
-            status="pending"
+            status="pending",
+            session_id=session_id,
+            parent_session_id=parent_session_id
         ))
 
         # 6. Execute
@@ -252,7 +272,6 @@ class DTTPGateway:
             spec_ref=spec_id,
             authorized=True,
             tier=tier,
-            execution_result=result
-        ))
+            execution_result=result, session_id=session_id, parent_session_id=parent_session_id))
 
         return {"status": "allowed", "result": result}

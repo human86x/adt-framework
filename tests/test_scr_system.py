@@ -63,7 +63,7 @@ def test_scr_rejection():
     scr_payload = {
         "agent": "TEST_AGENT",
         "role": "Backend_Engineer",
-        "target_path": "config/dttp.json",
+        "target_path": "config/dtcp.json",
         "change_type": "patch",
         "description": "Reject this",
         "patch": {"old_string": "foo", "new_string": "bar"}
@@ -82,7 +82,7 @@ def test_scr_human_only():
     scr_payload = {
         "agent": "TEST_AGENT",
         "role": "Backend_Engineer",
-        "target_path": "config/dttp.json",
+        "target_path": "config/dtcp.json",
         "change_type": "append",
         "content": "\n# test"
     }

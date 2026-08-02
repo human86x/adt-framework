@@ -1,0 +1,108 @@
+{
+  "standards": [
+    {
+      "id": "COBIT-2019",
+      "title": "COBIT-2019",
+      "version": "latest",
+      "file": "COBIT-2019.json",
+      "status_summary": {
+        "total": 5,
+        "pending": 4,
+        "adopted": 1,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "COMPANY-CODEX",
+      "title": "COMPANY-CODEX",
+      "version": "latest",
+      "file": "COMPANY-CODEX.json",
+      "status_summary": {
+        "total": 5,
+        "pending": 5,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "EU-AI-ACT-2024",
+      "title": "European Union Artificial Intelligence Act",
+      "version": "2024",
+      "file": "EU-AI-ACT-2024.json",
+      "status_summary": {
+        "total": 6,
+        "pending": 2,
+        "adopted": 3,
+        "adapted": 1,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "ISO-IEC-42001-2023",
+      "title": "ISO-IEC-42001-2023",
+      "version": "latest",
+      "file": "ISO-IEC-42001-2023.json",
+      "status_summary": {
+        "total": 6,
+        "pending": 6,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "ITIL-4",
+      "title": "ITIL-4",
+      "version": "latest",
+      "file": "ITIL-4.json",
+      "status_summary": {
+        "total": 7,
+        "pending": 7,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "NIST-AI-RMF-1.0",
+      "title": "NIST-AI-RMF-1.0",
+      "version": "latest",
+      "file": "NIST-AI-RMF-1.0.json",
+      "status_summary": {
+        "total": 5,
+        "pending": 5,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "OECD-AI-2024",
+      "title": "OECD-AI-2024",
+      "version": "latest",
+      "file": "OECD-AI-2024.json",
+      "status_summary": {
+        "total": 5,
+        "pending": 5,
+        "adopted": 0,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    },
+    {
+      "id": "UNESCO-AI-2021",
+      "title": "UNESCO Recommendation on the Ethics of Artificial Intelligence",
+      "version": "2021",
+      "file": "UNESCO-AI-2021.json",
+      "status_summary": {
+        "total": 8,
+        "pending": 4,
+        "adopted": 4,
+        "adapted": 0,
+        "dismissed": 0
+      }
+    }
+  ]
+}

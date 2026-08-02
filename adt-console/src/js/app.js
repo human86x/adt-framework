@@ -182,7 +182,21 @@ const PanelManager = (() => {
     if (active) {
       if (DashboardManager.isActive()) DashboardManager.toggle();
       if (GovernanceManager.isActive()) GovernanceManager.toggle();
-      
+
+      // Open in native WebviewWindow — bypasses webkit2gtk iframe bug (REQ-085)
+      if (window.__TAURI__) {
+        try {
+          const { WebviewWindow } = window.__TAURI__.webviewWindow;
+          new WebviewWindow('adt-panel', { url: getUrl() });
+        } catch (e) {
+          console.error('[ADT Panel] WebviewWindow failed:', e);
+        }
+        active = false;
+        const panelBtn = document.getElementById('btn-adt-panel');
+        if (panelBtn) panelBtn.classList.remove('active');
+        return;
+      }
+
       termArea.classList.add('panel-active');
       view.style.display = '';
       if (iframe.src === 'about:blank' || iframe.src === '') {
@@ -339,10 +353,39 @@ const GitStatusManager = (() => {
   'use strict';
 
   // --- Clock ---
+  // --- Build Info ---
+  async function loadBuildInfo() {
+    // Both files are written by src-tauri/build.rs on every release build.
+    // Version pulls from tauri.conf.json so the header never drifts from
+    // the actual bundled version. Build time is local (with tz offset).
+    try {
+      const [tRes, vRes] = await Promise.all([
+        fetch('build_time.txt'),
+        fetch('version.txt')
+      ]);
+      if (tRes.ok) {
+        const t = (await tRes.text()).trim();
+        const el = document.getElementById('build-time');
+        if (el) el.textContent = '| Build: ' + t;
+      }
+      if (vRes.ok) {
+        const v = (await vRes.text()).trim();
+        const el = document.getElementById('brand-version');
+        if (el) el.textContent = 'v' + v;
+      }
+    } catch (e) {
+      console.warn('Failed to load build info', e);
+    }
+  }
+  loadBuildInfo();
+
+  // --- Clock ---
   function updateClock() {
     const now = new Date();
-    document.getElementById('status-clock').textContent =
-      now.toISOString().substring(11, 19) + ' UTC';
+    const clockEl = document.getElementById('status-clock');
+    if (clockEl) {
+      clockEl.textContent = now.toISOString().substring(11, 19) + ' UTC';
+    }
   }
   setInterval(updateClock, 1000);
   updateClock();
@@ -483,12 +526,54 @@ const GitStatusManager = (() => {
     }
   }
 
+  async function fetchAgyModels() {
+    if (window._agyModelsCache) {
+      return window._agyModelsCache;
+    }
+    try {
+      const models = await window.__TAURI__.core.invoke('list_agy_models');
+      if (Array.isArray(models) && models.length > 0) {
+        window._agyModelsCache = models;
+        return models;
+      }
+    } catch (err) {
+      console.error('Failed to fetch agy models:', err);
+    }
+    const fallback = [
+      'Claude Sonnet 4.6 (Thinking)',
+      'Claude Opus 4.6 (Thinking)',
+      'Gemini 3.5 Flash (High)',
+      'Gemini 3.1 Pro (High)',
+      'GPT-OSS 120B (Medium)'
+    ];
+    return fallback;
+  }
+
+  async function populateAgyModels() {
+    const selectEl = document.getElementById('input-agy-model');
+    if (!selectEl) return;
+    
+    selectEl.innerHTML = '<option value="">Loading models...</option>';
+    
+    const models = await fetchAgyModels();
+    selectEl.innerHTML = '';
+    models.forEach(model => {
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      selectEl.appendChild(opt);
+    });
+  }
+
   function openNewSessionDialog() {
     loadProjects().then(() => {
       loadRoles().then(() => loadSpecs());
     });
     dialog.showModal();
     setTimeout(() => agentSelect.focus(), 50);
+    if (agentSelect.value === 'agy') {
+      populateAgyModels();
+    }
   }
 
   document.getElementById('btn-new-session').addEventListener('click', openNewSessionDialog);
@@ -584,8 +669,19 @@ const GitStatusManager = (() => {
         flagsDiv.style.display = 'block';
         yoloFlag.style.display = 'none';
         skipFlag.style.display = 'flex';
+      } else if (agent === 'agy') {
+        // SPEC-061 Amendment A: Antigravity harness flags
+        flagsDiv.style.display = 'block';
+        yoloFlag.style.display = 'none';
+        skipFlag.style.display = 'flex'; // --dangerously-skip-permissions required for console ops
+        // Show model selector if present
+        const modelRow = document.getElementById('flag-agy-model');
+        if (modelRow) modelRow.style.display = 'flex';
+        populateAgyModels();
       } else {
         flagsDiv.style.display = 'none';
+        const modelRow = document.getElementById('flag-agy-model');
+        if (modelRow) modelRow.style.display = 'none';
       }
     }
   });
@@ -609,7 +705,8 @@ const GitStatusManager = (() => {
     // SPEC-034: Agent flags
     const flags = {
       yolo: document.getElementById('input-yolo')?.checked || false,
-      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false
+      skipPermissions: document.getElementById('input-skip-permissions')?.checked || false,
+      model: agent === 'agy' ? (document.getElementById('input-agy-model')?.value || null) : null,
     };
 
     dialog.close();
@@ -620,21 +717,53 @@ const GitStatusManager = (() => {
   });
 
   // --- Dashboard button ---
-  document.getElementById('btn-dashboard').addEventListener('click', () => {
-    DashboardManager.toggle();
+  const _AG = (key, ev, fn) => {
+    const act = async () => {
+      if (window.ConsoleReadiness && !window.ConsoleReadiness.isReady()) {
+        await window.ConsoleReadiness.waitReady({ timeout: 8000 });
+      }
+      await fn();
+    };
+    return window.ActionGuard ? window.ActionGuard.run(key, ev.currentTarget, act) : act();
+  };
+
+  document.getElementById('btn-dashboard').addEventListener('click', (e) => {
+    _AG('dashboard_toggle', e, async () => DashboardManager.toggle());
   });
 
-  document.getElementById('btn-projects').addEventListener('click', () => {
-    ProjectLauncher.toggle();
+  document.getElementById('btn-projects').addEventListener('click', (e) => {
+    _AG('projects_toggle', e, async () => ProjectLauncher.toggle());
   });
 
-  document.getElementById('btn-governance').addEventListener('click', () => {
-    GovernanceManager.toggle();
+  document.getElementById('btn-governance').addEventListener('click', (e) => {
+    _AG('governance_toggle', e, async () => GovernanceManager.toggle());
   });
 
-  document.getElementById('btn-adt-panel').addEventListener('click', () => {
-    PanelManager.toggle();
+  document.getElementById('btn-adt-panel').addEventListener('click', (e) => {
+    _AG('adt_panel_toggle', e, async () => PanelManager.toggle());
   });
+
+  // SPEC-062 task_350: Spec Map tab (architect direct implementation 2026-06-20)
+  const specMapBtn = document.getElementById('btn-spec-map');
+  if (specMapBtn) {
+    specMapBtn.addEventListener('click', (e) => {
+      _AG('spec_map_toggle', e, async () => {
+        const view = document.getElementById('spec-map-view');
+        if (!view) return;
+        const open = view.style.display !== 'none' && view.style.display !== '';
+        if (open) {
+          if (window.SpecMap && window.SpecMap.hide) window.SpecMap.hide();
+          specMapBtn.classList.remove('active');
+        } else {
+          // Close project launcher before showing spec map
+          ProjectLauncher.hide();
+          if (window.SpecMap && window.SpecMap.show) window.SpecMap.show();
+          if (window.SpecMap && window.SpecMap.init) window.SpecMap.init();
+          specMapBtn.classList.add('active');
+        }
+      });
+    });
+  }
 
   const remoteBtn = document.getElementById('status-remote');
   if (remoteBtn) {
@@ -648,6 +777,17 @@ const GitStatusManager = (() => {
   if (splitBtn) {
     splitBtn.addEventListener('click', () => {
       document.getElementById('terminal-container').classList.toggle('split-view');
+    });
+  }
+
+  // --- Forge split-mode exit button (SPEC-062 Amendment: Forge auto-launch) ---
+  const forgeSplitExit = document.getElementById('forge-split-exit');
+  if (forgeSplitExit) {
+    forgeSplitExit.addEventListener('click', () => {
+      const area = document.getElementById('terminal-area');
+      if (area) area.classList.remove('forge-split-mode');
+      // Keep spec map visible (user was watching it); collapse the split so terminal
+      // takes normal space. If user wants to hide the map, they can toggle spec-map view.
     });
   }
 
@@ -697,14 +837,14 @@ const GitStatusManager = (() => {
   function initSettings() {
     const autostart = document.getElementById("setting-autostart");
     const centerUrl = document.getElementById("setting-center-url");
-    const dttpUrl = document.getElementById("setting-dttp-url");
+    const dtcpUrl = document.getElementById("setting-dtcp-url");
     
     if (!autostart) return;
 
     // Load from localStorage
     autostart.checked = localStorage.getItem("adt_autostart") === "true";
     centerUrl.value = localStorage.getItem("adt_center_url") || "http://localhost:5001";
-    dttpUrl.value = localStorage.getItem("adt_dttp_url") || "http://localhost:5002";
+    dtcpUrl.value = localStorage.getItem("adt_dtcp_url") || "http://localhost:5002";
     
     autostart.addEventListener("change", () => {
       localStorage.setItem("adt_autostart", autostart.checked);
@@ -715,8 +855,8 @@ const GitStatusManager = (() => {
       localStorage.setItem("adt_center_url", centerUrl.value);
     });
 
-    dttpUrl.addEventListener("change", () => {
-      localStorage.setItem("adt_dttp_url", dttpUrl.value);
+    dtcpUrl.addEventListener("change", () => {
+      localStorage.setItem("adt_dtcp_url", dtcpUrl.value);
     });
   }
 
@@ -814,6 +954,14 @@ const GitStatusManager = (() => {
       return;
     }
 
+    // Ctrl+M: Spec Map toggle (SPEC-062 - architect direct implementation 2026-06-20)
+    if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-spec-map');
+      if (btn) btn.click();
+      return;
+    }
+
     // Ctrl+D: Dashboard toggle
     if (e.ctrlKey && e.key === 'd') {
       e.preventDefault();
@@ -887,6 +1035,19 @@ const GitStatusManager = (() => {
     window.__TAURI__.event.listen('ads-updated', () => {
       TrayBridge.refresh();
     });
+
+    // Panel → Console: spawn orchestrator PTY window when build is triggered from specs.html
+    window.__TAURI__.event.listen('spawn-build-orchestrator', async (event) => {
+      const { spec_id, build_id, project } = event.payload || {};
+      if (!spec_id || !build_id) return;
+      try {
+        await SessionManager.spawnOrchestratorSession({ spec_id, build_id, triggered_by: 'panel' });
+        BuildManager.showBuildProgress(build_id, spec_id);
+      } catch (e) {
+        console.warn('[BUILD] spawn-build-orchestrator event handler failed:', e);
+        ToastManager.show('denial', 'Orchestrator Error', String(e));
+      }
+    });
   }
 
   // --- ADS Notification Watcher ---
@@ -917,7 +1078,7 @@ const GitStatusManager = (() => {
           const type = event.action_type || '';
           if (type.includes('denied') || type.includes('violation')) {
             NativeNotify.send(
-              'DTTP Denial',
+              'DTCP Denial',
               truncateStr(event.description, 100)
             );
             TrayBridge.updateStatus('error', SessionManager.getAll().length, 1);
@@ -945,18 +1106,193 @@ const GitStatusManager = (() => {
     return str.length > len ? str.substring(0, len) + '...' : str;
   }
 
+  // --- SCR Alerts Watcher (SPEC-062 Amendment B) ---
+  const SCRAlerts = (() => {
+    let pollTimer = null;
+    let authRequired = false;
+    const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
+
+    function showAuthPrompt() {
+      authRequired = true;
+      const feed = document.getElementById('ctx-scr-feed');
+      const authPrompt = document.getElementById('scr-alerts-auth-prompt');
+      if (feed) feed.style.display = 'none';
+      if (authPrompt) authPrompt.style.display = 'block';
+    }
+
+    function hideAuthPrompt() {
+      authRequired = false;
+      const feed = document.getElementById('ctx-scr-feed');
+      const authPrompt = document.getElementById('scr-alerts-auth-prompt');
+      if (feed) feed.style.display = 'block';
+      if (authPrompt) authPrompt.style.display = 'none';
+    }
+
+    async function fetchAndRender() {
+      if (authRequired) return;
+      try {
+        const res = await fetch(`${getCenterUrl()}/api/governance/sovereign-requests?status=pending`);
+        if (res.status === 401) {
+          showAuthPrompt();
+          return;
+        }
+        if (!res.ok) return;
+        const data = await res.json();
+        const requests = data.requests || (Array.isArray(data) ? data : []);
+        render(requests);
+      } catch (e) {
+        console.warn("Failed to fetch SCR alerts", e);
+      }
+    }
+
+    function render(requests) {
+      const countBadge = document.getElementById('count-scr');
+      const feed = document.getElementById('ctx-scr-feed');
+      if (!countBadge || !feed) return;
+
+      countBadge.textContent = requests.length;
+
+      if (requests.length === 0) {
+        feed.innerHTML = '<li class="ctx-empty">No active alerts...</li>';
+        return;
+      }
+
+      feed.innerHTML = '';
+      requests.forEach(req => {
+        const li = document.createElement('li');
+        li.className = 'tracker-item';
+        li.style.borderLeftColor = 'var(--accent-yellow)';
+        li.innerHTML = `
+          <div class="tracker-header" style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:10px; font-weight:bold; color:var(--accent-yellow);">SCR: ${req.id || req.req_id}</span>
+            <span style="font-size:9px; color:var(--text-muted);">${req.agent || 'Agent'} / ${req.role || 'Role'}</span>
+          </div>
+          <div class="tracker-body" style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">
+            ${req.description || 'Requesting approval for action.'}
+          </div>
+          <div class="tracker-actions" style="display:flex; gap:6px;">
+            <button class="btn-mini-action approve" data-id="${req.id || req.req_id}" style="background:var(--accent-green); color:#000;">Approve</button>
+            <button class="btn-mini-action reject" data-id="${req.id || req.req_id}" style="background:var(--accent-red); color:#fff;">Reject</button>
+          </div>
+        `;
+        feed.appendChild(li);
+      });
+
+      feed.querySelectorAll('button.approve').forEach(btn => {
+        btn.addEventListener('click', () => handleAction(btn.dataset.id, 'approve'));
+      });
+      feed.querySelectorAll('button.reject').forEach(btn => {
+        btn.addEventListener('click', () => handleAction(btn.dataset.id, 'reject'));
+      });
+    }
+
+    async function handleAction(reqId, action) {
+      // SPEC-045 hardened flow: GET nonce -> PUT /<id> with {action: authorize|reject, nonce}
+      const apiAction = (action === 'approve') ? 'authorize' : 'reject';
+      try {
+        // 1. Acquire single-use nonce
+        const nRes = await fetch(`${getCenterUrl()}/api/governance/sovereign-requests/${reqId}/nonce`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        if (nRes.status === 401) {
+          showAuthPrompt();
+          return;
+        }
+        if (!nRes.ok) {
+          const err = await nRes.json().catch(() => ({error: 'nonce request failed'}));
+          if (window.ToastManager) window.ToastManager.show('denial', 'SCR Nonce Failed', err.error || `HTTP ${nRes.status}`);
+          return;
+        }
+        const nonceData = await nRes.json();
+        const nonce = nonceData.nonce;
+
+        // 2. PUT with action + nonce
+        const body = { action: apiAction, nonce: nonce };
+        if (action === 'reject') body.reason = 'Rejected via Console sidebar';
+        const res = await fetch(`${getCenterUrl()}/api/governance/sovereign-requests/${reqId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+        if (res.status === 401) {
+          showAuthPrompt();
+          return;
+        }
+        if (res.ok) {
+          if (window.ToastManager) window.ToastManager.show('completion', 'SCR Updated', `SCR ${reqId} ${action}d`);
+          fetchAndRender();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          if (window.ToastManager) window.ToastManager.show('denial', 'SCR Action Failed', err.error || `HTTP ${res.status}`);
+        }
+      } catch (e) {
+        if (window.ToastManager) window.ToastManager.show('denial', 'Error', `Failed to ${action} SCR: ${e.message || e}`);
+      }
+    }
+
+    function init() {
+      const section = document.getElementById('section-scr-alerts');
+      if (section) section.style.display = 'block';
+
+      const authBtn = document.getElementById('scr-alerts-auth-btn');
+      if (authBtn) {
+        authBtn.addEventListener('click', () => {
+          hideAuthPrompt();
+          if (!PanelManager.isActive()) {
+            PanelManager.toggle();
+          }
+        });
+      }
+
+      fetchAndRender();
+
+      if (window.__TAURI__) {
+        window.__TAURI__.event.listen('ads-updated', () => {
+          fetchAndRender();
+        });
+      }
+
+      pollTimer = setInterval(fetchAndRender, 30000);
+    }
+
+    return { init, fetchAndRender };
+  })();
+
   // --- Initialize ---
+  // SPEC-073: register init tasks with ConsoleReadiness so the global bar reflects real progress.
+  const CR = window.ConsoleReadiness;
+  if (CR) {
+    CR.begin('session_restore', 'Restoring sessions');
+    CR.begin('governance_bootstrap', 'Loading governance state');
+    CR.begin('agy_auth_probe', 'Checking agy auth');
+    CR.begin('spec_map_init', 'Initialising spec map');
+  }
+
   initOverlayTabs();
   initSettings();
   ProjectLauncher.init();
   GuideSystem.init();
   ContextPanel.initWatchers();
-  
+  SCRAlerts.init();
+
   SessionManager.restore().then(() => {
+    if (CR) CR.end('session_restore');
     if (SessionManager.getAll().length === 0) {
       ProjectLauncher.toggle();
     }
-  });
+  }).catch(() => { if (CR) CR.end('session_restore'); });
+
+  // Best-effort: mark the other tasks done shortly after DOM boot completes.
+  // Individual modules can call end() earlier if they finish sooner.
+  setTimeout(() => {
+    if (!CR) return;
+    if (typeof GovernancePanel !== 'undefined') CR.end('governance_bootstrap');
+    if (window.SpecMap) CR.end('spec_map_init');
+    // agy probe is genuinely long-running; give it its own 8s window
+    setTimeout(() => CR.end('agy_auth_probe'), 5000);
+  }, 1200);
 
   SessionManager.updateStatusBar();
   GitStatusManager.startPolling();
@@ -972,3 +1308,105 @@ const GitStatusManager = (() => {
     }
   }, 30000);
 })();
+
+// === SPEC-062 Amendment E: Pending Specs sidebar module ===
+window.PendingSpecsAlerts = (function() {
+  let pollTimer = null;
+  const getCenterUrl = () => localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+
+  async function fetchAndRender() {
+    try {
+      const project = (window.SpecMap && window.SpecMap.state && window.SpecMap.state.currentProject) || 'adt-framework';
+      const res = await fetch(`${getCenterUrl()}/api/specs?project=${encodeURIComponent(project)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data && data.specs) ? data.specs : (Array.isArray(data) ? data : []);
+      const pending = list.filter(s => {
+        const st = (s.status || '').toLowerCase();
+        return st === 'draft' || st === 'pending' || st === 'proposed';
+      });
+      render(pending);
+    } catch(e) { console.warn('PendingSpecsAlerts fetch failed:', e); }
+  }
+
+  function render(specs) {
+    const sec = document.getElementById('section-pending-specs');
+    const badge = document.getElementById('count-pending-specs');
+    const feed = document.getElementById('ctx-pending-specs-feed');
+    if (!sec || !badge || !feed) return;
+    sec.style.display = 'block';
+    badge.textContent = specs.length;
+    if (specs.length === 0) {
+      feed.innerHTML = '<li class="ctx-empty">No specs awaiting approval...</li>';
+      return;
+    }
+    feed.innerHTML = '';
+    specs.forEach(s => {
+      const li = document.createElement('li');
+      li.className = 'tracker-item';
+      li.style.borderLeftColor = 'var(--accent-yellow)';
+      const sid = s.spec_id || s.id || '';
+      const title = (s.title || '').replace(/</g, '&lt;');
+      const status = s.status || 'draft';
+      li.innerHTML =
+        '<div class="tracker-header" style="display:flex; justify-content:space-between; margin-bottom:4px;">' +
+        '  <strong>' + sid + '</strong>' +
+        '  <span style="font-size:9px; opacity:0.7;">' + status + '</span>' +
+        '</div>' +
+        '<div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">' + title + '</div>' +
+        '<div style="display:flex; gap:6px;">' +
+        '  <button class="ps-view" data-id="' + sid + '" style="background:#1f6feb; color:#fff; border:1px solid #1f6feb; padding:4px 10px; border-radius:4px; font-size:11px; cursor:pointer;">View</button>' +
+        '  <button class="ps-open-map" data-id="' + sid + '" style="background:#21262d; color:#e6e6e6; border:1px solid #30363d; padding:4px 10px; border-radius:4px; font-size:11px; cursor:pointer;">Open Map</button>' +
+        '</div>';
+      feed.appendChild(li);
+    });
+    feed.querySelectorAll('button.ps-view').forEach(b => {
+      b.addEventListener('click', () => {
+        const sid = b.dataset.id;
+        // Navigate to Governance > Specs tab. Try several known affordances.
+        const gp = (typeof GovernancePanel !== 'undefined') ? GovernancePanel : window.GovernancePanel;
+        if (gp && gp.switchTab) {
+          try { gp.switchTab('specs'); } catch(_) {}
+        }
+        const govBtn = document.getElementById('btn-governance');
+        if (govBtn) govBtn.click();
+        window._lastViewedSpec = sid;
+        if (window.ToastManager) window.ToastManager.show('info', 'Spec Selected', sid + ' - check Specs tab');
+      });
+    });
+    feed.querySelectorAll('button.ps-open-map').forEach(b => {
+      b.addEventListener('click', () => {
+        const sid = b.dataset.id;
+        // Switch to the Spec Map view and load the spec
+        const smBtn = document.getElementById('btn-spec-map') || document.querySelector('[data-tab="spec-map"]') || document.querySelector('[data-target="spec-map"]');
+        if (smBtn) smBtn.click();
+        if (window.SpecMap && window.SpecMap.fetchAndRender) {
+          window.SpecMap.state = window.SpecMap.state || {};
+          window.SpecMap.state.currentSpecId = sid;
+          window.SpecMap.state.lastFetchKey = null;
+          setTimeout(() => window.SpecMap.fetchAndRender(sid), 50);
+        }
+        if (window.ToastManager) window.ToastManager.show('info', 'Opening Map', sid);
+      });
+    });
+  }
+
+  function init() {
+    const refreshBtn = document.getElementById('btn-pending-specs-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', fetchAndRender);
+    fetchAndRender();
+    if (window.__TAURI__) {
+      try { window.__TAURI__.event.listen('ads-updated', fetchAndRender); } catch(_) {}
+    }
+    pollTimer = setInterval(fetchAndRender, 30000);
+  }
+
+  return { init: init, fetchAndRender: fetchAndRender };
+})();
+
+// Auto-init when DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => window.PendingSpecsAlerts.init());
+} else {
+  setTimeout(() => window.PendingSpecsAlerts.init(), 100);
+}

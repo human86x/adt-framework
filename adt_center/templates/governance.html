@@ -13,7 +13,10 @@
                 <h5 class="mb-0" style="font-size:1.1rem; font-weight:700; color:var(--adt-amber);">
                     &#9888; Pending Authorizations
                 </h5>
-                <span id="scr-count-badge" class="badge rounded-pill bg-danger">0</span>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-warning" onclick="approveAllSCRs()" title="Apply all pending SCRs. Stale patches will be auto-dismissed.">Approve All</button>
+                    <span id="scr-count-badge" class="badge rounded-pill bg-danger">0</span>
+                </div>
             </div>
             <div id="scr-container" class="row g-3">
                 <!-- SCR cards injected by JS -->
@@ -43,13 +46,13 @@
         
         <div class="card card-adt mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span>DTTP Status</span>
+                <span>DTCP Status</span>
                 <span id="enforcement-mode-badge" class="badge-adt">--</span>
             </div>
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
-                    <div id="dttp-indicator" class="status-dot me-2"></div>
-                    <span id="dttp-status-text">Checking DTTP service...</span>
+                    <div id="dtcp-indicator" class="status-dot me-2"></div>
+                    <span id="dtcp-status-text">Checking DTCP service...</span>
                 </div>
                 
                 <div class="mb-2">
@@ -238,11 +241,11 @@ async function loadEnforcement() {
         badge.innerText = (data.mode || '--').toUpperCase();
         badge.className = 'badge-adt ' + (data.mode === 'production' ? 'badge-completed' : 'badge-pending');
         
-        const indicator = document.getElementById('dttp-indicator');
+        const indicator = document.getElementById('dtcp-indicator');
         indicator.className = 'status-dot ' + (data.status === 'active' ? 'dot-green' : 'dot-red');
         
-        document.getElementById('dttp-status-text').innerText = data.status === 'active' ? 
-            'DTTP Service Active on :5002' : 'DTTP Service OFFLINE';
+        document.getElementById('dtcp-status-text').innerText = data.status === 'active' ? 
+            'DTCP Service Active on :5002' : 'DTCP Service OFFLINE';
             
         // Protected paths
         const pathsList = document.getElementById('protected-paths-list');
@@ -655,25 +658,59 @@ async function handleSCR(id, action) {
     if (action === 'reject') {
         const reason = prompt('Reason for rejection:');
         if (reason === null) return;
-        
-        await fetch(`/api/governance/sovereign-requests/${id}`, {
+
+        // SPEC-045: Fetch nonce
+        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`);
+        const { nonce } = await nonceRes.json();
+
+        const res = await fetch(`/api/governance/sovereign-requests/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'reject', reason })
+            body: JSON.stringify({ action: 'reject', reason, nonce })
         });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(`Reject failed: ${err.error || res.statusText}`);
+            return;
+        }
     } else if (action === 'authorize') {
         if (!confirm('Authorize this sovereign change?')) return;
-        
-        await fetch(`/api/governance/sovereign-requests/${id}`, {
+
+        // SPEC-045: Fetch nonce
+        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`);
+        const { nonce } = await nonceRes.json();
+
+        const res = await fetch(`/api/governance/sovereign-requests/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'authorize' })
+            body: JSON.stringify({ action: 'authorize', nonce })
         });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(`Authorization failed: ${err.error || res.statusText}`);
+            return;
+        }
     } else if (action === 'edit') {
         alert('Edit functionality coming soon.');
         return;
     }
-    
+    loadSCRs();
+}
+
+async function approveAllSCRs() {
+    if (!confirm('Apply all pending SCRs?\nStale patches that no longer match the file will be auto-dismissed.')) return;
+    const badge = document.getElementById('scr-count-badge');
+    if (badge) badge.innerText = '...';
+    const res = await fetch('/api/governance/sovereign-requests/approve-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.approved !== undefined) {
+        alert(`Done!\n✓ ${data.approved} applied\n✗ ${data.dismissed} dismissed (stale patches)`);
+    } else {
+        alert(`Error: ${data.error || 'Unknown error'}`);
+    }
     loadSCRs();
 }
 

@@ -111,7 +111,32 @@ const GovernancePanel = (() => {
       case 'taskboard': renderTaskBoard(content); break;
       case 'hierarchy': renderHierarchy(content); break;
       case 'delegation': renderDelegation(content); break;
+      case 'specs': renderSpecs(content); break;
+      case 'standards': renderStandards(content); break;
     }
+  }
+
+  // SPEC-046/047 + D14: Standards UI is served by Panel's standards.html. We open
+  // it in a native Tauri WebviewWindow (REQ-085: iframe + webkit2gtk has known bugs).
+  // Fallback: same-page iframe for non-Tauri environments.
+  function renderStandards(content) {
+    const centerUrl = (window.localStorage && localStorage.getItem('adt_center_url')) || 'http://localhost:5001';
+    const url = centerUrl + '/standards';
+    if (window.__TAURI__) {
+      try {
+        const { WebviewWindow } = window.__TAURI__.webviewWindow;
+        new WebviewWindow('adt-standards', { url: url, title: 'Standards Registry', width: 1200, height: 800 });
+        content.innerHTML = '<div style="padding:24px;color:var(--text-muted,#8b949e);font-size:13px;">' +
+          'Standards Registry opened in a separate window. ' +
+          '<a href="#" onclick="GovernancePanel.switchTab(\'standards\');return false;" style="color:var(--accent-blue,#58a6ff);">Reopen</a>' +
+          '</div>';
+        return;
+      } catch (e) {
+        console.warn('[Standards] WebviewWindow failed, falling back to iframe', e);
+      }
+    }
+    // Non-Tauri fallback: same-page iframe
+    content.innerHTML = '<iframe src="' + url + '" style="width:100%; height:100%; min-height:600px; border:none; background:var(--bg-primary,#0d1117);"></iframe>';
   }
 
   // ============================
@@ -659,6 +684,63 @@ const GovernancePanel = (() => {
     }
   }
 
+  // ============================
+  // SPECS LIST WITH BUILD BUTTONS (SPEC-055)
+  // ============================
+  function renderSpecs(container) {
+    const centerUrl = API_URL();
+    const approved = cachedSpecs.filter(s => {
+      const st = (s.status || '').toUpperCase();
+      return st === 'APPROVED' || st === 'ACTIVE';
+    });
+    const other = cachedSpecs.filter(s => {
+      const st = (s.status || '').toUpperCase();
+      return st !== 'APPROVED' && st !== 'ACTIVE';
+    });
+
+    function renderSpecRow(spec) {
+      const st = (spec.status || '').toUpperCase();
+      const canBuild = st === 'APPROVED' || st === 'ACTIVE';
+      const stColor = st === 'APPROVED' ? 'var(--accent-green)'
+                    : st === 'ACTIVE' ? 'var(--accent-blue)'
+                    : st === 'DRAFT' ? 'var(--accent-yellow)'
+                    : 'var(--text-muted)';
+      const buildBtn = canBuild
+        ? `<button class="spec-build-btn" onclick="GovernancePanel._buildSpec('${spec.id}')">&#9654; Build</button>`
+        : '';
+      const name = (spec.name || spec.filename || spec.id || '').replace(/^SPEC-\d+_/, '').replace(/_/g, ' ');
+      return `
+        <div class="gov-spec-row">
+          <span class="gov-spec-id">${spec.id}</span>
+          <span class="gov-spec-name">${name}</span>
+          <span class="gov-spec-status" style="color:${stColor}">${st}</span>
+          ${buildBtn}
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      <div class="gov-spec-list">
+        ${approved.length > 0 ? `
+          <div class="gov-spec-section-header">APPROVED / ACTIVE (${approved.length})</div>
+          ${approved.map(renderSpecRow).join('')}
+          <div class="gov-spec-section-header" style="margin-top:12px;">OTHER (${other.length})</div>
+          ${other.map(renderSpecRow).join('')}
+        ` : `
+          ${cachedSpecs.map(renderSpecRow).join('')}
+        `}
+      </div>
+    `;
+  }
+
+  async function _buildSpec(specId) {
+    if (typeof BuildManager !== 'undefined') {
+      await BuildManager.triggerBuildForSpec(specId, 'governance_console');
+    } else {
+      ToastManager.show('denial', 'BuildManager not loaded', 'build.js missing');
+    }
+  }
+
   return {
     toggle: toggle,
     isActive: isActiveState,
@@ -670,5 +752,10 @@ const GovernancePanel = (() => {
     _clearFilter: _clearFilter,
     _showTaskDetail: _showTaskDetail,
     _markComplete: markComplete,
+    _buildSpec: _buildSpec,
   };
 })();
+
+
+// SPEC-062 Amendment D: expose for cross-module use (PendingSpecsAlerts, etc.)
+window.GovernancePanel = GovernancePanel;

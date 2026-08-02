@@ -8,9 +8,9 @@ const ContextPanel = (() => {
   let pollInterval = null;
   let allSpecs = {};
   let showAllRoles = false;
+  const spawnedSessions = new Set();
 
-  async function update(session) {
-    currentSession = session;
+  async function update(session) {    currentSession = session;
 
     document.getElementById('ctx-role').textContent = session.role || '--';
 
@@ -49,12 +49,451 @@ const ContextPanel = (() => {
     await fetchADSEvents(session);
     await fetchRequests();
     await fetchDelegations();
-    await fetchDTTPStatus();
+    await fetchDTCPStatus();
     await fetchCapabilityContext(session);
+    if (typeof fetchSessionTree === "function") await fetchSessionTree();
+    await renderFileExplorer();
+    
+    // SPEC-057: Inject UI elements if they don't exist
+    ensureMessagingUI();
+    
+    updateComposePanelVisibility(session);
+    
+    await fetchSessionMode(session);
+    await pollAllPending();
 
     // If Tauri, try reading local files as fallback
     if (window.__TAURI__) {
       fetchLocalData(session);
+    }
+  }
+
+  function ensureTabBadge(sessionId) {
+    const tab = document.querySelector(`.session-tab[data-session-id="${sessionId}"]`);
+    if (tab && !document.getElementById(`pending-badge-${sessionId}`)) {
+      const badge = document.createElement('span');
+      badge.id = `pending-badge-${sessionId}`;
+      badge.className = 'pending-badge';
+      badge.style.cssText = 'display:none; color: #ff9800; margin-left: 4px; font-weight: bold; cursor: pointer;';
+      badge.title = 'Pending messages';
+      badge.innerHTML = '● <span class="pending-count">0</span>';
+      
+      const closeBtn = tab.querySelector('.tab-close');
+      if (closeBtn) {
+        tab.insertBefore(badge, closeBtn);
+      } else {
+        tab.appendChild(badge);
+      }
+      
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof SessionManager !== 'undefined') {
+          SessionManager.switchTo(sessionId);
+          setTimeout(showPendingMessages, 100);
+        }
+      });
+    }
+  }
+
+  function ensureMessagingUI() {
+    // Inject Messaging Mode Toggle into Active Session section
+    if (!document.getElementById('ctx-messaging-mode-container')) {
+      const alignmentDetails = document.getElementById('ctx-alignment-details');
+      if (alignmentDetails) {
+        const container = document.createElement('div');
+        container.id = 'ctx-messaging-mode-container';
+        container.style.cssText = 'margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;';
+        container.innerHTML = `
+          <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Messaging Mode</div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="mode-toggle-wrapper" style="display: flex; align-items: center; gap: 8px;">
+              <span id="mode-label-auto" style="font-size: 10px; color: var(--text-primary); font-weight: 700;">AUTO</span>
+              <label class="switch">
+                <input type="checkbox" id="input-session-mode">
+                <span class="slider"></span>
+              </label>
+              <span id="mode-label-manual" style="font-size: 10px; color: var(--text-muted);">MANUAL</span>
+            </div>
+            <div id="pending-badge-context" class="pending-badge" style="display: none; cursor: pointer; background: #ff9800; color: #000; border-radius: 10px; padding: 0 6px; font-size: 10px; font-weight: 700; align-items: center; height: 16px;">
+              ● <span id="pending-count-context">0</span>
+            </div>
+          </div>
+        `;
+        alignmentDetails.after(container);
+        
+        document.getElementById('input-session-mode').addEventListener('change', () => toggleSessionMode());
+        document.getElementById('pending-badge-context').addEventListener('click', () => showPendingMessages());
+      }
+    }
+
+    // Inject Pending Messages section before Capability Context
+    if (!document.getElementById('section-pending-messages')) {
+      const capSection = document.getElementById('section-capability-context');
+      if (capSection) {
+        const section = document.createElement('section');
+        section.id = 'section-pending-messages';
+        section.className = 'context-section';
+        section.innerHTML = `
+          <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Approval Notifications</h3>
+            <button id="btn-flush-all" style="display: none; background: transparent; border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 2px 8px; cursor: pointer; border-radius: 2px;">Flush All</button>
+          </div>
+          <ul id="ctx-pending-list" class="tracker-list" style="list-style: none; padding: 0; margin: 0;">
+            <li class="ctx-empty">No pending messages</li>
+          </ul>
+        `;
+        capSection.before(section);
+        document.getElementById('btn-flush-all').addEventListener('click', () => flushAllMessages());
+      }
+    }
+
+    // Inject Compose Message section for Systems_Architect
+    if (!document.getElementById('section-messaging-compose')) {
+      const pendingSection = document.getElementById('section-pending-messages');
+      if (pendingSection) {
+        const section = document.createElement('section');
+        section.id = 'section-messaging-compose';
+        section.className = 'context-section';
+        section.style.display = 'none'; // Hidden by default
+        section.innerHTML = `
+          <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Compose Message</h3>
+          </div>
+          <div class="compose-container" style="padding: 8px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 4px;">
+            <div style="display: flex; gap: 4px;">
+              <select id="select-msg-to" style="flex: 1; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 2px;">
+                <option value="">Select recipient...</option>
+              </select>
+              <select id="select-msg-priority" style="width: 70px; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 2px;">
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <textarea id="textarea-msg-body" placeholder="Message body..." style="width: 100%; height: 60px; font-size: 10px; background: #000; color: #fff; border: 1px solid var(--border); padding: 4px; resize: none; font-family: inherit;"></textarea>
+            <div style="display: flex; gap: 4px;">
+              <button id="btn-send-msg" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-primary); font-size: 10px; padding: 4px; cursor: pointer; border-radius: 2px;">Send</button>
+              <button id="btn-broadcast-msg" style="background: var(--denial); border: 1px solid var(--denial); color: #fff; font-size: 10px; padding: 4px 8px; cursor: pointer; border-radius: 2px;">Broadcast</button>
+            </div>
+          </div>
+        `;
+        pendingSection.before(section);
+        
+        document.getElementById('btn-send-msg').addEventListener('click', () => sendMessage());
+        document.getElementById('btn-broadcast-msg').addEventListener('click', () => broadcastMessage());
+      }
+    }
+  }
+
+  async function pollAllPending() {
+    if (typeof SessionManager === 'undefined') return;
+    const allSessions = SessionManager.getAll();
+    await Promise.all(allSessions.map(session => fetchPendingMessages(session)));
+  }
+
+  async function fetchSessionMode(session) {
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/${session.id}/mode`);
+      if (!res.ok) return;
+      const data = await res.json();
+      session.mode = data.mode;
+      updateModeUI(data.mode);
+    } catch (e) {
+      console.error("fetchSessionMode error:", e);
+    }
+  }
+
+  function updateModeUI(mode) {
+    const input = document.getElementById('input-session-mode');
+    const labelAuto = document.getElementById('mode-label-auto');
+    const labelManual = document.getElementById('mode-label-manual');
+    
+    if (input) {
+      input.checked = (mode === 'MANUAL');
+    }
+    if (labelAuto) {
+      labelAuto.style.color = (mode === 'AUTO') ? 'var(--text-primary)' : 'var(--text-muted)';
+      labelAuto.style.fontWeight = (mode === 'AUTO') ? '700' : '400';
+    }
+    if (labelManual) {
+      labelManual.style.color = (mode === 'MANUAL') ? 'var(--text-primary)' : 'var(--text-muted)';
+      labelManual.style.fontWeight = (mode === 'MANUAL') ? '700' : '400';
+    }
+  }
+
+  async function toggleSessionMode() {
+    if (!currentSession) return;
+    const input = document.getElementById('input-session-mode');
+    const newMode = input.checked ? 'MANUAL' : 'AUTO';
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/sessions/${currentSession.id}/mode`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode })
+      });
+      
+      if (res.ok) {
+        currentSession.mode = newMode;
+        updateModeUI(newMode);
+        ToastManager.show('info', 'Mode Changed', `Session set to ${newMode}`);
+        if (newMode === 'AUTO') {
+          // Switching to AUTO flushes pending
+          await fetchPendingMessages(currentSession);
+        }
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to change mode');
+        // Revert UI
+        input.checked = !input.checked;
+      }
+    } catch (e) {
+      console.error("toggleSessionMode error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+      input.checked = !input.checked;
+    }
+  }
+
+  async function fetchPendingMessages(session) {
+    if (!session || !session.id) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/pending/${session.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const messages = data.messages || [];
+      
+      ensureTabBadge(session.id);
+      updatePendingUI(session.id, messages);
+    } catch (e) {
+      console.error("fetchPendingMessages error:", e);
+    }
+  }
+
+  function updatePendingUI(sessionId, messages) {
+    const count = messages.length;
+    
+    // Update context panel badge
+    const contextBadge = document.getElementById('pending-badge-context');
+    const contextCount = document.getElementById('pending-count-context');
+    if (contextBadge && contextCount) {
+      contextBadge.style.display = count > 0 ? 'flex' : 'none';
+      contextCount.textContent = count;
+    }
+
+    // Update tab badge (even though we can't edit sessions.js, we can try to find the element if it exists)
+    const tabBadge = document.getElementById(`pending-badge-${sessionId}`);
+    if (tabBadge) {
+      tabBadge.style.display = count > 0 ? 'inline-block' : 'none';
+      const countSpan = tabBadge.querySelector('.pending-count');
+      if (countSpan) countSpan.textContent = count;
+    }
+
+    // Render pending list
+    const container = document.getElementById('ctx-pending-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    if (count === 0) {
+      container.innerHTML = '<li class="ctx-empty">No pending messages</li>';
+      return;
+    }
+
+    messages.forEach(msg => {
+      const li = document.createElement('li');
+      li.className = 'tracker-item pending-msg-item';
+      
+      const isHigh = msg.priority === 'urgent' || msg.priority === 'high';
+      if (isHigh) {
+        li.style.borderLeftColor = 'var(--denial)';
+        li.style.background = 'rgba(244, 67, 54, 0.1)';
+      }
+      
+      const time = new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const priorityColors = {
+        low: 'var(--text-muted)',
+        normal: 'var(--accent-blue)',
+        high: '#ff9800',
+        urgent: 'var(--denial)'
+      };
+      const pColor = priorityColors[msg.priority] || 'var(--text-primary)';
+      const pWeight = msg.priority === 'urgent' ? 'bold' : 'normal';
+
+      li.innerHTML = `
+        <div class="tracker-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="msg-priority" style="font-size: 8px; padding: 0 3px; border-radius: 2px; border: 1px solid ${pColor}; color: ${pColor}; font-weight: ${pWeight};">${msg.priority.toUpperCase()}</span>
+          <span class="msg-from" style="font-size: 10px; opacity: 0.8;">from ${msg.from_role}</span>
+          <span class="msg-time" style="font-size: 9px; opacity: 0.5;">${time}</span>
+        </div>
+        <div class="tracker-body" style="font-size: 11px; color: var(--text-secondary); line-height: 1.3;">${msg.body}</div>
+        <div class="msg-actions" style="display: flex; gap: 4px; margin-top: 4px;">
+          <button class="btn-msg-action deliver" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 1px 6px; cursor: pointer; border-radius: 2px;" onclick="ContextPanel.deliverMessage('${msg.id}')">Deliver</button>
+          <button class="btn-msg-action discard" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--text-primary); font-size: 9px; padding: 1px 6px; cursor: pointer; border-radius: 2px;" onclick="ContextPanel.discardMessage('${msg.id}')">Discard</button>
+        </div>
+      `;
+      container.appendChild(li);
+    });
+
+    const flushBtn = document.getElementById('btn-flush-all');
+    if (flushBtn) flushBtn.style.display = count > 1 ? 'block' : 'none';
+  }
+
+  async function deliverMessage(msgId) {
+    if (!currentSession) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/deliver/${currentSession.id}/${msgId}`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("deliverMessage error:", e);
+    }
+  }
+
+  async function discardMessage(msgId) {
+    if (!currentSession) return;
+    if (!confirm('Discard this message? It will be logged to ADS but not delivered to the PTY.')) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/pending/${currentSession.id}/${msgId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("discardMessage error:", e);
+    }
+  }
+
+  async function flushAllMessages() {
+    if (!currentSession) return;
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/deliver/${currentSession.id}/all`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        await fetchPendingMessages(currentSession);
+      }
+    } catch (e) {
+      console.error("flushAllMessages error:", e);
+    }
+  }
+
+  function updateComposePanelVisibility(session) {
+    const section = document.getElementById('section-messaging-compose');
+    if (!section) return;
+    
+    const isSA = session.role === 'Systems_Architect' || session.role === 'systems_architect';
+    section.style.display = isSA ? 'block' : 'none';
+    
+    if (isSA) {
+      updateRecipientList();
+    }
+  }
+
+  function updateRecipientList() {
+    const select = document.getElementById('select-msg-to');
+    if (!select || typeof SessionManager === 'undefined') return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select recipient...</option>';
+    
+    const allSessions = SessionManager.getAll();
+    allSessions.forEach(s => {
+      if (currentSession && s.id === currentSession.id) return;
+      
+      const option = document.createElement('option');
+      option.value = s.id;
+      option.textContent = `${s.role || 'Agent'} (${s.id.substring(0,6)})`;
+      select.appendChild(option);
+    });
+    
+    if (currentValue) select.value = currentValue;
+  }
+
+  async function sendMessage() {
+    if (!currentSession) return;
+    const to = document.getElementById('select-msg-to').value;
+    const priority = document.getElementById('select-msg-priority').value;
+    const body = document.getElementById('textarea-msg-body').value;
+    
+    if (!to) {
+      ToastManager.show('denial', 'Error', 'Please select a recipient');
+      return;
+    }
+    if (!body.trim()) {
+      ToastManager.show('denial', 'Error', 'Message body cannot be empty');
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_session: currentSession.id,
+          to_session: to,
+          body: body,
+          priority: priority
+        })
+      });
+      
+      if (res.ok) {
+        ToastManager.show('info', 'Message Sent', `Message delivered to session ${to.substring(0,6)}`);
+        document.getElementById('textarea-msg-body').value = '';
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to send message');
+      }
+    } catch (e) {
+      console.error("sendMessage error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+    }
+  }
+
+  async function broadcastMessage() {
+    if (!currentSession) return;
+    const priority = document.getElementById('select-msg-priority').value;
+    const body = document.getElementById('textarea-msg-body').value;
+    
+    if (!body.trim()) {
+      ToastManager.show('denial', 'Error', 'Message body cannot be empty');
+      return;
+    }
+    
+    if (!confirm('Broadcast this message to ALL active sessions?')) return;
+    
+    try {
+      const res = await fetch(`${getCenterUrl()}/api/governance/comms/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_session: currentSession.id,
+          body: body,
+          priority: priority
+        })
+      });
+      
+      if (res.ok) {
+        ToastManager.show('info', 'Broadcast Sent', 'Message sent to all sessions');
+        document.getElementById('textarea-msg-body').value = '';
+      } else {
+        const data = await res.json();
+        ToastManager.show('denial', 'Error', data.error || 'Failed to broadcast message');
+      }
+    } catch (e) {
+      console.error("broadcastMessage error:", e);
+      ToastManager.show('denial', 'Error', 'ADT Center unreachable');
+    }
+  }
+
+  function showPendingMessages() {
+    const section = document.getElementById('section-pending-messages');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
@@ -126,11 +565,25 @@ const ContextPanel = (() => {
                   ${tasks.map(task => {
                     const statusClass = task.status === 'in_progress' ? 'status-active' : (task.status === 'completed' ? 'status-done' : '');
                     const isCompleted = task.status === 'completed';
+                    
+                    // SPEC-041: Find sessions for this task (if session_id mapping exists in tasks)
+                    // For now, we mock/check if task has session data
+                    const sessionInfo = task.active_sessions || [];
+                    
                     return `
                       <div class="tree-node task-node ${statusClass}" id="node-task-${task.id}">
                         <div class="tree-header d-flex justify-content-between align-items-center">
                           <span><strong class="me-1">${task.id}:</strong> ${task.title}</span>
                           ${!isCompleted ? `<button class="btn-prioritize" onclick="ContextPanel.prioritizeTask('${task.id}')" title="Prioritize Task">&#9654;</button>` : ''}
+                        </div>
+                        <div class="tree-children">
+                          ${sessionInfo.map(s => `
+                            <div class="tree-node session-node">
+                              <div class="tree-header" style="font-size: 9px; opacity: 0.8;">
+                                <i class="bi bi-cpu me-1"></i>Session: ${s.session_id.substring(0,8)}... (${s.agent})
+                              </div>
+                            </div>
+                          `).join('')}
                         </div>
                       </div>
                     `;
@@ -151,10 +604,12 @@ const ContextPanel = (() => {
     
     try {
       if (window.__TAURI__) {
-        // Fix command name to match Rust ipc.rs: inject_pty_command
+        // Fix command name and argument structure to match Rust ipc.rs: inject_pty_command
         await window.__TAURI__.core.invoke('inject_pty_command', {
-          sessionId: currentSession.id,
-          data: `User hint: Focus on Task ID: ${taskId} immediately.`
+          request: {
+            sessionId: currentSession.id,
+            data: `User hint: Focus on Task ID: ${taskId} immediately.`
+          }
         });
       }
       
@@ -206,6 +661,38 @@ const ContextPanel = (() => {
       if (workingOn) workingOn.style.display = 'none';
       setTimeout(() => pulseEl.classList.remove('pulse-green'), 2000);
     }
+  }
+
+
+  async function fetchCostData(session) {
+    try {
+      const projectName = session?.project;
+      const sessionId = session?.id;
+      if (!sessionId) return;
+
+      const url = `${getCenterUrl()}/api/governance/session/${sessionId}/cost?project=${encodeURIComponent(projectName || "")}`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      updateCostMonitor(data.cost_usd, data.input_tokens + data.output_tokens);
+    } catch (e) {
+      console.error("fetchCostData error:", e);
+    }
+  }
+
+  function updateCostMonitor(cost, tokens) {
+    const costEl = document.getElementById("ctx-cost-value");
+    const tokenEl = document.getElementById("ctx-token-value");
+    
+    const costStr = cost < 0.01 && cost > 0 ? "<$0.01" : `$${cost.toFixed(2)}`;
+    const tokenStr = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + "M" : 
+                     (tokens >= 1000 ? (tokens / 1000).toFixed(1) + "K" : tokens);
+
+    if (costEl) costEl.textContent = costStr;
+    if (tokenEl) tokenEl.textContent = tokenStr;
+    if (document.getElementById("ctx-cost-sidebar")) document.getElementById("ctx-cost-sidebar").textContent = costStr;
+    if (document.getElementById("ctx-token-sidebar")) document.getElementById("ctx-token-sidebar").textContent = tokenStr;
   }
 
   function updateFilterIndicator() {
@@ -758,6 +1245,14 @@ const ContextPanel = (() => {
           <span class="ctx-value-decoded">${specTitle}</span>
         `;
 
+        // SPEC-055: Show Build button for APPROVED/ACTIVE specs
+        const buildContainer = document.getElementById('ctx-spec-build-container');
+        if (buildContainer) {
+          const specStatus = (spec?.status || '').toUpperCase();
+          buildContainer.style.display = (specStatus === 'APPROVED' || specStatus === 'ACTIVE') ? 'block' : 'none';
+          if (session) session.spec_id = activeTask.spec_ref;
+        }
+
         // Update To-Do list (Pending or In Progress)
         // Note: Filter by role is still needed if showAllRoles is true
         const todoTasks = tasks.filter(t => 
@@ -797,6 +1292,8 @@ const ContextPanel = (() => {
         document.getElementById('ctx-task').textContent = '--';
         document.getElementById('ctx-spec').textContent = '--';
         document.getElementById('count-todo').textContent = '0';
+        const buildContainerEl = document.getElementById('ctx-spec-build-container');
+        if (buildContainerEl) buildContainerEl.style.display = 'none';
         updatePreflight(session, null);
         renderDelegation(null, session);
       }
@@ -926,6 +1423,7 @@ const ContextPanel = (() => {
           .slice(-10)
           .reverse();
         renderADSFeed(agentEvents);
+      fetchCostData(session);
         updateADSCount(allEvents.length);
         document.getElementById('ctx-event-count').textContent =
           agentEvents.length + ' agent events';
@@ -1033,12 +1531,16 @@ const ContextPanel = (() => {
 
       // Handle both list and object response formats
       const allEvents = Array.isArray(data) ? data : (data.events || []);
+      
+      updateForgeContext(allEvents);
+
       const agentEvents = allEvents
         .filter(e => e.agent?.toLowerCase() === session.agent?.toLowerCase())
         .slice(-10)
         .reverse();
 
       renderADSFeed(agentEvents);
+      fetchCostData(session);
       updateADSCount(allEvents.length);
 
       // Count this session's events
@@ -1113,40 +1615,121 @@ const ContextPanel = (() => {
 
     newEvents.forEach(event => {
       handleADSFeedback(event);
+      // SPEC-055: Route build events to BuildManager
+      if (typeof BuildManager !== 'undefined') BuildManager.handleADSEvent(event);
       if (event.action_type?.includes('denied') || event.action_type?.includes('violation')) {
         ToastManager.show('denial', 'DENIED', truncate(event.description, 80));
       } else if (event.action_type?.includes('escalation') || event.action_type?.includes('break_glass')) {
         ToastManager.show('escalation', 'ESCALATION', truncate(event.description, 80));
       } else if (event.action_type?.includes('task_complete')) {
         ToastManager.show('completion', 'Completed', truncate(event.description, 80));
+      } else if (event.action_type?.startsWith('capability_gate_')) {
+        const decision = event.action_data?.decision || "Evaluated";
+        const msg = truncate(event.description, 80);
+        ToastManager.show('info', `Gate ${decision}`, msg);
+        if (typeof NativeNotify !== 'undefined') {
+          NativeNotify.send(`Gate ${decision}`, msg);
+        }
+      } else if (event.action_type === 'session_delegated') {
+        const data = event.action_data;
+        if (data && data.child_session_id && !spawnedSessions.has(data.child_session_id)) {
+          // If the parent session is the active one, trigger automatic spawn
+          if (currentSession && event.session_id === currentSession.id) {
+            spawnedSessions.add(data.child_session_id);
+            SessionManager.spawnChild(data);
+          }
+        }
       }
     });
   }
 
+
   function renderADSFeed(events) {
-    const feed = document.getElementById('ctx-ads-feed');
-    feed.innerHTML = '';
+    const feed = document.getElementById("ctx-ads-feed");
+    feed.innerHTML = "";
 
     if (events.length === 0) {
       feed.innerHTML = '<li style="color:var(--text-muted)">No events</li>';
       return;
     }
 
-    events.forEach(event => {
-      if (events.indexOf(event) === 0) handleADSFeedback(event);
-      const li = document.createElement('li');
-      const typeClass = getEventTypeClass(event.action_type);
-      const time = event.ts ? new Date(event.ts).toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' }) : '';
-      li.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="event-type ${typeClass}" style="font-size:9px; font-weight:800;">${event.action_type.toUpperCase()}</span>
-          <span style="color:var(--text-muted); font-size:10px;">${time}</span>
+    // Group events into "Intent Clusters" (rule-based for now)
+    const clusters = [];
+    let currentCluster = null;
+
+    // Use reverse() because events passed in are already reversed (latest first)
+    // We want to process them chronologically for clustering, then show latest cluster first
+    const chronoEvents = [...events].reverse();
+
+    chronoEvents.forEach(event => {
+      const ts = new Date(event.ts).getTime();
+      const isNewCluster = !currentCluster || 
+                           event.spec_ref !== currentCluster.spec_ref || 
+                           (ts - currentCluster.lastTs) > 60000;
+
+      if (isNewCluster) {
+        currentCluster = {
+          spec_ref: event.spec_ref,
+          role: event.role,
+          startTs: ts,
+          lastTs: ts,
+          events: [event],
+          description: event.description
+        };
+        clusters.push(currentCluster);
+      } else {
+        currentCluster.events.push(event);
+        currentCluster.lastTs = ts;
+      }
+    });
+
+    // Render clusters (latest first)
+    clusters.reverse().forEach(cluster => {
+      const latestEvent = cluster.events[cluster.events.length - 1];
+      if (clusters.indexOf(cluster) === 0) handleADSFeedback(latestEvent);
+
+      const successes = cluster.events.filter(e => e.authorized).length;
+      const denied = cluster.events.filter(e => !e.authorized).length;
+      
+      const node = document.createElement("div");
+      const statusClass = denied > 0 ? "denied" : "success";
+      node.className = `timeline-node ${statusClass}`;
+      
+      const time = new Date(cluster.lastTs).toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" });
+      
+      // Check for exit codes in cluster events
+      let exitBadge = "";
+      cluster.events.forEach(e => {
+        if (e.execution_result && e.execution_result.exit_code !== undefined) {
+          const code = e.execution_result.exit_code;
+          const badgeClass = code === 0 ? "exit-0" : "exit-err";
+          exitBadge += `<span class="exit-badge ${badgeClass}">${code}</span>`;
+        }
+      });
+
+      // Jurisdiction visual feedback (SPEC-041 Phase 3)
+      const firstPath = cluster.events.find(e => e.params?.file || e.params?.path)?.params?.file;
+      let tierBadge = "";
+      if (firstPath && typeof JurisdictionUI !== "undefined") {
+        const tier = JurisdictionUI.getPathTierSync(firstPath, cluster.role);
+        tierBadge = JurisdictionUI.renderTierBadge(tier);
+        node.classList.add(JurisdictionUI.getTierClass(tier));
+      }
+
+      node.innerHTML = `
+        <div class="node-header">
+          <span class="node-title">${tierBadge}${cluster.spec_ref || "UNSPECIFIED"}</span>
+          <span class="node-time">${time}</span>
         </div>
-        <div style="margin-top:2px; line-height:1.2;">${truncate(event.description, 100)}</div>
-        <div class="ctx-meta" style="font-size:9px; opacity:0.7;">${event.spec_ref || ''}</div>
+        <div class="node-summary">${truncate(cluster.description, 80)}${exitBadge}</div>
+        <div class="node-stats">
+          <span style="color:var(--accent-green)">● ${successes}</span>
+          ${denied > 0 ? `<span style="color:var(--accent-red)">● ${denied}</span>` : ""}
+          <span style="opacity:0.5">${cluster.events.length} events</span>
+        </div>
       `;
-      li.title = event.description || '';
-      feed.appendChild(li);
+      
+      feed.appendChild(node);
     });
   }
 
@@ -1185,24 +1768,24 @@ const ContextPanel = (() => {
     }
   }
 
-  async function fetchDTTPStatus() {
+  async function fetchDTCPStatus() {
     try {
       const projectName = currentSession?.project;
       const url = projectName 
-        ? `${getCenterUrl()}/api/dttp/status?project=${encodeURIComponent(projectName)}`
-        : `${getCenterUrl()}/api/dttp/status`;
+        ? `${getCenterUrl()}/api/dtcp/status?project=${encodeURIComponent(projectName)}`
+        : `${getCenterUrl()}/api/dtcp/status`;
       const res = await fetch(url);
       if (!res.ok) {
-        document.getElementById('status-dttp').innerHTML =
-          '<span class="status-dot dot-grey"></span> DTTP: offline';
+        document.getElementById('status-dtcp').innerHTML =
+          '<span class="status-dot dot-grey"></span> DTCP: offline';
         return;
       }
       const data = await res.json();
-      document.getElementById('status-dttp').innerHTML =
-        `<span class="status-dot dot-green"></span> DTTP: ${data.status || 'active'}`;
+      document.getElementById('status-dtcp').innerHTML =
+        `<span class="status-dot dot-green"></span> DTCP: ${data.status || 'active'}`;
     } catch {
-      document.getElementById('status-dttp').innerHTML =
-        '<span class="status-dot dot-grey"></span> DTTP: --';
+      document.getElementById('status-dtcp').innerHTML =
+        '<span class="status-dot dot-grey"></span> DTCP: --';
     }
   }
 
@@ -1225,11 +1808,27 @@ const ContextPanel = (() => {
           fetchADSEvents(currentSession);
           fetchRoleRequests(currentSession);
           fetchDelegations();
+          fetchCapabilityContext(currentSession);
+          if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
+        }
+        fetchSessionTree(); // SPEC-042: refresh swarm tree on any ADS update
+      });
+
+      window.__TAURI__.event.listen('capabilities-updated', () => {
+        if (currentSession) {
+          fetchCapabilityContext(currentSession);
+          if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
         }
       });
 
       window.__TAURI__.event.listen('tasks-updated', () => {
-        if (currentSession) fetchTaskData(currentSession);
+        if (currentSession) {
+          fetchTaskData(currentSession);
+          if (typeof SpecProgress !== 'undefined') {
+            SpecProgress.updateSidebarProgress();
+            SpecProgress.updateTerminalHeader(currentSession);
+          }
+        }
       });
 
       window.__TAURI__.event.listen('requests-updated', () => {
@@ -1237,7 +1836,7 @@ const ContextPanel = (() => {
       });
     }
 
-        // Browser fallback: poll every 10s
+        // Browser fallback: poll every 3s
         pollInterval = setInterval(() => {
           if (currentSession) {
             fetchADSEvents(currentSession);
@@ -1245,9 +1844,12 @@ const ContextPanel = (() => {
             fetchRoleRequests(currentSession);
             fetchDelegations();
             fetchRequests();
-            fetchDTTPStatus();
+            fetchDTCPStatus();
+            fetchSessionTree();
+            pollAllPending();
+            if (typeof SpecProgress !== 'undefined') SpecProgress.updateSidebarProgress();
           }
-        }, 10000);
+        }, 3000);
       }
     
       async function completeTask(taskId, btn) {
@@ -1298,14 +1900,14 @@ const ContextPanel = (() => {
           ToastManager.show('denial', 'Error', 'No active session role');
           return;
         }
-    
+
         if (!confirm(`Mark request ${reqId} as COMPLETED?`)) return;
-    
+
         if (btn) {
           btn.classList.add('loading');
           btn.disabled = true;
         }
-    
+
         try {
           const res = await fetch(`${getCenterUrl()}/api/governance/requests/${reqId}/status`, {
             method: 'PUT',
@@ -1316,7 +1918,7 @@ const ContextPanel = (() => {
               agent: currentSession.agent || 'GEMINI'
             })
           });
-    
+
           if (res.ok) {
             ToastManager.show('completion', 'Request Completed', reqId);
             await fetchRequests();
@@ -1333,9 +1935,234 @@ const ContextPanel = (() => {
           }
         }
       }
-    
-      return { update, initWatchers, updateUptime, toggleFilter, completeTask, completeRequest, prioritizeTask, openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate };
-    })();
+
+      function updateForgeContext(allEvents) {
+        const forgeEvents = allEvents.filter(e => 
+          e.spec_ref === 'SPEC-043' || 
+          ['capability_intent_defined', 'spec_drafted', 'scr_submitted', 'forge_approval_received', 'project_ready', 'cross_ai_task_verified', 'cross_ai_task_rejected', 'cross_ai_task_retasked'].includes(e.action_type)
+        );
+
+        const statusSection = document.getElementById('section-forge-status');
+        const activitySection = document.getElementById('section-forge-activity');
+
+        if (forgeEvents.length === 0) {
+          if (statusSection) statusSection.style.display = 'none';
+          if (activitySection) activitySection.style.display = 'none';
+          return;
+        }
+
+        if (statusSection) statusSection.style.display = 'block';
+        if (activitySection) activitySection.style.display = 'block';
+
+        // Determine Progress
+        let currentStep = 'Initializing';
+        let pct = 10;
+
+        if (forgeEvents.some(e => e.action_type === 'project_ready')) {
+          currentStep = 'Ready';
+          pct = 100;
+        } else if (forgeEvents.some(e => e.action_type === 'cross_ai_task_verified')) {
+          currentStep = 'Verifying';
+          pct = 85;
+        } else if (forgeEvents.some(e => e.action_type === 'session_delegated' || e.action_type === 'cross_ai_task_complete')) {
+          currentStep = 'Orchestrating';
+          pct = 60;
+        } else if (forgeEvents.some(e => e.action_type === 'forge_approval_received')) {
+          currentStep = 'Approved';
+          pct = 40;
+        } else if (forgeEvents.some(e => e.action_type === 'scr_submitted')) {
+          currentStep = 'Awaiting Approval';
+          pct = 30;
+        } else if (forgeEvents.some(e => e.action_type === 'spec_drafted')) {
+          currentStep = 'Drafted';
+          pct = 20;
+        }
+
+        const labelEl = document.getElementById('forge-step-label');
+        const pctEl = document.getElementById('forge-step-pct');
+        const fillEl = document.getElementById('forge-progress-fill');
+
+        if (labelEl) labelEl.textContent = currentStep;
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (fillEl) fillEl.style.width = pct + '%';
+
+        // Worker Summary
+        const workersSummary = document.getElementById('forge-workers-summary');
+        if (workersSummary) {
+          const completed = allEvents.filter(e => e.action_type === 'cross_ai_task_complete').length;
+          const verified = allEvents.filter(e => e.action_type === 'cross_ai_task_verified').length;
+          const rejected = allEvents.filter(e => e.action_type === 'cross_ai_task_rejected').length;
+          
+          let summary = `${completed} completed`;
+          if (verified > 0) summary += `, ${verified} verified`;
+          if (rejected > 0) summary += `, <span class="text-adt-red">${rejected} rejected</span>`;
+          workersSummary.innerHTML = summary;
+        }
+
+        renderForgeFeed(forgeEvents.slice(-5).reverse());
+      }
+
+      function renderForgeFeed(events) {
+        const container = document.getElementById('ctx-forge-feed');
+        if (!container) return;
+
+        if (events.length === 0) {
+          container.innerHTML = '<li class="ctx-empty">No forge activity</li>';
+          return;
+        }
+
+        container.innerHTML = events.map(e => {
+          const ts = e.ts ? e.ts.substring(11, 19) : '--:--:--';
+          let icon = '&#9671;';
+          if (e.action_type === 'cross_ai_task_verified') icon = '&#9989;';
+          if (e.action_type === 'cross_ai_task_rejected') icon = '&#10060;';
+          if (e.action_type === 'cross_ai_task_retasked') icon = '&#128257;';
+          if (e.action_type === 'project_ready') icon = '&#127881;';
+          if (e.action_type === 'forge_approval_received') icon = '&#128275;';
+
+          return `
+            <li class="tracker-item">
+              <div class="tracker-item-header">
+                <span class="tracker-item-role" style="font-size:9px">${icon} ${e.action_type.replace(/_/g, ' ')}</span>
+                <span class="tracker-item-time">${ts}</span>
+              </div>
+              <div class="tracker-item-title" style="font-size:10px">${e.description}</div>
+            </li>
+          `;
+        }).join('');
+      }
+
+      async function fetchSessionTree() {
+        try {
+          const getCenterUrl = () => localStorage.getItem("adt_center_url") || "http://localhost:5001";
+          const res = await fetch(`${getCenterUrl()}/api/governance/sessions/tree`);
+          if (!res.ok) return;
+          const data = await res.json();
+          renderSessionTree(data.sessions || []);
+          // SPEC-042: Auto-spawn PTYs for children that appear in tree but don't have a local session
+          const allSessionIds = new Set((window.SessionManager ? window.SessionManager.getAll() : []).map(s => s.id));
+          function walkAndSpawn(nodes) {
+            for (const node of (nodes || [])) {
+              if (node.session_id && !spawnedSessions.has(node.session_id) && !allSessionIds.has(node.session_id)) {
+                spawnedSessions.add(node.session_id);
+                if (window.SessionManager && window.SessionManager.spawnChild) {
+                  window.SessionManager.spawnChild({
+                    child_role: node.role,
+                    child_harness: node.agent || 'claude',
+                    task_id: node.task_id || '',
+                    spec_ref: node.spec_ref || 'SPEC-042',
+                    child_session_id: node.session_id,
+                    skip_permissions: true,
+                    context_hint: node.context_hint || null
+                  }).catch(e => console.warn('[SWARM] Auto-spawn failed:', e));
+                }
+              }
+              walkAndSpawn(node.children);
+            }
+          }
+          walkAndSpawn(data.sessions || []);
+        } catch (e) {
+          console.error("fetchSessionTree error:", e);
+        }
+      }
+
+      function renderSessionTree(tree) {
+        const container = document.getElementById("ctx-sessions-tree");
+        if (!container) return;
+
+        if (!tree || tree.length === 0) {
+          container.innerHTML = "<div class=\"ctx-empty\">No active swarm</div>";
+          return;
+        }
+
+        const renderNode = (node) => {
+          const isClaude = (node.agent || "").toLowerCase().includes("claude");
+          const isGemini = (node.agent || "").toLowerCase().includes("gemini");
+          const badgeClass = isClaude ? "badge-claude" : (isGemini ? "badge-gemini" : "");
+          const badgeChar = isClaude ? "C" : (isGemini ? "G" : "?");
+          const isActive = currentSession && node.session_id === currentSession.id;
+          const activeClass = isActive ? "active-tab" : "";
+
+          const roleParts = (node.role || "??").split("_");
+          const roleAbbr = roleParts.map(word => word[0]).join("").toUpperCase();
+
+          const status = node.status || "active";
+          const pulseClass = status === "spawning" ? "pulse-spawning"
+                           : status === "completed" ? "pulse-done"
+                           : "pulse-active";
+          const isForge = !!(node.context_hint?.includes("forge_mode") || node.spec_ref === "SPEC-043");
+          const hasChildren = node.children && node.children.length > 0;
+
+          let html = `<div class="session-node">
+              <div class="session-node-content ${activeClass}" onclick="SessionManager.switchTo('${node.session_id}')">
+                <span class="${pulseClass}"></span>
+                <span class="harness-badge ${badgeClass}">${badgeChar}</span>
+                <span class="session-role-abbr" title="${node.role}">${roleAbbr}</span>
+                ${node.task_id ? `<span class="session-task-id">${node.task_id}</span>` : ""}
+                ${isForge ? '<span class="forge-badge">FORGE</span>' : ""}
+                ${node.spec_ref ? `<span class="session-spec-ref">${node.spec_ref.replace("SPEC-", "")}</span>` : ""}
+              </div>
+              ${hasChildren ? `<div class="swarm-causal-indicator" title="${node.children.length} child session${node.children.length > 1 ? "s" : ""}">&#8627; ${node.children.length}</div>` : ""}`;
+
+          if (hasChildren) {
+            html += `<div class="session-children">`;
+            node.children.forEach(child => {
+              html += renderNode(child);
+            });
+            html += `</div>`;
+          }
+
+          html += `</div>`;
+          return html;
+        };
+
+        container.innerHTML = tree.map(node => renderNode(node)).join("");
+      }
+
+      const CORE_FILES = [
+        "_cortex/AI_PROTOCOL.md",
+        "config/jurisdictions.json",
+        "_cortex/ads/events.jsonl",
+        "adt_core/dtcp/gateway.py",
+        "adt_center/app.py",
+        "adt-console/src/index.html"
+      ];
+
+      async function renderFileExplorer() {
+        const container = document.getElementById('ctx-file-explorer');
+        if (!container) return;
+
+        let html = '';
+        const role = currentSession?.role || 'unknown';
+        
+        for (const path of CORE_FILES) {
+          // Trigger async fetch to populate cache for next render
+          JurisdictionUI.fetchPathTier(path, role).then(() => {
+            // No-op, just warming cache
+          });
+
+          const tier = JurisdictionUI.getPathTierSync(path, role);
+          const tierClass = JurisdictionUI.getTierClass(tier);
+          
+          html += `
+            <div class="file-item ${tierClass}" onclick="console.log('Open ${path}')" title="${path}">
+              <span class="file-icon">&#128196;</span>
+              <span class="file-path">${path}</span>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      }
+
+      return { 
+        update, initWatchers, updateUptime, toggleFilter, 
+        completeTask, completeRequest, prioritizeTask, 
+        openCapInPanel, openInlineGateEval, cancelInlineGate, submitInlineGate, 
+        fetchSessionTree, renderSessionTree, renderFileExplorer,
+        deliverMessage, discardMessage, flushAllMessages, sendMessage, broadcastMessage, showPendingMessages
+      };
+      })();
+
     
     // Global alias for onclick handlers
     window.ContextPanel = ContextPanel;

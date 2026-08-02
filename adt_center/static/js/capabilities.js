@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const state = {
         intents: [],
         events: [],
+        standards: [],
         activeIntent: null,
         activeGates: [],
         project: new URLSearchParams(window.location.search).get("project"),
@@ -154,8 +155,45 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ─── Data Loading ────────────────────────────────────────
+    async function loadStandards() {
+        try {
+            let url = '/api/governance/standards';
+            if (state.project) url += '?project=' + encodeURIComponent(state.project);
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                state.standards = data.standards || [];
+                const datalist = ;
+                if (datalist) {
+                    datalist.innerHTML = state.standards.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load standards:", err);
+        }
+    }
+
+    async function loadStandards() {
+        try {
+            let url = '/api/governance/standards';
+            if (state.project) url += '?project=' + encodeURIComponent(state.project);
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                state.standards = data.standards || [];
+                const datalist = $('standards-datalist');
+                if (datalist) {
+                    datalist.innerHTML = state.standards.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load standards:", err);
+        }
+    }
+
     async function loadData() {
         try {
+            loadStandards();
             const [intentsRes, eventsRes] = await Promise.all([
                 fetch(apiUrl("/intents")),
                 fetch(apiUrl("/events"))
@@ -238,9 +276,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const valueIcon = VALUE_ICONS[intent.value_category] || "";
         const owner = intent.owner || intent.org_context?.owner || "";
 
+        const standards = intent.standards_refs || [];
+        const stdBadges = standards.map(s => `<span class="badge bg-dark border border-secondary text-info" style="font-size: 0.5rem; padding: 0.1rem 0.3rem; margin-right: 2px;" title="Governed by ${s}">[${s.split('-')[0]}]</span>`).join('');
+
         div.innerHTML = `
             <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="card-id">${intent.intent_id}</span>
+                <div class="d-flex flex-column">
+                    <span class="card-id">${intent.intent_id}</span>
+                    <div class="mt-1 d-flex flex-wrap">${stdBadges}</div>
+                </div>
                 <span class="badge ${typeClass}" style="font-size: 0.6rem;">${intent.type || "Intent"}</span>
             </div>
             <div class="card-title">${escapeHtml(intent.title)}</div>
@@ -737,6 +781,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
 
+                <!-- 5a. Standards Alignment (SPEC-046) -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#dsec5a">5a. Standards Alignment</button></h2>
+                    <div id="dsec5a" class="accordion-collapse collapse" data-bs-parent="#drawerAccordion">
+                        <div class="accordion-body">
+                            <div class="mb-2"><strong>Governing Standards:</strong></div>
+                            <div class="d-flex flex-wrap gap-1 mb-3">
+                                ${(intent.standards_refs || []).length > 0 
+                                    ? intent.standards_refs.map(s => `<span class="badge bg-dark border border-secondary text-info">${s}</span>`).join('') 
+                                    : '<span class="text-adt-muted">No standards linked</span>'}
+                            </div>
+                            <div id="drawer-standards-clauses" class="small">
+                                <div class="text-center py-2 text-adt-muted"><small>Loading clause details...</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 6. Value Realisation -->
                 <div class="accordion-item">
                     <h2 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#dsec6">6. Value Realisation</button></h2>
@@ -801,6 +863,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const drawer = new bootstrap.Offcanvas($("drawer-intent-detail"));
         drawer.show();
+        loadIntentStandards(intent);
+    }
+
+    async function loadIntentStandards(intent) {
+        const container = $('drawer-standards-clauses');
+        if (!container || !intent.standards_refs || intent.standards_refs.length === 0) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        try {
+            // In a real implementation, we would fetch details for each linked standard/clause.
+            // For now, we show the list of refs.
+            let html = '<div class="list-group list-group-flush">';
+            for (const ref of intent.standards_refs) {
+                const parts = ref.split('#');
+                const stdId = parts[0];
+                const clauseId = parts[1] || '';
+                
+                html += `
+                    <div class="list-group-item bg-transparent border-adt py-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>${stdId}</strong>
+                            <span class="text-adt-accent">${clauseId ? '§'+clauseId : ''}</span>
+                        </div>
+                        <div class="mt-1"><a href="/standards?project=${state.project || ''}&id=${stdId}" class="text-adt-muted" style="font-size: 0.65rem;">View in Registry &rarr;</a></div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = '<div class="text-danger small">Failed to load standard details.</div>';
+        }
     }
 
     window._updateIntentStatus = async () => {
@@ -992,6 +1088,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const systems = state.tagData["tag-systems"] || [];
         const dataSources = state.tagData["tag-data-sources"] || [];
         const deps = state.tagData["tag-dependencies"] || [];
+        
+        // Standards (SPEC-046)
+        payload.standards_refs = state.tagData["tag-standards"] || [];
         if (systems.length || dataSources.length || deps.length || data.tech_platform) {
             payload.technical_ecosystem = {
                 systems: systems,

@@ -37,6 +37,7 @@ Each line in `_cortex/capabilities/intents.jsonl` MUST contain the following fie
   "target_maturity": "Managed",           // See 2.1.2
   "value_category": "Efficiency",         // See 2.1.3
   "status": "Intent Defined",             // See 2.1.4 [CHANGED]
+  "standards_refs": ["UNESCO-AI-2021#III.D"], // [NEW: SPEC-046]
 
   // --- NEW: Organisational Context (Source Doc Section 3) ---
   "org_context": {

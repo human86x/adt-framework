@@ -1,0 +1,77 @@
+{
+  "id": "COBIT-2019",
+  "title": "COBIT-2019",
+  "version": "latest",
+  "publisher": "",
+  "source_url": "https://www.isaca.org/resources/cobit",
+  "scope": "operational",
+  "clauses": [
+    {
+      "id": "R-EDM01",
+      "title": "Ensured governance framework setting and maintenance",
+      "text": "Analyze and articulate requirements for governance of enterprise IT, including AI, and put in place and maintain effective enabling structures, principles, processes and practices.",
+      "disposition": "adopted",
+      "decided_at": "2026-06-25T22:30:38.939572Z",
+      "decided_by": "unknown",
+      "rationale": "",
+      "scr_ref": null,
+      "tags": [
+        "governance"
+      ]
+    },
+    {
+      "id": "R-EDM03",
+      "title": "Ensured risk optimization",
+      "text": "Ensure that enterprise risk appetite and tolerance are understood, articulated and communicated, and that the risk to enterprise value related to IT use is identified and managed.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "risk"
+      ]
+    },
+    {
+      "id": "R-APO12",
+      "title": "Managed risk",
+      "text": "Continually identify, assess and reduce IT-related risk within levels of tolerance set by enterprise executive management.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "risk_management"
+      ]
+    },
+    {
+      "id": "R-APO13",
+      "title": "Managed security",
+      "text": "Define, operate and monitor a system for information security management.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "security"
+      ]
+    },
+    {
+      "id": "R-DSS06",
+      "title": "Managed business process controls",
+      "text": "Define and maintain appropriate business process controls to ensure that information related to and processed by in-house or outsourced business processes satisfies information control requirements.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "process_control"
+      ]
+    }
+  ],
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
+}

@@ -1,0 +1,467 @@
+/* SPEC-062: Spec Map CSS */
+
+.spec-map-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-primary);
+}
+
+.spec-map-header {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.spec-selector {
+  color-scheme: dark;
+  margin-right: 16px;
+  min-width: 200px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.spec-selector option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sm-action-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.sm-action-btn:hover:not(:disabled) {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.sm-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spec-map-rollup {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.spec-map-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.spec-map-detail {
+  width: 300px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 16px;
+  display: none;
+  overflow-y: auto;
+}
+
+/* Worker Token Overlay (for task 352 but included here per css layout) */
+.worker-token {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  z-index: 100;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%); /* Center on the node's top-right coordinate */
+  transition: top 0.3s ease, left 0.3s ease;
+}
+
+/* Coloured square representing harness */
+.worker-token.harness-claude { background: #6B7FD7; border: 1px solid #5a6bc0; }
+.worker-token.harness-gemini { background: #4CAF50; border: 1px solid #439a46; }
+.worker-token.harness-agy { background: #319795; border: 1px solid #2c8785; }
+.worker-token.harness-antigravity { background: #319795; border: 1px solid #2c8785; }
+
+/* Pulse animation when active */
+@keyframes worker-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.worker-token.pulse {
+  animation: worker-pulse 1.5s infinite ease-out;
+}
+
+/* Context Menus */
+.sm-context-menu {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 160px;
+}
+
+.sm-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.sm-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Zoom Button Cluster */
+.sm-zoom-cluster {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.sm-zoom-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sm-zoom-btn:hover {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+/* Build Status Strip (SPEC-062 Amendment C-1) */
+.sm-build-strip {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  z-index: 100;
+}
+
+.sm-build-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.sm-build-strip-label {
+  font-weight: bold;
+  color: var(--accent-blue);
+}
+
+.sm-build-id, .sm-build-spec, .sm-build-wave {
+  color: var(--text-muted);
+}
+
+.sm-build-status {
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.sm-build-status.queued { color: var(--accent-yellow); }
+.sm-build-status.dispatched { color: var(--accent-blue); }
+.sm-build-status.running { color: var(--accent-yellow); }
+.sm-build-status.complete { color: var(--accent-green); }
+.sm-build-status.failed { color: var(--accent-red); }
+
+.sm-build-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-left: 12px;
+}
+
+#sm-build-progress-fill {
+  height: 100%;
+  background: var(--accent-blue);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+
+/* === SPEC-062 Amendment D: per-task operator actions === */
+
+/* Empty-spec "Not Yet Decomposed" card */
+.empty-spec-card {
+  max-width: 560px;
+  margin: 24px 0 0 32px;
+  padding: 24px 28px;
+  background: var(--bg-secondary, #1f2329);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text-primary, #e6e6e6);
+}
+.empty-spec-card .esc-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent-blue, #58a6ff);
+  margin-bottom: 4px;
+}
+.empty-spec-card .esc-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary, #b1bac4);
+  margin-bottom: 18px;
+}
+.empty-spec-card .esc-intent {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, #b1bac4);
+  margin-bottom: 16px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.empty-spec-card .esc-status {
+  font-size: 12px;
+  color: var(--text-muted, #8b949e);
+  font-style: italic;
+  margin-bottom: 14px;
+}
+.empty-spec-card .esc-btn {
+  background: var(--accent-blue, #1f6feb);
+  color: #fff;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.empty-spec-card .esc-btn:hover:not(:disabled) {
+  background: #388bfd;
+}
+.empty-spec-card .esc-btn:disabled {
+  background: #484f58;
+  cursor: not-allowed;
+}
+.empty-spec-card .esc-help {
+  font-size: 11px;
+  color: var(--text-muted, #6e7681);
+  margin-top: 10px;
+}
+.empty-spec-card .esc-feed {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-secondary, #b1bac4);
+}
+.empty-spec-card .esc-feed-item {
+  padding: 6px 10px;
+  background: var(--bg-tertiary, #161b22);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.empty-spec-card .esc-feed-item.esc-feed-err {
+  background: rgba(229, 62, 62, 0.15);
+  color: #f85149;
+}
+
+/* Per-node context menu */
+.spec-map-context-menu {
+  position: fixed;
+  display: none;
+  background: var(--bg-secondary, #21262d);
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 9999;
+  font-size: 13px;
+}
+.spec-map-context-menu .cm-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--text-primary, #e6e6e6);
+  transition: background 0.1s ease;
+}
+.spec-map-context-menu .cm-item:hover {
+  background: var(--accent-blue, #1f6feb);
+  color: #fff;
+}
+
+/* Pulse animation while a single task is being built */
+@keyframes pulseBuilding {
+  0%   { border-color: var(--accent-blue, #58a6ff); }
+  50%  { border-color: #ffffff; }
+  100% { border-color: var(--accent-blue, #58a6ff); }
+}
+/* Cytoscape nodes use a CSS class binding via .pulse-building; applied via JS */
+.cy-pulse-building {
+  animation: pulseBuilding 1.5s ease-in-out infinite;
+}
+
+
+/* SPEC-062 Amendment D fix: project dropdown options must be readable in any UA */
+.spec-map-project-select option {
+  background: #21262d;
+  color: #e6e6e6;
+}
+.spec-map-project-select:focus {
+  outline: 1px solid #58a6ff;
+}
+
+/* SPEC-062 Amendment D3: custom div-based dropdown (replaces native <select>) */
+.adt-dd { position: relative; display: inline-block; max-width: 200px; }
+.adt-dd-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #21262d; color: #e6e6e6;
+  border: 1px solid #30363d; border-radius: 4px;
+  padding: 4px 10px; font-size: 12px; cursor: pointer;
+  min-width: 140px; gap: 6px;
+}
+.adt-dd-toggle:hover { background: #2d333b; }
+.adt-dd-toggle:focus { outline: 1px solid #58a6ff; outline-offset: -1px; }
+.adt-dd-caret { font-size: 10px; opacity: 0.6; }
+.adt-dd-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  margin: 2px 0 0 0; padding: 4px 0;
+  background: #21262d; color: #e6e6e6;
+  border: 1px solid #30363d; border-radius: 4px;
+  list-style: none; max-height: 280px; overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  z-index: 9999;
+}
+.adt-dd-list[hidden] { display: none; }
+.adt-dd-item {
+  padding: 6px 12px; font-size: 12px; cursor: pointer;
+  color: #e6e6e6; background: transparent;
+}
+.adt-dd-item:hover { background: #1f6feb; color: #fff; }
+.adt-dd-item-current { background: #161b22; color: #58a6ff; font-weight: 500; }
+.adt-dd-item-current::after { content: ' ●'; font-size: 8px; opacity: 0.7; }
+
+/* SPEC-062 Amendment D7: live status banner */
+.spec-map-live-banner {
+  background: linear-gradient(90deg, rgba(56,139,253,0.14), rgba(46,160,67,0.10));
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #e6e6e6;
+}
+.spec-map-live-banner[hidden] { display: none; }
+.spec-map-live-banner .live-row { display: flex; align-items: center; gap: 8px; }
+.spec-map-live-banner .live-pill {
+  background: #1f6feb; color: #fff;
+  padding: 2px 8px; border-radius: 3px; font-weight: 600; font-size: 10px;
+}
+.spec-map-live-banner .live-pill.live-build { background: #1f6feb; }
+.spec-map-live-banner .live-pill.live-decompose { background: #2ea043; }
+.spec-map-live-banner .live-pill.live-decompose-dead { background: #6e7681; }
+/* SPEC-062 Amendment F: verifier banner row */
+.spec-map-live-banner .live-pill.live-verify       { background: #9333ea; }
+.spec-map-live-banner .live-pill.live-verify-pass  { background: #2e7d32; }
+.spec-map-live-banner .live-pill.live-verify-fail  { background: #c62828; }
+.spec-map-live-banner .live-row.live-verify-fail-row { border-left: 3px solid #c62828; padding-left: 6px; }
+/* SPEC-062-F per-task verification drawer */
+.spec-map-verify-drawer {
+  position: fixed; right: 16px; bottom: 16px;
+  width: 520px; max-height: 60vh; overflow: auto;
+  background: #161b22; color: #e6e6e6;
+  border: 1px solid #30363d; border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  font-size: 12px; padding: 8px; z-index: 9999;
+}
+.spec-map-verify-drawer .vd-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 6px; border-bottom: 1px solid #30363d; margin-bottom: 6px;
+}
+.spec-map-verify-drawer .vd-head button {
+  background: transparent; border: none; color: #8b949e;
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.spec-map-verify-drawer .vd-table { width: 100%; border-collapse: collapse; }
+.spec-map-verify-drawer .vd-table th,
+.spec-map-verify-drawer .vd-table td {
+  padding: 4px 6px; vertical-align: top; border-bottom: 1px solid #21262d;
+}
+.spec-map-verify-drawer .vd-table th { color: #8b949e; font-weight: 500; text-align: left; }
+.spec-map-verify-drawer .vd-table td code { color: #79c0ff; }
+.spec-map-live-banner .live-detail { color: #e6e6e6; font-weight: 500; }
+.spec-map-live-banner .live-meta { color: var(--text-muted, #8b949e); font-size: 10px; }
+.spec-map-live-banner .live-event { color: var(--accent-blue, #58a6ff); font-size: 10px; font-style: italic; }
+
+@keyframes pulseActiveTask {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(46,160,67,0.7); }
+  50%      { box-shadow: 0 0 0 6px rgba(46,160,67,0); }
+}
+.cy-task-active {
+  animation: pulseActiveTask 1.4s ease-in-out infinite;
+}
+
+
+/* SPEC-062 D13: spec map immersive mode -- slide out right sidebar, show task detail panel */
+body.spec-map-active #sidebar-right {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden;
+  opacity: 0;
+}
+#sidebar-right {
+  transition: width 0.25s ease-in-out, padding 0.25s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+/* When in spec map immersive mode, the in-map detail panel slides in to take its place */
+body.spec-map-active #spec-map-detail {
+  display: block !important;
+  width: 340px !important;
+  border-left: 1px solid var(--border-color, #30363d);
+  background: var(--bg-secondary, #1f2329);
+  padding: 14px 16px;
+  overflow-y: auto;
+  animation: spec-map-detail-slide-in 0.25s ease-out;
+}
+
+@keyframes spec-map-detail-slide-in {
+  from { transform: translateX(120%); opacity: 0.2; }
+  to   { transform: translateX(0); opacity: 1; }
+}

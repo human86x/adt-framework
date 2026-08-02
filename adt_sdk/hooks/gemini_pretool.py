@@ -2,16 +2,16 @@
 """
 Gemini CLI BeforeTool Enforcement Hook
 
-DTTP-enforced write sandboxing for Gemini CLI agent sessions.
+DTCP-enforced write sandboxing for Gemini CLI agent sessions.
 Intercepts write_file and replace tools, routes all file modifications
-through the DTTP gateway for validation and (in production mode) execution.
+through the DTCP gateway for validation and (in production mode) execution.
 
-Development mode: dry_run validation; allows if DTTP approves, denies if rejected.
-Production mode: DTTP executes the write; always denies Gemini's direct tool use.
-Fail-closed: if DTTP is unreachable, deny the tool call.
+Development mode: dry_run validation; allows if DTCP approves, denies if rejected.
+Production mode: DTCP executes the write; always denies Gemini's direct tool use.
+Fail-closed: if DTCP is unreachable, deny the tool call.
 
 Environment variables:
-    DTTP_URL              - DTTP service URL (default: http://localhost:5002)
+    DTCP_URL              - DTCP service URL (default: http://localhost:5002)
     ADT_AGENT             - Agent identifier (default: GEMINI)
     ADT_ROLE              - Agent role (default: Backend_Engineer)
     ADT_SPEC_ID           - Active spec reference (default: SPEC-017)
@@ -169,7 +169,7 @@ def to_project_relative(abs_path: str, project_dir: str) -> str:
         return abs_path[len(project_dir) + 1:]
     if abs_path == project_dir:
         return "."
-    # Path is outside project -- return as-is, DTTP will reject
+    # Path is outside project -- return as-is, DTCP will reject
     return abs_path
 
 
@@ -183,12 +183,12 @@ def extract_file_path(tool_name: str, tool_input: dict) -> str:
     return tool_input.get("file_path", "")
 
 
-def read_project_dttp_url(project_dir: str) -> str:
-    """Read DTTP port from <project_dir>/config/dttp.json."""
-    dttp_json = os.path.join(project_dir, "config", "dttp.json")
-    if os.path.exists(dttp_json):
+def read_project_dtcp_url(project_dir: str) -> str:
+    """Read DTCP port from <project_dir>/config/dtcp.json."""
+    dtcp_json = os.path.join(project_dir, "config", "dtcp.json")
+    if os.path.exists(dtcp_json):
         try:
-            with open(dttp_json) as f:
+            with open(dtcp_json) as f:
                 data = json.load(f)
                 port = data.get("port")
                 if port:
@@ -215,8 +215,8 @@ def get_canonical_role(role: str, project_dir: str) -> str:
     return role
 
 
-def build_dttp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
-    """Build DTTP action and params from Gemini CLI tool input.
+def build_dtcp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
+    """Build DTCP action and params from Gemini CLI tool input.
 
     Returns (action, params) tuple.
     """
@@ -234,10 +234,10 @@ def build_dttp_params(tool_name: str, tool_input: dict, rel_path: str) -> tuple:
     return "edit", {"file": rel_path}
 
 
-def query_dttp(dttp_url: str, agent: str, role: str, spec_id: str,
+def query_dtcp(dtcp_url: str, agent: str, role: str, spec_id: str,
                action: str, params: dict, rationale: str,
                dry_run: bool = False) -> dict:
-    """Send a request to the DTTP service. Returns the response dict."""
+    """Send a request to the DTCP service. Returns the response dict."""
     payload = {
         "agent": agent,
         "role": role,
@@ -247,16 +247,16 @@ def query_dttp(dttp_url: str, agent: str, role: str, spec_id: str,
         "rationale": rationale,
         "dry_run": dry_run,
     }
-    response = requests.post(f"{dttp_url}/request", json=payload, timeout=10)
+    response = requests.post(f"{dtcp_url}/request", json=payload, timeout=10)
     return response.json()
 
 
-def submit_scr(dttp_url: str, agent: str, role: str, spec_id: str,
+def submit_scr(dtcp_url: str, agent: str, role: str, spec_id: str,
                target_path: str, action: str, params: dict) -> dict:
     """Submit a Sovereign Change Request to the ADT Panel."""
     # Derive Panel URL (usually port 5001 on the same host)
     from urllib.parse import urlparse
-    parsed = urlparse(dttp_url)
+    parsed = urlparse(dtcp_url)
     panel_url = f"{parsed.scheme}://{parsed.hostname}:5001"
 
     scr_payload = {
@@ -285,14 +285,43 @@ def submit_scr(dttp_url: str, agent: str, role: str, spec_id: str,
         return {"error": str(e)}
 
 
+def find_project_root(file_path):
+    if not file_path:
+        return None
+    abs_path = os.path.abspath(file_path)
+    if os.path.isdir(abs_path):
+        current = abs_path
+    else:
+        current = os.path.dirname(abs_path)
+    
+    while current and current != os.path.dirname(current):
+        if os.path.exists(os.path.join(current, "_cortex")) or os.path.exists(os.path.join(current, ".git")):
+            return current
+        current = os.path.dirname(current)
+    return None
+
+
 def main():
     # Read hook input from stdin
     try:
         hook_input = json.loads(sys.stdin.read())
     except (json.JSONDecodeError, ValueError):
         # Can't parse input -- fail closed
-        print(json.dumps(make_deny("DTTP hook: failed to parse hook input")))
+        print(json.dumps(make_deny("DTCP hook: failed to parse hook input")))
         sys.exit(0)
+
+    # Debug logging
+    try:
+        with open("/tmp/gemini_hook.log", "a") as f:
+            import datetime
+            f.write(f"[{datetime.datetime.now()}] --- HOOK TRIGGERED ---\n")
+            f.write(f"CWD: {os.getcwd()}\n")
+            f.write(f"ENV ADT_SPEC_ID: {os.environ.get('ADT_SPEC_ID')}\n")
+            f.write(f"ENV ADT_PROJECT_DIR: {os.environ.get('ADT_PROJECT_DIR')}\n")
+            f.write(f"hook_input keys: {list(hook_input.keys())}\n")
+            f.write(f"hook_input cwd: {hook_input.get('cwd')}\n")
+    except Exception as e:
+        pass
 
     tool_name = hook_input.get("tool_name", "")
 
@@ -308,9 +337,15 @@ def main():
     tool_input = hook_input.get("tool_input", {})
 
     # Configuration from environment
-    project_dir = os.environ.get("GEMINI_PROJECT_DIR",
-                                 hook_input.get("cwd", os.getcwd()))
-    dttp_url = os.environ.get("DTTP_URL", read_project_dttp_url(project_dir))
+    project_dir = os.environ.get("GEMINI_PROJECT_DIR") or os.environ.get("ADT_PROJECT_DIR") or os.environ.get("ADT_FRAMEWORK_ROOT") or hook_input.get("cwd", os.getcwd())
+
+    # Try to dynamically resolve project root from target file path
+    abs_path_temp = extract_file_path(tool_name, hook_input.get("tool_input", {}))
+    if abs_path_temp:
+        dyn_root = find_project_root(abs_path_temp)
+        if dyn_root:
+            project_dir = dyn_root
+    dtcp_url = os.environ.get("DTCP_URL", read_project_dtcp_url(project_dir))
     agent = os.environ.get("ADT_AGENT", "GEMINI")
     enforcement_mode = os.environ.get("ADT_ENFORCEMENT_MODE", "development")
 
@@ -327,18 +362,20 @@ def main():
             except OSError:
                 pass  # Fall back to default
     
-    # SPEC-037: Fix spec priority (env var first, then file fallback)
-    spec_id = os.environ.get("ADT_SPEC_ID")
+    # SPEC-042: Prioritize file-based spec override to fix stale env var issues
+    spec_id = None
+    spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
+    if os.path.exists(spec_file):
+        try:
+            with open(spec_file) as sf:
+                file_spec = sf.read().strip()
+                if file_spec:
+                    spec_id = file_spec
+        except OSError:
+            pass
+    
     if not spec_id:
-        spec_file = os.path.join(project_dir, '_cortex', 'ops', 'active_spec.txt')
-        if os.path.exists(spec_file):
-            try:
-                with open(spec_file) as sf:
-                    file_spec = sf.read().strip()
-                    if file_spec:
-                        spec_id = file_spec
-            except OSError:
-                pass
+        spec_id = os.environ.get("ADT_SPEC_ID")
 
     if not role:
         role = "Backend_Engineer"
@@ -379,7 +416,7 @@ def main():
 
     # If it's a read tool and we reached here, it passed containment (if sandboxed)
     if is_read:
-        print(json.dumps(make_allow(f"DTTP allowed {tool_name} on {rel_path}")))
+        print(json.dumps(make_allow(f"DTCP allowed {tool_name} on {rel_path}")))
         sys.exit(0)
 
     # SPEC-037: Redirect requests.md append to API
@@ -388,7 +425,7 @@ def main():
         if "## REQ-" in content:
             # Attempt to file via API
             from adt_sdk.client import ADTClient
-            client = ADTClient(dttp_url=dttp_url, agent_name=agent, role=role)
+            client = ADTClient(dtcp_url=dtcp_url, agent_name=agent, role=role)
             
             # Simple extraction from markdown
             title_match = re.search(r"## REQ-\d+: (.*)", content)
@@ -404,8 +441,8 @@ def main():
                 print(json.dumps(make_allow(f"Request transparently filed via governed API: {result.get('req_id')}")))
                 sys.exit(0)
 
-    # Build DTTP action and params
-    action, params = build_dttp_params(tool_name, tool_input, rel_path)
+    # Build DTCP action and params
+    action, params = build_dtcp_params(tool_name, tool_input, rel_path)
     
     # Add tier2_justification if provided in environment
     tier2_justification = os.environ.get("ADT_TIER2_JUSTIFICATION")
@@ -416,29 +453,29 @@ def main():
 
     try:
         if enforcement_mode == "production":
-            # Production: DTTP executes the write, always deny Gemini's tool
-            result = query_dttp(dttp_url, agent, role, spec_id,
+            # Production: DTCP executes the write, always deny Gemini's tool
+            result = query_dtcp(dtcp_url, agent, role, spec_id,
                                 action, params, rationale, dry_run=False)
             if result.get("status") == "allowed":
-                # DTTP wrote the file -- deny Gemini's write (already done)
+                # DTCP wrote the file -- deny Gemini's write (already done)
                 print(json.dumps(make_deny(
-                    f"DTTP executed {action} on {rel_path} (production mode). "
-                    f"File written by DTTP service."
+                    f"DTCP executed {action} on {rel_path} (production mode). "
+                    f"File written by DTCP service."
                 )))
             else:
-                # DTTP denied
+                # DTCP denied
                 reason = result.get("reason", "unknown")
                 print(json.dumps(make_deny(
-                    f"DTTP denied {action} on {rel_path}: {reason}"
+                    f"DTCP denied {action} on {rel_path}: {reason}"
                 )))
         else:
             # Development: dry-run validation only
-            result = query_dttp(dttp_url, agent, role, spec_id,
+            result = query_dtcp(dtcp_url, agent, role, spec_id,
                                 action, params, rationale, dry_run=True)
             if result.get("status") == "allowed":
                 # Validation passed -- allow Gemini to write directly
                 print(json.dumps(make_allow(
-                    f"DTTP validated {action} on {rel_path} (development mode)"
+                    f"DTCP validated {action} on {rel_path} (development mode)"
                 )))
             else:
                 # Validation failed -- deny
@@ -446,7 +483,7 @@ def main():
                 
                 # SPEC-033: Auto-submit SCR on sovereign path violation
                 if reason == "sovereign_path_violation":
-                    scr_result = submit_scr(dttp_url, agent, role, spec_id, rel_path, action, params)
+                    scr_result = submit_scr(dtcp_url, agent, role, spec_id, rel_path, action, params)
                     if "scr_id" in scr_result:
                         print(json.dumps(make_deny(
                             f"SOVEREIGN PATH VIOLATION: {rel_path} is protected. "
@@ -459,22 +496,22 @@ def main():
                         )))
                 else:
                     print(json.dumps(make_deny(
-                        f"DTTP denied {action} on {rel_path}: {reason}"
+                        f"DTCP denied {action} on {rel_path}: {reason}"
                     )))
     except requests.ConnectionError:
-        # Fail-closed: DTTP unreachable
+        # Fail-closed: DTCP unreachable
         print(json.dumps(make_deny(
-            f"DTTP service unreachable at {dttp_url}. "
-            f"Fail-closed: all writes blocked until DTTP is available."
+            f"DTCP service unreachable at {dtcp_url}. "
+            f"Fail-closed: all writes blocked until DTCP is available."
         )))
     except requests.Timeout:
         print(json.dumps(make_deny(
-            f"DTTP service timeout at {dttp_url}. "
+            f"DTCP service timeout at {dtcp_url}. "
             f"Fail-closed: write blocked."
         )))
     except Exception as e:
         print(json.dumps(make_deny(
-            f"DTTP hook error: {e}. Fail-closed: write blocked."
+            f"DTCP hook error: {e}. Fail-closed: write blocked."
         )))
 
     sys.exit(0)

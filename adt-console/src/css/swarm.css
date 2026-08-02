@@ -1,0 +1,31 @@
+/* SPEC-042/043: Swarm Visualization CSS */
+.sessions-tree { font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+.session-node { margin-top: 4px; position: relative; }
+.session-node-content { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; cursor: pointer; transition: all 0.15s; flex-wrap: wrap; }
+.session-node-content:hover { background: var(--bg-tertiary); }
+.session-node-content.active-tab { background: rgba(107, 127, 215, 0.1); border-left: 2px solid var(--accent-blue); }
+.session-children { margin-left: 10px; border-left: 1px solid var(--border); padding-left: 8px; margin-top: 2px; }
+.harness-badge { font-size: 8px; font-weight: 800; padding: 0 3px; border-radius: 3px; border: 1px solid currentColor; min-width: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.badge-claude { color: var(--accent-blue); border-color: var(--accent-blue); }
+.badge-gemini { color: var(--accent-purple); border-color: var(--accent-purple); }
+
+/* Status pulses */
+.pulse-active { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); animation: pulse-glow 2s ease-in-out infinite; flex-shrink: 0; }
+.pulse-spawning { width: 6px; height: 6px; border-radius: 50%; background: #d29922; box-shadow: 0 0 5px #d29922; animation: pulse-glow 0.8s ease-in-out infinite; flex-shrink: 0; }
+.pulse-done { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Annotations */
+.session-role-abbr { font-weight: 700; color: var(--text-primary); font-size: 10px; }
+.session-task-id { font-size: 9px; color: var(--text-secondary); opacity: 0.7; font-family: monospace; }
+.session-spec-ref { font-size: 8px; color: var(--accent-blue); opacity: 0.6; font-family: monospace; }
+
+/* SPEC-043: Forge badge */
+.forge-badge { font-size: 7px; font-weight: 800; padding: 1px 3px; border-radius: 2px; background: rgba(76, 175, 80, 0.12); color: #4CAF50; border: 1px solid rgba(76, 175, 80, 0.3); letter-spacing: 0.5px; flex-shrink: 0; }
+
+/* SPEC-043: Causal link indicator (parent → N children) */
+.swarm-causal-indicator { font-size: 9px; color: var(--accent-purple, #bc8cff); opacity: 0.65; padding-left: 22px; margin-top: 1px; margin-bottom: 1px; }

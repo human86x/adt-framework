@@ -1,0 +1,97 @@
+{
+  "id": "OECD-AI-2024",
+  "title": "OECD-AI-2024",
+  "version": "latest",
+  "clauses": [
+    {
+      "id": "R-1.1",
+      "title": "Inclusive growth, sustainable development and well-being",
+      "text": "AI should benefit people and the planet by driving inclusive growth, sustainable development and well-being.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "growth",
+        "sustainability"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.2",
+      "title": "Human-centred values and fairness",
+      "text": "AI systems shall be designed to respect the rule of law, human rights, democratic values and diversity, with appropriate safeguards to ensure a fair and just society.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "fairness",
+        "human_rights"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.3",
+      "title": "Transparency and explainability",
+      "text": "AI actors shall commit to transparency and responsible disclosure regarding AI systems to ensure people understand outcomes and can challenge them.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "transparency",
+        "explainability"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.4",
+      "title": "Robustness, security and safety",
+      "text": "AI systems shall function in a robust, secure and safe way throughout their life cycles, with risks continually assessed and managed.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "safety",
+        "robustness",
+        "security"
+      ],
+      "scope_tag": "operational",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    },
+    {
+      "id": "R-1.5",
+      "title": "Accountability",
+      "text": "AI actors shall be accountable for the proper functioning of AI systems and for respecting these principles, based on their roles and context.",
+      "disposition": "pending",
+      "decided_at": null,
+      "decided_by": null,
+      "rationale": null,
+      "scr_ref": null,
+      "tags": [
+        "accountability"
+      ],
+      "scope_tag": "ethical",
+      "imported_at": "2026-06-23T22:22:09.950084Z",
+      "imported_by": "Systems_Architect"
+    }
+  ],
+  "scope": "ethical",
+  "source_url": "https://www.oecd.org/going-digital/ai/principles/",
+  "publisher": "",
+  "imported_at": "2026-06-23T22:22:09.950084Z",
+  "imported_by": "Systems_Architect"
+}

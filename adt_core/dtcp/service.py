@@ -1,12 +1,12 @@
 """
-DTTP Standalone Service
+DTCP Standalone Service
 
-Thin HTTP wrapper around the DTTPGateway. Runs as an independent process.
+Thin HTTP wrapper around the DTCPGateway. Runs as an independent process.
 
 Usage:
-    python -m adt_core.dttp.service                          # auto-detect from cwd
-    python -m adt_core.dttp.service --project-root /path     # explicit project root
-    python -m adt_core.dttp.service --port 5002              # custom port
+    python -m adt_core.dtcp.service                          # auto-detect from cwd
+    python -m adt_core.dtcp.service --project-root /path     # explicit project root
+    python -m adt_core.dtcp.service --port 5002              # custom port
 """
 import argparse
 import logging
@@ -18,34 +18,43 @@ from flask import Flask, request, jsonify
 
 from adt_core.ads.logger import ADSLogger
 from adt_core.sdd.validator import SpecValidator
-from adt_core.dttp.config import DTTPConfig
-from adt_core.dttp.jurisdictions import JurisdictionManager
-from adt_core.dttp.policy import PolicyEngine
-from adt_core.dttp.actions import ActionHandler
-from adt_core.dttp.gateway import DTTPGateway
+from adt_core.dtcp.config import DTCPConfig
+from adt_core.dtcp.jurisdictions import JurisdictionManager
+from adt_core.dtcp.policy import PolicyEngine
+from adt_core.dtcp.actions import ActionHandler
+from adt_core.dtcp.gateway import DTCPGateway
 
 logger = logging.getLogger(__name__)
 
 
-def create_dttp_app(config: DTTPConfig) -> Flask:
-    """Create the standalone DTTP Flask application."""
+def create_dtcp_app(config: DTCPConfig) -> Flask:
+    """Create the standalone DTCP Flask application."""
     app = Flask(__name__)
-    app.config["DTTP"] = config
+    app.config["DTCP"] = config
 
     # Initialize engines
+    from adt_core.sdd.tasks import TaskManager
+    tasks_path = os.path.join(config.project_root, "_cortex", "tasks.json")
+    task_manager = TaskManager(tasks_path, project_name=config.project_name)
+    
+    delegation_policy_path = os.path.join(config.project_root, "config", "delegation_policy.json")
+
+    from adt_core.ads.query import ADSQuery
+    ads_query = ADSQuery(config.ads_path)
+    
     ads_logger = ADSLogger(config.ads_path)
     validator = SpecValidator(config.specs_config)
     jurisdictions = JurisdictionManager(config.jurisdictions_config)
-    policy_engine = PolicyEngine(validator, jurisdictions)
+    policy_engine = PolicyEngine(validator, jurisdictions, task_manager=task_manager, delegation_policy_path=delegation_policy_path, ads_query=ads_query)
     action_handler = ActionHandler(config.project_root)
-    gateway = DTTPGateway(policy_engine, action_handler, ads_logger, is_framework=config.is_framework_project)
+    gateway = DTCPGateway(policy_engine, action_handler, ads_logger, is_framework=config.is_framework_project)
 
     # Store on app for access in routes
-    app.dttp_gateway = gateway
-    app.dttp_validator = validator
-    app.dttp_jurisdictions = jurisdictions
-    app.dttp_start_time = time.time()
-    app.dttp_stats = {"total_requests": 0, "total_denials": 0}
+    app.dtcp_gateway = gateway
+    app.dtcp_validator = validator
+    app.dtcp_jurisdictions = jurisdictions
+    app.dtcp_start_time = time.time()
+    app.dtcp_stats = {"total_requests": 0, "total_denials": 0}
 
     # SPEC-020 Amendment B: Load canonical roles for normalization
     try:
@@ -58,7 +67,7 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
         pass
 
     @app.route("/request", methods=["POST"])
-    def dttp_request():
+    def dtcp_request():
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "code": "INVALID_BODY", "message": "Request body must be JSON"}), 400
@@ -75,11 +84,13 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
         if not isinstance(data["rationale"], str) or not data["rationale"].strip():
             return jsonify({"status": "error", "code": "INVALID_TYPE", "message": "rationale must be a non-empty string"}), 400
 
-        app.dttp_stats["total_requests"] += 1
+        app.dtcp_stats["total_requests"] += 1
 
         dry_run = bool(data.get("dry_run", False))
+        session_id = data.get("session_id")
+        parent_session_id = data.get("parent_session_id")
 
-        result = app.dttp_gateway.request(
+        result = app.dtcp_gateway.request(
             agent=data["agent"],
             role=data["role"],
             spec_id=data["spec_id"],
@@ -87,16 +98,18 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
             params=data["params"],
             rationale=data["rationale"],
             dry_run=dry_run,
+            session_id=session_id,
+            parent_session_id=parent_session_id
         )
 
         if result["status"] == "denied":
-            app.dttp_stats["total_denials"] += 1
+            app.dtcp_stats["total_denials"] += 1
             return jsonify(result), 403
 
         return jsonify(result), 200
 
     @app.route("/log", methods=["POST"])
-    def dttp_log():
+    def dtcp_log():
         """Log an arbitrary event to the ADS."""
         data = request.get_json()
         if not data:
@@ -110,32 +123,32 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
             if "role" in data:
                 data["role"] = ADSEventSchema.normalize_role(data["role"])
 
-            event_id = app.dttp_gateway.logger.log(data)
+            event_id = app.dtcp_gateway.logger.log(data)
             return jsonify({"status": "success", "event_id": event_id}), 200
         except ValueError as e:
             return jsonify({"status": "error", "code": "INVALID_EVENT", "message": str(e)}), 400
 
     @app.route("/status", methods=["GET"])
-    def dttp_status():
+    def dtcp_status():
         return jsonify({
-            "service": "dttp",
+            "service": "dtcp",
             "version": "0.1.0",
             "mode": config.mode,
             "enforcement_mode": config.enforcement_mode,
             "project": config.project_name,
-            "uptime_seconds": int(time.time() - app.dttp_start_time),
-            "policy_loaded": bool(app.dttp_validator.get_all_specs()),
-            "specs_count": len(app.dttp_validator.get_all_specs()),
-            "jurisdictions_count": len(app.dttp_jurisdictions.get_jurisdictions()),
-            "total_requests": app.dttp_stats["total_requests"],
-            "total_denials": app.dttp_stats["total_denials"],
+            "uptime_seconds": int(time.time() - app.dtcp_start_time),
+            "policy_loaded": bool(app.dtcp_validator.get_all_specs()),
+            "specs_count": len(app.dtcp_validator.get_all_specs()),
+            "jurisdictions_count": len(app.dtcp_jurisdictions.get_jurisdictions()),
+            "total_requests": app.dtcp_stats["total_requests"],
+            "total_denials": app.dtcp_stats["total_denials"],
         })
 
     @app.route("/policy", methods=["GET"])
-    def dttp_policy():
+    def dtcp_policy():
         return jsonify({
-            "specs": app.dttp_validator.get_all_specs(),
-            "jurisdictions": app.dttp_jurisdictions.get_jurisdictions(),
+            "specs": app.dtcp_validator.get_all_specs(),
+            "jurisdictions": app.dtcp_jurisdictions.get_jurisdictions(),
             "last_reload": datetime.now(timezone.utc).isoformat(),
         })
 
@@ -143,7 +156,7 @@ def create_dttp_app(config: DTTPConfig) -> Flask:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DTTP Standalone Service")
+    parser = argparse.ArgumentParser(description="DTCP Standalone Service")
     parser.add_argument("--port", type=int, default=None, help="Port to listen on (default: 5002)")
     parser.add_argument("--project-root", type=str, default=None, help="Project root directory")
     parser.add_argument("--mode", type=str, default=None, choices=["development", "production"], help="Operating mode")
@@ -151,11 +164,11 @@ def main():
     args = parser.parse_args()
 
     # Build config: env vars first, then CLI args override
-    project_root = args.project_root or os.environ.get("DTTP_PROJECT_ROOT", os.getcwd())
-    config = DTTPConfig.from_project_root(project_root)
+    project_root = args.project_root or os.environ.get("DTCP_PROJECT_ROOT", os.getcwd())
+    config = DTCPConfig.from_project_root(project_root)
 
     # Apply env var overrides
-    env_config = DTTPConfig.from_env()
+    env_config = DTCPConfig.from_env()
     if env_config.port != 5002:
         config.port = env_config.port
     if env_config.mode != "development":
@@ -173,12 +186,12 @@ def main():
 
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [DTTP] %(levelname)s %(name)s: %(message)s",
+        format="%(asctime)s [DTCP] %(levelname)s %(name)s: %(message)s",
     )
 
-    logger.info("Starting DTTP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
-    app = create_dttp_app(config)
-    app.run(host="::", port=config.port, debug=(config.mode == "development"))
+    logger.info("Starting DTCP service on :%d (mode=%s, enforcement=%s, project=%s)", config.port, config.mode, config.enforcement_mode, config.project_name)
+    app = create_dtcp_app(config)
+    app.run(host="::", port=config.port, debug=(config.mode == "development"), use_reloader=False, threaded=True)  # REQ-113: prevent slow hook from blocking all others
 
 
 if __name__ == "__main__":

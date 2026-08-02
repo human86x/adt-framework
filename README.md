@@ -16,14 +16,14 @@ What distinguishes ADT from conventional governance approaches is structural enf
 
 - **ADS (Audit & Decision System)** -- an immutable, SHA-256-chained event ledger that records every agent action, creating a tamper-evident audit trail from intent to outcome.
 - **SDD (Specification-Driven Development)** -- a strict "no spec, no code" discipline where every change must be authorized by an approved specification before execution.
-- **DTTP (Digital Trust Transfer Protocol)** -- a privilege-separated enforcement gateway that validates agent actions against role jurisdictions, spec authorizations, and tiered protections in real time. Unauthorized actions are denied, not just logged.
+- **DTCP (Digital Trust Control Protocol)** -- a privilege-separated enforcement gateway that validates agent actions against role jurisdictions, spec authorizations, and tiered protections in real time. Unauthorized actions are denied, not just logged.
 - **Capability Governance** -- a strategic alignment layer that traces every technical action back to a business intent and triggering event, ensuring full causal traceability from organisational purpose to production outcome through a structured 7-stage gate workflow.
 
 Together, these pillars ensure that governance is an intrinsic system property, not an external overlay.
 
 ### 1.1 Configurable Roles
 
-ADT organises work around configurable, structurally enforced roles. Each project defines its own roles and jurisdictions to match its domain -- a software project might use Engineers, Architects, and DevOps; a publishing project might define Editors, Writers, and Designers. What remains constant is the enforcement model: every role operates within a defined jurisdiction enforced by the DTTP gateway. An agent cannot act outside its boundaries, regardless of the domain.
+ADT organises work around configurable, structurally enforced roles. Each project defines its own roles and jurisdictions to match its domain -- a software project might use Engineers, Architects, and DevOps; a publishing project might define Editors, Writers, and Designers. What remains constant is the enforcement model: every role operates within a defined jurisdiction enforced by the DTCP gateway. An agent cannot act outside its boundaries, regardless of the domain.
 
 As an example, the ADT Framework itself -- which governs its own development -- uses the following roles:
 
@@ -53,18 +53,18 @@ To prevent the framework from corrupting itself, all file paths are classified i
 
 ---
 
-## 3. Structural Enforcement (DTTP)
+## 3. Structural Enforcement (DTCP)
 
-The Digital Transformation Transfer Protocol (DTTP) replaces honor-system prompts with **Level 3 OS-level privilege separation**.
+The Digital Transformation Control Protocol (DTCP) replaces honor-system prompts with **Level 3 OS-level privilege separation**.
 
 ### 3.1 Three-User Privilege Model
 - **HUMAN (user `human`):** Full access. The root of trust. Approves specs and configures the forge.
-- **AGENT (user `agent`):** Restricted user. Read-only access to the project. Network access (SSH/FTP) blocked. Must route all writes through the DTTP service.
-- **DTTP (user `dttp`):** Privileged worker. Write access to the project. Validates agent requests, executes them, and logs them to the ADS atomically.
+- **AGENT (user `agent`):** Restricted user. Read-only access to the project. Network access (SSH/FTP) blocked. Must route all writes through the DTCP service.
+- **DTCP (user .dttp.):** Privileged worker. Write access to the project. Validates agent requests, executes them, and logs them to the ADS atomically.
 
 ### 3.2 Multi-Project Isolation
 - **Forge:** The ADT Framework itself. Possesses Tier 1/Tier 2 concepts and Shatterglass capabilities.
-- **Governed (External Projects):** tenant projects (e.g., web apps). Operate strictly at Tier 3 with isolated `_cortex/` directories and DTTP instances.
+- **Governed (External Projects):** tenant projects (e.g., web apps). Operate strictly at Tier 3 with isolated `_cortex/` directories and DTCP instances.
 
 ---
 
@@ -89,7 +89,7 @@ adt init /path/to/your/project --detect
 | Command | Description |
 |---------|-------------|
 | `adt init` | Scaffold governance in a new directory with auto-detection. |
-| `adt projects list` | List all registered projects and their DTTP status. |
+| `adt projects list` | List all registered projects and their DTCP status. |
 | `adt connect share` | Expose local instance via Cloudflare Tunnel for remote access. |
 | `adt shatterglass` | Emergency privilege escalation for manual framework repair. |
 | `adt tasks complete` | Mark a task as completed with evidence directly from CLI. |
@@ -102,7 +102,7 @@ adt init /path/to/your/project --detect
 Agents are restricted via application-layer hook sandboxing and OS-level namespace isolation using `bwrap` (bubblewrap) to block unauthorized network egress and filesystem traversal.
 
 ### 5.2 The Shatterglass Protocol
-A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can activate Shatterglass to temporarily escalate OS privileges, bypass DTTP, and repair the framework. This mode is time-limited and mandates an audit.
+A fail-safe mechanism for emergency maintenance. If DTCP breaks, the Human can activate Shatterglass to temporarily escalate OS privileges, bypass DTCP, and repair the framework. This mode is time-limited and mandates an audit.
 
 ---
 
@@ -118,7 +118,7 @@ A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can a
 │           ADT Operational Center          │  ← Strategic Management
 │            (Flask Web / API)              │
 ├───────────────────────────────────────────┤
-│               DTTP Engine                 │  ← Structural Enforcement
+│               DTCP Engine                 │  ← Structural Enforcement
 │      (Privilege-Separated Gateway)        │
 ├──────────┬──────────┬──────────┬──────────┤
 │ ADS      │ SDD      │ IoE      │ Intents  │  ← Core Modules
@@ -139,7 +139,7 @@ A fail-safe mechanism for emergency maintenance. If DTTP breaks, the Human can a
 
 ## 8. Proving Ground
 
-ADT governs its own development -- recursive self-governance through structural enforcement. Every commit, spec, and task in this repository was mediated by ADT's own DTTP engine and logged to its own ADS.
+ADT governs its own development -- recursive self-governance through structural enforcement. Every commit, spec, and task in this repository was mediated by ADT's own DTCP engine and logged to its own ADS.
 
 ADT is also being proven through [OceanPulse](https://oceanpulse.pt) -- an autonomous marine monitoring buoy governed as an external project under ADT's multi-project isolation model.
 

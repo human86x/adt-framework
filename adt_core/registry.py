@@ -10,11 +10,21 @@ class ProjectRegistry:
     """Manages the project registry at ~/.adt/projects.json."""
 
     def __init__(self, registry_path: Optional[str] = None):
+        # Precedence (REQ-106):
+        #   1. Explicit constructor argument
+        #   2. ADT_PROJECT_REGISTRY env var (lets systemd point at the operator's
+        #      registry when the service runs as a non-login user like `dttp`)
+        #   3. ~/.adt/projects.json (interactive default)
         if registry_path:
             self.registry_path = registry_path
         else:
-            self.registry_path = os.path.expanduser("~/.adt/projects.json")
-        
+            env_path = os.environ.get("ADT_PROJECT_REGISTRY")
+            if env_path:
+                self.registry_path = os.path.expanduser(env_path)
+            else:
+                self.registry_path = os.path.expanduser("~/.adt/projects.json")
+
+        logger.info(f"ProjectRegistry using registry_path={self.registry_path}")
         self._ensure_registry_exists()
 
     def _ensure_registry_exists(self):
@@ -44,6 +54,12 @@ class ProjectRegistry:
                 for name, config in projects.items():
                     if "project_type" not in config:
                         config["project_type"] = "forge" if config.get("is_framework") else "governed"
+                        updated = True
+                    if "dttp_port" in config and "dtcp_port" not in config:
+                        config["dtcp_port"] = config["dttp_port"]
+                        updated = True
+                    if "dtcp_port" in config and "dttp_port" not in config:
+                        config["dttp_port"] = config["dtcp_port"]
                         updated = True
                 if updated:
                     self._save_registry(data)
@@ -82,6 +98,7 @@ class ProjectRegistry:
         projects[name] = {
             "path": path,
             "dttp_port": port,
+            "dtcp_port": port,
             "panel_port": 5001 if is_framework else None,
             "status": "active",
             "registered_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),

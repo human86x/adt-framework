@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% set active_page = 'standards' %}
+
+{% block title %}Standards Registry - ADT Operational Center{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="display-6"><span class="brand-icon">&#9873;</span> Standards Registry</h2>
+        <p class="text-muted">The Fifth Pillar: Governing principles and regulatory alignment.</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importStandardModal">
+            <i class="bi bi-download"></i> Import Standard...
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs border-secondary">
+            <li class="nav-item">
+                <a class="nav-link active bg-dark text-light border-secondary border-bottom-0" href="/standards">Registry</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-muted" href="/standards/rules">Rationalised Rules</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-muted" href="/standards/mrr">Machine Readable Rules</a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Registry Table -->
+    <div class="col-lg-8">
+        <div class="card card-adt h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-table"></i> Registered Standards</span>
+                <span class="badge bg-secondary" id="standards-count">0 Standards</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-adt table-hover mb-0" id="standards-table">
+                        <thead>
+                            <tr>
+                                <th>Standard</th>
+                                <th>Version</th>
+                                <th>Scope</th>
+                                <th class="text-center">Adopted</th>
+                                <th class="text-center">Adapted</th>
+                                <th class="text-center">Dismissed</th>
+                                <th class="text-center">Pending</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="standards-list">
+                            <tr>
+                                <td colspan="8" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Spec Coverage Panel -->
+        <div class="card card-adt mt-4">
+            <div class="card-header">
+                <i class="bi bi-diagram-3"></i> Per-Spec Coverage
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="spec-coverage-select" class="form-label">Select Spec</label>
+                        <select class="form-select bg-black text-light border-secondary" id="spec-coverage-select">
+                            <option value="">-- Choose a Spec --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="coverage-visualization" class="p-3 bg-black rounded border border-secondary text-muted text-center">
+                    Select a spec to view its coverage chain.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health / Coverage Card -->
+    <div class="col-lg-4">
+        <div class="card card-adt mb-4">
+            <div class="card-header">
+                <i class="bi bi-shield-check"></i> Coverage & Health
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="display-4" id="coverage-pct">--%</div>
+                    <div class="text-muted">of adopted clauses covered by specs</div>
+                </div>
+                <hr class="border-secondary">
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="h4 mb-0" id="count-adopted">0</div>
+                        <small class="text-muted">Adopted</small>
+                    </div>
+                    <div class="col">
+                        <div class="h4 mb-0 text-warning" id="count-orphan">0</div>
+                        <small class="text-muted">Orphans</small>
+                    </div>
+                    <div class="col">
+                        <div class="h4 mb-0 text-info" id="count-pending">0</div>
+                        <small class="text-muted">Pending</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-adt">
+            <div class="card-header">
+                <i class="bi bi-clock-history"></i> Recent Mutations
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="recent-mutations">
+                    <li class="list-group-item bg-transparent text-muted text-center py-4">No recent changes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clause Drill-down Offcanvas -->
+<div class="offcanvas offcanvas-end bg-dark text-light border-start border-secondary" tabindex="-1" id="clauseOffcanvas" aria-labelledby="clauseOffcanvasLabel" style="width: 50%;">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 id="clauseOffcanvasLabel">Standard Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="standard-meta" class="mb-4">
+            <!-- Populated via JS -->
+        </div>
+        <h6>Clauses</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-adt">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Disposition</th>
+                        <th>Coverage</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="clause-list">
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Disposition Modal -->
+<div class="modal fade" id="dispositionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><span class="text-capitalize" id="disp-action-title">Change</span> Disposition: <span id="disp-clause-id"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Clause Text</label>
+                    <div class="p-3 bg-black rounded border border-secondary text-muted" id="disp-clause-text"></div>
+                </div>
+                <input type="hidden" id="disp-select">
+                <div class="mb-3" id="rationale-container">
+                    <label class="form-label">Rationale <span class="text-danger">*</span></label>
+                    <textarea class="form-control bg-black text-light border-secondary" id="disp-rationale" rows="4" placeholder="Mandatory rationale (min 20 chars)..." minlength="20"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-disposition">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/standards.js') }}"></script>
+{% endblock %}

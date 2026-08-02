@@ -5,16 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ADT Operator Console v2.1</title>
   <script>console.log("ADT Console HTML loaded v2.1");</script>
+  <!-- SPEC-073: Load readiness FIRST so any subsequent module can call begin/end -->
+  <script src="js/readiness.js"></script>
   <link rel="stylesheet" href="css/console.css">
   <link rel="stylesheet" href="css/launcher.css">
+  <link rel="stylesheet" href="css/swarm.css">
+  <link rel="stylesheet" href="css/spec_map.css">
   <link rel="stylesheet" href="vendor/xterm.css">
 </head>
 <body>
+  <!-- SPEC-073: Global readiness bar (hidden until a task registers) -->
+  <div id="console-readiness-bar" style="display:none;position:fixed;top:48px;left:0;right:0;height:3px;z-index:9999;background:#161b22">
+    <div id="console-readiness-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#58a6ff,#a5d6ff);transition:width 250ms ease"></div>
+    <div id="console-readiness-label" style="position:absolute;top:6px;right:12px;font-size:10px;color:#8b949e;background:rgba(13,17,23,0.85);padding:2px 8px;border-radius:3px"></div>
+  </div>
   <!-- Top Bar -->
   <header id="topbar">
     <div class="topbar-brand">
       <span class="brand-logo">ADT</span>
-      <span class="brand-title">Operator Console</span>
+      <span class="brand-title"><span id="brand-version">v…</span> <span id="build-time" style="font-size:9px; opacity:0.5; margin-left:8px;"></span></span>
+      <span id="agy-auth-badge" title="agy authentication state — click to log in"
+            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;margin-left:10px;background:#21262d;border:1px solid #30363d;border-radius:12px;font-size:11px;cursor:pointer;color:#8b949e">
+        <span id="agy-auth-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6e7681"></span>
+        <span id="agy-auth-label">agy: checking…</span>
+      </span>
     </div>
     <div id="session-tabs" class="topbar-tabs">
       <!-- Session tabs injected by JS -->
@@ -26,7 +40,10 @@
       <button id="btn-split" title="Split View (Ctrl+\)">&#9707;</button>
       <button id="btn-dashboard" title="Dashboard (Ctrl+D)">&#9638;</button>
       <button id="btn-governance" title="Governance (Ctrl+G)">&#9881;</button>
+      <button id="btn-spec-map" title="Spec Map (Ctrl+M)">&#10034;</button>
       <button id="btn-adt-panel" title="ADT Panel (Ctrl+P)">&#9670;</button>
+      <button id="btn-mirror" title="Mirror to peer (click: toggle · shift+click: configure)">🔁</button>
+
       <button id="btn-shortcuts" title="Keyboard Shortcuts (?)">?</button>
     </div>
   </header>
@@ -49,6 +66,10 @@
 
     <!-- Center: Terminal Area -->
     <main id="terminal-area">
+      <!-- SPEC-052: Shared objective header — updated by SpecProgress.updateTerminalHeader() -->
+      <div id="terminal-objective-header" class="terminal-objective-header" style="display:none"></div>
+      <!-- Forge split-mode exit affordance (shown only when .forge-split-mode is active) -->
+      <button id="forge-split-exit" title="Exit split view (keeps session and spec map open individually)">✕ Exit Split</button>
       <div id="terminal-container">
         <!-- xterm.js instances injected here -->
       </div>
@@ -62,16 +83,42 @@
       </div>
 
       <!-- Governance Panel (SPEC-003/013) -->
-      <div id="governance-view" class="governance-view" style="display:none">
+      <div id="governance-view" class="governance-view" style="display:none; position:relative; overflow:hidden;">
         <div class="gov-header">
           <div class="gov-tabs">
-            <button class="gov-tab-btn active" data-tab="taskboard" onclick="GovernancePanel.switchTab('taskboard\')">Task Board</button>
-            <button class="gov-tab-btn" data-tab="hierarchy" onclick="GovernancePanel.switchTab('hierarchy\')">Hierarchy</button>
-            <button class="gov-tab-btn" data-tab="delegation" onclick="GovernancePanel.switchTab('delegation\')">Delegation</button>
+            <button class="gov-tab-btn active" data-tab="taskboard" onclick="GovernancePanel.switchTab('taskboard')">Task Board</button>
+            <button class="gov-tab-btn" data-tab="hierarchy" onclick="GovernancePanel.switchTab('hierarchy')">Hierarchy</button>
+            <button class="gov-tab-btn" data-tab="delegation" onclick="GovernancePanel.switchTab('delegation')">Delegation</button>
+            <button class="gov-tab-btn" data-tab="specs" onclick="GovernancePanel.switchTab('specs')">Specs</button>
+            <button class="gov-tab-btn" data-tab="standards" onclick="GovernancePanel.switchTab('standards')">Standards</button>
           </div>
           <button class="gov-refresh-btn" onclick="GovernancePanel.refresh()" title="Refresh data">&#8635;</button>
         </div>
         <div id="gov-content" class="gov-content"></div>
+
+        <!-- SPEC-065: Live Spec Coverage Drawer -->
+        <div id="live-coverage-overlay" class="live-coverage-overlay" style="display:none;" onclick="LiveCoverageDrawer.close()"></div>
+        <div id="live-coverage-drawer" class="live-coverage-drawer" style="transform: translateX(100%);">
+          <div class="lcd-header">
+            <h3>Live Spec Coverage <span id="lcd-spec-id" class="ctx-badge badge-blue"></span></h3>
+            <button class="lcd-close-btn" onclick="LiveCoverageDrawer.close()">&times;</button>
+          </div>
+          <div class="lcd-body">
+            <div class="lcd-section">
+              <h4>Coverage</h4>
+              <div id="lcd-coverage-stats" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;"></div>
+              <ul id="lcd-covered-rrs" class="lcd-list"></ul>
+            </div>
+            <div class="lcd-section">
+              <h4>Suggested RRs (Content Overlap)</h4>
+              <ul id="lcd-suggested-rrs" class="lcd-list"></ul>
+            </div>
+            <div class="lcd-section">
+              <h4>Architect Self-Assessment (Doc 4)</h4>
+              <ul id="lcd-self-assessment" class="lcd-assessment-list"></ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ADT Panel Embedded (SPEC-021) -->
@@ -79,11 +126,80 @@
         <iframe id="adt-panel-iframe" src="about:blank"></iframe>
       </div>
 
+      <!-- Spec Map View (SPEC-062) -->
+      <div id="spec-map-view" class="spec-map-view" style="display:none; flex-direction:column; height:100%; width:100%; background:var(--bg-primary);">
+        <div class="spec-map-header" style="display:flex; flex-direction:column; gap:6px; padding:8px 16px; border-bottom:1px solid var(--border); background:var(--bg-secondary);">
+           <!-- Row 1: context selectors + progress rollup -->
+           <div class="spec-map-header-row1" style="display:flex; align-items:center; gap:8px; min-width:0;">
+             <!-- SPEC-062 D12: header project picker (dark, custom div dropdown) -->
+             <div class="adt-dd" id="spec-map-header-project-dd" tabindex="0" title="Switch project" style="flex-shrink:0;">
+               <button type="button" class="adt-dd-toggle" aria-haspopup="listbox" aria-expanded="false">
+                 <span class="adt-dd-label">adt-framework</span>
+                 <span class="adt-dd-caret">&#9662;</span>
+               </button>
+               <ul class="adt-dd-list" role="listbox" hidden></ul>
+             </div>
+             <select id="spec-map-selector" class="spec-selector" style="min-width: 180px; max-width: 260px; flex-shrink:0;">
+               <option value="">Select a Spec...</option>
+             </select>
+             <!-- Rollup Header uses SPEC-052 progress logic — flex:0 keeps it left-packed -->
+             <div id="spec-map-rollup" class="spec-map-rollup" style="flex:0 0 auto; display:flex; align-items:center;"></div>
+           </div>
+           <!-- Row 2: action buttons (left-aligned, no auto margin) -->
+           <div class="sm-action-group" style="display:flex; align-items:center; justify-content:flex-start; gap:6px; flex-wrap:wrap;">
+             <button id="sm-btn-approve" class="sm-action-btn" title="Approve Spec" disabled>Approve</button>
+             <button id="sm-btn-build" class="sm-action-btn" title="Dispatch Build" disabled>Build</button>
+             <button id="sm-btn-stop" class="sm-action-btn" title="Stop ALL running builds for this spec" style="background:#7b1818;color:#fff;border-color:#c62828">Stop</button>
+             <button id="sm-btn-launch" class="sm-action-btn" title="Detecting entry point..." style="background:#1f6feb;color:#fff;border-color:#388bfd" disabled>▶ Launch</button>
+             <a id="sm-intents-badge" href="#" title="Recent operator intents (SPEC-062-H auto-forge)" style="text-decoration:none;color:#c8b6ff;background:#1c1032;border:1px solid #6f42c1;border-radius:12px;padding:3px 10px;font-size:11px;display:inline-block">🎯 Intents <span id="sm-intents-count">0</span></a>
+             <button id="sm-btn-cci" class="sm-action-btn" title="Report a bug, request a feature, or file an improvement — creates a Capability Intent (SPEC-038A)" style="background:#6f42c1;color:#fff;border-color:#8957e5">+ Change</button>
+           </div>
+        </div>
+        <div style="display:flex; flex:1; overflow:hidden;">
+          <div style="flex:1; position:relative; display:flex; flex-direction:column;">
+            <div id="sm-build-strip" class="sm-build-strip" style="display:none;">
+              <div class="sm-build-strip-row">
+                <span class="sm-build-strip-label">BUILD</span>
+                <span id="sm-build-id" class="sm-build-id">build_...</span>
+                <span class="sm-build-spec">/</span>
+                <span id="sm-build-spec" class="sm-build-spec">SPEC-...</span>
+                <span id="sm-build-wave" class="sm-build-wave">wave 0/0</span>
+                <span id="sm-build-status" class="sm-build-status">queued</span>
+                <span id="sm-build-elapsed" class="sm-build-elapsed">0s</span>
+                <div id="sm-build-progress" class="sm-build-progress-bar"><div id="sm-build-progress-fill"></div></div>
+              </div>
+            </div>
+            <div id="spec-map-canvas" class="spec-map-canvas" style="flex:1; position:relative;"></div>
+            <div id="sm-zoom-cluster" class="sm-zoom-cluster">
+              <button id="sm-btn-zoom-in" class="sm-zoom-btn" title="Zoom In">+</button>
+              <button id="sm-btn-zoom-out" class="sm-zoom-btn" title="Zoom Out">-</button>
+              <button id="sm-btn-zoom-fit" class="sm-zoom-btn" title="Fit to Screen">Fit</button>
+            </div>
+          </div>
+          <div id="spec-map-detail" class="spec-map-detail" style="width:300px; border-left:1px solid var(--border); background:var(--bg-secondary); padding:16px; display:none; overflow-y:auto;">
+             <h3 id="smd-panel-title" style="margin-top:0; border-bottom:1px solid var(--border); padding-bottom:8px; font-size:15px; color:#e6edf3;">Task Detail</h3>
+             <div id="smd-content" style="font-size:0.85rem;">Select a node or worker</div>
+          </div>
+        </div>
+      </div>
+
       <div id="empty-state" class="empty-state">
         <div class="empty-logo">ADT</div>
         <p>No active sessions</p>
         <p class="hint">Press <kbd>Ctrl+N</kbd> to create a new session</p>
         <p class="hint">Press <kbd>?</kbd> for all keyboard shortcuts</p>
+      </div>
+
+      <!-- SPEC-062 Context Menus -->
+      <div id="sm-node-context-menu" class="sm-context-menu">
+        <div class="sm-menu-item" data-action="dispatch">Dispatch worker here</div>
+        <div class="sm-menu-item" data-action="block">Mark blocked</div>
+        <div class="sm-menu-item" data-action="copy">Copy task ID</div>
+      </div>
+      <div id="sm-bg-context-menu" class="sm-context-menu">
+        <div class="sm-menu-item" data-action="relayout">Re-layout</div>
+        <div class="sm-menu-item" data-action="export">Export PNG</div>
+        <div class="sm-menu-item" data-action="switch">Switch spec</div>
       </div>
     </main>
 
@@ -120,6 +236,14 @@
             <div id="ctx-working-on" class="working-on-badge" style="display:none"></div>
           </div>
 
+          <!-- SPEC-055: Build button for APPROVED/ACTIVE specs -->
+          <div id="ctx-spec-build-container" style="display:none; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);">
+            <button id="btn-build-spec-console" class="btn-cap-action btn-build-action" onclick="BuildManager.triggerBuildFromContext()">
+              &#9654; Build Spec
+            </button>
+            <span id="ctx-build-status" style="font-size:9px; margin-left:6px; color:var(--text-muted);"></span>
+          </div>
+
           <div id="ctx-preflight" class="preflight-check" style="margin-top: 8px;">
             <span class="preflight-status"></span>
             <span class="preflight-label">Alignment: Offline</span>
@@ -128,8 +252,20 @@
           <div id="ctx-alignment-details" class="ctx-meta" style="font-size: 0.65rem;"></div>
         </section>
 
+        <!-- SPEC-041: Session Costs & Usage -->
+        <section class="context-section" style="display:none">
+          <div class="section-header-row">
+            <h3>Costs & Tokens</h3>
+            <span class="ctx-badge badge-green" style="font-size: 8px;">SPEC-041</span>
+          </div>
+          <div class="session-info-grid" style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div><strong style="color:var(--text-muted)">Cost (USD):</strong> <span id="ctx-cost-sidebar">bash.00</span></div>
+            <div><strong style="color:var(--text-muted)">Tokens:</strong> <span id="ctx-token-sidebar">0</span></div>
+          </div>
+        </section>
+
         <!-- SPEC-040: Capability Context -->
-        <section class="context-section" id="section-capability-context">
+        <section class="context-section" id="section-capability-context" style="display:none">
           <div class="section-header-row">
             <h3>Capability Context</h3>
             <span class="ctx-badge badge-blue" style="font-size: 8px;">SPEC-040</span>
@@ -211,8 +347,73 @@
           </div>
         </section>
 
+        <!-- SPEC-042: Session Swarm Tree -->
+        <section class="context-section" id="section-sessions" style="display:none">
+          <div class="section-header-row">
+            <h3>Swarm Tree</h3>
+            <span class="ctx-badge badge-blue">SPEC-042</span>
+          </div>
+          <!-- SPEC-042: Manual spawn button for testing -->
+          <div id="swarm-spawn-controls" style="margin-bottom:6px;">
+            <button class="btn btn-sm w-100" id="btn-toggle-spawn-form" onclick="document.getElementById('swarm-spawn-form').classList.toggle('d-none')" style="font-size:10px;padding:2px 6px;">+ Spawn Agent</button>
+            <div id="swarm-spawn-form" class="d-none" style="background:rgba(255,255,255,0.05);border-radius:4px;padding:6px;margin-top:4px;">
+              <select id="spawn-role" class="form-select form-select-sm mb-1" style="font-size:10px;">
+                <option value="Backend_Engineer">Backend_Engineer</option>
+                <option value="Frontend_Engineer">Frontend_Engineer</option>
+                <option value="DevOps_Engineer">DevOps_Engineer</option>
+                <option value="Systems_Architect">Systems_Architect</option>
+                <option value="Overseer">Overseer</option>
+              </select>
+              <select id="spawn-harness" class="form-select form-select-sm mb-1" style="font-size:10px;">
+                <option value="claude">claude</option>
+                <option value="gemini">gemini</option>
+                <option value="agy">agy (Antigravity)</option>
+              </select>
+              <input id="spawn-task-id" type="text" class="form-control form-control-sm mb-1" placeholder="task_id" style="font-size:10px;">
+              <input id="spawn-spec" type="text" class="form-control form-control-sm mb-1" value="SPEC-042" style="font-size:10px;">
+              <button class="btn btn-sm w-100" style="font-size:10px;padding:2px 6px;background:var(--accent-green,#22c55e);color:#000;" onclick="doManualSpawn()">Spawn</button>
+              <div id="spawn-error" style="font-size:9px;color:var(--accent-red,#ef4444);margin-top:2px;display:none;"></div>
+            </div>
+          </div>
+          <div id="ctx-sessions-tree" class="sessions-tree">
+            <div class="ctx-empty">Loading session hierarchy...</div>
+          </div>
+        </section>
+
+        <section class="context-section" id="section-scr-alerts" style="display:none;">
+          <div class="section-header-row">
+            <h3>SCR Alerts</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="count-scr" class="ctx-badge badge-amber">0</span>
+              <button id="btn-scr-action" class="btn-mini-action" title="View SCR">+</button>
+            </div>
+          </div>
+          <ul id="ctx-scr-feed" class="tracker-list">
+            <li class="ctx-empty">No active alerts...</li>
+          </ul>
+          <div id="scr-alerts-auth-prompt" style="display:none; padding: 12px; text-align: center; background: var(--bg-tertiary); border-radius: 4px; margin-top: 8px;">
+            <div style="font-size: 11px; color: var(--accent-yellow); margin-bottom: 8px;">Authentication Required</div>
+            <div style="font-size: 9px; color: var(--text-secondary); margin-bottom: 12px;">Sovereign Control Routing requires an active human session.</div>
+            <button id="scr-alerts-auth-btn" class="btn-cap-action" style="background: var(--accent-blue); color: #fff; width: 100%;">Authenticate in Panel</button>
+          </div>
+        </section>
+
+        <!-- SPEC-062 Amendment E: Pending Specs Alerts -->
+        <section class="context-section" id="section-pending-specs" style="display:none;">
+          <div class="section-header-row">
+            <h3>Pending Specs</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="count-pending-specs" class="ctx-badge badge-amber">0</span>
+              <button id="btn-pending-specs-refresh" class="btn-mini-action" title="Refresh">&#x21bb;</button>
+            </div>
+          </div>
+          <ul id="ctx-pending-specs-feed" class="tracker-list">
+            <li class="ctx-empty">No specs awaiting approval...</li>
+          </ul>
+        </section>
+
         <!-- SPEC-039: Hierarchical Orchestration Tree -->
-        <section class="context-section" id="section-orchestration">
+        <section class="context-section" id="section-orchestration" style="display:none">
           <div class="section-header-row">
             <h3>Orchestration Tree</h3>
             <span id="orchestration-status" class="ctx-badge badge-blue">SPEC-039</span>
@@ -222,7 +423,7 @@
           </div>
         </section>
 
-        <section class="context-section">
+        <section class="context-section" style="display:none">
           <div class="section-header-row">
             <h3>Requests Received</h3>
             <div style="display:flex; gap:8px; align-items:center;">
@@ -236,9 +437,21 @@
         </section>
 
         <hr>
+        <!-- SPEC-041: Project Explorer with Jurisdiction Highlighting -->
+        <section class="context-section" id="section-files" style="display:none">
+          <div class="section-header-row">
+            <h3>Project Explorer</h3>
+            <span class="ctx-badge badge-blue">SPEC-041</span>
+          </div>
+          <div id="ctx-file-explorer" class="file-explorer">
+            <div class="ctx-empty">Loading file tiers...</div>
+          </div>
+        </section>
+
+        <hr>
         <section class="context-section">
           <div class="ads-feed-header">
-            <h3>Recent ADS Events</h3>
+            <h3>Execution Timeline</h3>
             <span id="ctx-ads-count" class="ctx-badge">0</span>
           </div>
           <ul id="ctx-ads-feed" class="ads-feed">
@@ -265,7 +478,13 @@
     <span id="status-gate" class="status-item" title="Capability Gate Progress" onclick="document.getElementById('section-capability-context')?.scrollIntoView({behavior:'smooth'})">
       <span class="status-dot dot-grey" id="gate-status-dot"></span> Gate: --
     </span>
-    <span id="status-dttp" class="status-item">DTTP: --</span>
+    <span id="status-cost" class="status-item" title="Session Cost (Estimated USD)">
+      <span id="ctx-cost-value">$0.00</span>
+    </span>
+    <span id="status-tokens" class="status-item" title="Session Token Usage">
+      <span id="ctx-token-value">0</span>
+    </span>
+    <span id="status-dtcp" class="status-item">DTCP: --</span>
     <span id="status-git" class="status-item" title="Git Status">
       <span class="status-dot dot-grey" id="git-dot"></span> <span id="git-branch">—</span> <span id="git-changes"></span>
     </span>
@@ -275,6 +494,39 @@
   <!-- Notification Toast Container -->
   <div id="toast-container" class="toast-container"></div>
 
+  <!-- Change Request Dialog (SPEC-038A Capability Intent Fast Path) -->
+  <dialog id="cci-dialog">
+    <form id="cci-form">
+      <h2>+ Change Request</h2>
+      <div class="ctx-meta" style="margin-bottom: 12px;">Report a bug, request a feature, or file an improvement. Creates a Capability Intent that flows through governance gates.</div>
+      <label>
+        Type
+        <select id="cci-type">
+          <option value="Enhancement">Feature — new capability</option>
+          <option value="Maintenance">Bug — something is broken</option>
+          <option value="Operational Improvement">Improvement — make it better</option>
+          <option value="Risk Mitigation">Risk — needs mitigation</option>
+        </select>
+      </label>
+      <label>
+        Title
+        <input type="text" id="cci-title" placeholder="Camera doesn't turn on / Add score reset button" required>
+      </label>
+      <label>
+        Description
+        <textarea id="cci-desc" rows="5" placeholder="What happened? What did you expect? (Autofilled with test URL if launched right after Launch app.)" required></textarea>
+      </label>
+      <label>
+        Attached to
+        <input type="text" id="cci-linked-spec" placeholder="SPEC-… (auto)" readonly style="background:#161b22;color:#8b949e">
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="btn-cci-cancel">Cancel</button>
+        <button type="submit" class="primary">Submit Intent</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- New Session Dialog -->
   <dialog id="new-session-dialog">
     <form id="new-session-form">
@@ -283,6 +535,7 @@
         Agent
         <select id="input-agent" autofocus>
           <option value="claude" data-command="claude" data-color="#6B7FD7">Claude Code</option>
+          <option value="agy" data-command="agy" data-color="#FF6B35">Antigravity (agy)</option>
           <option value="gemini" data-command="gemini" data-color="#4CAF50">Gemini CLI</option>
           <option value="shell" data-command="/bin/bash" data-color="#8b949e">System Shell (Bash)</option>
           <option value="custom">Custom...</option>
@@ -321,7 +574,13 @@
           <input type="checkbox" id="input-yolo"> YOLO mode
         </label>
         <label id="flag-skip-permissions" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0;">
-          <input type="checkbox" id="input-skip-permissions"> Skip permissions
+          <input type="checkbox" id="input-skip-permissions" checked> Skip permissions
+        </label>
+        <label id="flag-agy-model" style="display:none; flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; margin-top: 6px;">
+          <span style="white-space:nowrap;">Model</span>
+          <select id="input-agy-model" style="flex:1; font-size:0.9em;" data-placeholder="Loading...">
+            <option value="">Loading models...</option>
+          </select>
         </label>
       </div>
       <div class="dialog-actions">
@@ -421,8 +680,8 @@
             <input type="text" id="setting-center-url" placeholder="http://localhost:5001">
           </div>
           <div class="setting-row">
-            <span>DTTP Service URL</span>
-            <input type="text" id="setting-dttp-url" placeholder="http://localhost:5002">
+            <span>DTCP Service URL</span>
+            <input type="text" id="setting-dtcp-url" placeholder="http://localhost:5002">
           </div>
         </div>
         <div class="settings-group">
@@ -436,15 +695,99 @@
     </div>
   </div>
 
+  <!-- SPEC-055: Build Progress Overlay -->
+  <div id="build-progress-overlay" class="build-progress-overlay" style="display:none;">
+    <div class="build-progress-modal">
+      <div class="build-progress-header">
+        <div>
+          <span class="build-spec-label" id="build-header-spec">SPEC-???</span>
+          <span class="build-id-label" id="build-header-id" style="margin-left:8px; font-size:11px; opacity:0.7;"></span>
+        </div>
+        <button class="build-close-btn" onclick="BuildManager.hideBuildProgress()" title="Close">&times;</button>
+      </div>
+      <div class="build-progress-body">
+        <div class="build-section-label">Role Sessions</div>
+        <ul id="build-roles-list" class="build-roles-list">
+          <li class="build-role-item build-role-pending">&#9675; Waiting for orchestrator...</li>
+        </ul>
+        <div class="build-section-label" style="margin-top:10px;">Live Events</div>
+        <ul id="build-ads-feed" class="build-ads-feed"></ul>
+      </div>
+      <div class="build-progress-footer">
+        <button class="build-abort-btn" onclick="BuildManager.abortBuild()">&#9632; Abort Build</button>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/xterm.min.js"></script>
   <script src="vendor/xterm-addon-fit.min.js"></script>
+  <script src="vendor/cytoscape.min.js"></script>
+  <script src="vendor/dagre.min.js"></script>
+  <script src="vendor/cytoscape-dagre.min.js"></script>
   <script src="js/terminal.js"></script>
+  <script src="js/spec_progress.js"></script>
   <script src="js/sessions.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/launcher.js"></script>
   <script src="js/guide.js"></script>
   <script src="js/context.js"></script>
+  <script src="js/jurisdiction_ui.js"></script>
   <script src="js/governance.js"></script>
+  <script src="js/build.js"></script>
+  <script src="js/graph_renderer.js"></script>
+  <script src="js/intents_badge.js"></script>
+  <script src="js/telemetry.js"></script>
+  <script src="js/remote.js"></script>
+  <script src="js/mirror.js"></script>
+  <script src="js/mirror_monitor.js"></script>
+  <script src="js/spec_map.js"></script>
+  <script src="js/specs.js"></script>
+  <script src="js/ads_reducer.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/auth_badge.js"></script>
+  <script src="js/harness_bars.js"></script>
+  <script>
+    async function doManualSpawn() {
+      const role = document.getElementById('spawn-role').value;
+      const harness = document.getElementById('spawn-harness').value;
+      const taskId = document.getElementById('spawn-task-id').value.trim();
+      const specRef = document.getElementById('spawn-spec').value.trim() || 'SPEC-042';
+      const centerUrl = localStorage.getItem('adt_center_url') || 'http://localhost:5001';
+      const errEl = document.getElementById('spawn-error');
+      errEl.style.display = 'none';
+
+      const parentSession = window.SessionManager ? window.SessionManager.getActive() : null;
+      if (!parentSession) { errEl.textContent = 'No active parent session.'; errEl.style.display = 'block'; return; }
+
+      try {
+        const resp = await fetch(`${centerUrl}/api/governance/sessions/spawn`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            parent_session_id: parentSession.id,
+            child_role: role,
+            child_harness: harness,
+            task_id: taskId,
+            spec_ref: specRef,
+            strategy: 'serial',
+            skip_permissions: false
+          })
+        });
+        if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || resp.statusText); }
+        const result = await resp.json();
+        if (window.SessionManager && window.SessionManager.spawnChild) {
+          await window.SessionManager.spawnChild({
+            child_role: role, child_harness: harness, task_id: taskId,
+            spec_ref: specRef, child_session_id: result.child_session_id,
+            skip_permissions: false, context_hint: null
+          });
+        }
+        document.getElementById('swarm-spawn-form').classList.add('d-none');
+      } catch(e) {
+        errEl.textContent = 'Spawn failed: ' + e.message;
+        errEl.style.display = 'block';
+      }
+    }
+  </script>
 </body>
 </html>

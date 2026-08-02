@@ -31,11 +31,11 @@
                     </p>
                     
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="dttp-status" data-project="{{ name }}" data-port="{{ project.dttp_port }}">
+                        <span class="dtcp-status" data-project="{{ name }}" data-port="{{ project.dtcp_port }}">
                             <span class="status-dot unknown"></span>
                             <span class="status-text ms-1">Checking...</span>
                         </span>
-                        <small class="text-muted">Port: {{ project.dttp_port }}</small>
+                        <small class="text-muted">Port: {{ project.dtcp_port }}</small>
                     </div>
 
                     <div class="row text-center mb-3">
@@ -127,7 +127,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.dttp-status').forEach(el => {
+    document.querySelectorAll('.dtcp-status').forEach(el => {
         const project = el.dataset.project;
         checkStatus(project, el);
         loadStats(project);
@@ -191,7 +191,7 @@ async function manageProject(name, action) {
         if (!response.ok) throw new Error(result.error || `Failed to ${action} project`);
         
         // Refresh status after action
-        const statusEl = document.querySelector(`.dttp-status[data-project="${name}"]`);
+        const statusEl = document.querySelector(`.dtcp-status[data-project="${name}"]`);
         await checkStatus(name, statusEl);
     } catch (err) {
         alert(err.message);
@@ -208,7 +208,7 @@ async function checkStatus(project, el) {
     const stopBtn = document.getElementById(`btn-stop-${project}`);
     
     try {
-        const response = await fetch(`/api/dttp/status?project=${project}`);
+        const response = await fetch(`/api/dtcp/status?project=${project}`);
         const data = await response.json();
         
         if (response.ok && data.status !== 'offline') {

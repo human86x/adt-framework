@@ -23,7 +23,7 @@ def project_env(tmp_path):
     sovereign_paths = [
         "config/specs.json",
         "config/jurisdictions.json",
-        "config/dttp.json",
+        "config/dtcp.json",
         "_cortex/AI_PROTOCOL.md",
         "_cortex/MASTER_PLAN.md"
     ]
@@ -62,7 +62,7 @@ def test_shatterglass_activate_success(project_env):
         sovereign_paths = [
             "config/specs.json",
             "config/jurisdictions.json",
-            "config/dttp.json",
+            "config/dtcp.json",
             "_cortex/AI_PROTOCOL.md",
             "_cortex/MASTER_PLAN.md"
         ]

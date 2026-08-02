@@ -1,6 +1,6 @@
 # ADT Framework: Master Plan
 
-**Version:** 2.2
+**Version:** 2.3
 **Status:** ACTIVE
 **Milestone:** v0.4.0 (Capability & Orchestration)
 
@@ -10,7 +10,7 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 
 ## 2. Completed Milestones
 
-- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTTP Gateway.
+- **v0.1.0 (Core Engines):** ADS Ledger, SHA-256 Chain, SDD Spec Lifecycle, DTCP Gateway (formerly DTTP).
 - **v0.2.0 (Operational Center):** Flask Web UI, Agent SDK, Tiered Path Protection, SCR Queue.
 - **v0.3.0 (Operator Console):** Tauri Desktop Command Center, Multi-Project Registry, Shatterglass Protocol.
 - **v0.3.5 (Hardening):** Agent Sandboxing (Filesystem/Network), Windows Installer, Remote Share.
@@ -30,6 +30,7 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 2.  **Interactive Steering V2:** Advanced command injection for multi-agent coordination.
 3.  **Namespace Sandboxing:** Full OS-level isolation for agent sessions (bwrap/unshare).
 4.  **Audit Automation:** Autonomous Overseer audits for Tier 2 and Break-Glass events.
+5.  **Terminology Alignment (SPEC-044):** Complete migration from DTTP to DTCP (Distributed Trusted Compliance Protocol).
 
 ## 5. Active Specifications
 
@@ -44,10 +45,21 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 | SPEC-038 | Capability Governance | ACTIVE |
 | SPEC-039 | Interactive Orchestration | ACTIVE |
 | SPEC-040 | Capability Governance UI | ACTIVE |
+| SPEC-044 | DTTP -> DTCP Migration | ACTIVE |
+| SPEC-046 | Standards Governance Layer | ACTIVE |
+| SPEC-047 | Standards Integration & Transparency | DRAFT |
+| SPEC-044 | DTTP -> DTCP Terminology Migration | ACTIVE |
+| SPEC-045 | SCR Authorization Hardening | ACTIVE |
+| SPEC-057 | Agent Mailbox & Messaging Bus | ACTIVE |
+| SPEC-060 | Antigravity Worker Harness Migration | SUPERSEDED (by SPEC-061) |
+| SPEC-061 | Antigravity Multi-Model Worker Plane | APPROVED — CRITICAL, unblocks Hivemind |
+| SPEC-061-A | Harness-Agnostic Role Sessions | APPROVED |
+| SPEC-071 | RPi UI Responsiveness & Auth State Hysteresis | APPROVED |
+
 
 ## 6. Roadmap
 
-- **v0.5.0:** Enterprise DTTP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.
+- **v0.5.0:** Enterprise DTCP (Distributed Enforcement), Role-Based Access Control (RBAC) integration.
 - **v0.6.0:** Advance Visual Analytics, Causal Impact Dashboards.
 - **v1.0.0:** Production Stable Release.
 

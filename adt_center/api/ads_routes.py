@@ -24,12 +24,14 @@ def get_events():
     role = request.args.get("role")
     action_type = request.args.get("action_type")
     spec_ref = request.args.get("spec_ref")
+    standard = request.args.get("standard")
 
     events = query.filter_events(
         agent=agent,
         role=role,
         action_type=action_type,
         spec_ref=spec_ref,
+        standard=standard,
         limit=limit,
         offset=offset
     )

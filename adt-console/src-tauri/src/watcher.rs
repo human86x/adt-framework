@@ -65,6 +65,8 @@ fn handle_fs_event<R: Runtime>(app_handle: &tauri::AppHandle<R>, event: &Event) 
                     let _ = app_handle.emit("requests-updated", path.clone());
                 } else if path.ends_with("phases.json") {
                     let _ = app_handle.emit("phases-updated", path.clone());
+                } else if path.ends_with("intents.jsonl") || path.ends_with("gates.jsonl") {
+                    let _ = app_handle.emit("capabilities-updated", path.clone());
                 }
             }
         }

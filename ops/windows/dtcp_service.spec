@@ -5,7 +5,7 @@ import sys
 project_root = os.getcwd()
 
 a = Analysis(
-    [os.path.join(project_root, 'adt_core', 'dttp', 'service.py')],
+    [os.path.join(project_root, 'adt_core', 'dtcp', 'service.py')],
     pathex=[project_root],
     binaries=[],
     datas=[(os.path.join(project_root, 'adt_core'), 'adt_core'), 
@@ -26,12 +26,12 @@ a = Analysis(
         'adt_core.sdd.registry',
         'adt_core.sdd.tasks',
         'adt_core.sdd.validator',
-        'adt_core.dttp',
-        'adt_core.dttp.gateway',
-        'adt_core.dttp.policy',
-        'adt_core.dttp.jurisdictions',
-        'adt_core.dttp.actions',
-        'adt_core.dttp.config'
+        'adt_core.dtcp',
+        'adt_core.dtcp.gateway',
+        'adt_core.dtcp.policy',
+        'adt_core.dtcp.jurisdictions',
+        'adt_core.dtcp.actions',
+        'adt_core.dtcp.config'
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -47,7 +47,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='adt_dttp_service',
+    name='adt_dtcp_service',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -62,5 +62,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='adt_dttp_service',
+    name='adt_dtcp_service',
 )

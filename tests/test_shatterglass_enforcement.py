@@ -1,7 +1,7 @@
 """SPEC-027 Task 128: Shatterglass OS-level enforcement tests.
 
 These tests verify that OS-level file permissions are correctly enforced
-when production mode is active (agent/dttp users exist).
+when production mode is active (agent/dtcp users exist).
 
 Tests that require real OS users are skipped if those users don't exist.
 Tests that can run with mock data always run.
@@ -26,8 +26,8 @@ def _user_exists(username):
         return False
 
 AGENT_EXISTS = _user_exists("agent")
-DTTP_EXISTS = _user_exists("dttp")
-PRODUCTION_MODE = AGENT_EXISTS and DTTP_EXISTS
+DTCP_EXISTS = _user_exists("dtcp")
+PRODUCTION_MODE = AGENT_EXISTS and DTCP_EXISTS
 
 
 def _make_path_traversable(project_env):
@@ -42,7 +42,7 @@ def _make_path_traversable(project_env):
 
 requires_production = pytest.mark.skipif(
     not PRODUCTION_MODE,
-    reason="Requires agent/dttp OS users (run setup_shatterglass.sh first)"
+    reason="Requires agent/dtcp OS users (run setup_shatterglass.sh first)"
 )
 
 # --- Fixtures ---
@@ -57,7 +57,7 @@ def project_env(tmp_path):
     (project / "_cortex" / "ads").mkdir(parents=True)
     (project / "_cortex" / "ops").mkdir(parents=True)
     (project / "_cortex" / "specs").mkdir(parents=True)
-    (project / "adt_core" / "dttp").mkdir(parents=True)
+    (project / "adt_core" / "dtcp").mkdir(parents=True)
     (project / "adt_core" / "ads").mkdir(parents=True)
     (project / "src").mkdir()
 
@@ -65,7 +65,7 @@ def project_env(tmp_path):
     tier1 = [
         "config/specs.json",
         "config/jurisdictions.json",
-        "config/dttp.json",
+        "config/dtcp.json",
         "_cortex/AI_PROTOCOL.md",
         "_cortex/MASTER_PLAN.md",
     ]
@@ -75,9 +75,9 @@ def project_env(tmp_path):
 
     # Tier 2: Constitutional
     tier2 = [
-        "adt_core/dttp/gateway.py",
-        "adt_core/dttp/policy.py",
-        "adt_core/dttp/service.py",
+        "adt_core/dtcp/gateway.py",
+        "adt_core/dtcp/policy.py",
+        "adt_core/dtcp/service.py",
         "adt_core/ads/logger.py",
         "adt_core/ads/integrity.py",
         "adt_core/ads/crypto.py",
@@ -194,9 +194,9 @@ class TestOSEnforcement:
     @requires_production
     def test_agent_cannot_write_tier2(self, project_env):
         """Agent user cannot write to Tier 2 (constitutional) files."""
-        gateway = project_env / "adt_core" / "dttp" / "gateway.py"
-        # Need sudo for chown to dttp user
-        subprocess.run(["sudo", "chown", "dttp:dttp", str(gateway)], check=True)
+        gateway = project_env / "adt_core" / "dtcp" / "gateway.py"
+        # Need sudo for chown to dtcp user
+        subprocess.run(["sudo", "chown", "dtcp:dtcp", str(gateway)], check=True)
         subprocess.run(["sudo", "chmod", "644", str(gateway)], check=True)
 
         result = subprocess.run(
@@ -207,10 +207,10 @@ class TestOSEnforcement:
 
     @requires_production
     def test_agent_can_write_tier3(self, project_env):
-        """Agent user CAN write to Tier 3 (regular) files when in dttp group."""
+        """Agent user CAN write to Tier 3 (regular) files when in dtcp group."""
         app_py = project_env / "src" / "app.py"
-        # Make entire tree traversable by dttp group
-        subprocess.run(["sudo", "chown", "-R", "dttp:dttp", str(project_env)], check=True)
+        # Make entire tree traversable by dtcp group
+        subprocess.run(["sudo", "chown", "-R", "dtcp:dtcp", str(project_env)], check=True)
         subprocess.run(["sudo", "chmod", "-R", "775", str(project_env)], check=True)
         subprocess.run(["sudo", "chmod", "664", str(app_py)], check=True)
         # Ensure entire path from /tmp down is traversable
@@ -223,21 +223,21 @@ class TestOSEnforcement:
         assert result.returncode == 0, f"Agent should be able to write Tier 3 files: {result.stderr}"
 
     @requires_production
-    def test_dttp_can_write_tier2(self, project_env):
-        """DTTP user CAN write to Tier 2 (constitutional) files."""
-        gateway = project_env / "adt_core" / "dttp" / "gateway.py"
-        # Make entire tree traversable by dttp user
-        subprocess.run(["sudo", "chown", "-R", "dttp:dttp", str(project_env)], check=True)
+    def test_dtcp_can_write_tier2(self, project_env):
+        """DTCP user CAN write to Tier 2 (constitutional) files."""
+        gateway = project_env / "adt_core" / "dtcp" / "gateway.py"
+        # Make entire tree traversable by dtcp user
+        subprocess.run(["sudo", "chown", "-R", "dtcp:dtcp", str(project_env)], check=True)
         subprocess.run(["sudo", "chmod", "-R", "775", str(project_env)], check=True)
         subprocess.run(["sudo", "chmod", "644", str(gateway)], check=True)
         # Ensure entire path from /tmp down is traversable
         _make_path_traversable(project_env)
 
         result = subprocess.run(
-            ["sudo", "-u", "dttp", "bash", "-c", f"echo '# dttp write' >> {gateway}"],
+            ["sudo", "-u", "dtcp", "bash", "-c", f"echo '# dtcp write' >> {gateway}"],
             capture_output=True, text=True
         )
-        assert result.returncode == 0, f"DTTP should be able to write Tier 2 files: {result.stderr}"
+        assert result.returncode == 0, f"DTCP should be able to write Tier 2 files: {result.stderr}"
 
 
 # ============================================================================
@@ -257,16 +257,16 @@ class TestApplyShatterglassPermissions:
         mock_human.pw_uid = current_uid
         mock_human.pw_gid = current_gid
 
-        mock_dttp = MagicMock()
-        mock_dttp.pw_uid = current_uid
-        mock_dttp.pw_gid = current_gid
+        mock_dtcp = MagicMock()
+        mock_dtcp.pw_uid = current_uid
+        mock_dtcp.pw_gid = current_gid
 
         mock_grp = MagicMock()
         mock_grp.gr_gid = current_gid
 
         def mock_getpwnam(name):
-            if name == "dttp":
-                return mock_dttp
+            if name == "dtcp":
+                return mock_dtcp
             return mock_human
 
         with patch("pwd.getpwnam", side_effect=mock_getpwnam), \
@@ -277,7 +277,7 @@ class TestApplyShatterglassPermissions:
         tier1_paths = [
             "config/specs.json",
             "config/jurisdictions.json",
-            "config/dttp.json",
+            "config/dtcp.json",
             "_cortex/AI_PROTOCOL.md",
             "_cortex/MASTER_PLAN.md",
         ]
@@ -287,7 +287,7 @@ class TestApplyShatterglassPermissions:
             assert mode == 0o644, f"{p} should be 644, got {oct(mode)}"
 
     def test_apply_permissions_sets_tier3_group_writable(self, project_env):
-        """Regular files should be dttp-owned 664 after applying permissions."""
+        """Regular files should be dtcp-owned 664 after applying permissions."""
         from adt_center.api.governance_routes import _apply_shatterglass_permissions
 
         current_uid = os.getuid()
@@ -354,15 +354,15 @@ class TestSetupScript:
             content = f.read()
         assert "ALL=(agent) NOPASSWD: ALL" in content
 
-    def test_setup_script_has_dttp_service_rule(self):
-        """Sudoers config includes human -> dttp for DTTP service."""
+    def test_setup_script_has_dtcp_service_rule(self):
+        """Sudoers config includes human -> dtcp for DTCP service."""
         script_path = os.path.join(
             os.path.dirname(__file__), "..", "scripts", "setup_shatterglass.sh"
         )
         with open(script_path) as f:
             content = f.read()
-        assert "ALL=(dttp) NOPASSWD:" in content
-        assert "adt_core.dttp.service" in content
+        assert "ALL=(dtcp) NOPASSWD:" in content
+        assert "adt_core.dtcp.service" in content
 
     def test_setup_script_has_agent_path_restriction(self):
         """Sudoers config restricts agent PATH."""
@@ -388,30 +388,30 @@ class TestSetupScript:
 # ============================================================================
 
 class TestServiceLaunch:
-    """Test that start.sh and install.sh use sudo -u dttp in production."""
+    """Test that start.sh and install.sh use sudo -u dtcp in production."""
 
     def test_start_sh_has_production_mode(self):
-        """start.sh detects production mode and uses sudo -u dttp."""
+        """start.sh detects production mode and uses sudo -u dtcp."""
         script_path = os.path.join(
             os.path.dirname(__file__), "..", "start.sh"
         )
         with open(script_path) as f:
             content = f.read()
         assert "PRODUCTION_MODE=" in content
-        assert "sudo -u dttp" in content
+        assert "sudo -u dtcp" in content
 
     def test_install_sh_has_production_mode(self):
-        """install.sh detects production mode and uses sudo -u dttp."""
+        """install.sh detects production mode and uses sudo -u dtcp."""
         script_path = os.path.join(
             os.path.dirname(__file__), "..", "install.sh"
         )
         with open(script_path) as f:
             content = f.read()
         assert "PROD_MODE=" in content
-        assert "sudo -u dttp" in content
+        assert "sudo -u dtcp" in content
 
-    def test_governance_routes_has_production_dttp(self):
-        """governance_routes.py _start_project_dttp uses sudo -u dttp."""
+    def test_governance_routes_has_production_dtcp(self):
+        """governance_routes.py _start_project_dtcp uses sudo -u dtcp."""
         routes_path = os.path.join(
             os.path.dirname(__file__), "..",
             "adt_center", "api", "governance_routes.py"
