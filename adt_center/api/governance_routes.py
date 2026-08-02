@@ -2145,8 +2145,8 @@ def get_enforcement_status():
     if project_name:
         registry = ProjectRegistry()
         project = registry.get_project(project_name)
-        if project and project.get("dttp_port"):
-            dtcp_url = f"http://localhost:{project['dttp_port']}"
+        if project and project.get("dtcp_port"):
+            dtcp_url = f"http://localhost:{project['dtcp_port']}"
     
     status = {"mode": "unknown", "status": "offline", "protected_paths": {}}
     try:
@@ -3435,8 +3435,8 @@ def api_spawn_session():
     if project_name:
         registry = ProjectRegistry()
         project = registry.get_project(project_name)
-        if project and project.get("dttp_port"):
-            dtcp_url = f"http://localhost:{project['dttp_port']}"
+        if project and project.get("dtcp_port"):
+            dtcp_url = f"http://localhost:{project['dtcp_port']}"
 
     parent_session = res["query"].get_session_details(data["parent_session_id"])
     if not parent_session:
@@ -5848,16 +5848,92 @@ def api_initiate_build(spec_id):
     try:
         from adt_center.api.build_executor import BuildExecutor
         import threading
+        import socket
+        import subprocess
+        import sys
+
+        # --- DTCP health-check and auto-respawn guard ---
+        def _is_port_free(port):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex(("127.0.0.1", port)) != 0
+
+        def _dtcp_is_healthy(url, expected_project):
+            """Returns True only if the DTCP at url is serving the expected project."""
+            try:
+                import urllib.request
+                with urllib.request.urlopen(f"{url}/status", timeout=2) as r:
+                    import json as _json
+                    data = _json.loads(r.read())
+                    return data.get("project") == expected_project
+            except Exception:
+                return False
+
+        def _find_free_port(start=5009, end=5099):
+            for p in range(start, end):
+                if _is_port_free(p):
+                    return p
+            return None
+
+        def _spawn_dtcp_for_project(project_root, port):
+            venv_python = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "venv", "bin", "python3"
+            )
+            adt_fw_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            log_path = f"/tmp/dtcp_{os.path.basename(project_root)}.log"
+            subprocess.Popen(
+                [venv_python, "-m", "adt_core.dtcp.service",
+                 "--port", str(port),
+                 "--project-root", project_root],
+                cwd=adt_fw_root,
+                stdout=open(log_path, "a"),
+                stderr=subprocess.STDOUT,
+                start_new_session=True
+            )
+            # Wait up to 5s for it to come up
+            import time
+            for _ in range(50):
+                time.sleep(0.1)
+                if not _is_port_free(port):
+                    break
+
         dtcp_port = 5002
+        project_root = res["paths"]["root"]
+        project_name = os.path.basename(project_root)
+        dtcp_cfg_path = os.path.join(project_root, "config", "dtcp.json")
+
         try:
-            with open(os.path.join(res["paths"]["root"], "config", "dtcp.json")) as _f:
+            with open(dtcp_cfg_path) as _f:
                 dtcp_port = json.load(_f).get("port", 5002)
         except Exception:
             pass
+
         dtcp_url_val = f"http://localhost:{dtcp_port}"
+
+        # Check if the port is taken by a DIFFERENT project, or DTCP is simply down
+        if not _dtcp_is_healthy(dtcp_url_val, project_name):
+            if not _is_port_free(dtcp_port):
+                # Port is in use by something else — find a free port
+                free_port = _find_free_port()
+                if free_port:
+                    dtcp_port = free_port
+                    dtcp_url_val = f"http://localhost:{dtcp_port}"
+                    # Persist the new port so future builds use it
+                    try:
+                        with open(dtcp_cfg_path) as _f:
+                            cfg = json.load(_f)
+                    except Exception:
+                        cfg = {"name": project_name, "mode": "development", "enforcement_mode": "development"}
+                    cfg["port"] = free_port
+                    with open(dtcp_cfg_path, "w") as _f:
+                        json.dump(cfg, _f, indent=2)
+
+            # Spawn a fresh DTCP for this project on the (possibly updated) port
+            _spawn_dtcp_for_project(project_root, dtcp_port)
+
         swarm_thread = threading.Thread(
             target=BuildExecutor.spawn_swarm,
-            args=(build_id, spec_id, res["paths"]["root"], dtcp_url_val),
+            args=(build_id, spec_id, project_root, dtcp_url_val),
             daemon=True
         )
         swarm_thread.start()

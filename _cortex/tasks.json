@@ -13,9 +13,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-07-25T15:45:21.683611Z",
+      "progress_updated_at": "2026-08-01T15:42:55.964138Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-07-25T15:45:21.683574Z"
+      "completed_at": "2026-08-01T15:42:55.964086Z"
     },
     {
       "id": "task_002",
@@ -27,10 +27,11 @@
       "priority": "high",
       "depends_on": [],
       "progress_percent": 100,
-      "progress_message": "Completed task 002",
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-10T09:44:19.051958Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-08-01T15:46:34.631745Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T15:46:34.631693Z"
     },
     {
       "id": "task_003",
@@ -44,10 +45,12 @@
         "task_001",
         "task_002"
       ],
-      "progress_percent": 20,
-      "progress_message": "Planning validation schema",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-03T20:56:24.972574Z"
+      "progress_updated_at": "2026-08-01T15:47:55.947267Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T15:47:55.947214Z"
     },
     {
       "id": "task_004",
@@ -62,10 +65,11 @@
         "task_002"
       ],
       "progress_percent": 100,
-      "progress_message": "Completed task 004",
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-10T09:44:19.714833Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-08-01T16:04:56.619743Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T16:04:56.619694Z"
     },
     {
       "id": "task_005",
@@ -90,9 +94,11 @@
         "delegated_at": "2026-02-09T10:00:00Z"
       },
       "progress_percent": 100,
-      "progress_message": "All 21 tests passing",
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-03T23:10:28.249461Z"
+      "progress_updated_at": "2026-08-01T15:51:30.586438Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T15:51:30.586389Z"
     },
     {
       "id": "task_006",
@@ -106,10 +112,11 @@
         "task_003"
       ],
       "progress_percent": 100,
-      "progress_message": "task_006 complete: frontend project structure fully initialized for SPEC-003",
+      "progress_message": "done",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-07-09T21:07:43.204434Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-08-01T20:47:04.925197Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T20:47:04.925180Z"
     },
     {
       "id": "task_007",
@@ -125,10 +132,11 @@
         "task_003"
       ],
       "progress_percent": 100,
-      "progress_message": "Cost and time inputs already present with HTML5 validation and live recalculation wired up",
+      "progress_message": "done",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-09T21:30:05.752574Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-08-01T15:56:28.722654Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T15:56:28.722607Z"
     },
     {
       "id": "task_008",
@@ -139,10 +147,12 @@
       "status": "completed",
       "priority": "critical",
       "depends_on": [],
-      "progress_percent": 50,
-      "progress_message": "50% scaffolded",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-03T23:27:43.185793Z"
+      "progress_updated_at": "2026-08-01T20:50:13.644587Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T20:50:13.644576Z"
     },
     {
       "id": "task_009",
@@ -155,10 +165,12 @@
       "depends_on": [
         "task_008"
       ],
-      "progress_percent": 50,
-      "progress_message": "50% scaffolded",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-03T23:33:23.754259Z"
+      "progress_updated_at": "2026-08-01T20:57:54.268248Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T20:57:54.268238Z"
     },
     {
       "id": "task_010",
@@ -171,10 +183,12 @@
       "depends_on": [
         "task_008"
       ],
-      "progress_percent": 50,
-      "progress_message": "installing vite setup",
+      "progress_percent": 100,
+      "progress_message": "Test script in package.json verified; all 34 tests pass with npm test",
       "progress_agent": "DevOps_Engineer",
-      "progress_updated_at": "2026-07-03T23:22:48.669457Z"
+      "progress_updated_at": "2026-08-01T15:59:47.011373Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T15:59:47.011331Z"
     },
     {
       "id": "task_011",
@@ -187,11 +201,12 @@
       "depends_on": [
         "task_010"
       ],
-      "progress_percent": 20,
-      "progress_message": "Starting styling review and fixing Vite script tag issue",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-09T21:25:02.917759Z",
-      "progress_source": "worker_report"
+      "progress_updated_at": "2026-08-01T21:03:11.668085Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T21:03:11.668052Z"
     },
     {
       "id": "task_012",
@@ -204,10 +219,12 @@
       "depends_on": [
         "task_010"
       ],
-      "progress_percent": 20,
-      "progress_message": "Analyzed UI logic",
+      "progress_percent": 100,
+      "progress_message": "Storage and engine modules already fully integrated \u2014 all UI event handlers (cell click, check-in button, delete, create, DOMContentLoaded) correctly call loadHabits/saveHabits/toggleHabit/calculateSt",
       "progress_agent": "Overseer",
-      "progress_updated_at": "2026-07-04T00:08:20.456254Z"
+      "progress_updated_at": "2026-08-01T21:24:39.368755Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-01T21:24:39.368727Z"
     },
     {
       "id": "task_013",
@@ -7191,7 +7208,1440 @@
       "created_by": "Systems_Architect",
       "completed_at": "2026-07-25T16:52:25Z",
       "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_467",
+      "task_id": "task_467",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create intent index and matcher",
+      "description": "Create config/intent_index.json and adt_core/standards/intent_matcher.py to tokenize and match intent text with baseline rules.",
+      "acceptance_criteria": [
+        "intent_matcher.py tokenizes and matches intent domain tags",
+        "config/intent_index.json schema validation passes"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:42.883738Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_214230",
+      "wave": 1,
+      "started_at": "2026-07-25T21:42:41.553306Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T21:45:34.018855Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-25T21:45:34.018793Z"
+    },
+    {
+      "id": "task_468",
+      "task_id": "task_468",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement Tri-State Disposition and routes",
+      "description": "Update schema.py for Tri-State governance dispositions and implement endpoints in governance_routes.py.",
+      "acceptance_criteria": [
+        "PUT request to update disposition to not_applicable requires rationale",
+        "POST /api/governance/intent/match endpoint returns matching domains and RRs"
+      ],
+      "depends_on": [
+        "task_467"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:42.992111Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_214955",
+      "wave": 1,
+      "started_at": "2026-07-25T21:50:05.234220Z",
+      "harness": "antigravity",
+      "assigned_model": "Claude Sonnet 4.6 (Thinking)",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T21:52:38.466299Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-25T21:52:38.466239Z"
+    },
+    {
+      "id": "task_469",
+      "task_id": "task_469",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Integrate standards matcher with Forge",
+      "description": "Wire the Intent Signature Matcher and Auto-Standards check into architect.md and forge_brief.json.",
+      "acceptance_criteria": [
+        "Architect Forge triggers intent matching during project initialization",
+        "Standards are automatically matched when auto-standards checkbox is enabled"
+      ],
+      "depends_on": [
+        "task_468"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:43.093499Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_220716",
+      "wave": 1,
+      "started_at": "2026-07-25T22:07:28.570177Z",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "auto_retry_count": 1,
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T22:12:38.845172Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-25T22:13:08.790706Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_470",
+      "task_id": "task_470",
+      "spec_ref": "SPEC-072",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Build Forge wizard compliance UI",
+      "description": "Build the auto-standards checkbox and the Decompilation MRR Analysis Card in the App Forge Wizard UI.",
+      "acceptance_criteria": [
+        "Enable Auto-Standards Compliance Engine checkbox is visible and checked by default",
+        "MRR Standards Analysis Card displays matched domains, checked standards, rules, and disposition actions"
+      ],
+      "depends_on": [
+        "task_469"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:43.179865Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_220716",
+      "wave": 2,
+      "started_at": "2026-07-25T22:13:18.355377Z",
+      "progress_percent": 75,
+      "progress_message": "4 file(s) modified",
+      "progress_updated_at": "2026-07-25T22:21:16.934663Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-25T22:22:13.711534Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/build_executor.py",
+          "size": 109746
+        },
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 61840
+        }
+      ]
+    },
+    {
+      "id": "task_471",
+      "task_id": "task_471",
+      "spec_ref": "SPEC-072",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Verify SPEC-072 engine integration",
+      "description": "Perform integration verification and end-to-end test validation for the Intent-Driven Governance Assurance Engine.",
+      "acceptance_criteria": [
+        "End-to-end integration tests verify intent match and DTCP rule enforcement",
+        "All disposition states are correctly tracked and serialized"
+      ],
+      "depends_on": [
+        "task_470"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:43.267906Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_223550",
+      "wave": 1,
+      "started_at": "2026-07-25T22:35:59.884826Z",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "auto_retry_count": 1,
+      "progress_percent": 55,
+      "progress_message": "Initiating integration verification and tests",
+      "progress_updated_at": "2026-07-25T22:39:00.201476Z",
+      "progress_source": "worker_report",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-25T22:40:12.931351Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "tests/test_spec_072_integration.py",
+          "size": 4815
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 279160
+        }
+      ]
+    },
+    {
+      "id": "task_472",
+      "task_id": "task_472",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Create intent index configuration and intent matcher logic",
+      "description": "Implement config/intent_index.json with domains schema and keywords. Create adt_core/standards/intent_matcher.py to match intent text against domains.",
+      "acceptance_criteria": [
+        "config/intent_index.json exists and defines health_and_fitness and payment_processing",
+        "intent_matcher.py contains match_intent_domain returning baseline_rr_ids"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:50.362260Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_214230",
+      "wave": 1,
+      "started_at": "2026-07-25T21:42:41.553306Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T21:45:34.118281Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-25T21:45:34.118237Z"
+    },
+    {
+      "id": "task_473",
+      "task_id": "task_473",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Update schemas and routes for tri state disposition",
+      "description": "Add RESOLVED, NOT_APPLICABLE, and PENDING_DETERMINATION to the Disposition enum. Update governance routes to handle disposition updates and require rationale for NOT_APPLICABLE.",
+      "acceptance_criteria": [
+        "Disposition enum in adt_core/standards/schema.py includes tri-state values",
+        "PUT /api/governance/standards/<std_id>/clauses/<clause_id>/disposition requires rationale for not_applicable"
+      ],
+      "depends_on": [
+        "task_472"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:50.466459Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_214955",
+      "wave": 1,
+      "started_at": "2026-07-25T21:50:05.234220Z",
+      "harness": "antigravity",
+      "assigned_model": "Claude Sonnet 4.6 (Thinking)",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T21:52:38.653397Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-25T21:52:38.653331Z"
+    },
+    {
+      "id": "task_474",
+      "task_id": "task_474",
+      "spec_ref": "SPEC-072",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Integrate intent signature matcher into architect forge",
+      "description": "Wire the Intent Signature Matcher and Auto-Standards Compliance checkbox configuration into architect.md and forge_brief.json.",
+      "acceptance_criteria": [
+        "architect.md defines auto standards compliance behavior",
+        "forge_brief.json handles the auto standards compliance setting"
+      ],
+      "depends_on": [
+        "task_472",
+        "task_473"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:50.560892Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_220716",
+      "wave": 1,
+      "started_at": "2026-07-25T22:07:28.570177Z",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "auto_retry_count": 1,
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-25T22:12:39.235839Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-25T22:13:08.790706Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_475",
+      "task_id": "task_475",
+      "spec_ref": "SPEC-072",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Build compliance toggle and MRR display in wizard UI",
+      "description": "Render Enable Auto-Standards Compliance Engine checkbox in the Forge wizard. Add the Decompilation MRR Standards Analysis Card showing matched domains, standards, rules, and disposition controls.",
+      "acceptance_criteria": [
+        "Forge wizard UI renders Enable Auto-Standards Compliance Engine checkbox",
+        "Decompilation step renders the MRR Standards Analysis Card with tri-state toggles"
+      ],
+      "depends_on": [
+        "task_474"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:50.651108Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_220716",
+      "wave": 2,
+      "started_at": "2026-07-25T22:13:18.355377Z",
+      "progress_percent": 75,
+      "progress_message": "4 file(s) modified",
+      "progress_updated_at": "2026-07-25T22:21:16.934663Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-25T22:22:13.711534Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/build_executor.py",
+          "size": 109746
+        },
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 61840
+        }
+      ]
+    },
+    {
+      "id": "task_476",
+      "task_id": "task_476",
+      "spec_ref": "SPEC-072",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Verify integration and validate SPEC-072 requirements",
+      "description": "Conduct integration tests for intent matcher, tri-state disposition, and UI components in the ADT framework. Validate compliance validation under DTCP.",
+      "acceptance_criteria": [
+        "Integration tests for SPEC-072 match_intent_domain pass",
+        "Tri-state disposition validation checks pass with HTTP 400 on missing rationale"
+      ],
+      "depends_on": [
+        "task_475"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-25T21:41:50.750436Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260725_223550",
+      "wave": 1,
+      "started_at": "2026-07-25T22:35:59.884826Z",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "auto_retry_count": 1,
+      "progress_percent": 55,
+      "progress_message": "Initiating requirements validation and test suite",
+      "progress_updated_at": "2026-07-25T22:39:00.201476Z",
+      "progress_source": "worker_report",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-25T22:40:12.931351Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "tests/test_spec_072_integration.py",
+          "size": 4815
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 279160
+        }
+      ]
+    },
+    {
+      "id": "task_477",
+      "task_id": "task_477",
+      "spec_ref": "SPEC-075",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Scaffold LLM intent classifier with keyword fallback",
+      "description": "Create the backend skeleton for intent_classifier_llm.py integrating the keyword-only fallback path and basic JSON parsing structures.",
+      "acceptance_criteria": [
+        "File adt_core/standards/intent_classifier_llm.py exists.",
+        "Unit tests verify fallback behavior when LLM is unavailable."
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:18:09.728934Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 1,
+      "started_at": "2026-07-27T09:27:39.420083Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:30:46.274891Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-27T09:30:46.274841Z"
+    },
+    {
+      "id": "task_478",
+      "task_id": "task_478",
+      "spec_ref": "SPEC-075",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Define intent classifier prompt template and snapshot generator",
+      "description": "Create the initial version of the LLM prompt template under cortex/prompts and a script to generate the RR catalog snapshots.",
+      "acceptance_criteria": [
+        "File _cortex/prompts/intent_classifier.md exists with version v1.",
+        "Script for generating RR catalog snapshot is executable."
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:18:10.070824Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 1,
+      "started_at": "2026-07-27T09:27:28.914232Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:32:05.292254Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-27T09:32:10.216398Z",
+      "completion_evidence": {
+        "source": "log_event:GEMINI:Systems_Architect",
+        "synced_via": "log_event.py"
+      },
+      "completed_by_role": "Systems_Architect"
+    },
+    {
+      "id": "task_479",
+      "task_id": "task_479",
+      "spec_ref": "SPEC-075",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement intent classification and audit log endpoints",
+      "description": "Implement the POST endpoint for LLM classification, timed fallback, ADS logging, JSONL audit trail, and the GET endpoint to retrieve the trace.",
+      "acceptance_criteria": [
+        "Endpoint POST /api/governance/intent/classify returns 200 and logs to project ADS.",
+        "Endpoint GET /api/governance/intent/classifications/<run_id> returns full reasoning trace from JSONL."
+      ],
+      "depends_on": [
+        "task_477",
+        "task_478"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:19:00.338723Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 2,
+      "started_at": "2026-07-27T09:32:24.926002Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:37:00.124354Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "completed_at": "2026-07-27T09:37:12.097472Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_480",
+      "task_id": "task_480",
+      "spec_ref": "SPEC-075",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Integrate classifier recommendations in Forge wizard Screen 2",
+      "description": "Modify Screen 2 of the Forge wizard to call the classifier asynchronously, display auto-checked chips, rationale tooltips, and log operator overrides.",
+      "acceptance_criteria": [
+        "Screen 2 displays a classifier chip with timer and automatically checks recommended RRs.",
+        "Operator unchecking an auto RR triggers intent_classification_operator_override event."
+      ],
+      "depends_on": [
+        "task_479"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:19:00.645942Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 3,
+      "started_at": "2026-07-27T09:37:25.484419Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:42:35.920264Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "progress_agent": "Frontend_Engineer",
+      "completed_at": "2026-07-27T09:42:45.901671Z",
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_481",
+      "task_id": "task_481",
+      "spec_ref": "SPEC-075",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Establish regression evaluation harness with seed wishes",
+      "description": "Curate a corpus of 20 seed wishes with gold RR mappings and build an evaluation harness to assert classifier recall >= 0.80.",
+      "acceptance_criteria": [
+        "Evaluation script runs in CI on prompt template changes.",
+        "Harness verifies classifier recall is >= 0.80 and precision >= 0.65 across the 20 seed wishes."
+      ],
+      "depends_on": [
+        "task_478",
+        "task_479"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:19:15.651041Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 3,
+      "started_at": "2026-07-27T09:42:58.426302Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:46:03.653869Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "completed_at": "2026-07-27T09:50:49.204153Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "tests/seed_wishes.json",
+          "size": 5376
+        },
+        {
+          "path": "tests/test_intent_classifier_eval.py",
+          "size": 1863
+        },
+        {
+          "path": "adt_core/standards/intent_classifier_llm.py",
+          "size": 7248
+        }
+      ]
+    },
+    {
+      "id": "task_482",
+      "task_id": "task_482",
+      "spec_ref": "SPEC-075",
+      "role": "Overseer",
+      "assigned_to": "Overseer",
+      "title": "Conduct post-deployment audit of initial intent classifications",
+      "description": "Perform a one-time audit on the first 10 live classification runs to verify accuracy and ensure no systematic false-positive leaks.",
+      "acceptance_criteria": [
+        "Audit documentation confirms correctness of the first 10 classification traces.",
+        "Feedback from audits integrated into future prompt tuning guidelines."
+      ],
+      "depends_on": [
+        "task_480",
+        "task_481"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T21:19:15.838618Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_092727",
+      "wave": 4,
+      "started_at": "2026-07-27T09:50:08.086839Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T09:55:47.362774Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-27T09:58:03.170743Z",
+      "completed_by_role": "Overseer"
+    },
+    {
+      "id": "task_483",
+      "task_id": "task_483",
+      "spec_ref": "SPEC-073",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Design and implement ConsoleReadiness registry",
+      "description": "Create the ConsoleReadiness module in adt-console/src/js/readiness.js to manage async task registration, status queries, and state changes.",
+      "acceptance_criteria": [
+        "window.ConsoleReadiness is defined and exposed on startup",
+        "begin, end, isReady, and pending functions are implemented"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:51:00.863837Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_225151",
+      "wave": 1,
+      "started_at": "2026-07-26T22:53:14.760740Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-26T22:51:56.125020Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-26T23:08:11.196504Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 281254
+        }
+      ]
+    },
+    {
+      "id": "task_484",
+      "task_id": "task_484",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Integrate readiness tracking in key bootstrap modules",
+      "description": "Wrap bootstrap tasks for sessions, launcher, governance, spec map, auth badge, and event ledger with ConsoleReadiness begin and end hooks.",
+      "acceptance_criteria": [
+        "The registered readiness tasks are listed in the pending array on startup",
+        "Tasks are successfully marked done in finally blocks during init"
+      ],
+      "depends_on": [
+        "task_483"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:51:28.463639Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_225151",
+      "wave": 2,
+      "started_at": "2026-07-26T22:54:13.965219Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-26T22:53:58.487106Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-26T23:08:11.196504Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 281254
+        }
+      ]
+    },
+    {
+      "id": "task_485",
+      "task_id": "task_485",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement global readiness progress bar UI",
+      "description": "Add the viewport-top progress bar markup to index.html and update its width, labels, and visibility based on ConsoleReadiness events.",
+      "acceptance_criteria": [
+        "Element #console-readiness-bar exists in index.html",
+        "Progress bar updates width dynamically and hides when all tasks complete"
+      ],
+      "depends_on": [
+        "task_483"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:52:04.590251Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_231606",
+      "wave": 1,
+      "started_at": "2026-07-26T23:17:39.519568Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-26T23:16:10.415896Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-26T23:27:13.035219Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 66875
+        }
+      ]
+    },
+    {
+      "id": "task_486",
+      "task_id": "task_486",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement ActionGuard and busy button CSS",
+      "description": "Create the ActionGuard module in readiness.js to restrict duplicate clicks and define the data-busy animation styling in console.css.",
+      "acceptance_criteria": [
+        "CSS rule button[data-busy=\\\"1\\\"] is added to console.css",
+        "ActionGuard.run successfully disables the button during async execution"
+      ],
+      "depends_on": [
+        "task_483"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:52:18.753269Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_231606",
+      "wave": 1,
+      "started_at": "2026-07-26T23:17:39.519568Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-26T23:16:10.415896Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-26T23:27:13.035219Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 66875
+        }
+      ]
+    },
+    {
+      "id": "task_487",
+      "task_id": "task_487",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Wire topbar buttons to ActionGuard and readiness",
+      "description": "Update app.js to wrap topbar button click handlers in ActionGuard and wait for ConsoleReadiness if necessary.",
+      "acceptance_criteria": [
+        "Clicking button triggers the busy state during transition",
+        "Top bar buttons wait for readiness before executing actions"
+      ],
+      "depends_on": [
+        "task_486"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:52:36.206601Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_231606",
+      "wave": 2,
+      "started_at": "2026-07-26T23:24:22.931882Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-26T23:28:46.023091Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-26T23:28:57.793670Z",
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_488",
+      "task_id": "task_488",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement wizard single-flight protection",
+      "description": "Add internal _opening flags to ProjectLauncher wizard handlers to prevent race conditions from double clicks.",
+      "acceptance_criteria": [
+        "Double clicking a launcher button creates exactly one wizard modal"
+      ],
+      "depends_on": [
+        "task_486"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:53:17.223927Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_231606",
+      "wave": 2,
+      "started_at": "2026-07-26T23:24:22.931882Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-26T23:28:46.150403Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-26T23:28:57.793670Z",
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_489",
+      "task_id": "task_489",
+      "spec_ref": "SPEC-074",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Modify panel bridge to support streaming",
+      "description": "Update ops/panel_bridge.py to relay Server-Sent Events bytes as they arrive without buffering or timing out on read.",
+      "acceptance_criteria": [
+        "ops/panel_bridge.py does not buffer text/event-stream responses",
+        "SSE events are received immediately by clients through the bridge"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:53:48.875344Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_075505",
+      "wave": 1,
+      "started_at": "2026-07-27T07:55:06.402672Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T08:02:52.690522Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-07-27T08:06:49.623072Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 295892
+        },
+        {
+          "path": "adt-console/src/js/auth_badge.js",
+          "size": 10674
+        },
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 68798
+        }
+      ]
+    },
+    {
+      "id": "task_490",
+      "task_id": "task_490",
+      "spec_ref": "SPEC-073",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Implement ADS readiness events and watchdog timer",
+      "description": "Send console_ready event to ADS on completion, and add a 15-second watchdog timer that raises a readiness_stall alert.",
+      "acceptance_criteria": [
+        "ADS receives a console_ready event with duration_ms",
+        "watchdog timer fires readiness_stall after 15 seconds of inactivity"
+      ],
+      "depends_on": [
+        "task_484"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:53:53.074123Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260726_231606",
+      "wave": 1,
+      "started_at": "2026-07-26T23:17:39.519568Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-26T23:16:10.415896Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-26T23:27:13.035219Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 66875
+        }
+      ]
+    },
+    {
+      "id": "task_491",
+      "task_id": "task_491",
+      "spec_ref": "SPEC-074",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement ADS helper for forge phases",
+      "description": "Create functions to persist forge phase events with sequence numbers directly to the project ADS ledger.",
+      "acceptance_criteria": [
+        "Functions write forge_phase_started to ADS",
+        "Functions write forge_phase_completed to ADS",
+        "Events in ADS include matching seq number"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:54:31.441306Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_075505",
+      "wave": 1,
+      "started_at": "2026-07-27T08:07:00.039963Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T08:10:18.194495Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "completed_at": "2026-07-27T08:10:51.220851Z",
+      "completed_by_role": "Backend_Engineer"
+    },
+    {
+      "id": "task_492",
+      "task_id": "task_492",
+      "spec_ref": "SPEC-073",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Validate JavaScript files and execute regression check",
+      "description": "Perform static syntax validation using node --check on all modified JS files to ensure no regressions.",
+      "acceptance_criteria": [
+        "node --check executes successfully on modified files"
+      ],
+      "depends_on": [
+        "task_484",
+        "task_487",
+        "task_488",
+        "task_490"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:54:37.085769Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_085341",
+      "wave": 1,
+      "started_at": "2026-07-27T08:53:54.302972Z",
+      "progress_percent": 20,
+      "progress_message": "Analyzed tasks, starting integration",
+      "progress_updated_at": "2026-07-27T08:56:04.759518Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "narrating_no_execute",
+      "harness_escalation_offered": true,
+      "completed_by_role": "DevOps_Engineer",
+      "completed_at": "2026-07-27T08:56:32Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/index.html",
+          "size": 43539
+        },
+        {
+          "path": "adt-console/src/js/readiness.js",
+          "size": 6138
+        }
+      ]
+    },
+    {
+      "id": "task_493",
+      "task_id": "task_493",
+      "spec_ref": "SPEC-074",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add forge stream POST endpoint",
+      "description": "Implement POST /api/governance/forge/stream in backend to execute the forge pipeline phases and stream event-stream data with 2s heartbeats.",
+      "acceptance_criteria": [
+        "POST /api/governance/forge/stream returns text/event-stream",
+        "Endpoint emits heartbeat events every 2 seconds when idle",
+        "Each phase emits started and completed events"
+      ],
+      "depends_on": [
+        "task_491"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:55:16.415884Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_082717",
+      "wave": 1,
+      "started_at": "2026-07-27T08:27:33.538880Z",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (High)",
+      "auto_retry_count": 1,
+      "progress_percent": 55,
+      "progress_message": "checking",
+      "progress_updated_at": "2026-07-27T08:33:59.899197Z",
+      "progress_source": "worker_report",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-27T08:36:26.530601Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py.orig",
+          "size": 296542
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 296594
+        }
+      ]
+    },
+    {
+      "id": "task_494",
+      "task_id": "task_494",
+      "spec_ref": "SPEC-074",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Add forge stream reattach endpoint",
+      "description": "Implement GET /api/governance/forge/<session_id>/genesis_stream to replay phase-event history from ADS and continue streaming live if in-progress.",
+      "acceptance_criteria": [
+        "GET /api/governance/forge/<session_id>/genesis_stream returns text/event-stream",
+        "Endpoint replays history from ADS before streaming live events"
+      ],
+      "depends_on": [
+        "task_491",
+        "task_493"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:55:44.218014Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_082717",
+      "wave": 2,
+      "started_at": "2026-07-27T08:36:06.147099Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-27T08:35:45.350571Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.1 Pro (High)",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Backend_Engineer",
+      "completed_at": "2026-07-27T08:57:39.295116Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/index.html",
+          "size": 43539
+        },
+        {
+          "path": "adt-console/src/js/readiness.js",
+          "size": 6138
+        }
+      ]
+    },
+    {
+      "id": "task_495",
+      "task_id": "task_495",
+      "spec_ref": "SPEC-074",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Refactor submitForge to use EventSource",
+      "description": "Refactor submitForge in adt-console launcher.js to connect to the new forge stream endpoint using EventSource or fetch stream reader.",
+      "acceptance_criteria": [
+        "launcher.js connects to /api/governance/forge/stream",
+        "launcher.js handles network drop and attempts reattachment"
+      ],
+      "depends_on": [
+        "task_493",
+        "task_494"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:56:11.503311Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_102532",
+      "wave": 1,
+      "started_at": "2026-07-27T10:25:50.818483Z",
+      "progress_percent": 50,
+      "progress_message": "Refactored submitForge in launcher.js to connect to the new forge stream endpoint with reattachment logic",
+      "progress_updated_at": "2026-07-27T10:26:52.124036Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "completed_at": "2026-07-27T10:27:56.436704Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt-console/src/js/launcher.js",
+          "size": 75899
+        }
+      ],
+      "last_failed_reason": "silent_exit",
+      "auto_retry_count": 1,
+      "completed_by_role": "Frontend_Engineer"
+    },
+    {
+      "id": "task_496",
+      "task_id": "task_496",
+      "spec_ref": "SPEC-074",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Update wizard UI for phase transitions",
+      "description": "Update the live-log panel of the Forge wizard to animate and check off each phase row in real time as SSE events arrive.",
+      "acceptance_criteria": [
+        "Wizard UI displays active phase with a spinner",
+        "Completed phases get checked off with elapsed time",
+        "Renders pre-checked intent chips in real time"
+      ],
+      "depends_on": [
+        "task_495"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:56:30.584909Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_102532",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "started_at": "2026-07-27T10:28:05.683588Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-27T10:28:17.881573Z",
+      "progress_source": "synthetic_file_activity",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-27T13:32:42.410437Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 303335
+        }
+      ]
+    },
+    {
+      "id": "task_497",
+      "task_id": "task_497",
+      "spec_ref": "SPEC-074",
+      "role": "DevOps_Engineer",
+      "assigned_to": "DevOps_Engineer",
+      "title": "Add integration tests for forge stream",
+      "description": "Write integration tests validating the SSE response, heartbeats, network disconnect reattachment, and correctness of ADS persisted logs.",
+      "acceptance_criteria": [
+        "Tests verify SSE connection returns 201 status and streams correct structure",
+        "Tests verify network disconnect recovery via /genesis_stream"
+      ],
+      "depends_on": [
+        "task_493",
+        "task_494"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-26T22:57:06.741052Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_122651",
+      "wave": 1,
+      "started_at": "2026-07-27T12:27:11.423342Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-27T10:27:58.642101Z",
+      "progress_source": "synthetic_file_activity",
+      "harness": "antigravity",
+      "assigned_model": "Claude Sonnet 4.6 (Thinking)",
+      "reset_at": "2026-07-27T12:26:48.996012Z",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "DevOps_Engineer",
+      "assigned_harness": "antigravity",
+      "assigned_at": "2026-07-27T10:47:57.363650Z",
+      "completed_at": "2026-07-27T13:32:42.410437Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 303335
+        }
+      ]
+    },
+    {
+      "id": "task_498",
+      "task_id": "task_498",
+      "spec_ref": "SPEC-076",
+      "role": "Systems_Architect",
+      "assigned_to": "Systems_Architect",
+      "title": "Create model tiers configuration file",
+      "description": "Create config/model_tiers.json defining LOW, MEDIUM, and HIGH model tiers, and register it via SCR.",
+      "acceptance_criteria": [
+        "File config/model_tiers.json exists",
+        "Content matches Section 2.1 schema and tiers"
+      ],
+      "depends_on": [],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:44:04.112347Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_201649",
+      "wave": 1,
+      "started_at": "2026-07-27T20:18:09.927105Z",
+      "progress_percent": 20,
+      "progress_message": "analyzing workspace and model_tiers.json",
+      "progress_updated_at": "2026-07-27T20:20:45.155632Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Systems_Architect",
+      "completed_at": "2026-07-27T20:38:38.414312Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/build_executor.py",
+          "size": 109885
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 304336
+        }
+      ]
+    },
+    {
+      "id": "task_499",
+      "task_id": "task_499",
+      "spec_ref": "SPEC-076",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement select_model helper and refactor calls",
+      "description": "Implement the select_model helper function in adt_center/api/build_executor.py and refactor forge, decompose, and build calls to default to LOW tier.",
+      "acceptance_criteria": [
+        "select_model returns correct model for tier",
+        "forge/decompose/build use select_model with LOW tier by default"
+      ],
+      "depends_on": [
+        "task_498"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:44:50.149985Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_201649",
+      "wave": 2,
+      "started_at": "2026-07-27T20:22:12.717616Z",
+      "progress_percent": 30,
+      "progress_message": "Analyzing codebase and search paths",
+      "progress_updated_at": "2026-07-27T15:39:57.576597Z",
+      "progress_source": "worker_report",
+      "completed_by_role": "Backend_Engineer",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_at": "2026-07-27T20:38:38.414312Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/build_executor.py",
+          "size": 109885
+        },
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 304336
+        }
+      ]
+    },
+    {
+      "id": "task_500",
+      "task_id": "task_500",
+      "spec_ref": "SPEC-076",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement LOW to MEDIUM auto-escalation",
+      "description": "Add logic in the build executor to automatically escalate from LOW to MEDIUM tier on worker failure, logging the escalation to ADS.",
+      "acceptance_criteria": [
+        "Failing LOW worker auto-retries using MEDIUM tier",
+        "worker_effort_escalated event is logged to ADS"
+      ],
+      "depends_on": [
+        "task_499"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:45:04.364355Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_204937",
+      "wave": 1,
+      "started_at": "2026-07-27T20:49:38.280579Z",
+      "completed_by_role": "Backend_Engineer",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "auto_retry_count": 1,
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-27T20:49:38.358239Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_at": "2026-07-27T21:08:31.737911Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 305662
+        }
+      ]
+    },
+    {
+      "id": "task_501",
+      "task_id": "task_501",
+      "spec_ref": "SPEC-076",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement HIGH-tier approval endpoints and gating",
+      "description": "Implement approval and denial endpoints for HIGH-tier escalations and block worker execution until approved or denied.",
+      "acceptance_criteria": [
+        "POST /api/governance/effort/approve registers authorization",
+        "POST /api/governance/effort/deny fails task",
+        "Worker execution blocks when HIGH tier is requested"
+      ],
+      "depends_on": [
+        "task_500"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:45:37.587523Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_204937",
+      "wave": 2,
+      "started_at": "2026-07-27T20:53:53.955244Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T21:08:03.939208Z",
+      "progress_source": "worker_report",
+      "completed_by_role": "Backend_Engineer",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "completed_at": "2026-07-27T21:08:18.418051Z"
+    },
+    {
+      "id": "task_502",
+      "task_id": "task_502",
+      "spec_ref": "SPEC-076",
+      "role": "Frontend_Engineer",
+      "assigned_to": "Frontend_Engineer",
+      "title": "Create effort escalation modal in Console",
+      "description": "Implement the #effort-escalation-modal in the Console UI and wire Tauri ADS listener to trigger it, hitting approval/denial endpoints.",
+      "acceptance_criteria": [
+        "Modal appears on worker_high_effort_requested event",
+        "Approve and Deny buttons fire correct API requests"
+      ],
+      "depends_on": [
+        "task_501"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:45:59.919278Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_204937",
+      "wave": 3,
+      "started_at": "2026-07-27T21:08:56.328284Z",
+      "progress_percent": 20,
+      "progress_message": "analyzing files and preparing modal markup",
+      "progress_updated_at": "2026-07-27T21:10:43.101083Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": "Gemini 3.5 Flash (Medium)",
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_by_role": "Frontend_Engineer",
+      "completed_at": "2026-07-27T21:39:41.941228Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 307392
+        },
+        {
+          "path": "adt_core/standards/intent_classifier_llm.py",
+          "size": 7338
+        }
+      ]
+    },
+    {
+      "id": "task_503",
+      "task_id": "task_503",
+      "spec_ref": "SPEC-076",
+      "role": "Backend_Engineer",
+      "assigned_to": "Backend_Engineer",
+      "title": "Implement budget API and Console display",
+      "description": "Create GET /api/governance/effort/budget endpoint to return cumulative invocation stats and render them in the Console Task Detail panel.",
+      "acceptance_criteria": [
+        "GET /api/governance/effort/budget returns counts and estimated costs",
+        "Cumulative counters are displayed in Task Detail panel"
+      ],
+      "depends_on": [
+        "task_501",
+        "task_502"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:47:18.548737Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_204937",
+      "wave": 4,
+      "started_at": "2026-07-27T21:20:05.945901Z",
+      "progress_percent": 10,
+      "progress_message": "worker active, no file changes yet",
+      "progress_updated_at": "2026-07-27T15:14:55.784266Z",
+      "progress_source": "synthetic_file_activity",
+      "completed_by_role": "Backend_Engineer",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "last_failed_reason": "worker_exit_1",
+      "harness_escalation_offered": true,
+      "completed_at": "2026-07-27T21:39:41.941228Z",
+      "reconciled_from_failed": true,
+      "reconciliation_evidence": [
+        {
+          "path": "adt_center/api/governance_routes.py",
+          "size": 307392
+        },
+        {
+          "path": "adt_core/standards/intent_classifier_llm.py",
+          "size": 7338
+        }
+      ]
+    },
+    {
+      "id": "task_504",
+      "task_id": "task_504",
+      "spec_ref": "SPEC-076",
+      "role": "Overseer",
+      "assigned_to": "Overseer",
+      "title": "Audit initial forges for tier gating",
+      "description": "Perform a one-time audit of the first 20 real forge operations to verify that no HIGH-tier invocation is made without proper gating.",
+      "acceptance_criteria": [
+        "Audit log validates zero ungated HIGH-tier runs"
+      ],
+      "depends_on": [
+        "task_503"
+      ],
+      "status": "completed",
+      "priority": "normal",
+      "created_at": "2026-07-27T14:47:46.914405Z",
+      "created_by": "decompose_worker",
+      "build_id": "build_20260727_145705",
+      "wave": 7,
+      "started_at": "2026-07-27T15:17:27.331009Z",
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-07-27T15:37:44.356818Z",
+      "progress_source": "worker_report",
+      "harness": "antigravity",
+      "assigned_model": null,
+      "completed_at": "2026-07-27T15:38:39.585293Z",
+      "completed_by_role": "Overseer"
     }
-
   ]
 }
