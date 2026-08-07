@@ -23,8 +23,44 @@ def create_app():
     app.FRAMEWORK_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     def get_project_paths(name=None):
-        """Returns data paths for a project. Defaults to framework root."""
-        project = app.project_registry.get_project(name) if name else None
+        """Returns data paths for a project.
+
+        - ``name`` is None/empty: return framework paths (unchanged default).
+        - ``name`` matches a registered project: return that project's paths.
+        - ``name`` is a non-empty string but NOT registered: SPEC-078 Part C
+          (REQ-120 backend safety belt). Do NOT silently fall back to the
+          framework root — that made frontend bugs which forgot to pass
+          ``?project=`` invisible (framework's 89 specs bled into project
+          views). Instead, return an "empty" resource set pointing to a
+          per-name sentinel directory under the framework's ``_cortex``
+          namespace that will not exist. SpecRegistry/TaskManager/ADSQuery
+          read empties gracefully, so callers see zero specs / zero tasks
+          / zero events — the exact signal a mis-scoped fetch should
+          produce. The ``unknown_project`` flag lets callers who care
+          detect the condition explicitly.
+        """
+        if name:
+            project = app.project_registry.get_project(name)
+        else:
+            project = None
+
+        if name and project is None:
+            # SPEC-078 Part C: unknown project — return empty resource set.
+            # Root points to a non-existent sentinel path so any accidental
+            # file write also fails loudly rather than polluting framework.
+            sentinel_root = os.path.join(
+                app.FRAMEWORK_ROOT, "_cortex", "_unknown_projects", name
+            )
+            return {
+                "root": sentinel_root,
+                "ads": os.path.join(sentinel_root, "_cortex", "ads", "events.jsonl"),
+                "specs": os.path.join(sentinel_root, "_cortex", "specs"),
+                "tasks": os.path.join(sentinel_root, "_cortex", "tasks.json"),
+                "standards": os.path.join(sentinel_root, "_cortex", "standards"),
+                "name": name,
+                "unknown_project": True,
+            }
+
         root = project["path"] if project else app.FRAMEWORK_ROOT
         return {
             "root": root,
@@ -32,7 +68,8 @@ def create_app():
             "specs": os.path.join(root, "_cortex", "specs"),
             "tasks": os.path.join(root, "_cortex", "tasks.json"),
             "standards": os.path.join(root, "_cortex", "standards"),
-            "name": name or os.path.basename(root)
+            "name": name or os.path.basename(root),
+            "unknown_project": False,
         }
 
     app.get_project_paths = get_project_paths
@@ -89,9 +126,11 @@ def create_app():
     from adt_center.api.dtcp_routes import dtcp_bp
     from adt_center.api.ads_routes import ads_bp
     from adt_center.api.governance_routes import governance_bp
+    from adt_center.api.workers_routes import workers_bp  # SPEC-078 Part D (REQ-121)
     app.register_blueprint(dtcp_bp, url_prefix="/api/dtcp")
     app.register_blueprint(ads_bp, url_prefix="/api/ads")
     app.register_blueprint(governance_bp, url_prefix="/api")
+    app.register_blueprint(workers_bp, url_prefix="/api/workers")
 
     def _enrich_specs(specs):
         for spec in specs:

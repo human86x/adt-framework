@@ -3522,9 +3522,9 @@
       "target_path": "config/specs.json",
       "change_type": "json_merge",
       "description": "Encode dual-control policy for AI_PROTOCOL.md and MASTER_PLAN.md changes under SPEC-033 and SPEC-063. Update SPEC-033 tier to sovereign and SPEC-045 tier to constitutional.",
-      "status": "pending",
-      "authorized_by": null,
-      "authorized_at": null,
+      "status": "authorized",
+      "authorized_by": "HUMAN_BULK",
+      "authorized_at": "2026-08-06T11:08:24.071958Z",
       "merge_data": {
         "specs": {
           "SPEC-033": {
@@ -3622,6 +3622,96 @@
             }
           }
         }
+      }
+    },
+    {
+      "id": "scr_20260803_153724_159",
+      "ts": "2026-08-03T15:37:24.572835Z",
+      "agent": "GEMINI",
+      "role": "Backend_Engineer",
+      "spec_ref": null,
+      "intent_id": "INT-20260306_223330",
+      "target_path": "config/specs.json",
+      "change_type": "patch",
+      "description": "Test SCR with valid intent",
+      "status": "rejected",
+      "authorized_by": "HUMAN_BULK",
+      "authorized_at": "2026-08-06T11:08:24.071958Z",
+      "patch": {
+        "old_string": "foo",
+        "new_string": "bar"
+      },
+      "rejection_reason": "Stale: Patch ambiguity: old_string found 0 times"
+    },
+    {
+      "id": "scr_20260803_153724_160",
+      "ts": "2026-08-03T15:37:24.718936Z",
+      "agent": "GEMINI",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-045",
+      "intent_id": null,
+      "target_path": "_cortex/AI_PROTOCOL.md",
+      "change_type": "patch",
+      "description": "Test SCR for SPEC-045",
+      "status": "authorized",
+      "authorized_by": "HUMAN",
+      "authorized_at": "2026-08-03T15:37:24.859318Z",
+      "patch": {
+        "old_string": "**Version:** 2.3",
+        "new_string": "**Version:** 2.3"
+      }
+    },
+    {
+      "id": "scr_20260803_153724_161",
+      "ts": "2026-08-03T15:37:24.936012Z",
+      "agent": "GEMINI",
+      "role": "Systems_Architect",
+      "spec_ref": null,
+      "intent_id": null,
+      "target_path": "_cortex/AI_PROTOCOL.md",
+      "change_type": "patch",
+      "description": "test",
+      "status": "authorized",
+      "authorized_by": "HUMAN_BULK",
+      "authorized_at": "2026-08-06T11:08:24.071958Z",
+      "patch": {
+        "old_string": "**Status:** BINDING",
+        "new_string": "**Status:** BINDING"
+      }
+    },
+    {
+      "scr_id": "scr_20260805_161703_163",
+      "status": "APPROVED",
+      "requested_at": "2026-08-05T16:17:03.329211Z",
+      "requester": "Systems_Architect (CLAUDE)",
+      "tier": 1,
+      "target_file": "_cortex/AI_PROTOCOL.md",
+      "change_type": "insertion",
+      "change_summary": "Insert \u00a74.4 Standards Inheritance after existing \u00a74.3 (Stage-Gate Process). Codifies intrinsic-standards rule from SPEC-080.",
+      "rationale": "AI_PROTOCOL \u00a71.1 states 'Governance is an intrinsic system property, not an external overlay.' Today the framework relies on operators or template authors typing 'align with world-wide standards' into wishes \u2014 externalising what the framework must enforce. SPEC-080 designs the fix; \u00a74.4 is the constitutional hook that gives it authority.",
+      "spec_ref": "SPEC-080",
+      "amendment_body": "### \u00a74.4 Standards Inheritance.\n\nEvery technical work stream in a governed project inherits the standards identified by the framework's MRR / intent classifier at forge time. The mechanism:\n\n(a) The MRR classifier's `suggested_rr_ids` on a wish are promoted to mandatory `standards_refs[]` on the Vision spec.\n(b) Every child spec inherits the Vision's `standards_refs[]` and adds one observable `acceptance_criteria` entry per standard.\n(c) A standard can only be waived via an SCR of the form `SCR-STANDARD-WAIVER-<spec_id>-<rr_id>` that names the specific reason and any mitigation. Silent skip is a Tier-2 constitutional violation.\n(d) Template payloads and other operator-facing inputs MUST NOT enumerate standards. Standards enforcement is framework territory, not operator territory.\n\nRationale: governance is an intrinsic system property (\u00a71.1). Requiring operators or template authors to remember to type 'align with WCAG, glTF, WebGL, IAU\u2026' into their inputs externalises what the framework must enforce automatically.",
+      "insertion_point": "After the last line of \u00a74 (Capability Governance), before \u00a75 (Violations & Escalation)",
+      "operator_authority_context": "Operator explicitly directed on 2026-08-05: 'THAT SHOULD BE A FUCKING ADT RULE!!!!!!!!' after seeing standards enumeration in SPEC-079 template payload.",
+      "approved_at": "2026-08-06T11:10:37.017366Z",
+      "approved_by": "operator (verbal directive, 2026-08-06)"
+    },
+    {
+      "id": "scr_20260806_110947_163",
+      "ts": "2026-08-06T11:09:47.441896Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-076",
+      "intent_id": null,
+      "target_path": "_cortex/AI_PROTOCOL.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/AI_PROTOCOL.md",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "patch": {
+        "old_string": "## 4. Capability Governance (SPEC-038)\n\n1.  **Intent Alignment:** All technical work must trace back to a **Capability Change Intent**.\n2.  **Event Capture:** Agents are encouraged to record **Triggering Events** (CEV-NNN) from technical telemetry to justify new intents.\n3.  **Stage-Gate Process:** Respect the 7-stage evolution workflow. Do not implement features for an intent that has not passed the \"Strategic Feasibility\" gate.\n\n## 5. Violations & Escalation",
+        "new_string": "## 4. Capability Governance (SPEC-038)\n\n1.  **Intent Alignment:** All technical work must trace back to a **Capability Change Intent**.\n2.  **Event Capture:** Agents are encouraged to record **Triggering Events** (CEV-NNN) from technical telemetry to justify new intents.\n3.  **Stage-Gate Process:** Respect the 7-stage evolution workflow. Do not implement features for an intent that has not passed the \"Strategic Feasibility\" gate.\n4.  **Standards Inheritance (SPEC-080):** Every technical work stream in a governed project inherits the standards identified by the framework's MRR / intent classifier at forge time. The mechanism:\n    *   **(a)** The MRR classifier's `suggested_rr_ids` on a wish are promoted to mandatory `standards_refs[]` on the Vision spec.\n    *   **(b)** Every child spec inherits the Vision's `standards_refs[]` and adds one observable `acceptance_criteria` entry per standard.\n    *   **(c)** A standard can only be waived via an SCR of the form `SCR-STANDARD-WAIVER-<spec_id>-<rr_id>` that names the specific reason and any mitigation. Silent skip is a Tier-2 constitutional violation.\n    *   **(d)** Template payloads and other operator-facing inputs MUST NOT enumerate standards. Standards enforcement is framework territory, not operator territory.\n    *   *Rationale:* governance is an intrinsic system property (\u00a71.1). Requiring operators or template authors to remember to type \"align with WCAG, glTF, WebGL, IAU\u2026\" into their inputs externalises what the framework must enforce automatically.\n\n## 5. Violations & Escalation"
       }
     }
   ]

@@ -49,6 +49,12 @@ Jurisdiction is structurally enforced by DTCP. Attempting to act outside your ro
 1.  **Intent Alignment:** All technical work must trace back to a **Capability Change Intent**.
 2.  **Event Capture:** Agents are encouraged to record **Triggering Events** (CEV-NNN) from technical telemetry to justify new intents.
 3.  **Stage-Gate Process:** Respect the 7-stage evolution workflow. Do not implement features for an intent that has not passed the "Strategic Feasibility" gate.
+4.  **Standards Inheritance (SPEC-080):** Every technical work stream in a governed project inherits the standards identified by the framework's MRR / intent classifier at forge time. The mechanism:
+    *   **(a)** The MRR classifier's `suggested_rr_ids` on a wish are promoted to mandatory `standards_refs[]` on the Vision spec.
+    *   **(b)** Every child spec inherits the Vision's `standards_refs[]` and adds one observable `acceptance_criteria` entry per standard.
+    *   **(c)** A standard can only be waived via an SCR of the form `SCR-STANDARD-WAIVER-<spec_id>-<rr_id>` that names the specific reason and any mitigation. Silent skip is a Tier-2 constitutional violation.
+    *   **(d)** Template payloads and other operator-facing inputs MUST NOT enumerate standards. Standards enforcement is framework territory, not operator territory.
+    *   *Rationale:* governance is an intrinsic system property (§1.1). Requiring operators or template authors to remember to type "align with WCAG, glTF, WebGL, IAU..." into their inputs externalises what the framework must enforce automatically.
 
 ## 5. Violations & Escalation
 

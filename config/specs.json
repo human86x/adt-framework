@@ -376,7 +376,17 @@
         "adt_center/templates/",
         "adt_sdk/hooks/",
         "_cortex/ops/"
-      ]
+      ],
+      "tier": "sovereign",
+      "dual_control": {
+        "paths": [
+          "_cortex/AI_PROTOCOL.md",
+          "_cortex/MASTER_PLAN.md"
+        ],
+        "signatures_required": 2,
+        "quorum": "human + Overseer human",
+        "description": "Tier-1 changes affecting AI_PROTOCOL.md or MASTER_PLAN.md require two distinct passkey signatures."
+      }
     },
     "SPEC-034": {
       "title": "Role-Aware Context Panel",
@@ -674,7 +684,8 @@
         "adt_sdk/hooks/",
         "tests/",
         "_cortex/tasks.json"
-      ]
+      ],
+      "tier": "constitutional"
     },
     "SPEC-046": {
       "title": "Standards Governance Layer",
@@ -1013,7 +1024,16 @@
       "related_specs": [
         "SPEC-017",
         "SPEC-031"
-      ]
+      ],
+      "dual_control": {
+        "paths": [
+          "_cortex/AI_PROTOCOL.md",
+          "_cortex/MASTER_PLAN.md"
+        ],
+        "signatures_required": 2,
+        "quorum": "human + Overseer human",
+        "description": "Tier-1 changes affecting AI_PROTOCOL.md or MASTER_PLAN.md require two distinct passkey signatures."
+      }
     },
     "SPEC-064": {
       "title": "Standards Rationalisation Layer",

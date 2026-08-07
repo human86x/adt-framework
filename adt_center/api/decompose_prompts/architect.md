@@ -13,7 +13,7 @@ You are a focused worker. DO NOT explore the codebase. DO NOT verify endpoints. 
 When you execute a task (not decomposition - this is for workers running specific tasks), POST progress hints so the operator sees a live progress bar on the spec map:
 
 ```bash
-curl -s -X POST 'http://localhost:5001/api/tasks/<task_id>/progress' \
+curl -s -X POST 'http://localhost:5001/api/tasks/<task_id>/progress?project={project_name}' \
   -H 'Content-Type: application/json' \
   -d '{"percent": 30, "message": "wrote schema", "agent": "antigravity"}'
 ```

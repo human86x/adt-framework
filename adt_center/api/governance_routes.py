@@ -351,8 +351,43 @@ def api_forge_project_stream():
                     session_id = f"sess_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
                     
                     # 4. intent classification — SPEC-075 LLM classifier with SPEC-072 keyword fallback (REQ-113 wire-up)
+                    # REQ-111 Part A: Unconditionally emit intent_match_started / intent_match_completed
+                    # (kept alongside phase_started/completed so the demo UI has structured payload data).
                     if auto_standards_enabled:
                         _cls_engine = os.environ.get("ADT_CLASSIFIER_ENGINE", "gemini-3.5-flash-medium")
+                        from adt_core.standards.intent_matcher import (
+                            match_intent_domain_detailed,
+                            ENGINE_VERSION as _INTENT_ENGINE_VERSION,
+                        )
+                        _wish_preview = (intent_desc or "")[:80]
+                        w_emit("intent_match_started", {
+                            "wish_len": len(intent_desc or ""),
+                            "wish_preview_first_80_chars": _wish_preview,
+                            "engine_version": _INTENT_ENGINE_VERSION,
+                            "project": project_name,
+                        })
+                        try:
+                            _keyword_detail = match_intent_domain_detailed(intent_desc)
+                        except Exception as _me:
+                            _keyword_detail = {
+                                "matched_domains": [], "baseline_rr_ids": [],
+                                "suggested_rr_ids": [], "match_confidence_per_domain": {},
+                                "engine_version": _INTENT_ENGINE_VERSION,
+                            }
+                        w_emit("intent_match_completed", {
+                            "matched_domains": _keyword_detail["matched_domains"],
+                            "baseline_rr_ids": _keyword_detail["baseline_rr_ids"],
+                            "suggested_rr_ids": _keyword_detail["suggested_rr_ids"],
+                            "match_confidence_per_domain": _keyword_detail["match_confidence_per_domain"],
+                            "wish_len": len(intent_desc or ""),
+                            "engine_version": _INTENT_ENGINE_VERSION,
+                            "project": project_name,
+                        })
+                        # Merge keyword baselines into selected_rr_ids up front (SPEC-072 tier)
+                        for rr in _keyword_detail["baseline_rr_ids"]:
+                            if rr not in selected_rr_ids:
+                                selected_rr_ids.append(rr)
+
                         w_emit("phase_started", {"phase": "intent_classification", "engine": _cls_engine, "started_at": datetime.now(timezone.utc).isoformat()})
                         t0 = time.time()
                         try:
@@ -364,8 +399,10 @@ def api_forge_project_stream():
                                 project_name=project_name,
                                 engine=_cls_engine,
                             )
+                            _suggested = [rr.get("id") for rr in (_cls.recommended_rrs or []) if isinstance(rr, dict) and rr.get("id")]
                             w_emit("intent_classification_partial", {
                                 "matched_domains": _cls.matched_domains,
+                                "suggested_rr_ids": _suggested,
                                 "data_classifications": _cls.data_classifications,
                                 "fallback_reason": _cls.fallback_reason,
                             })
@@ -375,18 +412,26 @@ def api_forge_project_stream():
                                 if rid not in selected_rr_ids:
                                     selected_rr_ids.append(rid)
                                     w_emit("intent_classification_partial", {"recommended_rr": rec if isinstance(rec, dict) else {"id": rid, "rationale": getattr(rec, "rationale", ""), "confidence": getattr(rec, "confidence", 0.0)}})
-                            w_emit("phase_completed", {"phase": "intent_classification", "duration_ms": int((time.time() - t0)*1000), "outcome": "success", "confidence": _cls.overall_confidence, "used_fallback": bool(_cls.fallback_reason)})
+                            w_emit("phase_completed", {
+                                "phase": "intent_classification",
+                                "duration_ms": int((time.time() - t0)*1000),
+                                "outcome": "success",
+                                "confidence": _cls.overall_confidence,
+                                "used_fallback": bool(_cls.fallback_reason),
+                                "matched_domains": _cls.matched_domains,
+                                "suggested_rr_ids": _suggested,
+                            })
                         except Exception as e:
-                            # Ultimate fallback: keyword tier
-                            try:
-                                from adt_core.standards.intent_matcher import match_intent_domain
-                                matched_domains, baseline_rr_ids = match_intent_domain(intent_desc)
-                                for rr in baseline_rr_ids:
-                                    if rr not in selected_rr_ids:
-                                        selected_rr_ids.append(rr)
-                                w_emit("phase_completed", {"phase": "intent_classification", "duration_ms": int((time.time() - t0)*1000), "outcome": "success", "used_fallback": True, "fallback_reason": f"llm error: {e}"})
-                            except Exception as e2:
-                                w_emit("phase_completed", {"phase": "intent_classification", "duration_ms": int((time.time() - t0)*1000), "outcome": "failed", "error": str(e2)})
+                            # Ultimate fallback: keyword tier already applied above.
+                            w_emit("phase_completed", {
+                                "phase": "intent_classification",
+                                "duration_ms": int((time.time() - t0)*1000),
+                                "outcome": "success",
+                                "used_fallback": True,
+                                "fallback_reason": f"llm error: {e}",
+                                "matched_domains": _keyword_detail["matched_domains"],
+                                "suggested_rr_ids": _keyword_detail["suggested_rr_ids"],
+                            })
 
                     # 5. forge_brief
                     forge_brief = {
@@ -622,18 +667,66 @@ def api_forge_project():
         if not isinstance(selected_rr_ids, list):
             selected_rr_ids = []
 
-        # SPEC-072: Run intent matcher if auto standards are enabled
+        # SPEC-072 + REQ-111: Run intent matcher if auto standards are enabled.
+        # REQ-111 Part A: ALWAYS emit intent_match_started + intent_match_completed
+        # (empty matches are still valid — the events must appear for the demo UI).
         auto_standards_enabled = data.get("auto_standards_enabled", True)
         if auto_standards_enabled:
+            from adt_core.standards.intent_matcher import (
+                match_intent_domain_detailed,
+                ENGINE_VERSION as _INTENT_ENGINE_VERSION,
+            )
+            _wish_preview = (intent_desc or "")[:80]
+            res["logger"].log(ADSEventSchema.create_event(
+                event_id=ADSEventSchema.generate_id("int_m_st"),
+                agent="SYSTEM",
+                role="Architect",
+                action_type="intent_match_started",
+                description="Started keyword intent matching (SPEC-072).",
+                spec_ref="SPEC-072",
+                authorized=True,
+                tier=1,
+                session_id=session_id,
+                action_data={
+                    "wish_len": len(intent_desc or ""),
+                    "wish_preview_first_80_chars": _wish_preview,
+                    "engine_version": _INTENT_ENGINE_VERSION,
+                    "project": project_name,
+                }
+            ))
             try:
-                from adt_core.standards.intent_matcher import match_intent_domain
-                matched_domains, baseline_rr_ids = match_intent_domain(intent_desc)
+                _detail = match_intent_domain_detailed(intent_desc)
+                matched_domains = _detail["matched_domains"]
+                baseline_rr_ids = _detail["baseline_rr_ids"]
                 for rr in baseline_rr_ids:
                     if rr not in selected_rr_ids:
                         selected_rr_ids.append(rr)
+                res["logger"].log(ADSEventSchema.create_event(
+                    event_id=ADSEventSchema.generate_id("int_m_cp"),
+                    agent="SYSTEM",
+                    role="Architect",
+                    action_type="intent_match_completed",
+                    description=(
+                        f"Intent match completed: {len(matched_domains)} domain(s), "
+                        f"{len(baseline_rr_ids)} baseline RR(s)."
+                    ),
+                    spec_ref="SPEC-072",
+                    authorized=True,
+                    tier=1,
+                    session_id=session_id,
+                    action_data={
+                        "matched_domains": matched_domains,
+                        "baseline_rr_ids": baseline_rr_ids,
+                        "suggested_rr_ids": _detail["suggested_rr_ids"],
+                        "match_confidence_per_domain": _detail["match_confidence_per_domain"],
+                        "wish_len": len(intent_desc or ""),
+                        "engine_version": _INTENT_ENGINE_VERSION,
+                        "project": project_name,
+                    }
+                ))
             except Exception as e:
                 res["logger"].log(ADSEventSchema.create_event(
-                    event_id=ADSEventSchema.generate_id("intent_err"),
+                    event_id=ADSEventSchema.generate_id("int_m_er"),
                     agent="SYSTEM",
                     role="Architect",
                     action_type="intent_match_error",
@@ -642,7 +735,34 @@ def api_forge_project():
                     authorized=True,
                     tier=1,
                     session_id=session_id,
-                    action_data={}
+                    action_data={
+                        "wish_len": len(intent_desc or ""),
+                        "engine_version": _INTENT_ENGINE_VERSION,
+                        "project": project_name,
+                        "error": str(e),
+                    }
+                ))
+                # Emit completed event too, with empty payload — REQ-111 acceptance
+                res["logger"].log(ADSEventSchema.create_event(
+                    event_id=ADSEventSchema.generate_id("int_m_cp"),
+                    agent="SYSTEM",
+                    role="Architect",
+                    action_type="intent_match_completed",
+                    description="Intent match completed with error path (empty matches).",
+                    spec_ref="SPEC-072",
+                    authorized=True,
+                    tier=1,
+                    session_id=session_id,
+                    action_data={
+                        "matched_domains": [],
+                        "baseline_rr_ids": [],
+                        "suggested_rr_ids": [],
+                        "match_confidence_per_domain": {},
+                        "wish_len": len(intent_desc or ""),
+                        "engine_version": _INTENT_ENGINE_VERSION,
+                        "project": project_name,
+                        "error": str(e),
+                    }
                 ))
 
         forge_brief = {
@@ -938,42 +1058,88 @@ def api_forge_status(forge_session_id):
 
 @governance_bp.route("/specs", methods=["POST"])
 def api_create_spec():
-    """SPEC-067: Create a new spec from backend."""
+    """SPEC-067: Create a new spec from backend.
+
+    SPEC-078 Part A (REQ-118): Reject duplicate spec_id at API. When
+    ``spec_id`` is supplied and a file ``SPEC-NNN_*.md`` already exists in
+    the project's specs dir, return HTTP 409 and do NOT write the file or
+    emit ``spec_created``. When ``spec_id`` is null/absent, the server
+    allocates the next free ID. The ``spec_created`` ADS event carries
+    ``allocation_source: "client"|"server"`` for audit.
+    """
     data = request.get_json()
     project_name = request.args.get("project")
     if not project_name:
         return jsonify({"error": "project query param required"}), 400
-        
+
     if not data or "title" not in data or "intent" not in data or "success_condition" not in data:
         return jsonify({"error": "title, intent, and success_condition are required"}), 400
-        
+
     res = _get_project_resources(project_name)
     specs_path = res["paths"]["specs"]
     config_path = os.path.join(res["paths"]["root"], "config", "specs.json")
-    
-    spec_id = data.get("spec_id")
-    if not spec_id:
-        # Alloc next free SPEC-NNN
-        # parse config/specs.json
+
+    # Ensure the specs dir exists so listdir below is safe even for a brand
+    # new project (server-allocation path starts from an empty dir).
+    try:
+        os.makedirs(specs_path, exist_ok=True)
+    except OSError:
+        pass
+
+    requested_spec_id = data.get("spec_id")
+    allocation_source = "client" if requested_spec_id else "server"
+
+    # SPEC-078 Part A (REQ-118): collision check on client-supplied IDs.
+    if requested_spec_id:
+        try:
+            existing_files = os.listdir(specs_path)
+        except FileNotFoundError:
+            existing_files = []
+        prefix = f"{requested_spec_id}_"
+        collision = next(
+            (fn for fn in existing_files
+             if fn.startswith(prefix) and fn.endswith(".md")),
+            None,
+        )
+        if collision:
+            # Best-effort extraction of the existing title from the filename
+            # (SPEC-NNN_TITLE_UNDERSCORED.md).
+            existing_title = collision[len(prefix):-3].replace("_", " ").title()
+            return jsonify({
+                "error": "spec_id_collision",
+                "existing_file": collision,
+                "existing_title": existing_title,
+            }), 409
+        spec_id = requested_spec_id
+    else:
+        # Alloc next free SPEC-NNN by scanning BOTH the on-disk specs dir
+        # and the config/specs.json manifest, so we never allocate an ID
+        # that already exists on disk (which would then collide above on
+        # the second worker's attempt).
         specs_config = _load_json(config_path)
-        existing = specs_config.get("specs", {}).keys()
-        # Find max NNN
+        existing_ids = set(specs_config.get("specs", {}).keys())
+        try:
+            for fn in os.listdir(specs_path):
+                if fn.startswith("SPEC-") and fn.endswith(".md"):
+                    existing_ids.add(fn.split("_")[0])
+        except FileNotFoundError:
+            pass
         max_n = 0
-        for k in existing:
+        for k in existing_ids:
             if k.startswith("SPEC-"):
                 try:
                     n = int(k.split("-")[1])
                     if n > max_n:
                         max_n = n
-                except:
+                except (ValueError, IndexError):
                     pass
         spec_id = f"SPEC-{max_n + 1:03d}"
-        
+
     # generate filename: SPEC-NNN_TITLE_UNDERSCORED.md
     title = data["title"]
     safe_title = re.sub(r'[^a-zA-Z0-9]+', '_', title.upper()).strip('_')
     filename = f"{spec_id}_{safe_title}.md"
-    
+
     # write markdown
     md_content = f"# {spec_id}: {title}\n\n"
     md_content += f"**Status:** APPROVED\n"
@@ -983,10 +1149,10 @@ def api_create_spec():
     md_content += f"\n## Intent\n{data['intent']}\n\n"
     md_content += f"## Success Condition\n{data['success_condition']}\n\n"
     md_content += f"## Acceptance Criteria\nTODO\n"
-    
+
     with open(os.path.join(specs_path, filename), "w") as f:
         f.write(md_content)
-        
+
     # update config/specs.json
     specs_config = _load_json(config_path)
     if "specs" not in specs_config:
@@ -996,10 +1162,12 @@ def api_create_spec():
         "filename": filename,
         "status": "approved"
     }
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, "w") as f:
         json.dump(specs_config, f, indent=2)
-        
-    # emit ADS
+
+    # emit ADS. SPEC-078 Part A: allocation_source tags whether the client
+    # supplied the ID or the server allocated it.
     evt = ADSEventSchema.create_event(
         event_id=ADSEventSchema.generate_id("spec_create"),
         agent="SYSTEM",
@@ -1009,14 +1177,19 @@ def api_create_spec():
         spec_ref=spec_id,
         authorized=True,
         tier=2,
-        action_data={"spec_id": spec_id, "filename": filename}
+        action_data={
+            "spec_id": spec_id,
+            "filename": filename,
+            "allocation_source": allocation_source,
+        },
     )
     res["logger"].log(evt)
-    
+
     return jsonify({
         "status": "success",
         "spec_id": spec_id,
-        "filename": filename
+        "filename": filename,
+        "allocation_source": allocation_source,
     }), 201
 
 @governance_bp.route("/governance/report_ready", methods=["POST"])
@@ -3964,6 +4137,21 @@ def api_decompose_spec(spec_id):
             manifest["worker_log"] = log_path
             manifest["status"] = "running"
             CAOP_TASKS[task_id] = manifest
+            # SPEC-078 Part D (REQ-121): start interactive-prompt watcher so we
+            # detect OAuth/password/TOTP prompts and pause the worker instead of
+            # letting agy's own 60s timer silently kill it.
+            try:
+                from adt_center.api.workers_watcher import spawn_prompt_watcher
+                spawn_prompt_watcher(
+                    proc=proc,
+                    log_path=log_path,
+                    worker_id=task_id,
+                    spec_id=spec_id,
+                    project=project_name,
+                    role="Systems_Architect",
+                )
+            except Exception as _e:
+                current_app.logger.warn(f"[DECOMPOSE] Failed to start prompt watcher: {_e}")
     except Exception as _e:
         spawn_error = f"{type(_e).__name__}: {_e}"
         current_app.logger.warn(f"[DECOMPOSE] Failed to spawn agy worker for {task_id}: {spawn_error}")
@@ -5751,16 +5939,26 @@ def api_initiate_build(spec_id):
 
     # SPEC-062-H: block build if agy auth is broken. Prevents 13 workers from
     # silent-dying while the operator watches an empty spec map wondering why.
-    try:
-        from adt_center.api.build_executor import _agy_auth_is_ok
-        if not _agy_auth_is_ok(force=False):
-            return jsonify({
-                "error": "agy authentication is broken — no workers can spawn. Click Re-authenticate to launch an interactive agy session.",
-                "action": "reauth_agy",
-                "auth_broken_block": True,
-            }), 409
-    except Exception:
-        pass
+    # REQ-124 hardening (2026-08-07): only apply this block when the requested
+    # harness IS antigravity/agy. If operator explicitly picks harness=claude
+    # (or another non-agy harness), the agy auth state is irrelevant and blocking
+    # trains operators to think "the framework is stuck" when in fact only ONE
+    # backend is down. Previously this blocked Claude builds too, which is what
+    # made the 2026-08-07 SPEC-100 recovery attempt fail after agy expired mid-take.
+    _requested_harness = (data.get("harness") or "antigravity").strip().lower()
+    _harness_needs_agy = _requested_harness in ("antigravity", "agy", "gemini")
+    if _harness_needs_agy:
+        try:
+            from adt_center.api.build_executor import _agy_auth_is_ok
+            if not _agy_auth_is_ok(force=False):
+                return jsonify({
+                    "error": "agy authentication is broken — no workers can spawn. Click Re-authenticate to launch an interactive agy session. (Or retry with harness=claude to bypass agy entirely.)",
+                    "action": "reauth_agy",
+                    "auth_broken_block": True,
+                    "requested_harness": _requested_harness,
+                }), 409
+        except Exception:
+            pass
 
     # SPEC-062 build-fix #2: refuse duplicate dispatch while another build for
     # the same spec is in flight. Caller can pass force=true to override.
@@ -7271,13 +7469,17 @@ def api_intent_classify():
         # update run_id in action data
         start_event["action_data"]["run_id"] = cls_result.run_id
         
+        # REQ-111 Part A: ensure suggested_rr_ids + matched_domains are on the completed payload
+        _suggested_rr_ids = [rr.get("id") for rr in (cls_result.recommended_rrs or []) if isinstance(rr, dict) and rr.get("id")]
         if cls_result.fallback_reason:
             evt_type = "intent_classification_fallback"
             evt_data = {
                 "run_id": cls_result.run_id,
                 "fallback_reason": cls_result.fallback_reason,
                 "engine_attempted": cls_result.engine,
-                "keyword_matched_domains": cls_result.matched_domains
+                "matched_domains": cls_result.matched_domains,
+                "keyword_matched_domains": cls_result.matched_domains,
+                "suggested_rr_ids": _suggested_rr_ids
             }
         else:
             evt_type = "intent_classification_completed"
@@ -7285,13 +7487,14 @@ def api_intent_classify():
                 "run_id": cls_result.run_id,
                 "matched_domains": cls_result.matched_domains,
                 "recommended_rrs": cls_result.recommended_rrs,
+                "suggested_rr_ids": _suggested_rr_ids,
                 "data_classifications": cls_result.data_classifications,
                 "latency_ms": cls_result.latency_ms,
                 "confidence": cls_result.overall_confidence,
                 "engine": cls_result.engine,
                 "model": cls_result.model,
                 "prompt_version": cls_result.prompt_version,
-                "matched_rrs": [rr.get("id") for rr in cls_result.recommended_rrs if rr.get("id")],
+                "matched_rrs": _suggested_rr_ids,
                 "rationales": {rr.get("id"): rr.get("rationale", "") for rr in cls_result.recommended_rrs if rr.get("id")},
                 "provenance": "llm_classifier_v1"
             }
@@ -7424,3 +7627,134 @@ def effort_budget():
         "by_role": {},
         "estimated_cost_usd": 0.0
     })
+
+
+# ---------------------------------------------------------------------------
+# SPEC-080 / REQ-123: Framework Standards Catalog visibility layer.
+#
+# The Forge Wizard needs a "look at our standards catalog" moment BEFORE the
+# operator's wish is matched. This endpoint returns a compact snapshot of what
+# the framework knows about — Rationalised Rules and intent-domain index —
+# derived from the two source-of-truth files:
+#   * _cortex/standards/rationalised_rules.jsonl   (RR-NNN, title, tier)
+#   * config/intent_index.json                     (domain -> keywords, RRs)
+#
+# Caching: 5-minute TTL, invalidated when either source file's mtime advances.
+# Both files are small (<50 KB), so recompute-on-miss is trivial.
+# ---------------------------------------------------------------------------
+
+_MRR_LIBRARY_STATS_CACHE = {"payload": None, "cached_at": 0.0, "mtime_key": None}
+_MRR_LIBRARY_STATS_TTL_SEC = 300
+
+
+def _mrr_library_stats_paths():
+    """Absolute paths to the two source files. Framework-project-relative."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    return (
+        os.path.join(root, "_cortex", "standards", "rationalised_rules.jsonl"),
+        os.path.join(root, "config", "intent_index.json"),
+    )
+
+
+def _mrr_library_stats_compute():
+    """Compute the payload from the two source files. Best-effort — any parse
+    failure yields empty counts rather than a 500."""
+    from datetime import datetime as _dt, timezone as _tz
+    rr_path, idx_path = _mrr_library_stats_paths()
+
+    # ---- Standards (rationalised_rules.jsonl) ----
+    standards = []
+    if os.path.exists(rr_path):
+        try:
+            with open(rr_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except Exception:
+                        continue
+                    standards.append({
+                        "id": obj.get("id"),
+                        "title": obj.get("title") or "",
+                        "tier": obj.get("tier"),  # may be None if absent
+                        "source_file": "_cortex/standards/rationalised_rules.jsonl",
+                    })
+        except Exception:
+            pass
+
+    # ---- Domains (intent_index.json) ----
+    domains = []
+    if os.path.exists(idx_path):
+        try:
+            with open(idx_path, "r", encoding="utf-8") as f:
+                idx = json.load(f) or {}
+            for name, data in (idx.get("domains") or {}).items():
+                keywords = data.get("keywords") or []
+                domains.append({
+                    "name": name,
+                    "keyword_count": len(keywords),
+                    "baseline_rr_ids": data.get("baseline_rr_ids") or [],
+                })
+        except Exception:
+            pass
+
+    # ---- Engine version (from intent_matcher module) ----
+    engine_version = "keyword_matcher_v2"  # safe default matches the const
+    try:
+        from adt_core.standards.intent_matcher import ENGINE_VERSION as _EV
+        engine_version = _EV
+    except Exception:
+        pass
+
+    # ---- Catalog mtime = MAX of the two source files' mtime ----
+    mtimes = []
+    for p in (rr_path, idx_path):
+        try:
+            if os.path.exists(p):
+                mtimes.append(os.path.getmtime(p))
+        except Exception:
+            pass
+    catalog_mtime_iso = None
+    if mtimes:
+        catalog_mtime_iso = _dt.fromtimestamp(max(mtimes), tz=_tz.utc)\
+            .isoformat().replace("+00:00", "Z")
+
+    return {
+        "standards_count": len(standards),
+        "standards": standards,
+        "domains_count": len(domains),
+        "domains": domains,
+        "engine_version": engine_version,
+        "catalog_mtime_iso": catalog_mtime_iso,
+        "domains_index_file": "config/intent_index.json",
+    }
+
+
+@governance_bp.route("/mrr/library_stats", methods=["GET"])
+def api_mrr_library_stats():
+    """SPEC-080 / REQ-123: static snapshot of the framework standards catalog.
+
+    Loaded by the Forge Wizard on open — shows the audience the framework has
+    a real catalog before it matches against the operator's wish. Cached with
+    a 5-minute TTL keyed by source-file mtimes.
+    """
+    import time as _time
+    rr_path, idx_path = _mrr_library_stats_paths()
+    mtime_key = (
+        os.path.getmtime(rr_path) if os.path.exists(rr_path) else 0,
+        os.path.getmtime(idx_path) if os.path.exists(idx_path) else 0,
+    )
+    now = _time.time()
+    cache = _MRR_LIBRARY_STATS_CACHE
+    fresh = (
+        cache["payload"] is not None
+        and cache["mtime_key"] == mtime_key
+        and (now - cache["cached_at"]) < _MRR_LIBRARY_STATS_TTL_SEC
+    )
+    if not fresh:
+        cache["payload"] = _mrr_library_stats_compute()
+        cache["cached_at"] = now
+        cache["mtime_key"] = mtime_key
+    return jsonify(cache["payload"])

@@ -2,6 +2,144 @@
 
 ---
 
+## REQ-125: Fail-loud on corrupt state -- never silently fall back to a broken load-bearing file
+
+**From:** Systems_Architect (CLAUDE) — filed under operator directive
+**To:** @Backend_Engineer (primary), @Frontend_Engineer (recovery UI), @DevOps_Engineer (backup rotation)
+**Date:** 2026-08-06 UTC
+**Type:** GOVERNANCE_HARDENING + RESILIENCE
+**Priority:** P1 -- root cause of 2h+ of confused build failures during a demo take
+**Related Specs:** SPEC-078 (Post-Forge Governance Repairs), SPEC-062-F (Verifier)
+**Discovered via:** 2026-08-06 solar_system_1786032782 SPEC-004 build -- workers reported "task complete via curl, but server returned JSON parse error, sending anyway." Trace: `/api/tasks/<id>/progress` endpoint without `?project=` param fell back to the framework's own `_cortex/tasks.json`, which had two lurking syntax corruptions (line 1965 `""evidence"` double-quote, line 3037 unclosed description string). Endpoint returned HTTP 500; workers reported completion in narrative but the state never persisted. Result: 3 tasks marked failed, 1 orphaned in_progress for 3 hours, wave 0/0 QUEUED, operator confusion, demo blocked.
+
+### The rule (permanent)
+
+Load-bearing JSON state files (any file the server reads to decide behaviour: `tasks.json`, `config/intent_index.json`, `config/specs.json`, `_cortex/ops/sovereign_requests.json`, project registries, etc.) MUST be:
+
+1. **Validated at every read.** `json.load` with try/except. On failure: refuse to serve endpoints that depend on that file. Return **HTTP 503** with body `{"error":"corrupt_state","file":"<abs_path>","line":X,"col":Y,"detail":"<parser message>"}`. Emit `state_corruption_detected` ADS event with the same payload. Never a 500 with a bare parser error — that trains agents to ignore it and press on.
+2. **Never silently fall back to a "default" file when a parameter is missing.** The `_get_project_resources(name)` and `get_project_paths(name)` paths in `adt_center/app.py` currently fall back to `FRAMEWORK_ROOT` if the project name is missing OR the project isn't registered. That fallback masks the bug where a caller forgot to pass the project param — and if the framework's own tasks.json is corrupt, the caller gets a spurious 500 that has nothing to do with their request. The fix: require the project param at the endpoint level (HTTP 400 if missing) OR route to a well-known "empty state" sentinel that cannot be corrupt.
+3. **Auto-backup on every write.** Every write to a Tier-3 JSON file first copies `<file>` to `<file>.bak.<epoch_ms>` before overwriting. Keep the last 5 rotations, auto-prune older. Recovery becomes `cp <file>.bak.<latest> <file>`.
+4. **Startup fsck.** Server startup runs a JSON-validate pass over every load-bearing file. If any is corrupt, refuse to bind to the port; emit `startup_fsck_failed` with a specific per-file report; print the actionable message to stderr. Fail fast rather than serving broken.
+5. **Console recovery UI.** A `state_corruption_detected` event surfaces a red banner in the ADT Console with:
+   - The file path + line + col of the parse error
+   - "Show me the error" button → opens the file in the operator's default editor jumped to the line
+   - "Restore last known good" button → picks the most recent `.bak.*` that parses cleanly and restores it, emits `state_restored_from_backup` event
+   - No auto-restore — operator authority required.
+6. **Worker prompt contract.** Every worker prompt template that includes example curls MUST include the `?project=` query parameter explicitly in the example — never rely on server-side default fallback. Any curl without `?project=` in a worker prompt is a REQ-125 violation and should be flagged by a lint over the prompt templates directory.
+
+### Enforcement
+
+- **Backend:** implement fsck (§4), per-read validation + 503 (§1), require-project or explicit-sentinel refactor (§2), auto-backup wrapper (§3). Add tests in `tests/test_state_corruption_resilience.py` covering: manually corrupt a tasks.json → endpoint returns 503 not 500; corrupt file at startup → server refuses to start with clear message; backup files rotate correctly.
+- **Frontend:** subscribe to `state_corruption_detected` events (via existing ADS stream); render the recovery banner; wire the two buttons.
+- **DevOps:** add the pre-write backup wrapper in `adt_core/state/`; wire into every file-write path already going through the SDK.
+- **Architect:** prompt-template lint (§6) — script that scans `adt_center/api/*prompts/*.md` for `curl.*api/` lines missing `project=`; runs in CI or as part of `test_forge_readiness.py`.
+
+### Acceptance
+
+- Reproduce: introduce a syntax error into `_cortex/tasks.json` (e.g. add a stray comma). Restart adt-center → refuses to start with a specific per-file message. Revert the corruption → starts cleanly.
+- Reproduce during runtime: while server is up, corrupt `_cortex/tasks.json` externally. Next endpoint call that reads it → HTTP 503 with the corruption detail. Console banner appears with file path + line/col. "Restore last known good" restores the latest bak and clears the banner.
+- Prompt lint runs green after backfilling `?project=` in the current templates (already done in 2026-08-06 batch for `decompose_prompts/architect.md`; audit `forge_prompts/architect.md` and `verify_prompts/fix_dispatcher.md` in the same sweep).
+- No worker ever again sends a "completed via curl" narrative on a request that actually got 500'd.
+
+### Why this matters for the framework's thesis
+
+The 2026-08-06 SPEC-004 incident is a textbook governance failure: workers correctly did the work, correctly attempted to report it, and got a silent malformed reply that they had no way to interpret. They then made up a hopeful narrative ("mock server returning error, POSTs transmitted anyway") that misled the operator for hours. A framework whose value proposition is "governed AI produces reliable outcomes" cannot ship with load-bearing state that fails silently.
+
+---
+
+## REQ-124: Spec Map self-heal silently mutates operator project; Vision spec is buildable
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer (already fixed in 2026-08-06 batch), @Backend_Engineer (safety belt)
+**Date:** 2026-08-06 UTC
+**Type:** BUG_FIX + UX_GOVERNANCE
+**Priority:** P1 -- demo-visible trap
+**Related Specs:** SPEC-021 (Operator Console), SPEC-078
+**Discovered via:** 2026-08-06 solar_system_1786032782 -- operator viewed SPEC-002 (7 tasks) → switched to SPEC-003 → decompose card shown → switched back to SPEC-002 → decompose card. Tasks had "vanished." Root cause: `spec_map.js:1913-1939` self-heal walked all projects on any empty response and silently auto-switched `currentProject` to the first project that had a matching spec_id. Since `adt-framework` has 89 specs including SPEC-001..SPEC-101, any transient empty response for a forged project's SPEC-002 silently jumped the operator to `adt-framework` and stranded them.
+
+### Fix applied (this batch)
+
+1. **`adt-console/src/js/spec_map.js:1913-1921`** — silent auto-switch removed. Empty spec now honestly shows the "Decompose Now" card for the actually-active project. Cross-project search, if ever needed, must be an explicit operator action.
+2. **`adt-console/src/js/spec_map.js:1847-1857`** — Vision spec (SPEC-001 with title === "Vision", case-insensitive) filtered out of the actionable dropdown. Vision is a document produced by forge Phase A, not a decomposable/buildable work item; showing it with a Build button confuses operators. Non-forged projects whose SPEC-001 has a different title are unaffected.
+3. **`adt-console/src/js/spec_map.js:1974-1996`** — if a Vision spec is somehow loaded (URL, bookmark), its empty-state card no longer offers "Decompose Now"; shows read-only text instead.
+4. **`adt-console/src/js/launcher.js:1300`** — wizard progress subtitle rewritten from misleading "This takes 5-15 seconds" to honest model-dependent range (Sonnet 1-3 min, Gemini Flash 5-15 min, larger models longer).
+
+### Backend safety belt (still pending)
+
+`adt_center/app.py:get_project_paths(name)` was hardened in the SPEC-078 batch to return `unknown_project: True` sentinel paths instead of silent framework fallback when `name` is passed but not registered. Verify that hardening propagates to the specific `/api/specs/<id>/task_graph` handler so any residual frontend leak is visible rather than silent.
+
+### Acceptance
+
+- Load Spec Map on a forged project → dropdown does NOT contain "SPEC-001 - Vision".
+- Load two consecutive child specs in the same forged project → tasks visible on both; no phantom project switch; no "Decompose Now" card on a spec that has tasks.
+- Direct-load a Vision spec via URL → read-only card, no Decompose button.
+- Wizard progress screen shows honest model-dependent time copy.
+
+### Cross-links
+
+- REQ-125 covers the deeper "silent fallback on missing project param" pattern.
+- SPEC-078 Part C is the closest sibling fix.
+
+---
+
+## REQ-123: Forge template payloads MUST NOT enumerate standards -- that is framework territory
+
+**From:** Systems_Architect (CLAUDE) — filed under operator directive
+**To:** @Systems_Architect (review), @Frontend_Engineer (guardrail), @Backend_Engineer (verifier)
+**Date:** 2026-08-05 UTC
+**Type:** GOVERNANCE_RULE + LINT_GUARDRAIL
+**Priority:** P1 -- prevents recurrence of a Tier-1 governance violation
+**Related Specs:** SPEC-080 (Intrinsic Standards Inheritance), SPEC-067 (Forge Wizard)
+**Discovered via:** 2026-08-05 -- Systems_Architect wrote "Aligns with relevant world-wide standards where applicable: WCAG 2.2, IAU, Khronos glTF 2.0, W3C, Web Vitals, GDPR, NGSS, OSI, JSON Schema, Unicode, Dublin Core..." into SPEC-079's operator-input payload. Operator flagged: standards are framework territory, not operator input.
+
+### The rule (permanent)
+
+Forge template payloads (`FORGE_TEMPLATES` in `adt-console/src/js/launcher.js`) MUST NOT include: named world-wide standards in `constraints` (WCAG, glTF, WebGL, IAU, RFC-NNNN, ISO-NNNNN, GDPR, W3C spec names, etc.); named RR-NNN references in any operator-visible field; hedge phrases like "aligns with world-wide standards" / "complies with best practices" / "follows industry standards". Template payloads describe the *domain vision*; standards are lifted out by the MRR classifier per SPEC-080.
+
+### Enforcement
+
+**Backend lint:** at forge time, before spawning the Architect worker, run a regex lint over `wish`/`users`/`success`/`out`/`constraints` fields against banned patterns in `config/template_payload_lint.json` (initial: `WCAG\d?`, `glTF`, `WebGL`, `IAU`, `Khronos`, `RFC\s?\d+`, `ISO\s?\d+`, `GDPR`, `NGSS`, `UNESCO`, `SPDX`, `Dublin Core`, `Schema\.org`, `RR-\d{3}`, `\baligns?\s+with\s+.*standards\b`). Reject with clear error naming the offending field + phrase.
+
+**Frontend lint:** Screen-2 blur triggers the same client-side regex, inline warning within 100ms, prevents submit.
+
+**Architect review checklist:** whenever proposing a new template, verify none of the banned patterns are present.
+
+### Acceptance
+
+- SPEC-077 + SPEC-079 payloads audited; standards enumeration removed from SPEC-079 as of 2026-08-05.
+- Backend lint blocks a hand-crafted wish containing "WCAG 2.2" with a clear error.
+- Frontend lint shows inline warning within 100ms of blur.
+
+---
+
+## REQ-122: Sub-agent completion reports must be verified against filesystem state; agent claims are not evidence
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Systems_Architect (orchestration pattern), @DevOps_Engineer (harness hardening)
+**Date:** 2026-08-05 UTC
+**Type:** GOVERNANCE_GAP + AGENT_HARNESS
+**Priority:** P1 — corrupts the audit trail if unaddressed
+**Related Specs:** SPEC-076-A, SPEC-078
+**Discovered via:** 2026-08-03 SPEC-078 batch -- Frontend agent reported "31 insertions, 6 deletions, node --check passes" for spec_map.js. Reality: `git status` clean, four leaks still present. Systems_Architect redid the work directly.
+
+### The problem
+
+Sub-agent return payloads are text reports. The parent has no automatic verification that report matches filesystem. Left unchecked, this corrupts the ADS audit trail: `completed_edit` fires but the edit didn't happen.
+
+### Mitigations
+
+**Sub-agent prompt template:** MUST include mandatory self-verification block: `git status -s <file>` shows M; `node --check` (or equivalent) passes; `git diff --stat <file>` pasted verbatim; line numbers enumerated. The 2026-08-05 SPEC-079 batch's Frontend agent prompt included this block and its report matched reality. Codify as the shared sub-agent prompt template.
+
+**Parent orchestrator:** after every sub-agent returns, before logging `completed_edit`: (1) `git status -s <file>` expects M or ??; (2) `git diff --stat` non-zero; (3) domain-specific grep for expected content. Only if all three confirm should parent log `completed_edit`. Otherwise log `agent_report_mismatch` + re-do directly.
+
+### Acceptance
+
+- All future sub-agent prompts include the self-verification block.
+- Systems_Architect post-agent verification hook added to `_cortex/ops/build_orchestrator.py`.
+- 2026-08-03 `evt_20260803_153046_088` retroactively annotated with a `retroactive_correction` event noting false success.
+
+---
+
 ## REQ-107: `/api/agy/state` 502 root cause -- upstream probe exceeds panel bridge 2s socket-read timeout
 
 **From:** Frontend_Engineer (CLAUDE, via REQ-105 spawn)
@@ -3663,3 +3801,41 @@ Minimal implementation (~15 lines) after the existing `.catch(err => { ... })` r
 
 ### Status
 **OPEN**
+
+
+---
+
+## REQ-109: Test Governed Request
+
+**From:** Backend_Engineer (TEST_AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-08-03 15:37 UTC
+**Type:** IMPROVEMENT
+**Priority:** LOW
+
+### Description
+
+This is a test request filed via API.
+
+### Status
+
+**OPEN**
+
+
+---
+
+## REQ-110: Status Update Test
+
+**From:** Backend_Engineer (AGENT)
+**To:** @Systems_Architect
+**Date:** 2026-08-03 15:37 UTC
+**Type:** SPEC_REQUEST
+**Priority:** MEDIUM
+
+### Description
+
+Testing status update.
+
+### Status
+
+**COMPLETED**

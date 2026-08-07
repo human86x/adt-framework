@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "schema_version": 2,
   "domains": {
     "health_and_fitness": {
       "title": "Personal Health & Fitness Tracking",
@@ -8,7 +9,7 @@
         "fitness",
         "calories",
         "biometric",
-        "vitals"
+        "heart rate"
       ],
       "baseline_rr_ids": [
         "RR-012",
@@ -17,6 +18,13 @@
       "mandatory_standards": [
         "ISO-IEC-42001-2023",
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "cardio",
+        "workout",
+        "nutrition",
+        "steps",
+        "wearable"
       ]
     },
     "payment_processing": {
@@ -35,6 +43,13 @@
       "mandatory_standards": [
         "COBIT-2019",
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "invoice",
+        "subscription",
+        "PCI",
+        "refund",
+        "paypal"
       ]
     },
     "personal_data_storage": {
@@ -62,6 +77,13 @@
       "mandatory_standards": [
         "GDPR",
         "ISO-IEC-42001-2023"
+      ],
+      "NO_MATCH_HINT": [
+        "vault",
+        "storage",
+        "sync",
+        "backup",
+        "session"
       ]
     },
     "wellbeing_and_lifestyle": {
@@ -85,6 +107,13 @@
       "mandatory_standards": [
         "ISO-IEC-42001-2023",
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "mindfulness",
+        "yoga",
+        "meditation",
+        "self-care",
+        "gratitude"
       ]
     },
     "productivity_and_tasks": {
@@ -108,6 +137,13 @@
       "mandatory_standards": [
         "ITIL-4",
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "backlog",
+        "sprint",
+        "checklist",
+        "assignee",
+        "deadline"
       ]
     },
     "media_and_content": {
@@ -132,6 +168,13 @@
       ],
       "mandatory_standards": [
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "hls",
+        "dash",
+        "transcode",
+        "codec",
+        "album"
       ]
     },
     "education_and_learning": {
@@ -155,6 +198,13 @@
       ],
       "mandatory_standards": [
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "exam",
+        "assessment",
+        "grade",
+        "syllabus",
+        "MOOC"
       ]
     },
     "communication_and_messaging": {
@@ -178,6 +228,13 @@
       "mandatory_standards": [
         "GDPR",
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "IRC",
+        "matrix",
+        "xmpp",
+        "SMS",
+        "attachment"
       ]
     },
     "developer_tools": {
@@ -199,6 +256,13 @@
       ],
       "mandatory_standards": [
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "git",
+        "CI",
+        "CD",
+        "pipeline",
+        "IDE"
       ]
     },
     "networking_and_monitoring": {
@@ -221,6 +285,13 @@
       ],
       "mandatory_standards": [
         "COBIT-2019"
+      ],
+      "NO_MATCH_HINT": [
+        "prometheus",
+        "grafana",
+        "SNMP",
+        "syslog",
+        "telemetry"
       ]
     },
     "gaming_and_entertainment": {
@@ -240,6 +311,13 @@
       ],
       "mandatory_standards": [
         "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "leaderboard",
+        "gamification",
+        "npc",
+        "quest",
+        "achievement"
       ]
     },
     "iot_and_embedded": {
@@ -252,8 +330,6 @@
         "device",
         "GPIO",
         "temperature",
-        "camera",
-        "webcam",
         "microcontroller"
       ],
       "baseline_rr_ids": [
@@ -262,6 +338,13 @@
       ],
       "mandatory_standards": [
         "ISO-IEC-42001-2023"
+      ],
+      "NO_MATCH_HINT": [
+        "MQTT",
+        "LoRa",
+        "zigbee",
+        "esp32",
+        "firmware"
       ]
     },
     "financial_personal": {
@@ -285,6 +368,13 @@
       "mandatory_standards": [
         "GDPR",
         "COBIT-2019"
+      ],
+      "NO_MATCH_HINT": [
+        "portfolio",
+        "receipt",
+        "categorise",
+        "tax",
+        "ledger"
       ]
     },
     "location_and_maps": {
@@ -305,6 +395,431 @@
       ],
       "mandatory_standards": [
         "GDPR"
+      ],
+      "NO_MATCH_HINT": [
+        "leaflet",
+        "openstreetmap",
+        "mapbox",
+        "geofence",
+        "geojson"
+      ]
+    },
+    "3d_graphics_visualisation": {
+      "title": "3D Graphics, WebGL & Real-Time Visualisation",
+      "keywords": [
+        "three.js",
+        "threejs",
+        "webgl",
+        "opengl",
+        "gltf",
+        "mesh",
+        "scene",
+        "camera",
+        "renderer",
+        "shader",
+        "material",
+        "texture",
+        "orbital",
+        "planet",
+        "star",
+        "solar",
+        "visualisation",
+        "visualization",
+        "3d",
+        "rendering"
+      ],
+      "baseline_rr_ids": [
+        "RR-013",
+        "RR-021"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "babylon.js",
+        "wgpu",
+        "ray tracing",
+        "point cloud",
+        "voxel"
+      ]
+    },
+    "educational_content": {
+      "title": "Educational Content, Curriculum & Edutainment",
+      "keywords": [
+        "educational",
+        "learning",
+        "teach",
+        "student",
+        "curriculum",
+        "tutorial",
+        "museum",
+        "science",
+        "edutainment",
+        "kids",
+        "classroom",
+        "learners",
+        "learner",
+        "educators"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-015",
+        "RR-020"
+      ],
+      "mandatory_standards": [
+        "UNESCO-AI-2021",
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "STEM",
+        "K-12",
+        "pedagogy",
+        "explainer",
+        "worksheet"
+      ]
+    },
+    "accessibility": {
+      "title": "Accessibility (WCAG / ARIA / Inclusive Design)",
+      "keywords": [
+        "accessible",
+        "accessibility",
+        "wcag",
+        "aria",
+        "screen reader",
+        "contrast",
+        "keyboard",
+        "semantic",
+        "alt text",
+        "tab order",
+        "a11y",
+        "inclusive"
+      ],
+      "baseline_rr_ids": [
+        "RR-006",
+        "RR-020"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "focus ring",
+        "landmark",
+        "role attribute",
+        "assistive tech",
+        "text-to-speech"
+      ]
+    },
+    "web_camera_and_media": {
+      "title": "Web Camera, Media Capture & Real-Time Video",
+      "keywords": [
+        "camera",
+        "webcam",
+        "getusermedia",
+        "mediastream",
+        "video",
+        "capture",
+        "hand tracking",
+        "hand-tracking",
+        "gesture",
+        "mediapipe",
+        "opencv",
+        "microphone",
+        "eyetoy"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-012"
+      ],
+      "mandatory_standards": [
+        "GDPR",
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "WebRTC",
+        "canvas capture",
+        "screen share",
+        "pose estimation",
+        "face detection"
+      ]
+    },
+    "augmented_reality": {
+      "title": "Augmented Reality & WebXR",
+      "keywords": [
+        "ar",
+        "marker",
+        "fiducial",
+        "aruco",
+        "apriltag",
+        "mindar",
+        "ar.js",
+        "webxr",
+        "slam",
+        "arkit",
+        "arcore",
+        "vio",
+        "gyroscope",
+        "imu",
+        "sensor fusion",
+        "augmented"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-013",
+        "RR-021"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "8thwall",
+        "zappar",
+        "spatial anchor",
+        "occlusion",
+        "world tracking"
+      ]
+    },
+    "privacy_and_consent": {
+      "title": "Privacy, Consent & GDPR",
+      "keywords": [
+        "gdpr",
+        "consent",
+        "cookie",
+        "tracker",
+        "telemetry",
+        "personal data",
+        "pii",
+        "data protection",
+        "offline-only",
+        "opt-in",
+        "opt-out"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-012",
+        "RR-017"
+      ],
+      "mandatory_standards": [
+        "GDPR",
+        "EU-AI-ACT-2024",
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "CCPA",
+        "HIPAA",
+        "anonymisation",
+        "pseudonymisation",
+        "data minimisation"
+      ]
+    },
+    "web_performance": {
+      "title": "Web Performance & Core Web Vitals",
+      "keywords": [
+        "performance",
+        "fps",
+        "frame rate",
+        "lcp",
+        "cls",
+        "inp",
+        "ttfb",
+        "web vitals",
+        "lighthouse",
+        "budget",
+        "smooth"
+      ],
+      "baseline_rr_ids": [
+        "RR-021"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "TTI",
+        "FCP",
+        "code splitting",
+        "lazy load",
+        "preload"
+      ]
+    },
+    "web_security": {
+      "title": "Web Security & Application Hardening",
+      "keywords": [
+        "https",
+        "csp",
+        "cors",
+        "xss",
+        "sanitise",
+        "sanitize",
+        "escape",
+        "owasp",
+        "permission",
+        "sandbox",
+        "csrf"
+      ],
+      "baseline_rr_ids": [
+        "RR-007",
+        "RR-013",
+        "RR-018"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "SRI",
+        "clickjacking",
+        "HSTS",
+        "trusted types",
+        "supply chain"
+      ]
+    },
+    "licensing_and_metadata": {
+      "title": "Licensing, Attribution & SPDX Metadata",
+      "keywords": [
+        "license",
+        "licence",
+        "mit",
+        "gpl",
+        "apache",
+        "spdx",
+        "attribution",
+        "copyright",
+        "notice",
+        "credit",
+        "public domain",
+        "creative commons",
+        "osi"
+      ],
+      "baseline_rr_ids": [
+        "RR-020"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "REUSE",
+        "SBOM",
+        "third-party",
+        "notice file",
+        "author"
+      ]
+    },
+    "data_formats_and_i18n": {
+      "title": "Data Formats, JSON Schema & Internationalisation",
+      "keywords": [
+        "json",
+        "json schema",
+        "yaml",
+        "csv",
+        "xml",
+        "unicode",
+        "utf-8",
+        "i18n",
+        "localisation",
+        "localization",
+        "rfc 8259",
+        "iso 8601",
+        "schema"
+      ],
+      "baseline_rr_ids": [
+        "RR-013",
+        "RR-020"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "ICU",
+        "gettext",
+        "RTL",
+        "translation",
+        "locale"
+      ]
+    },
+    "productivity_tasks_and_notes": {
+      "title": "Notes, Journalling & Personal Information Management",
+      "keywords": [
+        "note",
+        "notes",
+        "notebook",
+        "todo",
+        "kanban",
+        "tag",
+        "search",
+        "markdown",
+        "journal",
+        "pim",
+        "outline",
+        "backlink"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-015"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "zettelkasten",
+        "wiki",
+        "graph view",
+        "daily note",
+        "second brain"
+      ]
+    },
+    "games_and_interactive": {
+      "title": "Interactive Games & Real-Time Simulation",
+      "keywords": [
+        "game",
+        "score",
+        "level",
+        "player",
+        "sprite",
+        "animation",
+        "physics",
+        "collision",
+        "gameplay",
+        "interactive"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-021"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "ecs",
+        "tile map",
+        "state machine",
+        "phaser",
+        "pixi"
+      ]
+    },
+    "local_first_and_offline": {
+      "title": "Local-First & Offline-Capable Apps",
+      "keywords": [
+        "offline",
+        "pwa",
+        "service worker",
+        "indexeddb",
+        "localstorage",
+        "sync",
+        "local-first",
+        "cache",
+        "manifest"
+      ],
+      "baseline_rr_ids": [
+        "RR-008",
+        "RR-013"
+      ],
+      "mandatory_standards": [
+        "COMPANY-CODEX"
+      ],
+      "NO_MATCH_HINT": [
+        "CRDT",
+        "sqlite",
+        "app shell",
+        "workbox",
+        "background sync"
       ]
     }
   }

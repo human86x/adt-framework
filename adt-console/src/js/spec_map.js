@@ -38,8 +38,13 @@ window.SpecMap.bindEventHandlers = function(cy) {
         menu.style.display = 'none';
         const action = this.getAttribute('data-action');
         const centerUrl = window.SpecMap.getCenterUrl();
+        const _proj = (window.SpecMap.state && window.SpecMap.state.currentProject) || '';
+        if (!_proj) {
+          if (window.ToastManager) window.ToastManager.show('denial', 'No Project', 'Cannot dispatch: no active project');
+          return;
+        }
         if (action === 'build' || action === 'redispatch') {
-          fetch(`${centerUrl}/api/governance/specs/${specId}/build`, {
+          fetch(`${centerUrl}/api/governance/specs/${specId}/build?project=${encodeURIComponent(_proj)}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -874,7 +879,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
           const centerUrl = window.SpecMap.getCenterUrl();
-          fetch(`${centerUrl}/api/governance/specs/${specId}/build`, {
+          const _proj = (window.SpecMap.state && window.SpecMap.state.currentProject) || '';
+          if (!_proj) {
+            if (window.ToastManager) window.ToastManager.show('denial', 'No Project', 'Cannot dispatch: no active project');
+            return;
+          }
+          fetch(`${centerUrl}/api/governance/specs/${specId}/build?project=${encodeURIComponent(_proj)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ triggered_by: 'console_dispatch', harness: 'claude', target_task_id: taskId })
@@ -1047,7 +1057,13 @@ window.SpecMap.handleApprove = function() {
     btnApprove.disabled = true;
     btnApprove.textContent = 'Approving...';
   }
-  fetch(`${window.SpecMap.getCenterUrl()}/api/specs/${encodeURIComponent(specId)}/status`, {
+  const _proj = (window.SpecMap.state && window.SpecMap.state.currentProject) || '';
+  if (!_proj) {
+    if (window.ToastManager) window.ToastManager.show('denial', 'No Project', 'Cannot approve: no active project');
+    if (btnApprove) { btnApprove.disabled = false; btnApprove.textContent = 'Approve'; }
+    return;
+  }
+  fetch(`${window.SpecMap.getCenterUrl()}/api/specs/${encodeURIComponent(specId)}/status?project=${encodeURIComponent(_proj)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: 'APPROVED' })
@@ -1129,6 +1145,29 @@ window.SpecMap.handleBuild = async function() {
      return res.json();
   })
   .then(data => {
+    // REQ-124 hardening: the server can return HTTP 200/201 but with `auth_broken_block: true`
+    // when agy's OAuth has expired. Previously this fell through the "success" path,
+    // called showBuildProgress(undefined) and looked to the operator like Build did NOTHING.
+    // Now: detect the specific block, surface a red modal with a Re-auth CTA, restore the button.
+    if (data && data.auth_broken_block === true) {
+      const msg = data.error || 'agy authentication is broken — no workers can spawn.';
+      if (window.ToastManager) window.ToastManager.show('denial', 'agy auth expired', msg + ' Run `agy models` in a terminal, complete the OAuth flow, then retry Build.');
+      window.SpecMap.updateBuildStrip({ state: 'blocked', wave: '-', elapsed: '-', progress: 0 });
+      _restoreBuildBtn('Build (agy auth expired — re-auth then retry)');
+      // Also render a persistent banner card in the canvas so operators can't miss it.
+      const canvas = document.getElementById('spec-map-canvas');
+      if (canvas) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:#7a1f1f;border:1px solid #f85149;color:#fff;padding:14px 20px;border-radius:8px;font-size:13px;max-width:600px;box-shadow:0 8px 32px rgba(0,0,0,0.6)';
+        banner.innerHTML = `<b>agy auth expired.</b><br>${msg}<br><br>` +
+          `<code style="background:#000;padding:6px 10px;border-radius:4px;user-select:all">agy models</code> ` +
+          `<span style="opacity:0.8;font-size:12px">(run this in your terminal, complete OAuth, then retry Build)</span>` +
+          `<button style="float:right;background:#f85149;border:none;color:#fff;padding:6px 12px;border-radius:4px;cursor:pointer;margin-left:8px" onclick="this.parentNode.remove()">Dismiss</button>`;
+        canvas.style.position = 'relative';
+        canvas.appendChild(banner);
+      }
+      return;
+    }
     if(window.ToastManager) window.ToastManager.show('info', 'Build Dispatched', `Queued build for ${specId}`);
     window.SpecMap.updateBuildStrip({
       state: 'dispatched',
@@ -1817,6 +1856,13 @@ window.SpecMap.populateSelector = function() {
   if (!sel) return Promise.resolve();
   // Try the SPEC-050 registry endpoint first; fall back to a simpler one.
   const _proj = (window.SpecMap.state && window.SpecMap.state.currentProject) || 'adt-framework';
+  // REQ-124/125: clear the dropdown IMMEDIATELY with a loading placeholder so the
+  // operator never sees stale specs from the previously-active project while the
+  // new project's spec list is being fetched. Previously the old specs stayed
+  // visible for the ~200-450ms fetch, which made project-switch look broken
+  // (e.g. "I picked solar_system but the dropdown shows 89 adt-framework specs").
+  sel.innerHTML = `<option value="">Loading specs for ${_proj}...</option>`;
+  sel.disabled = true;
   return fetch(`${window.SpecMap.getCenterUrl()}/api/governance/specs?project=${encodeURIComponent(_proj)}`)
     .then(r => r.ok ? r.json() : Promise.reject('specs endpoint failed'))
     .then(data => {
@@ -1828,9 +1874,20 @@ window.SpecMap.populateSelector = function() {
         Object.keys(specs).forEach(id => items.push({id, title: (specs[id] && specs[id].title) || '', status: (specs[id] && specs[id].status) || ''}));
       }
 
-      items.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+      // REQ-124: hide the Vision spec (SPEC-001 with title === "Vision") from the
+      // actionable selector. Vision specs are documents (produced by the forge
+      // Architect Phase A), not decomposable/buildable work items. Showing them
+      // alongside child specs with a "Build" affordance confuses operators into
+      // trying to decompose or build a metadata artefact. Non-forged projects
+      // whose SPEC-001 has a different title (e.g. adt-framework's "ADT Framework
+      // Repository") are unaffected — this filter keys strictly on title === "Vision".
+      const isVision = s => (s.id === 'SPEC-001') && ((s.title || '').trim().toLowerCase() === 'vision');
+      const filtered = items.filter(s => !isVision(s));
+
+      filtered.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
       sel.innerHTML = '<option value="">Select a Spec...</option>' +
-        items.map(s => `<option value="${s.id}">${s.id} - ${s.title}</option>`).join('');
+        filtered.map(s => `<option value="${s.id}">${s.id} - ${s.title}</option>`).join('');
+      sel.disabled = false;
       // SPEC-062 Amendment D fix: preserve current selection after option rebuild
       // so polling-driven re-population doesn't visually reset the dropdown.
       if (window.SpecMap.state && window.SpecMap.state.currentSpecId) {
@@ -1840,6 +1897,7 @@ window.SpecMap.populateSelector = function() {
     .catch(err => {
       console.warn('SpecMap: spec list fetch failed', err);
       sel.innerHTML = '<option value="">No specs available</option>';
+      sel.disabled = false;
     });
 };
 
@@ -1887,39 +1945,24 @@ window.SpecMap.fetchAndRender = function(specId) {
   const base = window.SpecMap.getCenterUrl();
 
   function _tryFetch(projectName) {
-    const url = projectName
-      ? `${base}/api/specs/${encodeURIComponent(specId)}/task_graph?project=${encodeURIComponent(projectName)}`
-      : `${base}/api/specs/${encodeURIComponent(specId)}/task_graph`;
+    if (!projectName) {
+      return Promise.reject('no_active_project');
+    }
+    const url = `${base}/api/specs/${encodeURIComponent(specId)}/task_graph?project=${encodeURIComponent(projectName)}`;
     return fetch(url).then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`));
   }
 
   return _tryFetch(proj)
     .then(graph => {
-      // Self-heal: if the spec has zero nodes AND no intent in current project,
-      // it probably lives in a different project. Try across all known projects.
-      const isEmpty = (graph.nodes || []).length === 0 && !graph.spec_intent;
-      if (!isEmpty) return graph;
-      // Probe /api/projects for any project that actually has this spec populated.
-      return fetch(`${base}/api/projects`).then(r => r.ok ? r.json() : {}).then(projs => {
-        const candidates = Object.keys(projs || {}).filter(n => n !== proj);
-        // Sort: put adt-framework first as the most common owner
-        candidates.sort((a, b) => (b === 'adt-framework') - (a === 'adt-framework'));
-        function tryNext(i) {
-          if (i >= candidates.length) return graph; // give up, use empty
-          return _tryFetch(candidates[i]).then(g => {
-            if ((g.nodes || []).length > 0 || g.spec_intent) {
-              // Found it! Auto-switch the project.
-              window.SpecMap.state.currentProject = candidates[i];
-              try { localStorage.setItem('adt_spec_map_project', candidates[i]); } catch(_) {}
-              if (window.ToastManager) window.ToastManager.show('info', 'Auto-switched project',
-                `${specId} is in ${candidates[i]}, switched from ${proj}`);
-              return g;
-            }
-            return tryNext(i + 1);
-          }).catch(() => tryNext(i + 1));
-        }
-        return tryNext(0);
-      });
+      // REQ-124: silent cross-project auto-switch removed. Its previous behaviour
+      // (walk all projects on empty response, silently mutate currentProject if any
+      // other project has a spec with the same ID) was a demo-breaking trap:
+      // adt-framework has SPEC-001..SPEC-101, so ANY empty response for a forged
+      // project's SPEC-002/003/etc would silently jump the operator to adt-framework.
+      // The empty state is now honest — if a spec is empty in the current project,
+      // the "Decompose Now" card is the correct CTA. Cross-project spec search, if
+      // ever needed, must be an EXPLICIT operator action, not a passive redirect.
+      return graph;
     })
     .then(graph => {
       // Cheap change detection so polling does not redraw identical state.
@@ -1957,6 +2000,20 @@ window.SpecMap.render = function(graph) {
     if (window.SpecMap.state.cy) {
       try { window.SpecMap.state.cy.destroy(); } catch(_) {}
       window.SpecMap.state.cy = null;
+    }
+    // REQ-124: Vision specs are documents (produced by forge Phase A), not decomposable
+    // work items. Never show the "Decompose Now" affordance for them, even if someone
+    // navigates here programmatically (e.g. via URL or from an outdated bookmark).
+    const _isVisionSpec = (graph.spec_id === 'SPEC-001') && ((graph.spec_title || '').trim().toLowerCase() === 'vision');
+    if (_isVisionSpec) {
+      canvas.innerHTML = `
+        <div class="empty-spec-card">
+          <div class="esc-title">${graph.spec_id || ''}</div>
+          <div class="esc-subtitle">${(graph.spec_title || '').replace(/</g, '&lt;')}</div>
+          <div class="esc-intent">${(graph.spec_intent || '').replace(/</g, '&lt;') || 'The Vision spec is a document that describes the project goal, users, scope, success criteria, constraints, and standards inherited from the MRR classifier at forge time.'}</div>
+          <div class="esc-status" style="color:var(--text-muted);font-style:italic">Vision is read-only — not decomposable. Select a child spec (SPEC-002+) from the dropdown to see or build its tasks.</div>
+        </div>`;
+      return;
     }
     canvas.innerHTML = `
       <div class="empty-spec-card">

@@ -13,6 +13,24 @@ const ProjectLauncher = (() => {
   let _opening = false;
   let forgeData = {};
   let forgePollInterval = null;
+  // REQ-111 (SPEC-079 §7): live standards recommendations panel poller.
+  // Polls /api/ads/events every 1s during the ~35s classifier run so the
+  // operator sees matched_domains + suggested_rr_ids chips appear as they
+  // are computed, not after the forge finishes. Cleared alongside
+  // forgePollInterval on wizard close / forge complete / forge failed.
+  let standardsPollInterval = null;
+  let standardsSeenEventIds = new Set();
+
+  // SPEC-080 / REQ-123: Framework Standards Catalog snapshot, fetched from
+  // /api/mrr/library_stats on Forge Wizard open. Cached for the wizard's
+  // lifetime — the catalog only changes when the framework's rationalised
+  // rules or intent index change, so a per-wizard cache is plenty. Reset to
+  // null in openForgeWizard() so a fresh open always re-fetches (picks up
+  // catalog edits between forges without a full app reload).
+  let _forgeCatalog = null;              // parsed payload once loaded
+  let _forgeCatalogLoading = false;      // dedupes concurrent fetches
+  let _forgeCatalogError = false;        // sticky failure flag for this session
+  let _forgeCatalogExpanded = false;     // strip UI state (Screen-1 + progress)
 
   // Resolved from /api/system/info on first use — avoids hardcoding /home/human/
   let _serverHome = null;
@@ -451,6 +469,7 @@ const ProjectLauncher = (() => {
 
   function closeWizard() {
     if (forgePollInterval) { clearInterval(forgePollInterval); forgePollInterval = null; }
+    if (standardsPollInterval) { clearInterval(standardsPollInterval); standardsPollInterval = null; }
     if (currentWizard) {
       currentWizard.modal.remove();
       currentWizard.backdrop.remove();
@@ -507,9 +526,144 @@ const ProjectLauncher = (() => {
     _opening = true;
     try {
       forgeData = {};
+      // SPEC-080 / REQ-123: reset the catalog cache so a re-opened wizard
+      // re-fetches (catches any newly-adopted RRs / added intent domains).
+      _forgeCatalog = null;
+      _forgeCatalogLoading = false;
+      _forgeCatalogError = false;
+      _forgeCatalogExpanded = false;
+      fetchForgeCatalog();  // fire-and-forget; renderForgeCatalogStrip() reads _forgeCatalog when it resolves
       showForgeScreen1();
     } finally {
       _opening = false;
+    }
+  }
+
+  // SPEC-080 / REQ-123: fetch the framework standards catalog snapshot.
+  // Non-fatal on failure — the strip degrades to "(unavailable)" but never
+  // blocks the forge. Concurrent calls are deduped.
+  async function fetchForgeCatalog() {
+    if (_forgeCatalog || _forgeCatalogLoading) return _forgeCatalog;
+    _forgeCatalogLoading = true;
+    const base = (window.SpecMap && window.SpecMap.getCenterUrl && window.SpecMap.getCenterUrl())
+              || getCenterUrl();
+    try {
+      const r = await fetch(`${base}/api/mrr/library_stats`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      _forgeCatalog = await r.json();
+      _forgeCatalogError = false;
+    } catch (_) {
+      _forgeCatalogError = true;
+      _forgeCatalog = null;
+    } finally {
+      _forgeCatalogLoading = false;
+      // Re-render whichever strip container is currently on-screen (Screen-1
+      // or forge-progress). Both use the same container id.
+      renderForgeCatalogStrip();
+    }
+    return _forgeCatalog;
+  }
+
+  // SPEC-080 / REQ-123: render the catalog strip into #forge-catalog-strip.
+  // Called on Screen-1 mount, on fetch resolve, and on user click. `phase`
+  // controls the header text: "catalog" (Screen-1), "analyzing" (forge in
+  // flight, no MRR event yet), "matched" (MRR completed).
+  function renderForgeCatalogStrip(phase) {
+    const el = document.getElementById("forge-catalog-strip");
+    if (!el) return;
+    phase = phase || el.dataset.phase || "catalog";
+    el.dataset.phase = phase;
+
+    // Header line variants
+    let header = "";
+    if (_forgeCatalogError) {
+      header = `<span style="color:#8b949e">📚 Framework Standards Catalog: <em>(unavailable)</em></span>`;
+    } else if (!_forgeCatalog) {
+      header = `<span style="color:#8b949e">📚 Loading catalog…</span>`;
+    } else if (phase === "analyzing") {
+      header = `<span style="color:#c9d1d9">🔍 Analyzing your wish against ${_forgeCatalog.standards_count} standards and ${_forgeCatalog.domains_count} domains...</span>`;
+    } else if (phase === "matched") {
+      const nDoms = (forgeData.matchedDomains || []).length;
+      const nRRs = (forgeData.suggestedRRs || []).length;
+      header = `<span style="color:#3fb950">✓</span> <span style="color:#c9d1d9">Matched ${nDoms} domain${nDoms===1?'':'s'}, suggesting ${nRRs} standard${nRRs===1?'':'s'}</span>`;
+    } else {
+      header = `<span style="color:#c9d1d9">📚 Framework Standards Catalog: ${_forgeCatalog.standards_count} rules across ${_forgeCatalog.domains_count} domains</span>`;
+    }
+
+    // Toggle button — only shown when we have data (catalog or matched result).
+    const canExpand = !!_forgeCatalog && !_forgeCatalogError;
+    const toggleLabel = _forgeCatalogExpanded ? "▲ collapse" : "▼ expand";
+    const toggleBtn = canExpand
+      ? `<button type="button" id="forge-catalog-toggle" style="background:transparent;border:none;color:#58a6ff;cursor:pointer;font-size:11px;padding:0;margin-left:8px">${toggleLabel}</button>`
+      : "";
+
+    // Expanded panel — two columns: standards + domains (or matched-domains + suggested RRs).
+    let panel = "";
+    if (_forgeCatalogExpanded && canExpand) {
+      let leftTitle, leftItems, rightTitle, rightItems;
+      if (phase === "matched") {
+        // Repurposed view: matched domains + suggested RRs from forgeData.
+        const doms = forgeData.matchedDomains || [];
+        const rrs = forgeData.suggestedRRs || [];
+        const rrTitles = forgeData.rrTitles || {};
+        leftTitle = `Matched Domains (${doms.length})`;
+        leftItems = doms.length
+          ? doms.map(d => {
+              const conf = (forgeData.domainConfidence && forgeData.domainConfidence[d]);
+              const pct = conf != null ? `${Math.round(conf*100)}%` : '';
+              return `<div style="padding:3px 6px;font-size:11px;color:#a5d6ff;border-bottom:1px solid #21262d"><b>${d.replace(/</g,'&lt;')}</b> <span style="color:#8b949e;float:right">${pct}</span></div>`;
+            }).join("")
+          : `<div style="padding:6px;color:#8b949e;font-size:11px">(none)</div>`;
+        rightTitle = `Suggested Standards (${rrs.length})`;
+        rightItems = rrs.length
+          ? rrs.map(rr => {
+              const t = rrTitles[rr] || "";
+              return `<div style="padding:3px 6px;font-size:11px;color:#c9d1d9;border-bottom:1px solid #21262d"><b style="color:#58a6ff">${rr}</b> ${t.replace(/</g,'&lt;')}</div>`;
+            }).join("")
+          : `<div style="padding:6px;color:#8b949e;font-size:11px">(none)</div>`;
+      } else {
+        // Static catalog view: all standards + all domains.
+        const stds = _forgeCatalog.standards || [];
+        const doms = _forgeCatalog.domains || [];
+        leftTitle = `Standards (${stds.length})`;
+        leftItems = stds.map(s => {
+          const tierBadge = s.tier ? ` <span style="color:#8b949e;font-size:10px">[${String(s.tier).replace(/</g,'&lt;')}]</span>` : "";
+          return `<div style="padding:3px 6px;font-size:11px;color:#c9d1d9;border-bottom:1px solid #21262d"><b style="color:#58a6ff">${(s.id||'').replace(/</g,'&lt;')}</b>${tierBadge} ${(s.title||'').replace(/</g,'&lt;')}</div>`;
+        }).join("");
+        rightTitle = `Domains (${doms.length})`;
+        rightItems = doms.map(d => {
+          const rrs = (d.baseline_rr_ids || []).join(", ");
+          return `<div style="padding:3px 6px;font-size:11px;color:#c9d1d9;border-bottom:1px solid #21262d"><b>${(d.name||'').replace(/</g,'&lt;')}</b> <span style="color:#8b949e">· ${d.keyword_count} kw</span>${rrs?` <span style="color:#8b949e">· ${rrs.replace(/</g,'&lt;')}</span>`:''}</div>`;
+        }).join("");
+      }
+      panel = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;max-height:220px">
+          <div style="border:1px solid #30363d;border-radius:4px;background:#0d1117;overflow-y:auto;max-height:220px">
+            <div style="padding:4px 6px;font-size:10px;color:#8b949e;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0">${leftTitle}</div>
+            ${leftItems}
+          </div>
+          <div style="border:1px solid #30363d;border-radius:4px;background:#0d1117;overflow-y:auto;max-height:220px">
+            <div style="padding:4px 6px;font-size:10px;color:#8b949e;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0">${rightTitle}</div>
+            ${rightItems}
+          </div>
+        </div>
+      `;
+    }
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;font-size:12px">
+        ${header}
+        ${toggleBtn}
+      </div>
+      ${panel}
+    `;
+
+    const btn = document.getElementById("forge-catalog-toggle");
+    if (btn) {
+      btn.onclick = () => {
+        _forgeCatalogExpanded = !_forgeCatalogExpanded;
+        renderForgeCatalogStrip(phase);
+      };
     }
   }
 
@@ -522,6 +676,34 @@ const ProjectLauncher = (() => {
       success: "Player launches the app, sees their hand silhouette overlaid on the play area, and can bat a virtual ball that bounces off screen edges and off the hand silhouette. Score counter increments per hit.",
       out: "No multiplayer. No cloud sync. No mobile/tablet. No microphone or audio input.",
       constraints: "Must run on Linux laptop with built-in webcam, no dedicated GPU required. Browser-based or Electron/Tauri local app. Pure local -- no external API calls."
+    },
+    {
+      label: "🪐 Camera-Navigated 3D Solar System",
+      slug: "solar_system",
+      wish: `A browser-based educational 3D visualisation of our solar system that runs entirely offline. The Sun sits at the centre, the 8 major planets orbit at log-compressed but visually pleasing distances, and Earth's Moon orbits Earth. Each planet uses a bundled high-resolution equirectangular texture. Planets rotate on their axes and orbit the Sun at reasonable relative speeds -- not physically accurate to true Kepler mechanics but faithful to relative ordering.
+
+Navigation is by webcam-tracked hand movement, the same pattern as the EyeToy template already in this catalog. The user waves or moves their hand in front of the built-in laptop webcam and the camera pans smoothly through space -- move hand left, camera pans left; move hand up, camera pitches up. A soft on-screen indicator shows where the hand is being tracked. No keyboard, no mouse required for navigation; a mouse click is only needed for planet selection.
+
+Clicking any planet triggers a smooth cinematic fly-to camera transition (~2 seconds) that frames the planet, then opens a fact card displaying real-world data: name, distance from Sun (in km and AU -- real values, not the log-compressed rendered values), diameter, day length, year length, moons, and 2-3 notable facts. Clicking a "Return" button zooms the camera back out to the whole-system view.
+
+The catalog of facts is a hardcoded JSON file bundled with the app -- no NASA API calls, no external dependencies at runtime, works entirely offline.`,
+      users: "Students, educators, curious learners, families, and museum-style installations -- anyone who wants an intuitive visual grasp of planetary scale, ordering, and basic facts without installing an app.",
+      success: "User opens the app, sees the Sun plus the 8 planets plus Earth's Moon rendered in Three.js with orbital motion. Waving their hand in front of the webcam smoothly pans the camera through space (EyeToy pattern). Clicking Mars triggers a ~2-second fly-to transition; the camera frames Mars and a fact card appears showing distance-from-Sun in km + AU, diameter, day/year length, moon count, and notable facts (all from bundled JSON, no fetch). Clicking Return zooms back out. Works fully offline after first load. Frame rate stays smooth (>=30fps) on a mid-range 2020 laptop.",
+      out: "No true-scale physics -- true scaling would make Neptune invisible or the Sun a screen-filling disc. Log-compressed distances are honoured with real numbers shown in the fact card so the education stays honest. No exoplanets. No spacecraft, satellites, or missions. No VR / AR mode. No multi-user, accounts, leaderboards, or progress tracking. No NASA API, no runtime fetches -- all art assets and facts bundled at build time. No audio / ambient soundtrack in v1 (video producer can add in post if desired). No mobile support required for v1 (nice-to-have but not blocking).",
+      constraints: "Browser-based single-page app. Rendering: Three.js (bundled or via ES module). Camera navigation: MediaPipe Hands (or equivalent JS hand-tracker) via getUserMedia; same tracking pattern as the EyeToy template already in this codebase -- reuse conventions where possible. Textures: bundled equirectangular JPGs sourced from NASA / JPL / ESO public-domain releases; a NOTICE.md file must credit sources. Facts: hardcoded JSON at src/planet_facts.json -- 8 planets + Sun + Moon + real distances / diameters / day / year lengths / moon counts / 2-3 notable facts per body. Distance scale: log-compressed (e.g. rendered_distance = k1 * log(1 + real_AU * k2)) so Neptune is visible without dwarfing inner planets; document the exact function in a comment. Fact cards display REAL numbers not rendered numbers. Fly-to camera transitions use Three.js quaternion slerp + eased position interpolation, ~2 second duration. Must serve over HTTPS for camera access -- dev flow uses mkcert or a documented self-signed cert setup. Runs on desktop Chrome, Firefox, and Safari (latest). Frame rate target >=30fps on mid-range hardware; if hand-tracking is expensive, run tracker at 15fps and interpolate. Fully offline after first load -- no runtime network calls."
+    },
+    {
+      label: "🖼️ AR Art Placement Preview",
+      slug: "ar_art_preview",
+      wish: `A mobile-first web app that lets people preview art pieces (paintings, framed prints, vases, statuettes) in their own home before buying. The user prints a paper fiducial marker provided by the app, places it on a wall or shelf where a piece would go, and points their phone camera at the marker. The app renders the digitised art piece anchored to the marker at correct real-world scale so the user can walk around and see how the piece fits -- scale, style, perspective.
+
+Critically, tracking must be robust and stable. The marker is designed to be detected from a distance and at varied angles (a multi-fiducial board or natural-feature-tracking target, not a single fragile square that only works head-on). Once the marker is initially locked, the app fuses camera-based tracking with the phone's gyroscope: if the camera briefly loses sight of the marker, the rendered piece stays put where it was placed rather than jumping, flickering, or disappearing. The user can turn the phone or briefly step away and the art remains anchored to the real wall; when the marker re-enters view, the pose snaps back smoothly rather than teleporting.
+
+Art is represented either as a textured plane derived from a single photo (paintings / framed prints with real-world dimensions supplied by the user in centimetres) or from a supplied 3D model file (GLB / OBJ, for vases and statuettes). The catalog ships with 3 sample pieces -- one painting, one vase, one statuette -- so the demo works immediately out of the box. Users can add their own by uploading a photo plus dimensions, or a GLB file.`,
+      users: "Homeowners and interior-design-curious shoppers who want to visualise an art piece in their space before purchasing. Also small gallery / independent-artisan sellers who want to give buyers a low-effort preview tool without building a native app.",
+      success: "User loads the app on their phone over HTTPS, picks a sample painting from the catalog, prints (or displays on a second screen) the bundled fiducial marker at its intended real-world size, points the camera at the marker, and sees a correctly-scaled rendering appear anchored to the wall -- a 60cm-wide painting appears ~60cm wide relative to the marker. The user then walks around, turns the phone at moderate angles, or briefly points away from the marker, and the piece remains rock-steady in its placed position (no flicker, no jump, no drift beyond a small centimetre-scale nudge on re-acquisition). A printable marker PDF at a known real-world size is bundled with the app as a first-class deliverable.",
+      out: "No AR-headset support in v1 -- phone only. No photorealistic lighting or shadow estimation. No purchase / checkout flow. No account system. No photogrammetry pipeline: users supply either a photo + dimensions or a GLB, they do not scan real objects. No markerless (SLAM-only) tracking in v1 -- the marker is the authoritative anchor. No GPS-based positioning in v1 -- GPS accuracy (5-10 m outdoor, 20-50 m or no lock indoors) is 100-1000x coarser than the cm-scale anchor precision this indoor use case requires; fusing it in would destabilise, not stabilise, the pose. GPS is captured as a v2 open question for a possible outdoor-sculpture-placement mode. No extended translational dead-reckoning beyond the multi-sensor stability window described in constraints.",
+      constraints: "Browser-based. Must run on modern iOS Safari and Android Chrome using getUserMedia plus a marker-tracking library that supports iOS Safari without WebXR -- recommended: MindAR (Image / Multi-Target mode) or AR.js NFT (natural-feature tracking). The child spec owning tracking picks the exact library, but the pick MUST work on iOS Safari. No native app, no App Store. Must be served over HTTPS in both dev and production (bundled self-signed cert or a documented mkcert / ngrok flow) -- mobile browsers refuse camera access otherwise. The marker asset is a printable PDF bundled with the app at a fixed known real-world size (recommend A4 portrait with the pattern occupying a known cm-square). Real-world scale MUST be honoured -- rendered dimensions derive from the marker's known physical size, not from arbitrary Three.js units. Tracking must be a fused multi-sensor pipeline (VIO-lite). Primary anchor is the marker via camera; when the marker is in view, all other sensors are calibrated against it. When the marker leaves view: (a) rotation is maintained by gyroscope (DeviceOrientationEvent, ~100 Hz) with heading drift corrected by magnetometer (webkitCompassHeading on iOS, absolute:true DeviceOrientationEvent on Android); (b) translation is maintained by lightweight optical flow tracking non-marker features on the wall / floor (OpenCV.js feature tracker or equivalent lightweight JS implementation); (c) accelerometer double-integration (DeviceMotionEvent) bridges the first ~1 second while optical flow initialises. Combined, the piece must remain rock-steady for at least 8-10 seconds of marker-off-camera before drift becomes visible. On marker re-acquisition, smooth the pose delta over 200-500 ms -- no visible jump. Progressive enhancement: if navigator.xr with WebXR Hit Test is available (Android Chrome), use it as the primary translation source in place of optical flow for indefinite anchor stability; iOS transparently falls back to the multi-sensor stack. Explicitly do NOT use GPS -- see out-of-scope. Fully static / offline-capable -- no server-side AR processing; all art assets and marker PDFs served as static files."
     },
     {
       label: "🎨 Pixel Art Studio",
@@ -620,6 +802,13 @@ const ProjectLauncher = (() => {
     showWizard(`
       <h2>Forge Application (1/2)</h2>
       <p class="wiz-subtitle">Describe your vision. The Architect will formalize a specification and build the foundation autonomously.</p>
+      <!-- SPEC-080 / REQ-123: Framework Standards Catalog strip. Shown BEFORE
+           the wish textarea so the operator (and demo audience) sees the
+           framework has a real catalog before any matching happens. Also
+           repurposed on the forge-progress screen (see showForgeProgress). -->
+      <div id="forge-catalog-strip" data-phase="catalog" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 10px;margin-bottom:12px;color:#8b949e">
+        <span style="font-size:12px">📚 Loading catalog…</span>
+      </div>
       <div class="wizard-field">
         <label>What do you want to build? <span class="wiz-required">*</span></label>
         <textarea id="wiz-forge-wish" rows="4" placeholder="An eyetoy-style game where the onboard camera tracks the player's hands to move a virtual ball on screen.">` + (forgeData.wish || "") + `</textarea>
@@ -643,6 +832,13 @@ const ProjectLauncher = (() => {
         <button class="primary" id="btn-wiz-next">Next &rarr;</button>
       </div>
     `);
+    // SPEC-080 / REQ-123: render the catalog strip immediately (shows either
+    // "Loading catalog…" or, if fetchForgeCatalog resolved between
+    // openForgeWizard() and this DOM mount, the real counts).
+    renderForgeCatalogStrip("catalog");
+    // Re-fetch defensively — openForgeWizard already fired one, but a rapid
+    // re-render (e.g., wizard reopened after a stop) needs the retry.
+    if (!_forgeCatalog && !_forgeCatalogLoading) fetchForgeCatalog();
     document.getElementById("btn-wiz-cancel").onclick = closeWizard;
     document.getElementById("btn-wiz-next").onclick = () => {
       forgeData.wish = (document.getElementById("wiz-forge-wish").value || "").trim();
@@ -1101,7 +1297,7 @@ const ProjectLauncher = (() => {
   function showForgeGenesis() {
     showWizard(`
       <h2>${forgeData.projectName} — provisioning...</h2>
-      <p class="wiz-subtitle">The server is executing the forge steps below. This takes 5–15 seconds. Live worker log begins as soon as the Architect worker (agy) is spawned.</p>
+      <p class="wiz-subtitle">The server is executing the forge steps below. Duration depends on the model — <b>Claude Sonnet ≈ 1–3 min</b>, <b>Gemini Flash ≈ 5–15 min</b>, larger reasoning models longer. Watch the standards catalog above and the live worker log below for progress.</p>
 
       <div style="display:flex;align-items:center;gap:12px;margin:14px 0;padding:12px;background:#0d1117;border:1px solid #30363d;border-radius:6px">
         <div class="forge-spinner" style="width:20px;height:20px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
@@ -1150,6 +1346,30 @@ const ProjectLauncher = (() => {
       <h2>` + forgeData.projectName + ` forging...</h2>
       <p class="wiz-subtitle">The Architect is analyzing constraints and drafting specifications.</p>
 
+      <!-- SPEC-080 / REQ-123: same catalog strip as Screen 1, morphed into
+           "analyzing…" mode; renderStandardsResult() will flip it to
+           "matched" mode when the MRR event fires. -->
+      <div id="forge-catalog-strip" data-phase="analyzing" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 10px;margin-bottom:10px;color:#8b949e">
+        <span style="font-size:12px">🔍 Analyzing…</span>
+      </div>
+
+      <!-- REQ-111 (SPEC-079 §7): live Standards Recommendations panel.
+           Populated by pollStandardsStream() from ADS events during the
+           ~35s classifier run. Persists after the classifier finishes so the
+           operator sees the full recommendation set for the rest of the forge. -->
+      <div id="forge-standards-panel" style="margin-top:10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:10px">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span id="forge-standards-title">Standards Recommendations</span>
+          <span id="forge-standards-engine" style="color:#58a6ff;font-size:10px">Auto-Compliance Engine</span>
+        </div>
+        <div id="forge-standards-status" style="font-size:12px;color:#c9d1d9;display:flex;align-items:center;gap:8px">
+          <div class="forge-spinner" style="width:12px;height:12px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+          <span>&#x1F50D; Waiting for classifier to analyze your wish...</span>
+        </div>
+        <div id="forge-standards-domains" style="margin-top:6px;display:none;flex-wrap:wrap;gap:4px"></div>
+        <div id="forge-standards-rrs" style="margin-top:6px;display:none;flex-direction:column;gap:4px"></div>
+      </div>
+
       <div class="wizard-progress-container">
         <div class="wizard-progress-fill" id="forge-progress-bar" style="width: 5%"></div>
       </div>
@@ -1167,6 +1387,21 @@ const ProjectLauncher = (() => {
       </div>
     `);
     forgeData.startedAt = Date.now();
+    // REQ-111: reset per-forge classifier state and start the ADS event poller.
+    forgeData.suggestedRRs = [];
+    forgeData.matchedDomains = [];
+    forgeData.rrConfidence = {};
+    forgeData.classifierStartedTs = null;
+    forgeData.classifierCompletedTs = null;
+    standardsSeenEventIds = new Set();
+    // SPEC-080 / REQ-123: paint the strip in "analyzing" mode using the
+    // catalog counts fetched in Screen 1. If the catalog is still loading
+    // (edge case: operator flew through Screen 1 in <1s), the strip shows
+    // "Loading catalog…" until the fetch resolves.
+    _forgeCatalogExpanded = false;
+    renderForgeCatalogStrip("analyzing");
+    if (!_forgeCatalog && !_forgeCatalogLoading && !_forgeCatalogError) fetchForgeCatalog();
+    pollStandardsStream();
     setTimeout(() => {
       const stop = document.getElementById("btn-forge-stop");
       if (stop) stop.onclick = async () => {
@@ -1174,9 +1409,179 @@ const ProjectLauncher = (() => {
           await fetch(`${getCenterUrl()}/api/governance/forge/${forgeData.sessionId}/stop?project=${encodeURIComponent(forgeData.projectName||'')}`, { method: 'POST' });
         } catch(_) {}
         if (forgePollInterval) clearInterval(forgePollInterval);
+        if (standardsPollInterval) { clearInterval(standardsPollInterval); standardsPollInterval = null; }
         showForgeFailed(["Stopped by operator."]);
       };
     }, 0);
+  }
+
+  // REQ-111 (SPEC-079 §7): live standards-recommendations poller.
+  // Streaming source (a) — polls /api/ads/events?project=<name>&limit=100
+  // every 1s, filtering client-side for intent_match_* and
+  // intent_classification_* events. Chose (a) over extending the forge
+  // status payload because option (b) requires backend changes to
+  // governance_routes.py which are outside Frontend_Engineer jurisdiction.
+  function pollStandardsStream() {
+    if (standardsPollInterval) clearInterval(standardsPollInterval);
+    const startedAtIso = new Date(forgeData.startedAt || Date.now()).toISOString();
+    const projName = forgeData.projectName || "";
+    const url = `${getCenterUrl()}/api/ads/events?project=${encodeURIComponent(projName)}&limit=100`;
+
+    standardsPollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const events = await res.json();
+        if (!Array.isArray(events)) return;
+        for (const ev of events) {
+          const evId = ev.event_id || ev.id;
+          if (!evId || standardsSeenEventIds.has(evId)) continue;
+          const ts = ev.ts || ev.timestamp || "";
+          // Only look at events emitted after this forge started.
+          if (ts && ts < startedAtIso) continue;
+          const t = ev.action_type;
+          if (t === "intent_match_started" || t === "intent_classification_started") {
+            standardsSeenEventIds.add(evId);
+            forgeData.classifierStartedTs = ts;
+            renderStandardsAnalyzing(ev);
+          } else if (t === "intent_match_completed" || t === "intent_classification_completed") {
+            standardsSeenEventIds.add(evId);
+            forgeData.classifierCompletedTs = ts;
+            renderStandardsResult(ev);
+          }
+        }
+      } catch (_) {
+        // Silent — the panel just stays in whatever state it last reached.
+      }
+    }, 1000);
+  }
+
+  // Update the top-of-panel status line to show the classifier is running.
+  function renderStandardsAnalyzing(ev) {
+    const statusEl = document.getElementById("forge-standards-status");
+    if (!statusEl) return;
+    const payload = ev.action_data || {};
+    const preview = payload.wish_preview_first_80_chars || "";
+    const engine = payload.engine_version || ev.engine || "";
+    const engineEl = document.getElementById("forge-standards-engine");
+    if (engineEl && engine) engineEl.textContent = engine;
+    statusEl.innerHTML = `
+      <div class="forge-spinner" style="width:12px;height:12px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+      <span>&#x1F50D; Analyzing your wish${preview ? ' — <em style="color:#8b949e">"' + preview.replace(/</g,'&lt;').slice(0,80) + '"</em>' : ''}...</span>
+    `;
+  }
+
+  // Merge a completed event into forgeData and re-render domain + RR chips.
+  function renderStandardsResult(ev) {
+    const payload = ev.action_data || {};
+    const domains = Array.isArray(payload.matched_domains) ? payload.matched_domains : [];
+    const rrIds = Array.isArray(payload.suggested_rr_ids) ? payload.suggested_rr_ids
+                : Array.isArray(payload.recommended_rrs) ? payload.recommended_rrs.map(r => r && r.id).filter(Boolean)
+                : [];
+    const perDomain = payload.match_confidence_per_domain || {};
+    const perRr = payload.match_confidence_per_rr || payload.rr_confidence || {};
+    const rrTitles = payload.rr_titles || {};
+
+    // Merge (do not clobber): a later _completed event may add more matches.
+    forgeData.matchedDomains = Array.from(new Set([...(forgeData.matchedDomains || []), ...domains]));
+    forgeData.suggestedRRs = Array.from(new Set([...(forgeData.suggestedRRs || []), ...rrIds]));
+    forgeData.rrConfidence = Object.assign({}, forgeData.rrConfidence || {}, perRr);
+    forgeData.domainConfidence = Object.assign({}, forgeData.domainConfidence || {}, perDomain);
+    forgeData.rrTitles = Object.assign({}, forgeData.rrTitles || {}, rrTitles);
+
+    // Flip the status line to "done" and reveal the chip rows.
+    const statusEl = document.getElementById("forge-standards-status");
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:#3fb950">&#10003;</span> <span>Classifier finished — ${forgeData.suggestedRRs.length} standard${forgeData.suggestedRRs.length===1?'':'s'} matched across ${forgeData.matchedDomains.length} domain${forgeData.matchedDomains.length===1?'':'s'}.</span>`;
+    }
+    renderStandardsChips();
+    // SPEC-080 / REQ-123: morph the catalog strip to "matched" mode showing
+    // the operator (and audience) how the framework narrowed the catalog
+    // down to just what applies to this wish.
+    renderForgeCatalogStrip("matched");
+  }
+
+  // Render the domain + RR chip rows from forgeData, sorted by confidence desc.
+  // Chips animate in via CSS opacity transition on first insertion.
+  function renderStandardsChips() {
+    const domainsEl = document.getElementById("forge-standards-domains");
+    const rrsEl = document.getElementById("forge-standards-rrs");
+    if (!domainsEl || !rrsEl) return;
+
+    const sortedDomains = [...(forgeData.matchedDomains || [])].sort((a, b) =>
+      (forgeData.domainConfidence[b] || 0) - (forgeData.domainConfidence[a] || 0)
+    );
+    const sortedRRs = [...(forgeData.suggestedRRs || [])].sort((a, b) =>
+      (forgeData.rrConfidence[b] || 0) - (forgeData.rrConfidence[a] || 0)
+    );
+
+    // Accepted-set: chips are marked "accepted" when their RR id ended up in
+    // forgeData.selected_rr_ids (the wizard's confirmed list at forge time) or
+    // in forgeData.acceptedRRs (populated by markAcceptedStandards() after the
+    // forge worker fills SPEC-001).
+    const acceptedSet = new Set([...(forgeData.selected_rr_ids || []), ...(forgeData.acceptedRRs || [])]);
+
+    if (sortedDomains.length) {
+      domainsEl.style.display = "flex";
+      domainsEl.innerHTML = sortedDomains.map(d => {
+        const conf = forgeData.domainConfidence[d];
+        const confPct = conf != null ? `${Math.round(conf * 100)}%` : 'n/a';
+        const tooltip = `Domain: ${d}\nConfidence: ${confPct}`;
+        return `<span title="${tooltip.replace(/"/g,'&quot;')}" style="background:#1f2937;color:#a5d6ff;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid #30363d;cursor:help">${d.replace(/</g,'&lt;')}</span>`;
+      }).join("");
+    }
+
+    if (sortedRRs.length) {
+      rrsEl.style.display = "flex";
+      rrsEl.innerHTML = sortedRRs.map(rr => {
+        const conf = forgeData.rrConfidence[rr];
+        const confPct = conf != null ? `${Math.round(conf * 100)}%` : 'n/a';
+        const title = forgeData.rrTitles[rr] || '';
+        const accepted = acceptedSet.has(rr);
+        const tooltip = `${rr}${title ? ' — ' + title : ''}\nConfidence: ${confPct}\nState: ${accepted ? '✓ accepted' : 'suggested'}`;
+        const rrBg = accepted ? '#238636' : '#161b22';
+        const rrBorder = accepted ? '#2ea043' : '#21262d';
+        const rrColor = accepted ? '#ffffff' : '#58a6ff';
+        const stateBadge = accepted
+          ? '<span style="color:#3fb950;font-size:10px;margin-left:6px">&#10003; accepted</span>'
+          : '<span style="color:#8b949e;font-size:10px;margin-left:6px">suggested</span>';
+        return `
+          <div title="${tooltip.replace(/"/g,'&quot;')}" style="display:flex;justify-content:space-between;align-items:center;background:${rrBg};padding:4px 8px;border:1px solid ${rrBorder};border-radius:4px;cursor:help;transition:opacity 0.25s ease-in">
+            <span style="color:${rrColor};font-weight:bold;flex-shrink:0">${rr.replace(/</g,'&lt;')}</span>
+            <span style="color:#c9d1d9;font-size:11px;flex:1;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(title||'').replace(/</g,'&lt;')}</span>
+            <span style="color:#8b949e;font-size:10px;margin-left:8px;flex-shrink:0">${confPct}</span>
+            ${stateBadge}
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // Called from showForgeComplete() once the forge worker has produced
+  // SPEC-001. Cross-references its vision metadata against forgeData.suggestedRRs
+  // and marks any adopted RRs with the "✓ accepted" state.
+  async function markAcceptedStandards(specs) {
+    if (!Array.isArray(forgeData.suggestedRRs) || forgeData.suggestedRRs.length === 0) return;
+    try {
+      const proj = encodeURIComponent(forgeData.projectName || "");
+      // The spec_map / governance endpoints expose vision metadata via
+      // /api/governance/specs/<spec_id>?project=<name>. If a lighter endpoint
+      // exists it can be swapped in later — this shape is defensive.
+      const res = await fetch(`${getCenterUrl()}/api/governance/specs/SPEC-001?project=${proj}`);
+      if (!res.ok) return;
+      const spec = await res.json();
+      const meta = spec.metadata || spec.frontmatter || spec || {};
+      const acceptedFromSpec = [
+        ...(Array.isArray(meta.selected_rr_ids) ? meta.selected_rr_ids : []),
+        ...(Array.isArray(meta.adopted_rrs) ? meta.adopted_rrs : []),
+        ...(Array.isArray(meta.rr_ids) ? meta.rr_ids : []),
+      ];
+      forgeData.acceptedRRs = Array.from(new Set(acceptedFromSpec));
+      // Panel may not exist on the current screen; render is a no-op if so.
+      renderStandardsChips();
+    } catch (_) {
+      // Non-fatal — chips stay in "suggested" state.
+    }
   }
 
   function pollForgeStatus() {
@@ -1232,10 +1637,13 @@ const ProjectLauncher = (() => {
 
         if (_isComplete) {
           clearInterval(forgePollInterval);
+          // REQ-111: classifier long since finished — stop its poller too.
+          if (standardsPollInterval) { clearInterval(standardsPollInterval); standardsPollInterval = null; }
           showForgeComplete(data.specs_created || [], data.log_tail);
         } else if (_isFailed || (_hasSpecs && !_isComplete && data.log_tail && data.log_tail.join("\n").includes("worker died"))) {
           // Disk-evidence override: worker died but 2+ specs on disk => transition anyway
           clearInterval(forgePollInterval);
+          if (standardsPollInterval) { clearInterval(standardsPollInterval); standardsPollInterval = null; }
           if (_hasSpecs) {
             showForgeComplete(data.specs_created, data.log_tail);
           } else {
@@ -1277,6 +1685,20 @@ const ProjectLauncher = (() => {
       <h2 style="color:#4CAF50;">Forge Complete</h2>
       <p class="wiz-subtitle">${childSpecs.length} child specs created. Auto-decomposing now — watch real-time below or jump to the spec map.</p>
 
+      <!-- REQ-111 (SPEC-079 §7): standards-recommendations recap.
+           The live panel from showForgeProgress() is replaced by this DOM,
+           so we re-render the chips here from forgeData. markAcceptedStandards()
+           runs asynchronously below to flip accepted chips green. -->
+      <div id="forge-standards-panel" style="margin-top:10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:10px;${(forgeData.suggestedRRs||[]).length||((forgeData.matchedDomains||[]).length)?'':'display:none;'}">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span id="forge-standards-title">Standards Recommendations</span>
+          <span id="forge-standards-engine" style="color:#58a6ff;font-size:10px">Auto-Compliance Engine</span>
+        </div>
+        <div id="forge-standards-status" style="font-size:12px;color:#c9d1d9;"></div>
+        <div id="forge-standards-domains" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div>
+        <div id="forge-standards-rrs" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
       <div id="forge-pipeline" style="margin-top:10px;max-height:120px;overflow-y:auto">${rowsHtml || '<div style="color:#8b949e;font-size:12px">No child specs to decompose.</div>'}</div>
 
       <div id="mrr-analysis-card" style="margin-top:8px;border:1px solid #30363d;border-radius:6px;background:#0d1117;padding:8px;display:none;">
@@ -1309,7 +1731,19 @@ const ProjectLauncher = (() => {
       </div>
     `);
 
-    
+    // REQ-111 (SPEC-079 §7): re-render live-panel chips onto the completion
+    // screen and check SPEC-001 metadata to mark accepted standards.
+    const _stStatusEl = document.getElementById("forge-standards-status");
+    if (_stStatusEl) {
+      const nRR = (forgeData.suggestedRRs || []).length;
+      const nDom = (forgeData.matchedDomains || []).length;
+      if (nRR || nDom) {
+        _stStatusEl.innerHTML = `<span style="color:#3fb950">&#10003;</span> <span>Classifier recommended ${nRR} standard${nRR===1?'':'s'} across ${nDom} domain${nDom===1?'':'s'}.</span>`;
+      }
+    }
+    renderStandardsChips();
+    markAcceptedStandards(specs);
+
     if (forgeData.auto_standards_enabled) {
       const card = document.getElementById("mrr-analysis-card");
       if (card) {
