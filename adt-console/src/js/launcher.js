@@ -997,7 +997,9 @@ Art is represented either as a textured plane derived from a single photo (paint
       // Timeout / network / abort — never block the wizard on this optional feature.
       console.warn("[SPEC-081] /similar_projects failed:", err && err.message || err);
     }
-    const strong = matches.filter(m => (Number(m.similarity) || 0) >= 0.70);
+    // FIX 2026-08-08: Jaccard similarity on differently-sized wish texts rarely hits 0.7;
+    // use combined_score (which already blends similarity + recency, matches backend threshold 0.35).
+    const strong = matches.filter(m => (Number(m.combined_score) || Number(m.similarity) || 0) >= 0.35);
     if (strong.length >= 1) {
       showMatchPickerScreen(strong.slice(0, 3), null);
     } else {
