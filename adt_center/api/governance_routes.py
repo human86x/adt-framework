@@ -1205,7 +1205,17 @@ def api_forge_status(forge_session_id):
 
     # Deduplicate and sort specs_created
     specs_created = sorted(list(set(specs_created)))
-    
+
+    # SPEC-081 §2 -- auto-index this project's fingerprint the first time
+    # we observe forge_complete (either via ADS event or disk inference).
+    # Idempotent: the helper skips already-indexed project_names.
+    if state == "complete":
+        try:
+            _auto_index_project_fingerprint(project_name, res["paths"]["root"])
+        except Exception:
+            # Never break status polling on a fingerprint index failure.
+            pass
+
     return jsonify({
         "state": state,
         "phase": phase,
@@ -1213,6 +1223,359 @@ def api_forge_status(forge_session_id):
         "specs_created": specs_created,
         "log_tail": log_tail
     })
+
+
+def _auto_index_project_fingerprint(project_name, project_root):
+    """SPEC-081 §2 hook -- append this project's fingerprint on forge_complete.
+
+    Idempotent by ``project_name``. Reads ``forge_brief.json`` for the
+    wish text, computes fingerprint, writes one line to the framework's
+    ``_cortex/ops/project_fingerprints.jsonl``. No-op if the brief is
+    missing or the project is already indexed.
+    """
+    if not project_name or not project_root:
+        return
+    try:
+        from adt_core.reuse.fingerprint import compute_fingerprint
+    except ImportError:
+        return
+
+    framework_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..")
+    )
+    fp_path = os.path.join(
+        framework_root, "_cortex", "ops", "project_fingerprints.jsonl"
+    )
+
+    # Idempotency: skip if already indexed.
+    if os.path.isfile(fp_path):
+        try:
+            with open(fp_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except ValueError:
+                        continue
+                    if obj.get("project_name") == project_name:
+                        return
+        except OSError:
+            return
+
+    brief_path = os.path.join(project_root, "_cortex", "ops", "forge_brief.json")
+    if not os.path.isfile(brief_path):
+        return
+    try:
+        with open(brief_path, "r", encoding="utf-8") as f:
+            brief = json.load(f)
+    except (OSError, ValueError):
+        return
+    wish = brief.get("intent_description") or ""
+    if not wish:
+        return
+
+    # Compute last_touched as the newest mtime under _cortex/.
+    cortex_dir = os.path.join(project_root, "_cortex")
+    newest = 0.0
+    if os.path.isdir(cortex_dir):
+        for root_, _dirs, files in os.walk(cortex_dir):
+            for fn in files:
+                try:
+                    m = os.path.getmtime(os.path.join(root_, fn))
+                    if m > newest:
+                        newest = m
+                except OSError:
+                    continue
+    if newest == 0.0:
+        try:
+            newest = os.path.getmtime(project_root)
+        except OSError:
+            newest = 0.0
+    last_touched = ""
+    if newest > 0.0:
+        last_touched = (
+            datetime.fromtimestamp(newest, tz=timezone.utc)
+            .isoformat().replace("+00:00", "Z")
+        )
+
+    specs_dir = os.path.join(project_root, "_cortex", "specs")
+    spec_count = 0
+    if os.path.isdir(specs_dir):
+        spec_count = sum(
+            1 for fn in os.listdir(specs_dir)
+            if fn.startswith("SPEC-") and fn.endswith(".md")
+        )
+
+    task_count = 0
+    tasks_path = os.path.join(project_root, "_cortex", "tasks.json")
+    if os.path.isfile(tasks_path):
+        try:
+            with open(tasks_path, "r", encoding="utf-8") as f:
+                td = json.load(f)
+            if isinstance(td, list):
+                task_count = len(td)
+            elif isinstance(td, dict) and isinstance(td.get("tasks"), list):
+                task_count = len(td["tasks"])
+        except (OSError, ValueError):
+            task_count = 0
+
+    fp = compute_fingerprint(wish)
+    record = {
+        "project_name": project_name,
+        "fingerprint_hash": fp["hash"],
+        "tokens": fp["tokens"],
+        "wish_preview": wish[:200],
+        "last_touched": last_touched,
+        "spec_count": spec_count,
+        "task_count": task_count,
+    }
+    try:
+        os.makedirs(os.path.dirname(fp_path), exist_ok=True)
+        with open(fp_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=True) + "\n")
+    except OSError:
+        return
+
+
+@governance_bp.route("/governance/forge/similar_projects", methods=["POST"])
+def api_forge_similar_projects():
+    """SPEC-081 §3 -- rank prior projects by combined fingerprint match.
+
+    Body: ``{"wish": "operator wish text"}``
+    Returns top-5 matches with combined_score >= 0.35, sorted
+    descending. Combined = 0.6*jaccard + 0.4*recency (exp decay,
+    30-day timescale).
+    """
+    try:
+        from adt_core.reuse.fingerprint import (
+            compute_fingerprint,
+            similarity,
+            recency_weight,
+            combined_score,
+        )
+    except ImportError:
+        return jsonify({"error": "reuse module unavailable"}), 500
+
+    data = request.get_json(silent=True) or {}
+    wish = (data.get("wish") or "").strip()
+    if not wish:
+        return jsonify({"error": "wish is required"}), 400
+
+    framework_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..")
+    )
+    fp_path = os.path.join(
+        framework_root, "_cortex", "ops", "project_fingerprints.jsonl"
+    )
+    if not os.path.isfile(fp_path):
+        return jsonify({"matches": []})
+
+    query_fp = compute_fingerprint(wish)
+
+    scored = []
+    try:
+        with open(fp_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                other_fp = {"tokens": row.get("tokens") or []}
+                sim = similarity(query_fp, other_fp)
+                rec = recency_weight(row.get("last_touched") or "")
+                combo = combined_score(sim, rec)
+                scored.append({
+                    "project_name": row.get("project_name"),
+                    "similarity": round(sim, 4),
+                    "recency_weight": round(rec, 4),
+                    "combined_score": round(combo, 4),
+                    "last_touched_iso": row.get("last_touched"),
+                    "spec_count": row.get("spec_count", 0),
+                    "task_count": row.get("task_count", 0),
+                    "wish_preview": row.get("wish_preview", ""),
+                })
+    except OSError as e:
+        return jsonify({"error": f"cannot read fingerprints: {e}"}), 500
+
+    matches = [m for m in scored if m["combined_score"] >= 0.35]
+    matches.sort(key=lambda m: m["combined_score"], reverse=True)
+    return jsonify({"matches": matches[:5]})
+
+
+@governance_bp.route(
+    "/governance/forge/<forge_session_id>/fork_from", methods=["POST"]
+)
+def api_forge_fork_from(forge_session_id):
+    """SPEC-081 §5 -- copy specs + tasks from a prior project into this one.
+
+    Body: ``{"source_project_name": "..."}``
+    Copies every ``.md`` under source's ``_cortex/specs/`` (prepending a
+    reused header) and every task under source's ``_cortex/tasks.json``
+    (tagged ``reused_from_task``, ``verify_status: "pending"``,
+    ``status: "ready_for_verify"``). Emits ``fork_initiated`` ADS event.
+    """
+    data = request.get_json(silent=True) or {}
+    source_project_name = (data.get("source_project_name") or "").strip()
+    if not source_project_name:
+        return jsonify({"error": "source_project_name required"}), 400
+
+    target_project_name = request.args.get("project") or data.get("project")
+
+    # Resolve target the same way api_forge_status does.
+    target_res = None
+    if target_project_name:
+        target_res = _get_project_resources(target_project_name)
+    else:
+        registry = ProjectRegistry()
+        for p in registry.list_projects():
+            p_res = _get_project_resources(p["name"])
+            events = p_res["query"].get_all_events()
+            def _match(e, sid=forge_session_id):
+                if e.get("session_id") == sid:
+                    return True
+                ad = e.get("action_data") or {}
+                return ad.get("forge_session_id") == sid
+            if any(_match(e) for e in events):
+                target_res = p_res
+                target_project_name = p["name"]
+                break
+    if not target_res:
+        return jsonify({"error": "target forge session not found"}), 404
+
+    source_registry = ProjectRegistry()
+    source_project = source_registry.get_project(source_project_name)
+    if not source_project:
+        return jsonify({"error": f"source project {source_project_name} not registered"}), 404
+
+    source_root = source_project.get("path")
+    if not source_root or not os.path.isdir(source_root):
+        return jsonify({"error": "source project path missing"}), 404
+
+    source_specs_dir = os.path.join(source_root, "_cortex", "specs")
+    target_specs_dir = target_res["paths"].get("specs") or os.path.join(
+        target_res["paths"]["root"], "_cortex", "specs"
+    )
+    os.makedirs(target_specs_dir, exist_ok=True)
+
+    specs_copied = 0
+    if os.path.isdir(source_specs_dir):
+        for fname in sorted(os.listdir(source_specs_dir)):
+            if not fname.endswith(".md"):
+                continue
+            src_path = os.path.join(source_specs_dir, fname)
+            dst_path = os.path.join(target_specs_dir, fname)
+            try:
+                with open(src_path, "r", encoding="utf-8") as f:
+                    body = f.read()
+            except OSError:
+                continue
+            header = (
+                f"**Reused from:** {source_project_name} "
+                f"(verify_status: pending)\n\n"
+            )
+            try:
+                with open(dst_path, "w", encoding="utf-8") as f:
+                    f.write(header + body)
+                specs_copied += 1
+            except OSError:
+                continue
+
+    # Copy tasks.
+    source_tasks_path = os.path.join(source_root, "_cortex", "tasks.json")
+    target_tasks_path = os.path.join(
+        target_res["paths"]["root"], "_cortex", "tasks.json"
+    )
+    tasks_copied = 0
+    source_tasks = []
+    if os.path.isfile(source_tasks_path):
+        try:
+            with open(source_tasks_path, "r", encoding="utf-8") as f:
+                sdata = json.load(f)
+            if isinstance(sdata, list):
+                source_tasks = sdata
+            elif isinstance(sdata, dict) and isinstance(sdata.get("tasks"), list):
+                source_tasks = sdata["tasks"]
+        except (OSError, ValueError):
+            source_tasks = []
+
+    target_container = {"tasks": []}
+    target_is_list = False
+    if os.path.isfile(target_tasks_path):
+        try:
+            with open(target_tasks_path, "r", encoding="utf-8") as f:
+                tdata = json.load(f)
+            if isinstance(tdata, list):
+                target_container = {"tasks": list(tdata)}
+                target_is_list = True
+            elif isinstance(tdata, dict):
+                target_container = tdata
+                if not isinstance(target_container.get("tasks"), list):
+                    target_container["tasks"] = []
+        except (OSError, ValueError):
+            target_container = {"tasks": []}
+
+    for t in source_tasks:
+        if not isinstance(t, dict):
+            continue
+        original_id = t.get("id") or t.get("task_id")
+        cloned = dict(t)
+        cloned["reused_from_task"] = original_id
+        cloned["reused_from_project"] = source_project_name
+        cloned["verify_status"] = "pending"
+        cloned["status"] = "ready_for_verify"
+        target_container["tasks"].append(cloned)
+        tasks_copied += 1
+
+    try:
+        os.makedirs(os.path.dirname(target_tasks_path), exist_ok=True)
+        with open(target_tasks_path, "w", encoding="utf-8") as f:
+            if target_is_list:
+                json.dump(target_container["tasks"], f, indent=2)
+            else:
+                json.dump(target_container, f, indent=2)
+    except OSError as e:
+        return jsonify({"error": f"cannot write target tasks: {e}"}), 500
+
+    # Emit fork_initiated ADS event on the target project's ledger.
+    try:
+        fork_event = ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("fork_initiated"),
+            agent="SYSTEM",
+            role="Architect",
+            action_type="fork_initiated",
+            description=(
+                f"Forked project {target_project_name} from "
+                f"{source_project_name}: {specs_copied} specs, "
+                f"{tasks_copied} tasks copied (verify_status=pending)."
+            ),
+            spec_ref="SPEC-081",
+            authorized=True,
+            tier=3,
+            session_id=forge_session_id,
+            action_data={
+                "source": source_project_name,
+                "target": target_project_name,
+                "spec_count": specs_copied,
+                "task_count": tasks_copied,
+                "forge_session_id": forge_session_id,
+            },
+        )
+        target_res["logger"].log(fork_event)
+    except Exception:
+        # Non-fatal: fork itself succeeded on disk.
+        pass
+
+    return jsonify({
+        "forked_from": source_project_name,
+        "specs_copied": specs_copied,
+        "tasks_copied": tasks_copied,
+    })
+
 
 @governance_bp.route("/specs", methods=["POST"])
 def api_create_spec():

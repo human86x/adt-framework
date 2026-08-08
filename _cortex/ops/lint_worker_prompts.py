@@ -148,6 +148,82 @@ def find_prompt_files(root: str) -> List[str]:
     return results
 
 
+# --- SPEC-081 §8 anti-fabrication scan (reuse code paths) --------------------
+# Forbidden action_types for any *reuse* path -- these must come from the
+# real worker loop, not from synthetic emitters inside reuse code.
+_FABRICATED_ACTION_TYPES = (
+    "task_completed",
+    "task_started",
+    "build_worker_spawned",
+    "build_completed",
+    "build_started",
+    "forge_complete",
+    "forge_worker_spawned",
+    "cross_ai_task_complete",
+)
+
+
+def find_reuse_python_files(root: str) -> List[str]:
+    """SPEC-081 §8 -- Python files whose path implies a reuse concern.
+
+    Scans under ``adt_center/api/`` and ``adt_core/reuse/`` and returns
+    every ``*.py`` whose path contains the substring ``reuse``.
+    """
+    out: List[str] = []
+    for rel in ("adt_center/api", "adt_core/reuse"):
+        base = os.path.join(root, rel)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _dirs, files in os.walk(base):
+            for fn in files:
+                if not fn.endswith(".py"):
+                    continue
+                full = os.path.join(dirpath, fn)
+                if "reuse" in full:
+                    out.append(full)
+    return sorted(set(out))
+
+
+def lint_reuse_python_file(path: str) -> List[str]:
+    """Flag calls that emit standard build/worker action_types.
+
+    A violation is any line that references ``log_event.py`` or
+    ``_emit_event`` AND mentions one of the forbidden action_types.
+    Also flags ``action_type="task_completed"`` style literals emitted
+    directly through ADSEventSchema / logger.log calls inside a reuse
+    file, since those bypass the real worker loop.
+    """
+    violations: List[str] = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except OSError as e:
+        return [f"{path}:0:read_failed: {e}"]
+
+    for lineno, raw in enumerate(lines, start=1):
+        line = raw.rstrip("\n")
+        if "noqa: SPEC-081" in line:
+            continue
+        lowered = line.lower()
+        mentions_emit = (
+            "log_event.py" in lowered
+            or "_emit_event" in lowered
+            or "logger.log(" in lowered
+            or "adseventschema.create_event" in lowered.replace(" ", "")
+        )
+        if not mentions_emit:
+            continue
+        for atype in _FABRICATED_ACTION_TYPES:
+            # Match action_type="foo" or 'foo' as a token in the line.
+            if re.search(rf"['\"]{re.escape(atype)}['\"]", line):
+                violations.append(
+                    f"{path}:{lineno}:SPEC-081: reuse path emits "
+                    f"forbidden action_type '{atype}' -- must come from "
+                    f"real worker, not synthetic"
+                )
+    return violations
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
@@ -160,22 +236,28 @@ def main() -> int:
     args = ap.parse_args()
 
     files = find_prompt_files(args.root)
-    if not files:
-        print(
-            f"[lint_worker_prompts] no prompt templates found under "
-            f"{args.root}/adt_center/api/*prompts/",
-            file=sys.stderr,
-        )
-        return 0
+    reuse_py_files = find_reuse_python_files(args.root)
 
     all_violations: List[str] = []
     for f in files:
         all_violations.extend(lint_file(f))
+    for f in reuse_py_files:
+        all_violations.extend(lint_reuse_python_file(f))
+
+    if not files and not reuse_py_files:
+        print(
+            f"[lint_worker_prompts] no prompt templates or reuse .py "
+            f"under {args.root}/adt_center/api/*prompts/ or "
+            f"{args.root}/adt_core/reuse/",
+            file=sys.stderr,
+        )
+        return 0
 
     if not all_violations:
         print(
-            f"[lint_worker_prompts] OK -- {len(files)} template(s) clean "
-            f"(REQ-123 + REQ-125)"
+            f"[lint_worker_prompts] OK -- {len(files)} template(s) + "
+            f"{len(reuse_py_files)} reuse .py clean "
+            f"(REQ-123 + REQ-125 + SPEC-081)"
         )
         return 0
 
@@ -183,7 +265,7 @@ def main() -> int:
         print(v)
     print(
         f"[lint_worker_prompts] FAIL -- {len(all_violations)} violation(s) "
-        f"across {len(files)} template(s)",
+        f"across {len(files)} template(s) + {len(reuse_py_files)} reuse .py",
         file=sys.stderr,
     )
     return 1

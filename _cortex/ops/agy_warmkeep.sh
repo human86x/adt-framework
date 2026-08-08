@@ -27,6 +27,17 @@ fi
 
 echo "$(date -Iseconds) agy_warmkeep starting -- interval=${INTERVAL_SEC}s bin=$AGY_BIN pid=$$" >> "$LOG_FILE"
 
+# SPEC-081 §1.1 -- one-shot MRR endpoint warmup so the very first
+# operator click on the Forge Wizard doesn't pay the cold-load cost.
+# Fire-and-forget; failure here is non-fatal (adt-center may not be up
+# yet when warmkeep starts on a fresh boot).
+if MRR_WARM=$(curl -s -o /dev/null -w '%{http_code} %{time_total}s' \
+    --max-time 5 http://localhost:5001/api/mrr/library_stats 2>&1); then
+  echo "$(date -Iseconds) MRR warmup -- ${MRR_WARM}" >> "$LOG_FILE"
+else
+  echo "$(date -Iseconds) MRR warmup skipped (adt-center down?)" >> "$LOG_FILE"
+fi
+
 CONSECUTIVE_FAILURES=0
 MAX_FAILURES=3
 

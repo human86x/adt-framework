@@ -799,6 +799,125 @@ def _run_startup_fsck(skip: bool = False):
     )
 
 
+# SPEC-081 §1.2 -- process-wide warm caches populated once at startup.
+# Read by governance_routes similar_projects lookup and by any future
+# code that wants a "recent enough" snapshot without paying the disk
+# cost on the request path.
+_WARMUP_TTL_SECONDS = 300  # 5-minute TTL
+_warmup_cache = {
+    "project_registry": {"value": None, "loaded_at": 0.0},
+    "templates": {"value": None, "loaded_at": 0.0},
+    "standards_catalog": {"value": None, "loaded_at": 0.0},
+}
+
+
+def _warmup_pre_init():
+    """SPEC-081 §1.2 -- pre-load heavy modules + cache hot lookups.
+
+    Called once after startup fsck, before Flask binds. Silent-failure
+    on any individual sub-step: warmup is an optimisation, never a
+    barrier to boot.
+    """
+    import time
+    import traceback
+
+    matcher_loaded = False
+    registry_cached = False
+    catalog_cached = False
+
+    # 1) Pre-import the intent matcher so its (heavy) module-level
+    #    imports are paid at boot instead of on the first classify call.
+    try:
+        import adt_core.standards.intent_matcher  # noqa: F401
+        matcher_loaded = True
+    except Exception:
+        print("[warmup] intent_matcher pre-import failed:", flush=True)
+        traceback.print_exc()
+
+    # 2) Cache the project registry (used by /api/projects and by the
+    #    similar-projects lookup for path resolution).
+    try:
+        from adt_core.registry import ProjectRegistry
+        pr = ProjectRegistry()
+        projects = pr.list_projects()
+        _warmup_cache["project_registry"] = {
+            "value": projects,
+            "loaded_at": time.time(),
+        }
+        registry_cached = True
+    except Exception:
+        print("[warmup] project registry cache failed:", flush=True)
+        traceback.print_exc()
+
+    # 3) Cache templates + standards catalog. Best-effort; the API
+    #    endpoints remain the source of truth on cache miss.
+    try:
+        framework_root = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..")
+        )
+        templates_dir = os.path.join(framework_root, "templates")
+        templates_list = []
+        if os.path.isdir(templates_dir):
+            templates_list = sorted(
+                d for d in os.listdir(templates_dir)
+                if os.path.isdir(os.path.join(templates_dir, d))
+            )
+        _warmup_cache["templates"] = {
+            "value": templates_list,
+            "loaded_at": time.time(),
+        }
+    except Exception:
+        pass
+
+    try:
+        from adt_core.standards.registry import StandardsRegistry
+        sr = StandardsRegistry()
+        catalog = []
+        for method in ("list_rules", "list_standards", "get_all"):
+            if hasattr(sr, method):
+                try:
+                    catalog = getattr(sr, method)()
+                    break
+                except Exception:
+                    continue
+        _warmup_cache["standards_catalog"] = {
+            "value": catalog,
+            "loaded_at": time.time(),
+        }
+        catalog_cached = True
+    except Exception:
+        # Standards registry may raise for framework-root ambiguity;
+        # non-fatal for warmup.
+        pass
+
+    print(
+        f"[warmup] pre-init complete: matcher_loaded={matcher_loaded} "
+        f"registry_cached={registry_cached} catalog_cached={catalog_cached}",
+        flush=True,
+    )
+    if matcher_loaded and registry_cached and catalog_cached:
+        print(
+            "[warmup] INFO warmup pre-init: matcher loaded, registry cached, "
+            "catalog cached",
+            flush=True,
+        )
+
+
+def get_warm_cache(key: str):
+    """Return cached value if fresh (<5min old), else None.
+
+    Public helper for governance_routes to consult without duplicating
+    the TTL logic. Returns ``None`` on miss or stale entry.
+    """
+    import time
+    entry = _warmup_cache.get(key)
+    if not entry or entry.get("value") is None:
+        return None
+    if (time.time() - entry.get("loaded_at", 0.0)) > _WARMUP_TTL_SECONDS:
+        return None
+    return entry["value"]
+
+
 if __name__ == "__main__":
     import sys as _sys
     _skip_fsck = (
@@ -807,6 +926,7 @@ if __name__ == "__main__":
     )
     _run_startup_fsck(skip=_skip_fsck)
     _finalize_orphan_builds_on_startup()
+    _warmup_pre_init()
     _start_zombie_watcher()
     _start_synth_progress()
     _start_reality_audit()

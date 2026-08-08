@@ -24,13 +24,75 @@ const ProjectLauncher = (() => {
   // SPEC-080 / REQ-123: Framework Standards Catalog snapshot, fetched from
   // /api/mrr/library_stats on Forge Wizard open. Cached for the wizard's
   // lifetime — the catalog only changes when the framework's rationalised
-  // rules or intent index change, so a per-wizard cache is plenty. Reset to
-  // null in openForgeWizard() so a fresh open always re-fetches (picks up
-  // catalog edits between forges without a full app reload).
+  // rules or intent index change, so a per-wizard cache is plenty.
+  // SPEC-081 §1.3: cache lives for 5 min across wizard opens; only an operator
+  // explicit refresh (or the TTL) invalidates it.
   let _forgeCatalog = null;              // parsed payload once loaded
   let _forgeCatalogLoading = false;      // dedupes concurrent fetches
   let _forgeCatalogError = false;        // sticky failure flag for this session
   let _forgeCatalogExpanded = false;     // strip UI state (Screen-1 + progress)
+  let _forgeCatalogFetchedAt = 0;        // epoch ms of last successful fetch
+
+  // SPEC-081 §1.3: shared 5-min-TTL registry cache. Keys are the request URL
+  // (project registry, per-project spec fetches, library stats). Every entry
+  // stores { data, fetchedAt }. Served from cache after the first open; an
+  // operator explicit-refresh action (see invalidateRegistryCache) is the
+  // only manual invalidator. Cache hits / misses are console-logged for
+  // easy debug during demos.
+  const REGISTRY_CACHE_TTL_MS = 5 * 60 * 1000;
+  const _registryCache = new Map();      // url -> { data, fetchedAt }
+  const _registryCacheInflight = new Map(); // url -> Promise (dedupe concurrent fetches)
+
+  // SPEC-081 §1.3: fetch-with-cache helper. Only intended for GET requests
+  // that are safe to cache (project registry, catalog, per-project spec
+  // reads). Returns parsed JSON or throws on network / non-2xx.
+  async function cachedRegistryFetch(url, opts) {
+    const now = Date.now();
+    const cached = _registryCache.get(url);
+    if (cached && (now - cached.fetchedAt) < REGISTRY_CACHE_TTL_MS) {
+      console.debug(`[SPEC-081 cache HIT] ${url} (age ${((now - cached.fetchedAt)/1000).toFixed(1)}s)`);
+      return cached.data;
+    }
+    if (_registryCacheInflight.has(url)) {
+      console.debug(`[SPEC-081 cache DEDUPE] ${url} (in-flight)`);
+      return _registryCacheInflight.get(url);
+    }
+    console.debug(`[SPEC-081 cache MISS] ${url}`);
+    const p = (async () => {
+      try {
+        const r = await fetch(url, opts);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        _registryCache.set(url, { data, fetchedAt: Date.now() });
+        return data;
+      } finally {
+        _registryCacheInflight.delete(url);
+      }
+    })();
+    _registryCacheInflight.set(url, p);
+    return p;
+  }
+
+  // SPEC-081 §1.3: operator-triggered invalidation. `pattern` (optional) is
+  // a substring or RegExp; when omitted, wipes the whole cache. Also drops
+  // the catalog snapshot so the strip re-fetches on next render.
+  function invalidateRegistryCache(pattern) {
+    if (!pattern) {
+      const n = _registryCache.size;
+      _registryCache.clear();
+      _forgeCatalog = null;
+      _forgeCatalogFetchedAt = 0;
+      _forgeCatalogError = false;
+      console.debug(`[SPEC-081 cache INVALIDATE ALL] cleared ${n} entries + catalog`);
+      return;
+    }
+    const rx = pattern instanceof RegExp ? pattern : new RegExp(String(pattern));
+    let removed = 0;
+    for (const key of Array.from(_registryCache.keys())) {
+      if (rx.test(key)) { _registryCache.delete(key); removed++; }
+    }
+    console.debug(`[SPEC-081 cache INVALIDATE ${pattern}] cleared ${removed} entries`);
+  }
 
   // Resolved from /api/system/info on first use — avoids hardcoding /home/human/
   let _serverHome = null;
@@ -169,11 +231,17 @@ const ProjectLauncher = (() => {
     if (overlay) overlay.style.display = "none";
   }
 
-  async function refresh() {
+  async function refresh(force) {
     try {
-      const res = await fetch(`${getCenterUrl()}/api/projects`);
-      if (res.ok) {
-        const data = await res.json();
+      // SPEC-081 §1.3: use registry cache; operator explicit refresh (force=true)
+      // invalidates so the launcher picks up freshly-forged projects on demand.
+      const url = `${getCenterUrl()}/api/projects`;
+      if (force) invalidateRegistryCache(url);
+      let data;
+      try {
+        data = await cachedRegistryFetch(url);
+      } catch (_) { data = null; }
+      if (data) {
         const projectsObj = data.projects || data;
         projects = Object.keys(projectsObj).map(name => ({
           name,
@@ -273,12 +341,10 @@ const ProjectLauncher = (() => {
     let cwd = projectPath;
     if (!cwd) {
       try {
-        const r = await fetch(`${getCenterUrl()}/api/projects`);
-        if (r.ok) {
-          const data = await r.json();
-          const entry = (data.projects || data || {})[projectName];
-          if (entry && entry.path) cwd = entry.path;
-        }
+        // SPEC-081 §1.3: served from registry cache when warm.
+        const data = await cachedRegistryFetch(`${getCenterUrl()}/api/projects`);
+        const entry = (data.projects || data || {})[projectName];
+        if (entry && entry.path) cwd = entry.path;
       } catch (_) {}
     }
 
@@ -492,7 +558,7 @@ const ProjectLauncher = (() => {
           request: { path, name, detect: true, start_dtcp: true }
         });
         closeWizard();
-        await refresh();
+        await refresh(true);  // SPEC-081 §1.3: new project — invalidate cache
         alert("Project created successfully.");
       } else {
         alert("Tauri backend not detected.");
@@ -513,7 +579,7 @@ const ProjectLauncher = (() => {
           request: { path, name, detect: true, start_dtcp: true }
         });
         closeWizard();
-        await refresh();
+        await refresh(true);  // SPEC-081 §1.3: new project — invalidate cache
         alert("Project imported successfully.");
       }
     } catch (err) {
@@ -526,11 +592,17 @@ const ProjectLauncher = (() => {
     _opening = true;
     try {
       forgeData = {};
-      // SPEC-080 / REQ-123: reset the catalog cache so a re-opened wizard
-      // re-fetches (catches any newly-adopted RRs / added intent domains).
-      _forgeCatalog = null;
+      // SPEC-081 §1.3: catalog cache lives ACROSS wizard opens for 5 min
+      // (was reset unconditionally). Only invalidate if the entry is stale
+      // or absent; operator explicit refresh (invalidateRegistryCache) is
+      // the manual escape hatch.
+      const now = Date.now();
+      if (_forgeCatalog && (now - _forgeCatalogFetchedAt) > REGISTRY_CACHE_TTL_MS) {
+        _forgeCatalog = null;
+        _forgeCatalogFetchedAt = 0;
+        _forgeCatalogError = false;
+      }
       _forgeCatalogLoading = false;
-      _forgeCatalogError = false;
       _forgeCatalogExpanded = false;
       fetchForgeCatalog();  // fire-and-forget; renderForgeCatalogStrip() reads _forgeCatalog when it resolves
       showForgeScreen1();
@@ -548,9 +620,9 @@ const ProjectLauncher = (() => {
     const base = (window.SpecMap && window.SpecMap.getCenterUrl && window.SpecMap.getCenterUrl())
               || getCenterUrl();
     try {
-      const r = await fetch(`${base}/api/mrr/library_stats`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      _forgeCatalog = await r.json();
+      // SPEC-081 §1.3: served from the shared 5-min registry cache.
+      _forgeCatalog = await cachedRegistryFetch(`${base}/api/mrr/library_stats`);
+      _forgeCatalogFetchedAt = Date.now();
       _forgeCatalogError = false;
     } catch (_) {
       _forgeCatalogError = true;
@@ -796,6 +868,143 @@ Art is represented either as a textured plane derived from a single photo (paint
       constraints: "Tauri desktop app with a Rust backend using system APIs (procfs on Linux) for per-process stats. No root required for basic stats."
     }
   ];
+
+  // ---------------------------------------------------------------------
+  // SPEC-081 §4: Project Knowledge Reuse — match picker helpers.
+  // ---------------------------------------------------------------------
+
+  // Convert an ISO-8601 timestamp into a coarse "X ago" phrase suitable for
+  // wizard chips ("just now", "2h ago", "3d ago", "1w ago", "2mo ago").
+  // Returns "-" if the timestamp is falsy/invalid.
+  function humanTimeSince(iso) {
+    if (!iso) return "-";
+    const then = new Date(iso).getTime();
+    if (!isFinite(then)) return "-";
+    const s = Math.max(0, Math.floor((Date.now() - then) / 1000));
+    if (s < 60) return "just now";
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    const w = Math.floor(d / 7);
+    if (w < 5) return `${w}w ago`;
+    const mo = Math.floor(d / 30);
+    if (mo < 12) return `${mo}mo ago`;
+    const y = Math.floor(d / 365);
+    return `${y}y ago`;
+  }
+
+  // Render one radio row for the match picker. `rank` is 0-based; 0/1/2 map
+  // to the medal emoji. `match` shape (from /similar_projects response):
+  //   { project_name, similarity, last_touched_iso, spec_count, task_count, wish_preview }
+  function pickerRenderRow(match, rank) {
+    const medals = ["🥇", "🥈", "🥉"]; // gold / silver / bronze
+    const medal = medals[rank] || "  ";
+    const pct = Math.round((Number(match.similarity) || 0) * 100);
+    const ago = humanTimeSince(match.last_touched_iso);
+    const nSpecs = Number(match.spec_count || 0);
+    const nTasks = Number(match.task_count || 0);
+    const name = String(match.project_name || "").replace(/</g, "&lt;");
+    const preview = String(match.wish_preview || "").replace(/"/g, "&quot;");
+    const checked = rank === 0 ? "checked" : "";
+    return `
+      <label class="picker-row" title="${preview}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;cursor:pointer;font-size:13px">
+        <input type="radio" name="wiz-picker-choice" value="${name}" ${checked}
+               style="margin:0;flex-shrink:0;width:16px;height:16px;cursor:pointer">
+        <span style="font-size:18px;line-height:1;flex-shrink:0">${medal}</span>
+        <span style="flex:1;color:#e6edf3;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${name}</strong></span>
+        <span style="color:#3fb950;font-weight:bold;font-size:12px;flex-shrink:0">${pct}% match</span>
+        <span style="color:#8b949e;font-size:11px;flex-shrink:0">&middot; touched ${ago}</span>
+        <span style="color:#8b949e;font-size:11px;flex-shrink:0">&middot; ${nSpecs} spec${nSpecs===1?'':'s'}, ${nTasks} task${nTasks===1?'':'s'}</span>
+      </label>`;
+  }
+
+  // Render the picker screen. `matches` = top-N array from the similar_projects
+  // endpoint (already filtered to similarity >= 0.70 and sorted desc); at least
+  // one entry is guaranteed by the caller. `forgeSessionId` MAY be null at
+  // this point (the real forge dispatch happens AFTER the operator picks) —
+  // the actual /fork_from call is deferred to the forge_session_created event
+  // handler in submitForge(). We stash the choice on forgeData so that handler
+  // can act on it.
+  function showMatchPickerScreen(matches, forgeSessionId) {
+    const top3 = matches.slice(0, 3);
+    const rowsHtml = top3.map((m, i) => pickerRenderRow(m, i)).join("");
+    showWizard(`
+      <h2>Reuse existing knowledge?</h2>
+      <p class="wiz-subtitle" style="color:#8b949e">
+        We found ${matches.length} similar prior project${matches.length===1?'':'s'}. Forking copies
+        the source's specs and tasks into your new project; an Architect worker
+        then verifies each one against your new wish (real work, no fake events).
+        Hover a row to preview its original wish.
+      </p>
+      <div id="wiz-picker-rows" style="display:flex;flex-direction:column;gap:8px;margin:14px 0">
+        ${rowsHtml}
+      </div>
+      <div class="wizard-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <button id="btn-picker-back" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">&larr; Back</button>
+        <button id="btn-picker-fresh" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">Forge fresh (no fork)</button>
+        <button id="btn-picker-fork" style="background:#1f6feb;border:1px solid #1f6feb;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold">Fork from selected</button>
+      </div>
+    `);
+    document.getElementById("btn-picker-back").onclick = showForgeScreen2;
+    document.getElementById("btn-picker-fresh").onclick = () => {
+      forgeData.forkFrom = null;
+      console.debug("[SPEC-081] operator chose Forge fresh (no fork)");
+      submitForge();
+    };
+    document.getElementById("btn-picker-fork").onclick = () => {
+      const sel = document.querySelector("input[name='wiz-picker-choice']:checked");
+      const choice = sel ? sel.value : (top3[0] && top3[0].project_name);
+      if (!choice) {
+        alert("Please select a project to fork from.");
+        return;
+      }
+      forgeData.forkFrom = choice;
+      console.debug(`[SPEC-081] operator chose Fork from '${choice}' — deferred to forge_session_created`);
+      submitForge();
+    };
+  }
+
+  // Ask the backend for similar prior projects, then either show the picker
+  // (>=1 match with similarity >= 0.70) or fall straight through to a real
+  // forge. Endpoint may not exist yet (Backend agent is building in parallel)
+  // — any error/404/timeout falls through transparently.
+  async function offerReuseOrForge() {
+    const wish = (forgeData.wish || "").trim();
+    if (!wish) { submitForge(); return; }
+    let matches = [];
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const r = await fetch(`${getCenterUrl()}/api/governance/forge/similar_projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wish }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (r.status === 404) {
+        console.debug("[SPEC-081] /similar_projects not deployed yet (404) — skipping picker");
+      } else if (!r.ok) {
+        console.warn(`[SPEC-081] /similar_projects HTTP ${r.status} — skipping picker`);
+      } else {
+        const data = await r.json();
+        matches = Array.isArray(data.matches) ? data.matches : [];
+      }
+    } catch (err) {
+      // Timeout / network / abort — never block the wizard on this optional feature.
+      console.warn("[SPEC-081] /similar_projects failed:", err && err.message || err);
+    }
+    const strong = matches.filter(m => (Number(m.similarity) || 0) >= 0.70);
+    if (strong.length >= 1) {
+      showMatchPickerScreen(strong.slice(0, 3), null);
+    } else {
+      // 0 matches, error, or all below threshold — proceed to normal forge.
+      submitForge();
+    }
+  }
 
   async function showForgeScreen1() {
     const { projects: projsDir } = await _getServerPaths();
@@ -1073,7 +1282,10 @@ Art is represented either as a textured plane derived from a single photo (paint
       if (!forgeData.users) { alert("Please specify who this is for."); return; }
       if (!forgeData.success) { alert("Please specify what 'done v1' looks like."); return; }
 
-      submitForge();
+      // SPEC-081 §4: offer to fork from a similar prior project before
+      // committing to a fresh forge. Transparent no-op if the backend
+      // endpoint is missing or returns no strong matches.
+      offerReuseOrForge();
     };
   }
 
@@ -1195,12 +1407,42 @@ Art is represented either as a textured plane derived from a single photo (paint
         clearInterval(genesisTimer);
         es.close();
         showReconnectingChip(false);
-        
+
         forgeData.sessionId = data.forge_session_id;
         forgeData.projectName = data.project_name || forgeData.projectName;
-        
-        showForgeProgress();
-        pollForgeStatus();
+
+        // SPEC-081 §5: if the operator picked a source project on the match
+        // picker, fire the fork_from call NOW (session_id has just landed).
+        // Non-fatal on failure — worst case the new project stays empty and
+        // the forge worker proceeds as if the operator had picked "Forge fresh".
+        // Never blocks the transition to the progress screen if the endpoint
+        // is missing (Backend agent may still be building it).
+        const source = forgeData.forkFrom;
+        forgeData.forkFrom = null; // one-shot
+        const proceed = () => { showForgeProgress(); pollForgeStatus(); };
+        if (source && forgeData.sessionId) {
+          fetch(`${getCenterUrl()}/api/governance/forge/${encodeURIComponent(forgeData.sessionId)}/fork_from`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source_project_name: source })
+          }).then(async r => {
+            if (r.status === 404) {
+              console.warn("[SPEC-081] /fork_from not deployed yet — proceeding with fresh forge");
+            } else if (!r.ok) {
+              console.warn(`[SPEC-081] /fork_from HTTP ${r.status} — proceeding with fresh forge`);
+            } else {
+              try {
+                const rd = await r.json();
+                console.debug(`[SPEC-081] fork_from OK: ${rd.specs_copied || 0} specs, ${rd.tasks_copied || 0} tasks reused from ${rd.forked_from || source}`);
+                forgeData.forkedFrom = rd.forked_from || source;
+              } catch (_) {}
+            }
+          }).catch(err => {
+            console.warn("[SPEC-081] /fork_from failed:", err && err.message || err);
+          }).finally(proceed);
+        } else {
+          proceed();
+        }
       });
 
       es.addEventListener('forge_failed', e => {
@@ -1703,9 +1945,11 @@ Art is represented either as a textured plane derived from a single photo (paint
       // The spec_map / governance endpoints expose vision metadata via
       // /api/governance/specs/<spec_id>?project=<name>. If a lighter endpoint
       // exists it can be swapped in later — this shape is defensive.
-      const res = await fetch(`${getCenterUrl()}/api/governance/specs/SPEC-001?project=${proj}`);
-      if (!res.ok) return;
-      const spec = await res.json();
+      // SPEC-081 §1.3: served from the 5-min registry cache.
+      let spec;
+      try {
+        spec = await cachedRegistryFetch(`${getCenterUrl()}/api/governance/specs/SPEC-001?project=${proj}`);
+      } catch (_) { return; }
       const meta = spec.metadata || spec.frontmatter || spec || {};
       const acceptedFromSpec = [
         ...(Array.isArray(meta.selected_rr_ids) ? meta.selected_rr_ids : []),
@@ -2026,7 +2270,9 @@ Art is represented either as a textured plane derived from a single photo (paint
       }
     };
 
-    refresh();
+    // SPEC-081 §1.3: forge just created a new project — invalidate the
+    // cached registry so the launcher list picks it up.
+    refresh(true);
 
     const proj = forgeData.projectName;
 
