@@ -797,90 +797,248 @@ def api_forge_project():
         )
         res["logger"].log(brief_event)
 
-        # SPEC-067: Spawn agy Architect worker
-        # Use agy -p with explicit prompt text (agy has no --prompt-file flag).
-        # Stay on Gemini 3.1 Pro because Claude-via-agy -p silently exits (see build_executor RISK_HIGH_MODEL).
-        import shutil as _shutil
-        AGY_BIN = (os.environ.get("AGY_EXECPATH") or _shutil.which("agy") or "/home/human/.local/bin/agy")
-        project_root = res["paths"]["root"]
-        prompt_template_path = os.path.join(os.path.dirname(__file__), "forge_prompts", "architect.md")
-        log_path = os.path.join(_ops_dir, "forge_worker.log")
-        try:
-            with open(prompt_template_path) as _pf:
-                _prompt_template = _pf.read()
-        except Exception:
-            _prompt_template = "Read _cortex/ops/forge_brief.json and fill _cortex/specs/SPEC-001_VISION.md. Derive 3-7 child specs via POST /api/specs."
-        # Regex-based placeholder substitution. Only matches {bareword}, so JSON
-        # blocks like {"title":"..."} in the template are left alone (Python's
-        # .format() would error on those, then our fallback would leave literal
-        # {project_name} strings in the prompt -- the cause of the eyetoy_test
-        # "wrong project name in curls" bug).
-        import re as _re, datetime as _dt
-        _subs = {
-            "project_name": project_name,
-            "project_path": project_root,
-            "forge_session_id": session_id,
-            "forge_min_children": os.environ.get("ADT_FORGE_MIN_CHILDREN", "3"),
-            "forge_max_children": os.environ.get("ADT_FORGE_MAX_CHILDREN", "7"),
-            "today": _dt.date.today().isoformat(),
-        }
-        def _sub_one(m):
-            key = m.group(1)
-            return str(_subs.get(key, m.group(0)))
-        prompt_text = _re.sub(r"\{(\w+)\}", _sub_one, _prompt_template)
-        forge_model = os.environ.get("ADT_FORGE_MODEL", "Gemini 3.5 Flash (Medium)")  # SPEC-076 MVP: MEDIUM for forge Architect
-        _stdbuf_bin = shutil.which("stdbuf") or "/usr/bin/stdbuf"
-        _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--print-timeout", "30m", "--model", forge_model]
-        cmd = ([_stdbuf_bin, "-oL"] + _forge_base) if (_stdbuf_bin and os.path.exists(_stdbuf_bin)) else _forge_base
-        # Truncate log file so /status shows fresh content
-        with open(log_path, "w") as log_f:
-            log_f.write(f"=== Forge worker spawned at {datetime.now(timezone.utc).isoformat()} ===\n")
-            log_f.write(f"project: {project_name}\nsession_id: {session_id}\nmodel: {forge_model}\n")
-            log_f.write(f"cmd: {AGY_BIN} -p <prompt {len(prompt_text)} chars> --model '{forge_model}'\n\n")
-        log_f_append = open(log_path, "ab")
-        env = {**os.environ,
-               "ADT_FORGE_SESSION_ID": session_id,
-               "ADT_PROJECT_NAME": project_name,
-               "ADT_MODE": "forge_worker",
-               "CLAUDE_PROJECT_DIR": project_root,
-               "BROWSER": "true",
-               "NO_BROWSER": "1",
-               "DEBIAN_FRONTEND": "noninteractive"}
-        try:
-            worker_proc = subprocess.Popen(
-                cmd,
-                stdout=log_f_append,
-                stderr=log_f_append,
-                stdin=subprocess.DEVNULL,
-                cwd=project_root,
-                env=env,
-                start_new_session=True,
-            )
-        except Exception as _se:
-            return jsonify({"error": f"agy spawn failed: {_se}", "agy_bin": AGY_BIN}), 500
+        # REQ-129 / SCR-164: Park the forge session in "awaiting_standards_confirmation".
+        # The Architect worker is NOT spawned here anymore -- it spawns only after the
+        # operator POSTs to /api/governance/forge/<id>/confirm_standards. This preserves
+        # the human-in-the-loop veto over MRR-suggested standards per AI_PROTOCOL section 4.4
+        # (amended 2026-08-07).
+        forge_brief["awaiting_standards_confirmation"] = True
+        with open(brief_path, "w") as f:
+            json.dump(forge_brief, f, indent=2)
 
-        spawn_event = ADSEventSchema.create_event(
-            event_id=ADSEventSchema.generate_id("forge_spawn"),
+        park_event = ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("forge_park"),
             agent="SYSTEM",
             role="Architect",
-            action_type="forge_worker_spawned",
-            description=f"Forge worker spawned with PID {worker_proc.pid}.",
-            spec_ref="SPEC-067",
+            action_type="forge_awaiting_standards_confirmation",
+            description=(
+                "Forge session parked -- awaiting operator confirmation of MRR-suggested "
+                "standards before Architect worker spawn (REQ-129, SCR-164)."
+            ),
+            spec_ref="SPEC-080",
             authorized=True,
             tier=1,
             session_id=session_id,
-            action_data={"pid": worker_proc.pid}
+            action_data={
+                "forge_session_id": session_id,
+                "project": project_name,
+                "suggested_rr_ids": list(selected_rr_ids),
+                "req_ref": "REQ-129",
+                "scr_ref": "SCR-164",
+            }
         )
-        res["logger"].log(spawn_event)
-        
+        res["logger"].log(park_event)
+
         return jsonify({
-            "status": "forging",
+            "status": "awaiting_standards_confirmation",
             "project_name": project_name,
             "forge_session_id": session_id
         }), 201
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def _spawn_forge_architect_worker(project_name, session_id, res, brief_path):
+    """REQ-129 / SPEC-067: Spawn agy Architect worker for a forge session.
+
+    Extracted from api_forge_project() so the confirm_standards endpoint can
+    trigger the spawn after the operator has selected which MRR-suggested
+    standards to adopt. Returns (pid, None) on success, (None, err_str) on failure.
+    """
+    import shutil as _shutil
+    AGY_BIN = (os.environ.get("AGY_EXECPATH") or _shutil.which("agy") or "/home/human/.local/bin/agy")
+    project_root = res["paths"]["root"]
+    _ops_dir = os.path.join(project_root, "_cortex", "ops")
+    prompt_template_path = os.path.join(os.path.dirname(__file__), "forge_prompts", "architect.md")
+    log_path = os.path.join(_ops_dir, "forge_worker.log")
+    try:
+        with open(prompt_template_path) as _pf:
+            _prompt_template = _pf.read()
+    except Exception:
+        _prompt_template = "Read _cortex/ops/forge_brief.json and fill _cortex/specs/SPEC-001_VISION.md. Derive 3-7 child specs via POST /api/specs."
+
+    import re as _re, datetime as _dt
+    _subs = {
+        "project_name": project_name,
+        "project_path": project_root,
+        "forge_session_id": session_id,
+        "forge_min_children": os.environ.get("ADT_FORGE_MIN_CHILDREN", "3"),
+        "forge_max_children": os.environ.get("ADT_FORGE_MAX_CHILDREN", "7"),
+        "today": _dt.date.today().isoformat(),
+    }
+    def _sub_one(m):
+        key = m.group(1)
+        return str(_subs.get(key, m.group(0)))
+    prompt_text = _re.sub(r"\{(\w+)\}", _sub_one, _prompt_template)
+    forge_model = os.environ.get("ADT_FORGE_MODEL", "Gemini 3.5 Flash (Medium)")
+    _stdbuf_bin = shutil.which("stdbuf") or "/usr/bin/stdbuf"
+    _forge_base = [AGY_BIN, "-p", prompt_text, "--dangerously-skip-permissions", "--new-project", "--print-timeout", "30m", "--model", forge_model]
+    cmd = ([_stdbuf_bin, "-oL"] + _forge_base) if (_stdbuf_bin and os.path.exists(_stdbuf_bin)) else _forge_base
+    with open(log_path, "w") as log_f:
+        log_f.write(f"=== Forge worker spawned at {datetime.now(timezone.utc).isoformat()} ===\n")
+        log_f.write(f"project: {project_name}\nsession_id: {session_id}\nmodel: {forge_model}\n")
+        log_f.write(f"cmd: {AGY_BIN} -p <prompt {len(prompt_text)} chars> --model '{forge_model}'\n\n")
+    log_f_append = open(log_path, "ab")
+    env = {**os.environ,
+           "ADT_FORGE_SESSION_ID": session_id,
+           "ADT_PROJECT_NAME": project_name,
+           "ADT_MODE": "forge_worker",
+           "CLAUDE_PROJECT_DIR": project_root,
+           "BROWSER": "true",
+           "NO_BROWSER": "1",
+           "DEBIAN_FRONTEND": "noninteractive"}
+    try:
+        worker_proc = subprocess.Popen(
+            cmd,
+            stdout=log_f_append,
+            stderr=log_f_append,
+            stdin=subprocess.DEVNULL,
+            cwd=project_root,
+            env=env,
+            start_new_session=True,
+        )
+    except Exception as _se:
+        return None, f"agy spawn failed: {_se} (agy_bin={AGY_BIN})"
+
+    spawn_event = ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("forge_spawn"),
+        agent="SYSTEM",
+        role="Architect",
+        action_type="forge_worker_spawned",
+        description=f"Forge worker spawned with PID {worker_proc.pid}.",
+        spec_ref="SPEC-067",
+        authorized=True,
+        tier=1,
+        session_id=session_id,
+        action_data={"pid": worker_proc.pid}
+    )
+    res["logger"].log(spawn_event)
+    return worker_proc.pid, None
+
+
+@governance_bp.route("/governance/forge/<forge_session_id>/confirm_standards", methods=["POST"])
+def api_forge_confirm_standards(forge_session_id):
+    """REQ-129 / SCR-164 / AI_PROTOCOL section 4.4:
+
+    Operator confirms which MRR-suggested standards to adopt for this forge run.
+    Writes the selection into forge_brief.json, emits a standards_confirmed_by_operator
+    ADS event (with both selected and declined RR arrays for audit), and then
+    triggers the Architect worker spawn (previously immediate at forge time).
+    """
+    data = request.get_json(silent=True) or {}
+    selected_rr_ids = data.get("selected_rr_ids") or []
+    declined_rr_ids = data.get("declined_rr_ids") or []
+    if not isinstance(selected_rr_ids, list) or not isinstance(declined_rr_ids, list):
+        return jsonify({"error": "selected_rr_ids and declined_rr_ids must be arrays"}), 400
+
+    project_name = request.args.get("project") or data.get("project")
+
+    # Resolve project resources (identical strategy to api_forge_status).
+    res = None
+    if project_name:
+        res = _get_project_resources(project_name)
+    else:
+        registry = ProjectRegistry()
+        for p in registry.list_projects():
+            p_res = _get_project_resources(p["name"])
+            events = p_res["query"].get_all_events()
+            def _match(e):
+                if e.get("session_id") == forge_session_id:
+                    return True
+                ad = e.get("action_data") or {}
+                return ad.get("forge_session_id") == forge_session_id
+            if any(_match(e) for e in events):
+                res = p_res
+                project_name = p["name"]
+                break
+    if not res:
+        return jsonify({"error": "forge session not found"}), 404
+
+    project_root = res["paths"]["root"]
+    _ops_dir = os.path.join(project_root, "_cortex", "ops")
+    brief_path = os.path.join(_ops_dir, "forge_brief.json")
+
+    # Read + update forge_brief.json with the operator's confirmed selection.
+    try:
+        with open(brief_path) as bf:
+            forge_brief = json.load(bf)
+    except FileNotFoundError:
+        return jsonify({"error": "forge_brief.json missing"}), 404
+
+    forge_brief["selected_rr_ids"] = list(selected_rr_ids)
+    forge_brief["declined_rr_ids"] = list(declined_rr_ids)
+    forge_brief["standards_confirmed_by_operator"] = True
+    forge_brief["standards_confirmed_at"] = datetime.now(timezone.utc).isoformat()
+    forge_brief["awaiting_standards_confirmation"] = False
+    with open(brief_path, "w") as bf:
+        json.dump(forge_brief, bf, indent=2)
+
+    # Emit the ADS audit event (selected + declined both recorded).
+    res["logger"].log(ADSEventSchema.create_event(
+        event_id=ADSEventSchema.generate_id("std_conf"),
+        agent="OPERATOR",
+        role="Operator",
+        action_type="standards_confirmed_by_operator",
+        description=(
+            f"Operator confirmed standards for forge session {forge_session_id}: "
+            f"{len(selected_rr_ids)} adopted, {len(declined_rr_ids)} declined."
+        ),
+        spec_ref="SPEC-080",
+        authorized=True,
+        tier=1,
+        session_id=forge_session_id,
+        action_data={
+            "forge_session_id": forge_session_id,
+            "project": project_name,
+            "selected_rr_ids": list(selected_rr_ids),
+            "declined_rr_ids": list(declined_rr_ids),
+            "req_ref": "REQ-129",
+            "scr_ref": "SCR-164",
+            "authority": "AI_PROTOCOL section 4.4 (amended 2026-08-07)",
+        }
+    ))
+
+    # Also emit per-declined-RR standards_declined events (AI_PROTOCOL section 4.4(b) audit trail).
+    for rr in declined_rr_ids:
+        res["logger"].log(ADSEventSchema.create_event(
+            event_id=ADSEventSchema.generate_id("std_dec"),
+            agent="OPERATOR",
+            role="Operator",
+            action_type="standards_declined",
+            description=f"Operator declined MRR-suggested standard {rr} for forge session {forge_session_id}.",
+            spec_ref="SPEC-080",
+            authorized=True,
+            tier=1,
+            session_id=forge_session_id,
+            action_data={
+                "forge_session_id": forge_session_id,
+                "project": project_name,
+                "rr_id": rr,
+                "req_ref": "REQ-129",
+                "authority": "SCR-164 operator veto",
+            }
+        ))
+
+    # Trigger the Architect worker spawn (previously immediate at forge time).
+    # In test contexts the spawn helper is monkey-patched to a no-op so this is safe.
+    pid, err = _spawn_forge_architect_worker(project_name, forge_session_id, res, brief_path)
+    if err:
+        return jsonify({
+            "status": "standards_confirmed_spawn_failed",
+            "error": err,
+            "selected_rr_ids": list(selected_rr_ids),
+            "declined_rr_ids": list(declined_rr_ids),
+        }), 500
+
+    return jsonify({
+        "status": "standards_confirmed",
+        "forge_session_id": forge_session_id,
+        "project": project_name,
+        "selected_rr_ids": list(selected_rr_ids),
+        "declined_rr_ids": list(declined_rr_ids),
+        "worker_pid": pid,
+    }), 200
 
 @governance_bp.route("/governance/forge/<forge_session_id>/status", methods=["GET"])
 def api_forge_status(forge_session_id):

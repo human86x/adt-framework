@@ -1492,7 +1492,14 @@ Art is represented either as a textured plane derived from a single photo (paint
     // Flip the status line to "done" and reveal the chip rows.
     const statusEl = document.getElementById("forge-standards-status");
     if (statusEl) {
-      statusEl.innerHTML = `<span style="color:#3fb950">&#10003;</span> <span>Classifier finished — ${forgeData.suggestedRRs.length} standard${forgeData.suggestedRRs.length===1?'':'s'} matched across ${forgeData.matchedDomains.length} domain${forgeData.matchedDomains.length===1?'':'s'}.</span>`;
+      statusEl.innerHTML = `<span style="color:#3fb950">&#10003;</span> <span>Classifier finished -- ${forgeData.suggestedRRs.length} standard${forgeData.suggestedRRs.length===1?'':'s'} matched across ${forgeData.matchedDomains.length} domain${forgeData.matchedDomains.length===1?'':'s'}. Please review and confirm below.</span>`;
+    }
+    // REQ-129: swap the forge wait line from "Analyzing your wish..." to
+    // "Awaiting your standards review..." — the Architect worker is now
+    // parked awaiting operator confirmation via the Confirm button below.
+    if (!forgeData.standardsConfirmed) {
+      const progressText = document.getElementById("forge-progress-text");
+      if (progressText) progressText.textContent = "Awaiting your standards review...";
     }
     renderStandardsChips();
     // SPEC-080 / REQ-123: morph the catalog strip to "matched" mode showing
@@ -1502,7 +1509,10 @@ Art is represented either as a textured plane derived from a single photo (paint
   }
 
   // Render the domain + RR chip rows from forgeData, sorted by confidence desc.
-  // Chips animate in via CSS opacity transition on first insertion.
+  // REQ-129 / SCR-164: RR rows are now checkbox+label pairs. Default: CHECKED
+  // (operator un-checks to veto). A "Confirm Standards & Continue" button
+  // appears once the MRR run has completed; clicking it POSTs the selection
+  // to the backend confirm_standards endpoint which then spawns the Architect.
   function renderStandardsChips() {
     const domainsEl = document.getElementById("forge-standards-domains");
     const rrsEl = document.getElementById("forge-standards-rrs");
@@ -1520,14 +1530,35 @@ Art is represented either as a textured plane derived from a single photo (paint
     // in forgeData.acceptedRRs (populated by markAcceptedStandards() after the
     // forge worker fills SPEC-001).
     const acceptedSet = new Set([...(forgeData.selected_rr_ids || []), ...(forgeData.acceptedRRs || [])]);
+    // REQ-129: per-forge selection state. Persist across re-renders — only
+    // seed defaults for RR ids we haven't seen yet (all default: CHECKED).
+    if (!forgeData.standardsSelection) forgeData.standardsSelection = {};
+    if (!forgeData.standardsDomainSelection) forgeData.standardsDomainSelection = {};
+    for (const rr of sortedRRs) {
+      if (!(rr in forgeData.standardsSelection)) forgeData.standardsSelection[rr] = true;
+    }
+    for (const d of sortedDomains) {
+      if (!(d in forgeData.standardsDomainSelection)) forgeData.standardsDomainSelection[d] = true;
+    }
+
+    // Whether Confirm has already fired (freeze checkboxes to read-only).
+    const confirmed = !!forgeData.standardsConfirmed;
 
     if (sortedDomains.length) {
       domainsEl.style.display = "flex";
+      // REQ-129: domain checkboxes are informational (per spec-brief, only RR
+      // checkboxes are structurally load-bearing). Rendered here for parity.
       domainsEl.innerHTML = sortedDomains.map(d => {
         const conf = forgeData.domainConfidence[d];
         const confPct = conf != null ? `${Math.round(conf * 100)}%` : 'n/a';
-        const tooltip = `Domain: ${d}\nConfidence: ${confPct}`;
-        return `<span title="${tooltip.replace(/"/g,'&quot;')}" style="background:#1f2937;color:#a5d6ff;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid #30363d;cursor:help">${d.replace(/</g,'&lt;')}</span>`;
+        const checked = forgeData.standardsDomainSelection[d] ? 'checked' : '';
+        const disabled = confirmed ? 'disabled' : '';
+        const tooltip = `Domain: ${d}\nConfidence: ${confPct}\n(informational)`;
+        const safeD = d.replace(/</g,'&lt;').replace(/"/g,'&quot;');
+        return `<label title="${tooltip.replace(/"/g,'&quot;')}" style="display:inline-flex;align-items:center;gap:4px;background:#1f2937;color:#a5d6ff;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid #30363d;cursor:pointer">
+          <input type="checkbox" data-domain="${safeD}" ${checked} ${disabled} class="std-domain-cb" style="margin:0;transform:scale(0.85)">
+          <span>${d.replace(/</g,'&lt;')}</span>
+        </label>`;
       }).join("");
     }
 
@@ -1538,22 +1569,127 @@ Art is represented either as a textured plane derived from a single photo (paint
         const confPct = conf != null ? `${Math.round(conf * 100)}%` : 'n/a';
         const title = forgeData.rrTitles[rr] || '';
         const accepted = acceptedSet.has(rr);
-        const tooltip = `${rr}${title ? ' — ' + title : ''}\nConfidence: ${confPct}\nState: ${accepted ? '✓ accepted' : 'suggested'}`;
+        const checkedNow = forgeData.standardsSelection[rr] ? 'checked' : '';
+        const disabled = confirmed ? 'disabled' : '';
+        const tooltip = `${rr}${title ? ' -- ' + title : ''}\nConfidence: ${confPct}\nState: ${accepted ? 'accepted' : (forgeData.standardsSelection[rr] ? 'will adopt' : 'declined')}`;
         const rrBg = accepted ? '#238636' : '#161b22';
         const rrBorder = accepted ? '#2ea043' : '#21262d';
         const rrColor = accepted ? '#ffffff' : '#58a6ff';
         const stateBadge = accepted
           ? '<span style="color:#3fb950;font-size:10px;margin-left:6px">&#10003; accepted</span>'
-          : '<span style="color:#8b949e;font-size:10px;margin-left:6px">suggested</span>';
+          : (forgeData.standardsSelection[rr]
+              ? '<span style="color:#8b949e;font-size:10px;margin-left:6px">will adopt</span>'
+              : '<span style="color:#f85149;font-size:10px;margin-left:6px">declined</span>');
+        const safeRR = rr.replace(/</g,'&lt;').replace(/"/g,'&quot;');
         return `
-          <div title="${tooltip.replace(/"/g,'&quot;')}" style="display:flex;justify-content:space-between;align-items:center;background:${rrBg};padding:4px 8px;border:1px solid ${rrBorder};border-radius:4px;cursor:help;transition:opacity 0.25s ease-in">
+          <label title="${tooltip.replace(/"/g,'&quot;')}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:${rrBg};padding:4px 8px;border:1px solid ${rrBorder};border-radius:4px;cursor:pointer;transition:opacity 0.25s ease-in">
+            <input type="checkbox" data-rr="${safeRR}" ${checkedNow} ${disabled} class="std-rr-cb" style="margin:0;flex-shrink:0">
             <span style="color:${rrColor};font-weight:bold;flex-shrink:0">${rr.replace(/</g,'&lt;')}</span>
-            <span style="color:#c9d1d9;font-size:11px;flex:1;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(title||'').replace(/</g,'&lt;')}</span>
-            <span style="color:#8b949e;font-size:10px;margin-left:8px;flex-shrink:0">${confPct}</span>
+            <span style="color:#c9d1d9;font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(title||'').replace(/</g,'&lt;')}</span>
+            <span style="color:#8b949e;font-size:10px;flex-shrink:0">${confPct}</span>
             ${stateBadge}
-          </div>
+          </label>
         `;
       }).join("");
+
+      // Wire checkbox change handlers (RR + domain).
+      rrsEl.querySelectorAll('input.std-rr-cb').forEach(cb => {
+        cb.onchange = () => {
+          const rr = cb.getAttribute('data-rr');
+          if (rr) forgeData.standardsSelection[rr] = cb.checked;
+          renderStandardsChips();
+        };
+      });
+      domainsEl.querySelectorAll('input.std-domain-cb').forEach(cb => {
+        cb.onchange = () => {
+          const d = cb.getAttribute('data-domain');
+          if (d) forgeData.standardsDomainSelection[d] = cb.checked;
+        };
+      });
+    }
+
+    // REQ-129: render the Confirm button once the MRR run completes AND we
+    // have at least one RR to review. The classifierCompletedTs field is set
+    // by renderStandardsResult() when intent_match_completed fires.
+    renderStandardsConfirmButton();
+  }
+
+  // REQ-129 / SCR-164: The bottom-of-panel Confirm button. Only rendered
+  // once the classifier has completed and we have RRs to review. On click:
+  // POSTs {selected_rr_ids, declined_rr_ids} to the backend confirm endpoint,
+  // which un-parks the Architect worker.
+  function renderStandardsConfirmButton() {
+    const panel = document.getElementById("forge-standards-panel");
+    if (!panel) return;
+    let btnHost = document.getElementById("forge-standards-confirm-host");
+    const classifierDone = !!forgeData.classifierCompletedTs;
+    const rrs = Object.keys(forgeData.standardsSelection || {});
+    const hasRRs = rrs.length > 0;
+    const alreadyConfirmed = !!forgeData.standardsConfirmed;
+
+    if (!classifierDone || !hasRRs) {
+      if (btnHost) btnHost.remove();
+      return;
+    }
+
+    if (!btnHost) {
+      btnHost = document.createElement('div');
+      btnHost.id = 'forge-standards-confirm-host';
+      btnHost.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;gap:8px';
+      panel.appendChild(btnHost);
+    }
+
+    const selectedCount = rrs.filter(r => forgeData.standardsSelection[r]).length;
+    const declinedCount = rrs.length - selectedCount;
+    if (alreadyConfirmed) {
+      btnHost.innerHTML = `<span style="color:#3fb950;font-size:12px">&#10003; Standards confirmed -- ${selectedCount} adopted, ${declinedCount} declined. Architect proceeding...</span>`;
+      return;
+    }
+
+    btnHost.innerHTML = `
+      <span style="color:#c9d1d9;font-size:11px">Review the standards above; uncheck any that do not apply.</span>
+      <button id="btn-forge-confirm-standards" style="padding:8px 16px;background:#238636;border:1px solid #2ea043;color:#ffffff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold">&#10003; Confirm Standards &amp; Continue</button>
+    `;
+    const btn = document.getElementById('btn-forge-confirm-standards');
+    if (btn) btn.onclick = submitStandardsConfirmation;
+  }
+
+  async function submitStandardsConfirmation() {
+    if (!forgeData.sessionId) {
+      console.warn('[REQ-129] no forge_session_id yet; cannot confirm standards');
+      return;
+    }
+    const sel = forgeData.standardsSelection || {};
+    const selected_rr_ids = Object.keys(sel).filter(r => sel[r]);
+    const declined_rr_ids = Object.keys(sel).filter(r => !sel[r]);
+
+    const btn = document.getElementById('btn-forge-confirm-standards');
+    if (btn) { btn.disabled = true; btn.textContent = 'Confirming...'; }
+
+    try {
+      const url = `${getCenterUrl()}/api/governance/forge/${encodeURIComponent(forgeData.sessionId)}/confirm_standards`;
+      const projQuery = forgeData.projectName ? `?project=${encodeURIComponent(forgeData.projectName)}` : '';
+      const res = await fetch(url + projQuery, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selected_rr_ids, declined_rr_ids }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error('[REQ-129] confirm_standards failed:', res.status, txt);
+        if (btn) { btn.disabled = false; btn.textContent = '✓ Confirm Standards & Continue'; }
+        return;
+      }
+      forgeData.standardsConfirmed = true;
+      forgeData.selected_rr_ids = selected_rr_ids;
+      forgeData.declined_rr_ids = declined_rr_ids;
+      // Update progress-screen status line to reflect the transition.
+      const progressText = document.getElementById('forge-progress-text');
+      if (progressText) progressText.textContent = 'Standards confirmed -- Architect spawning...';
+      renderStandardsChips();
+    } catch (err) {
+      console.error('[REQ-129] confirm_standards error:', err);
+      if (btn) { btn.disabled = false; btn.textContent = '✓ Confirm Standards & Continue'; }
     }
   }
 

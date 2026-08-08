@@ -127,10 +127,12 @@ def create_app():
     from adt_center.api.ads_routes import ads_bp
     from adt_center.api.governance_routes import governance_bp
     from adt_center.api.workers_routes import workers_bp  # SPEC-078 Part D (REQ-121)
+    from adt_center.api.state_routes import state_bp  # REQ-125 Priority 5
     app.register_blueprint(dtcp_bp, url_prefix="/api/dtcp")
     app.register_blueprint(ads_bp, url_prefix="/api/ads")
     app.register_blueprint(governance_bp, url_prefix="/api")
     app.register_blueprint(workers_bp, url_prefix="/api/workers")
+    app.register_blueprint(state_bp, url_prefix="/api/state")
 
     def _enrich_specs(specs):
         for spec in specs:
@@ -743,7 +745,67 @@ def _start_reality_audit():
     print("[reality-audit] started (per-60s file-evidence reconciliation)", flush=True)
 
 
+def _run_startup_fsck(skip: bool = False):
+    """REQ-125 Priority 4: startup fsck over load-bearing JSON files.
+
+    If any file is corrupt, print an actionable message to stderr and
+    ``sys.exit(3)`` -- Flask never binds. Bypass with ``--skip-fsck`` on
+    the CLI or ``ADT_SKIP_FSCK=1`` in the environment (prints a bright
+    yellow warning so operators know they're running degraded).
+    """
+    import sys
+    from adt_core.state import run_startup_fsck
+
+    framework_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    candidates = [
+        os.path.join(framework_root, "_cortex", "tasks.json"),
+        os.path.join(framework_root, "config", "intent_index.json"),
+        os.path.join(framework_root, "config", "specs.json"),
+        os.path.join(framework_root, "config", "jurisdictions.json"),
+        os.path.join(framework_root, "_cortex", "ops", "sovereign_requests.json"),
+        os.path.join(framework_root, "_cortex", "ops", "builds.json"),
+    ]
+
+    if skip:
+        # Bright yellow ANSI warning; operators should see this in the logs.
+        sys.stderr.write(
+            "\033[1;33m[REQ-125] startup fsck BYPASSED via --skip-fsck / "
+            "ADT_SKIP_FSCK=1. Load-bearing state files were NOT validated. "
+            "This is unsafe for anything other than recovery/testing.\033[0m\n"
+        )
+        sys.stderr.flush()
+        return
+
+    problems = run_startup_fsck(candidates)
+    if problems:
+        sys.stderr.write("ADT-CENTER STARTUP FSCK FAILED:\n")
+        for p in problems:
+            sys.stderr.write(
+                f"  {p.path}: line {p.line} col {p.col}: {p.detail}\n"
+            )
+        sys.stderr.write(
+            "Refusing to bind. Fix the corruption or run "
+            "adt_core.state.safe_write.restore_latest_backup("
+            "'<file>') to recover from the last known good.\n"
+        )
+        sys.stderr.flush()
+        sys.exit(3)
+
+    # Count files that actually exist (missing files are OK per REQ-125).
+    validated = sum(1 for p in candidates if os.path.exists(p))
+    print(
+        f"[REQ-125] startup fsck OK: {validated} files validated",
+        flush=True,
+    )
+
+
 if __name__ == "__main__":
+    import sys as _sys
+    _skip_fsck = (
+        "--skip-fsck" in _sys.argv
+        or os.environ.get("ADT_SKIP_FSCK", "0") == "1"
+    )
+    _run_startup_fsck(skip=_skip_fsck)
     _finalize_orphan_builds_on_startup()
     _start_zombie_watcher()
     _start_synth_progress()

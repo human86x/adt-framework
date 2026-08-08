@@ -23,4 +23,6 @@ from adt_core.state.safe_load import (  # noqa: F401
 from adt_core.state.safe_write import (  # noqa: F401
     safe_json_write,
     prune_backups,
+    list_backups,
+    restore_latest_backup,
 )

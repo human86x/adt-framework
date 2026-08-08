@@ -40,6 +40,46 @@ def _list_backups(path: str) -> List[str]:
     return out
 
 
+def list_backups(path: str) -> List[str]:
+    """Public wrapper for _list_backups. Returns backups sorted oldest to
+    newest (by epoch_ms suffix)."""
+    return _list_backups(path)
+
+
+def restore_latest_backup(path: str) -> str:
+    """REQ-125 Priority 5: restore the most recent .bak.* that parses as
+    valid JSON. Returns the backup path that was restored. Raises
+    ``FileNotFoundError`` if no restorable backup exists.
+
+    Skips backups that are themselves corrupt -- picks the newest that
+    parses cleanly. The pre-restore state is preserved as
+    ``<path>.pre_restore.<epoch_ms>`` so an operator can undo a mistaken
+    restore.
+    """
+    backups = _list_backups(path)
+    # Newest first.
+    for candidate in reversed(backups):
+        try:
+            with open(candidate, "r", encoding="utf-8") as f:
+                json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        # Preserve current corrupt content so restore is reversible.
+        if os.path.exists(path):
+            ts = int(time.time() * 1000)
+            pre = f"{path}.pre_restore.{ts}"
+            try:
+                shutil.copy2(path, pre)
+            except OSError:
+                pass
+        shutil.copy2(candidate, path)
+        return candidate
+    raise FileNotFoundError(
+        f"No parseable backup available for {path}. "
+        f"Checked {len(backups)} rotation(s)."
+    )
+
+
 def prune_backups(path: str, keep: int = DEFAULT_KEEP) -> List[str]:
     """Delete all but the ``keep`` most recent backups. Returns the list
     of paths that were deleted (best-effort; unlink failures are ignored

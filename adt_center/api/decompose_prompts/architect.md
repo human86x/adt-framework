@@ -27,7 +27,7 @@ Call it 2-5 times per task as you complete meaningful steps (e.g. 20% understood
 Read the spec. Identify 5-15 discrete units of work. For each, run ONE curl exactly like this:
 
 ```bash
-curl -s -X POST 'http://localhost:5001/api/specs/{spec_id}/tasks' \
+curl -s -X POST 'http://localhost:5001/api/specs/{spec_id}/tasks?project={project_name}' \
   -H 'Content-Type: application/json' \
   -d '{{"role":"Backend_Engineer","title":"...","description":"...","acceptance_criteria":["...","..."],"depends_on":[]}}'
 ```

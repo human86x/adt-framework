@@ -195,7 +195,7 @@ curl -s "http://localhost:5001/api/ads/events?project={project_name}&type=intent
 curl -s "http://localhost:5001/api/ads/events?project={project_name}&type=intent_classification_completed&limit=1"
 ```
 
-Extract `action_data.suggested_rr_ids` (an array like `["RR-008","RR-012","RR-021"]`). Also extract `action_data.matched_domains` for reference.
+Extract `action_data.suggested_rr_ids` (an array like `["RR-008","RR-012","RR-021"]`). Also extract `action_data.matched_domains` for reference. <!-- noqa: REQ-123 (example RR list) -->
 
 If BOTH events are missing OR both return empty `suggested_rr_ids`, still proceed — but the `standards_refs[]` on SPEC-001 will be an empty list. Emit the `standards_inherited` event with `rr_ids: []` regardless — governance requires the event trail even for the empty case.
 
@@ -207,9 +207,9 @@ In `SPEC-001_VISION.md` frontmatter, add:
 
 ```yaml
 standards_refs:
-  - RR-008    # <one-line title from the RR registry, if fetchable>
-  - RR-012
-  - RR-021
+  - RR-008    # noqa: REQ-123 (illustrative RR id, not a fixed payload)
+  - RR-012    # noqa: REQ-123
+  - RR-021    # noqa: REQ-123
 standards_inheritance_source: mrr_auto_inheritance
 standards_inheritance_authority: "AI_PROTOCOL §4.4 (SPEC-080)"
 ```
@@ -219,7 +219,7 @@ Emit a `standards_inherited` ADS event:
 ```bash
 curl -s -X POST "http://localhost:5001/api/ads/events?project={project_name}" \
   -H 'Content-Type: application/json' \
-  -d '{"event_id":"evt_std_inh_'$(date -u +%s%3N)'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","agent":"SYSTEM","role":"Architect","action_type":"standards_inherited","spec_ref":"SPEC-001","authorized":true,"action_data":{"forge_session_id":"{forge_session_id}","spec_id":"SPEC-001","rr_ids":["RR-008","RR-012","RR-021"],"source":"mrr_auto_inheritance"}}'
+  -d '{"event_id":"evt_std_inh_'$(date -u +%s%3N)'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","agent":"SYSTEM","role":"Architect","action_type":"standards_inherited","spec_ref":"SPEC-001","authorized":true,"action_data":{"forge_session_id":"{forge_session_id}","spec_id":"SPEC-001","rr_ids":["RR-008","RR-012","RR-021"],"source":"mrr_auto_inheritance"}}'  # noqa: REQ-123 (example rr_ids placeholder)
 ```
 
 ### A.5.3 — Propagate to EVERY child spec (Phase B rule)
@@ -227,12 +227,12 @@ curl -s -X POST "http://localhost:5001/api/ads/events?project={project_name}" \
 When you POST each child spec to `/api/specs?project={project_name}` in Phase B, EVERY child MUST:
 
 1. Include the FULL Vision `standards_refs[]` in the child's `standards_refs` field. Verbatim. No filtering.
-2. For each inherited `RR-N`, add ONE observable acceptance criterion entry in the child's `success_condition` or acceptance_criteria list, phrased as a check specific to the child's scope. Example — a rendering-layer child with WCAG-2.2 inherited: `"axe-core CI run reports zero critical / serious violations against src/renderer.html"`. Example — a data-model child with JSON Schema inherited: `"planet_facts.json validates against src/schema/planet_facts.schema.json with zero errors"`.
+2. For each inherited `RR-N`, add ONE observable acceptance criterion entry in the child's `success_condition` or acceptance_criteria list, phrased as a check specific to the child's scope. Example — a rendering-layer child with (hypothetical) accessibility RR inherited: `"axe-core CI run reports zero critical / serious violations against src/renderer.html"`. Example — a data-model child with JSON Schema inherited: `"planet_facts.json validates against src/schema/planet_facts.schema.json with zero errors"`. <!-- noqa: REQ-123 (docs referencing generic RR-N) -->
 3. If a specific standard is genuinely inapplicable to this child (rare), DO NOT silently drop it. File an SCR:
 
    ```bash
    # SCR waiver body: reason (technical impossibility / scope / cost) + mitigation
-   curl -s -X POST "http://localhost:5001/api/scr" ...
+   curl -s -X POST "http://localhost:5001/api/scr?project={project_name}" ...
    # SCR title format: SCR-STANDARD-WAIVER-<child_spec_id>-<rr_id>
    ```
 
@@ -243,12 +243,12 @@ When you POST each child spec to `/api/specs?project={project_name}` in Phase B,
    ```bash
    curl -s -X POST "http://localhost:5001/api/ads/events?project={project_name}" \
      -H 'Content-Type: application/json' \
-     -d '{"event_id":"evt_anchor_'$(date -u +%s%3N)'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","agent":"SYSTEM","role":"Architect","action_type":"spec_standards_anchored","spec_ref":"SPEC-002","authorized":true,"action_data":{"forge_session_id":"{forge_session_id}","spec_id":"SPEC-002","rr_ids":["RR-008","RR-012","RR-021"],"reasoning":"inherited from Vision per AI_PROTOCOL §4.4"}}'
+     -d '{"event_id":"evt_anchor_'$(date -u +%s%3N)'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","agent":"SYSTEM","role":"Architect","action_type":"spec_standards_anchored","spec_ref":"SPEC-002","authorized":true,"action_data":{"forge_session_id":"{forge_session_id}","spec_id":"SPEC-002","rr_ids":["RR-008","RR-012","RR-021"],"reasoning":"inherited from Vision per AI_PROTOCOL §4.4"}}'  # noqa: REQ-123 (example rr_ids placeholder)
    ```
 
 ### A.5.4 — What the OPERATOR must never have to type
 
-The operator's wish, users, success, out, and constraints fields MUST NOT enumerate standards names (WCAG, glTF, WebGL, IAU, RFC-NNNN, etc.). If you see standards enumeration in the operator's input (a payload smell), that is a REQ-123 violation of the framework — record it in a `template_lint_finding` ADS event and continue. Do NOT re-echo the operator's smuggled standards into your `standards_refs` — use ONLY what the MRR classifier produced.
+The operator's wish, users, success, out, and constraints fields MUST NOT enumerate specific standards names by acronym. If you see standards enumeration in the operator's input (a payload smell), that is a REQ-123 violation of the framework — record it in a `template_lint_finding` ADS event and continue. Do NOT re-echo the operator's smuggled standards into your `standards_refs` — use ONLY what the MRR classifier produced.
 
 ---
 
