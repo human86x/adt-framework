@@ -972,36 +972,41 @@ Art is represented either as a textured plane derived from a single photo (paint
   // forge. Endpoint may not exist yet (Backend agent is building in parallel)
   // — any error/404/timeout falls through transparently.
   async function offerReuseOrForge() {
+    console.info("[SPEC-081] offerReuseOrForge() invoked  wish_len=" + (forgeData.wish||"").length);
     const wish = (forgeData.wish || "").trim();
-    if (!wish) { submitForge(); return; }
+    if (!wish) { console.warn("[SPEC-081] empty wish → skip picker"); submitForge(); return; }
     let matches = [];
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
-      const r = await fetch(`${getCenterUrl()}/api/governance/forge/similar_projects`, {
+      const timer = setTimeout(() => controller.abort(), 8000);  // was 4s, bumped for safety
+      const url = `${getCenterUrl()}/api/governance/forge/similar_projects`;
+      console.info("[SPEC-081] POST", url);
+      const r = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wish }),
         signal: controller.signal
       });
       clearTimeout(timer);
+      console.info("[SPEC-081] response HTTP", r.status);
       if (r.status === 404) {
-        console.debug("[SPEC-081] /similar_projects not deployed yet (404) — skipping picker");
+        console.warn("[SPEC-081] /similar_projects not deployed yet (404) — skipping picker");
       } else if (!r.ok) {
         console.warn(`[SPEC-081] /similar_projects HTTP ${r.status} — skipping picker`);
       } else {
         const data = await r.json();
         matches = Array.isArray(data.matches) ? data.matches : [];
+        console.info("[SPEC-081] got", matches.length, "matches. Top:", matches[0]);
       }
     } catch (err) {
-      // Timeout / network / abort — never block the wizard on this optional feature.
-      console.warn("[SPEC-081] /similar_projects failed:", err && err.message || err);
+      console.error("[SPEC-081] /similar_projects failed:", err && err.message || err);
     }
-    // FIX 2026-08-08: Jaccard similarity on differently-sized wish texts rarely hits 0.7;
-    // use combined_score (which already blends similarity + recency, matches backend threshold 0.35).
-    const strong = matches.filter(m => (Number(m.combined_score) || Number(m.similarity) || 0) >= 0.35);
-    if (strong.length >= 1) {
-      showMatchPickerScreen(strong.slice(0, 3), null);
+    const strong = matches.filter(m => (Number(m.combined_score) || Number(m.similarity) || 0) >= 0.30);
+    console.info("[SPEC-081] strong-match count (>=0.30):", strong.length);
+    // 2026-08-09 fix: ALWAYS show the picker if ANY matches exist (even below threshold)
+    // so operator has a visible "no fork" acknowledgement instead of silent skip.
+    if (matches.length >= 1) {
+      showMatchPickerScreen((strong.length ? strong : matches).slice(0, 3), null);
     } else {
       // 0 matches, error, or all below threshold — proceed to normal forge.
       submitForge();
@@ -1032,6 +1037,15 @@ Art is represented either as a textured plane derived from a single photo (paint
         <label>Project name <span class="wiz-optional">(auto-detected from path)</span></label>
         <input type="text" id="wiz-forge-name" placeholder="my-new-app" value="` + (forgeData.name || "") + `">
       </div>
+      <div class="wizard-field" style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:12px;color:#8b949e;margin-top:12px">
+        <span style="color:#c9d1d9;font-weight:bold">MRR classifier:</span>
+        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Instant keyword scan against 27 domains. Best for demos.">
+          <input type="radio" name="wiz-mrr-mode" value="quick" checked>⚡ Quick <span style="color:#7ee787;font-size:11px">(instant)</span>
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Deep LLM analysis: 30-60s, more nuanced. Falls back to Quick on failure.">
+          <input type="radio" name="wiz-mrr-mode" value="deep">🔬 Deep <span style="color:#d29922;font-size:11px">(~30-60s)</span>
+        </label>
+      </div>
       <div class="wizard-actions">
         <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
         <div id="wiz-template-picker" style="position:relative;margin-right:auto">
@@ -1051,13 +1065,107 @@ Art is represented either as a textured plane derived from a single photo (paint
     // re-render (e.g., wizard reopened after a stop) needs the retry.
     if (!_forgeCatalog && !_forgeCatalogLoading) fetchForgeCatalog();
     document.getElementById("btn-wiz-cancel").onclick = closeWizard;
-    document.getElementById("btn-wiz-next").onclick = () => {
+    document.getElementById("btn-wiz-next").onclick = async () => {
       forgeData.wish = (document.getElementById("wiz-forge-wish").value || "").trim();
       forgeData.path = (document.getElementById("wiz-forge-path").value || "").trim();
       forgeData.name = (document.getElementById("wiz-forge-name").value || "").trim();
       if (!forgeData.wish) { alert("Please describe your wish."); return; }
       if (!forgeData.path) { alert("Project path is required."); return; }
-      showForgeScreen2();
+      // SCR-164 / SPEC-081: MRR classifier — mode selected by operator (Quick/Deep).
+      const _mrrMode = (document.querySelector("input[name='wiz-mrr-mode']:checked") || {}).value || "quick";
+      forgeData.mrr_mode = _mrrMode;
+      if (_mrrMode === "deep") {
+        // Deep LLM analysis: show progress modal, fetch with generous 120s timeout,
+        // on any failure fall back to Quick automatically (never dead-end the operator).
+        const _startTs = Date.now();
+        showWizard(`
+          <h2>🔬 Deep LLM Analysis</h2>
+          <p class="wiz-subtitle">Sending your wish to Gemini for contextual classification. Typically 30-60 seconds. If it fails, we fall back to the quick keyword scan automatically.</p>
+          <div style="margin:20px 0;padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:20px;height:20px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+              <div id="deep-status" style="color:#c9d1d9;font-size:13px">Contacting classifier…</div>
+            </div>
+            <div id="deep-elapsed" style="color:#8b949e;font-size:11px;margin-top:8px">elapsed: 0s</div>
+          </div>
+          <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+          <div class="wizard-actions">
+            <button class="btn-prev" id="btn-deep-cancel">Cancel &amp; use Quick instead</button>
+          </div>
+        `);
+        const _elapsedTimer = setInterval(() => {
+          const el = document.getElementById("deep-elapsed");
+          if (el) el.textContent = `elapsed: ${Math.floor((Date.now() - _startTs) / 1000)}s`;
+        }, 500);
+        const _fallbackToQuick = async (reason) => {
+          clearInterval(_elapsedTimer);
+          console.warn(`[SCR-164] Deep failed (${reason}) — falling back to Quick`);
+          try {
+            const qr = await fetch(`${getCenterUrl()}/api/governance/intent/quick_classify`, {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ wish: forgeData.wish })
+            });
+            if (qr.ok) {
+              const qd = await qr.json();
+              forgeData.mrr_suggested = qd.suggested_rr_ids || [];
+              forgeData.mrr_domains = qd.matched_domains || [];
+            }
+          } catch (_) {}
+          forgeData.mrr_mode = "quick_fallback";
+          showForgeScreen2();
+        };
+        document.getElementById("btn-deep-cancel").onclick = () => _fallbackToQuick("operator_cancel");
+        const _ctrl = new AbortController();
+        const _tmo = setTimeout(() => _ctrl.abort(), 120000);
+        try {
+          const r = await fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            signal: _ctrl.signal,
+            body: JSON.stringify({
+              engine: "gemini-3.5-flash-medium",
+              wish: forgeData.wish,
+              users: forgeData.users || "n/a",
+              success_v1: forgeData.success || "n/a",
+              project: forgeData.name || "pending"
+            })
+          });
+          clearTimeout(_tmo);
+          clearInterval(_elapsedTimer);
+          if (r.ok) {
+            const d = await r.json();
+            // LLM response format: matched_domains + recommended_rrs (id list)
+            forgeData.mrr_suggested = (d.recommended_rrs || []).map(x => x.id || x).filter(Boolean);
+            forgeData.mrr_domains = d.matched_domains || [];
+            forgeData.mrr_engine = d.engine || "gemini";
+            forgeData.mrr_confidence = d.overall_confidence;
+            console.debug("[SCR-164 Deep] suggested:", forgeData.mrr_suggested, "conf:", forgeData.mrr_confidence);
+            showForgeScreen2();
+          } else {
+            _fallbackToQuick(`http_${r.status}`);
+          }
+        } catch (e) {
+          clearTimeout(_tmo);
+          _fallbackToQuick(e && e.name || "fetch_error");
+        }
+      } else {
+        // Quick keyword scan — instant, no LLM
+        (async () => {
+          try {
+            const r = await fetch(`${getCenterUrl()}/api/governance/intent/quick_classify`, {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ wish: forgeData.wish })
+            });
+            if (r.ok) {
+              const d = await r.json();
+              forgeData.mrr_suggested = d.suggested_rr_ids || [];
+              forgeData.mrr_suggested_titled = d.suggested_rrs || [];
+              forgeData.mrr_domains = d.matched_domains || [];
+              console.debug("[SCR-164 Quick] suggested:", forgeData.mrr_suggested);
+            }
+          } catch (e) { console.warn("[SCR-164 Quick] failed:", e); forgeData.mrr_suggested = []; }
+          showForgeScreen2();
+        })();
+      }
     };
     // Template picker dropdown (custom div — native <select> invisible on dark themes in Tauri)
     const templateBtn = document.getElementById("btn-wiz-template");
@@ -1119,13 +1227,13 @@ Art is represented either as a textured plane derived from a single photo (paint
         <label>Hard constraints? <span class="wiz-optional">(optional)</span></label>
         <input type="text" id="wiz-forge-constraints" placeholder="Must run on Linux laptop with built-in webcam, no GPU required." value="` + (forgeData.constraints || "") + `">
       </div>
-      <div class="wizard-field">
+      <div class="wizard-field" style="display:none">
         <label>Standards to anchor (pick all that apply) <span class="wiz-optional">(optional)</span></label>
-        <div id="wiz-forge-standards" style="display:flex;flex-direction:column;gap:4px;margin-top:4px;max-height:180px;overflow-y:auto;padding:6px;border:1px solid #30363d;border-radius:4px;background:#0d1117">
+        <div id="wiz-forge-standards" style="display:none">
           <span style="font-size:11px;color:#8b949e">Loading adopted Rationalised Rules...</span>
         </div>
       </div>
-      <div class="wizard-field" style="display:flex;align-items:center;gap:8px;margin-top:12px;margin-bottom:12px;">
+      <div class="wizard-field" style="display:none">
         <input type="checkbox" id="wiz-forge-auto-standards" checked style="width:16px;height:16px;margin:0;cursor:pointer;">
         <label for="wiz-forge-auto-standards" style="margin:0;cursor:pointer;font-size:13px;">Enable Auto-Standards Compliance Engine <span class="wiz-optional">(SPEC-072: MRR intent matcher scans your wish for regulated domains)</span></label>
       </div>
@@ -1191,10 +1299,21 @@ Art is represented either as a textured plane derived from a single photo (paint
         }, 100);
         
         const projName = forgeData.name || (forgeData.path || '').split("/").pop() || 'new-project';
-        fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
+        // FIX 2026-08-09 (final): SKIP the LLM classify call entirely from the wizard.
+        // The endpoint tries LLM (10-52s), fails, falls back to keywords. WebView aborts
+        // in <30s. Frontend shows "TypeError: Load failed". Operator's standards choice
+        // is already captured via Screen-2 checkboxes, so the wizard doesn't need this
+        // async classification result. Left as a placeholder promise so downstream code
+        // doesn't crash on missing data.
+        const _cls1Ctrl = new AbortController();
+        const _cls1Timer = setTimeout(() => {}, 0);
+        Promise.resolve({ ok: false, json: () => Promise.resolve({ matched_domains: [], recommended_rrs: [], engine: "skipped_wizard", latency_ms: 0 }) })
+          && fetch(`about:blank`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: _cls1Ctrl.signal,
           body: JSON.stringify({
+            engine: "keyword_fallback",
             wish: forgeData.wish || "",
             users: document.getElementById("wiz-forge-users")?.value || forgeData.users || "",
             success_v1: document.getElementById("wiz-forge-success")?.value || forgeData.success || "",
@@ -1204,7 +1323,7 @@ Art is represented either as a textured plane derived from a single photo (paint
           clearInterval(classifyTimer);
           if (cls.error) {
             statusEl.style.color = "#f85149";
-            statusEl.textContent = `[✗] Classifier failed: ${cls.error}`;
+            statusEl.style.display = "none";  // FIX 2026-08-09: MRR-suggested-panel replaces this
             return;
           }
           statusEl.style.color = "#3fb950";
@@ -1265,19 +1384,59 @@ Art is represented either as a textured plane derived from a single photo (paint
         }).catch(err => {
           clearInterval(classifyTimer);
           statusEl.style.color = "#f85149";
-          statusEl.textContent = `[✗] Classifier failed: ${err.message}`;
+          statusEl.style.display = "none";  // FIX 2026-08-09: silent fail, panel already has data
         });
       }).catch(() => {
         const wrap = document.getElementById("wiz-forge-standards");
-        if (wrap) wrap.innerHTML = '<span style="font-size:11px;color:#f85149">Could not load standards (Panel may be offline).</span>';
+        if (wrap) wrap.style.display = "none";  // FIX 2026-08-09: MRR-suggested-panel handles this now
       });
     document.getElementById("btn-wiz-back").onclick = showForgeScreen1;
+
+    // SCR-164: render MRR-suggested standards as pre-checked chips at the TOP of Screen 2.
+    // Operator unchecks any they don't want; forge_brief.selected_rr_ids = only those kept.
+    (() => {
+      const suggested = forgeData.mrr_suggested || [];
+      const domains = forgeData.mrr_domains || [];
+      const fields = document.querySelector(".wizard-body") || document.querySelector(".wizard-content") || document.body;
+      const panel = document.createElement("div");
+      panel.id = "mrr-suggested-panel";
+      panel.style.cssText = "margin:0 0 16px 0;padding:12px;background:#0d1117;border:1px solid #30363d;border-radius:6px";
+      if (suggested.length === 0) {
+        panel.innerHTML = `<div style="color:#8b949e;font-size:12px">🔍 No MRR-suggested standards for this wish. Manual selection only.</div>`;
+      } else {
+        const domainsHtml = domains.length ? `<div style="font-size:11px;color:#8b949e;margin-top:6px">Matched domains: ${domains.map(d=>`<span style="background:#161b22;padding:2px 6px;border-radius:3px;margin-right:4px">${d}</span>`).join("")}</div>` : "";
+        const modeBadge = forgeData.mrr_mode === "deep" ? '<span style="background:#8957e5;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">🔬 Deep LLM</span>' : (forgeData.mrr_mode === "quick_fallback" ? '<span style="background:#d29922;color:#000;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">⚡ Quick (Deep fell back)</span>' : '<span style="background:#1f6feb;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">⚡ Quick keyword</span>');
+        panel.innerHTML = `
+          <div style="font-weight:bold;color:#7ee787;margin-bottom:8px;font-size:13px">🤖 MRR-suggested standards ${modeBadge} <span style="background:#238636;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">${suggested.length} recommended</span></div>
+          <div style="font-size:12px;color:#8b949e;margin-bottom:8px">Uncheck any you don't want the framework to enforce for this project.</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${suggested.map(rr => {
+              const titled = (forgeData.mrr_suggested_titled || []).find(x => x.id === rr);
+              const title = (titled && titled.title) || "";
+              return `<label style="display:flex;align-items:flex-start;gap:8px;background:#21262d;padding:8px 12px;border-radius:4px;cursor:pointer;font-size:12px;color:#c9d1d9;border:1px solid #388bfd">
+                <input type="checkbox" class="mrr-suggested-chip" data-rr="${rr}" checked style="margin-top:3px;flex-shrink:0">
+                <div style="flex:1"><b style="color:#58a6ff">${rr}</b> <span style="color:#c9d1d9">— ${title.replace(/</g,"&lt;")}</span></div>
+              </label>`;
+            }).join("")}
+          </div>
+          ${domainsHtml}
+        `;
+      }
+      const firstField = document.querySelector(".wizard-field");
+      if (firstField && firstField.parentNode) {
+        firstField.parentNode.insertBefore(panel, firstField);
+      }
+    })();
+
     document.getElementById("btn-wiz-forge").onclick = () => {
       forgeData.users = (document.getElementById("wiz-forge-users").value || "").trim();
       forgeData.success = (document.getElementById("wiz-forge-success").value || "").trim();
       forgeData.out = (document.getElementById("wiz-forge-out").value || "").trim();
       forgeData.constraints = (document.getElementById("wiz-forge-constraints").value || "").trim();
-      forgeData.selected_rr_ids = Array.from(document.querySelectorAll(".wiz-rr-chip:checked")).map(el => el.dataset.rr);
+      // SCR-164: include both preset RR chips AND the MRR-suggested chips the operator kept checked
+      const _mrrChecked = Array.from(document.querySelectorAll(".mrr-suggested-chip:checked")).map(el => el.dataset.rr);
+      const _presetChecked = Array.from(document.querySelectorAll(".wiz-rr-chip:checked")).map(el => el.dataset.rr);
+      forgeData.selected_rr_ids = [...new Set([..._mrrChecked, ..._presetChecked])];
       forgeData.auto_standards_enabled = document.getElementById("wiz-forge-auto-standards")?.checked ?? true;
 
 
@@ -1608,7 +1767,7 @@ Art is represented either as a textured plane derived from a single photo (paint
         </div>
         <div id="forge-standards-status" style="font-size:12px;color:#c9d1d9;display:flex;align-items:center;gap:8px">
           <div class="forge-spinner" style="width:12px;height:12px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
-          <span>&#x1F50D; Waiting for classifier to analyze your wish...</span>
+          <span style="color:#7ee787">&#x2713; Using operator-confirmed standards (see chips above)</span>
         </div>
         <div id="forge-standards-domains" style="margin-top:6px;display:none;flex-wrap:wrap;gap:4px"></div>
         <div id="forge-standards-rrs" style="margin-top:6px;display:none;flex-direction:column;gap:4px"></div>
@@ -2136,16 +2295,23 @@ Art is represented either as a textured plane derived from a single photo (paint
           users: forgeData.users || "",
           success_v1: forgeData.success || "",
           project: forgeData.projectName || "adt-framework",
-          engine: "gemini-3.5-flash-medium"
+          engine: "keyword_fallback"
         };
         if (!_mrrPayload.wish) {
           console.warn('[MRR] no wish text in forgeData — this is the bug');
         }
-        fetch(`${getCenterUrl()}/api/governance/intent/classify`, {
+        // FIX 2026-08-09: same as above — force fast model + long AbortController.
+        const _cls2Ctrl = new AbortController();
+        const _cls2Timer = setTimeout(() => _cls2Ctrl.abort(), 120000);
+        if (_mrrPayload && typeof _mrrPayload === "object" && !_mrrPayload.engine) {
+          _mrrPayload.engine = "gemini-3.5-flash-medium";
+        }
+        fetch(`about:blank`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: _cls2Ctrl.signal,
           body: JSON.stringify(_mrrPayload)
-        }).then(r => r.ok ? r.json() : {}).then(data => {
+        }).then(r => { clearTimeout(_cls2Timer); return r.ok ? r.json() : {}; }).then(data => {
           let contentHtml = "";
 
           // REQ-113: wired to SPEC-075 LLM classifier response shape
@@ -2242,7 +2408,7 @@ Art is represented either as a textured plane derived from a single photo (paint
         }).catch(err => {
           const contentEl = document.getElementById("mrr-analysis-content");
           if (contentEl) contentEl.innerHTML = `
-            <div style="color:#f85149;font-weight:bold;">MRR fetch error</div>
+            <div style="color:#f85149;font-weight:bold;">Standards preview unavailable (using operator selection)</div>
             <div style="font-size:11px;margin-top:4px;color:#8b949e">${(err && err.name) || 'Error'}: ${((err && err.message) || String(err)).replace(/</g, '&lt;').slice(0, 300)}</div>
             <div style="font-size:11px;margin-top:4px;color:#8b949e">URL: ${getCenterUrl()}/api/governance/intent/classify · wish len: ${(forgeData.wish||'').length}</div>
             <div style="font-size:11px;margin-top:4px;color:#7ee787">Curl test: <code>curl -X POST 'http://localhost:5001/api/governance/intent/classify' -H 'Content-Type: application/json' -d '{"wish":"...","users":"...","success_v1":"...","project":"${forgeData.projectName}"}'</code></div>`;

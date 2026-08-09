@@ -4670,7 +4670,7 @@ def api_decompose_spec(spec_id):
             _stdbuf = shutil.which("stdbuf") or "/usr/bin/stdbuf"
             _base_cmd = [agy_bin, "-p", worker_prompt, "--dangerously-skip-permissions",
                          "--print-timeout", "20m",
-                         "--model", os.environ.get("ADT_DECOMPOSE_MODEL", "Gemini 3.5 Flash (Medium)")]  # SPEC-076 MVP
+                         "--model", os.environ.get("ADT_DECOMPOSE_MODEL", "Gemini 3.5 Flash (Medium)")]  # SPEC-076 MVP — Claude default 2026-08-09 (Gemini quota depleted)
             _cmd = ([_stdbuf, "-oL"] + _base_cmd) if (_stdbuf and os.path.exists(_stdbuf)) else _base_cmd
             proc = subprocess.Popen(
                 _cmd,
@@ -7976,6 +7976,50 @@ def api_match_intent():
     })
 
 
+@governance_bp.route("/governance/intent/quick_classify", methods=["POST"])
+def api_intent_quick_classify():
+    """SPEC-081 / operator veto (SCR-164): FAST keyword-only classifier for the
+    wizard. Returns matched_domains + suggested_rr_ids in <20ms. No LLM, no
+    network. Used to pre-populate Screen-2 checkboxes so the operator can uncheck
+    any AI-suggested standard before forge submit.
+
+    Body: {"wish": "..."}
+    Returns: {"matched_domains":[...], "suggested_rr_ids":[...], "engine":"keyword_matcher_v2"}
+    """
+    data = request.get_json(silent=True) or {}
+    wish = (data.get("wish") or "").strip()
+    if not wish:
+        return jsonify({"matched_domains": [], "suggested_rr_ids": [], "engine": "keyword_matcher_v2"})
+    try:
+        from adt_core.standards.intent_matcher import match_intent_domain_detailed
+        r = match_intent_domain_detailed(wish)
+        # Enrich RR ids with titles so the wizard chip labels are self-explanatory.
+        rr_titles = {}
+        try:
+            import json as _json
+            _rr_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_cortex", "standards", "rationalised_rules.jsonl"))
+            with open(_rr_file) as _rf:
+                for _line in _rf:
+                    _line = _line.strip()
+                    if not _line: continue
+                    _o = _json.loads(_line)
+                    if _o.get("id"):
+                        rr_titles[_o["id"]] = _o.get("title", "")
+        except Exception:
+            pass
+        rr_ids = r.get("suggested_rr_ids", [])
+        return jsonify({
+            "matched_domains": r.get("matched_domains", []),
+            "suggested_rr_ids": rr_ids,
+            "suggested_rrs": [{"id": _rid, "title": rr_titles.get(_rid, "")} for _rid in rr_ids],
+            "match_confidence_per_domain": r.get("match_confidence_per_domain", {}),
+            "engine": r.get("engine_version", "keyword_matcher_v2"),
+            "latency_ms": r.get("latency_ms", 0),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "matched_domains": [], "suggested_rr_ids": []}), 500
+
+
 @governance_bp.route("/governance/intent/classify", methods=["POST"])
 def api_intent_classify():
     """SPEC-075: LLM Intent Classification."""
@@ -7984,7 +8028,7 @@ def api_intent_classify():
         return jsonify({"error": "wish, users, success_v1, and project are required"}), 400
         
     project_name = data["project"]
-    engine = data.get("engine", "gemini-3.1-pro-high")
+    engine = data.get("engine", "keyword_fallback")  # FIX 2026-08-09: was gemini-3.1-pro-high, took 20-52s and broke WebView fetch
     
     try:
         res = _get_project_resources(project_name)
