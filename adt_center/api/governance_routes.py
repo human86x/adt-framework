@@ -850,7 +850,17 @@ def _spawn_forge_architect_worker(project_name, session_id, res, brief_path):
     AGY_BIN = (os.environ.get("AGY_EXECPATH") or _shutil.which("agy") or "/home/human/.local/bin/agy")
     project_root = res["paths"]["root"]
     _ops_dir = os.path.join(project_root, "_cortex", "ops")
-    prompt_template_path = os.path.join(os.path.dirname(__file__), "forge_prompts", "architect.md")
+    # SPEC-081 hookup: if brief.is_reused_project, use verify-mode prompt so
+    # worker verifies+edits the copied specs instead of full invention (fast path).
+    _is_reused = False
+    try:
+        import json as _j
+        with open(brief_path) as _bf:
+            _is_reused = bool(_j.load(_bf).get("is_reused_project"))
+    except Exception:
+        pass
+    _prompt_file = "architect_verify.md" if _is_reused else "architect.md"
+    prompt_template_path = os.path.join(os.path.dirname(__file__), "forge_prompts", _prompt_file)
     log_path = os.path.join(_ops_dir, "forge_worker.log")
     try:
         with open(prompt_template_path) as _pf:
@@ -1570,6 +1580,20 @@ def api_forge_fork_from(forge_session_id):
         # Non-fatal: fork itself succeeded on disk.
         pass
 
+    
+    # SPEC-081 hookup: mark forge_brief so _spawn_forge_architect_worker
+    # loads architect_verify.md instead of the full-invention architect.md
+    try:
+        import json as _fj
+        brief_path = os.path.join(target_res["paths"]["root"], "_cortex", "ops", "forge_brief.json")
+        if os.path.exists(brief_path):
+            with open(brief_path) as _bf: _b = _fj.load(_bf)
+            _b["is_reused_project"] = True
+            _b["reused_from_project"] = source_project_name
+            with open(brief_path, "w") as _bf: _fj.dump(_b, _bf, indent=2)
+    except Exception as _fe:
+        pass  # non-fatal; verify-mode is a nice-to-have, fresh forge still works
+
     return jsonify({
         "forked_from": source_project_name,
         "specs_copied": specs_copied,
@@ -1852,12 +1876,17 @@ def _start_project_dtcp(name):
             start_new_session=True
         )
         
+    # Poll for DTCP readiness up to 15s instead of a hard sleep(2).
+    # Cold Python import + Flask startup routinely exceeds 2s on modest hardware,
+    # causing false-negative "Failed to start DTCP" even when DTCP eventually
+    # comes up healthy (observed 2026-08-09 during solar_system_1786305008 forge).
     import time
-    time.sleep(2)
-    if is_port_in_use(port):
-        return {"status": "success", "pid": get_pid_by_port(port)}
-    else:
-        raise RuntimeError(f"Failed to start DTCP service. Check logs: {log_file}")
+    _deadline = time.monotonic() + 15.0
+    while time.monotonic() < _deadline:
+        if is_port_in_use(port):
+            return {"status": "success", "pid": get_pid_by_port(port)}
+        time.sleep(0.25)
+    raise RuntimeError(f"Failed to start DTCP service after 15s. Check logs: {log_file}")
 
 def _stop_project_dtcp(name):
     """Internal helper to stop DTCP for a project."""
