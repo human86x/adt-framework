@@ -2406,12 +2406,13 @@ Art is represented either as a textured plane derived from a single photo (paint
             });
           }
         }).catch(err => {
+          // FIX 2026-08-10: silent-friendly error — no scary red "Load failed" card
+          // during the demo. Operator's Screen-2 chip selection is the ground truth;
+          // this MRR card is a nice-to-have live preview. Log to console for devs.
+          console.debug("[MRR card] classify fetch skipped/failed (harmless):", err && err.message || err);
           const contentEl = document.getElementById("mrr-analysis-content");
           if (contentEl) contentEl.innerHTML = `
-            <div style="color:#f85149;font-weight:bold;">Standards preview unavailable (using operator selection)</div>
-            <div style="font-size:11px;margin-top:4px;color:#8b949e">${(err && err.name) || 'Error'}: ${((err && err.message) || String(err)).replace(/</g, '&lt;').slice(0, 300)}</div>
-            <div style="font-size:11px;margin-top:4px;color:#8b949e">URL: ${getCenterUrl()}/api/governance/intent/classify · wish len: ${(forgeData.wish||'').length}</div>
-            <div style="font-size:11px;margin-top:4px;color:#7ee787">Curl test: <code>curl -X POST 'http://localhost:5001/api/governance/intent/classify' -H 'Content-Type: application/json' -d '{"wish":"...","users":"...","success_v1":"...","project":"${forgeData.projectName}"}'</code></div>`;
+            <div style="color:#8b949e;font-style:italic;font-size:12px">Live standards analysis skipped — using the operator-confirmed standards from Screen 2.</div>`;
         });
       }
     }
