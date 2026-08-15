@@ -41,16 +41,20 @@
                             <span class="nav-icon">&#9745;</span>Tasks
                         </a>
                     </li>
+                    {# Hidden 2026-08-14 pre-video: Hierarchy, Capabilities, Delegation. #}
+                    {% if false %}
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'hierarchy' %}active{% endif %}" href="{{ url_for('hierarchy_page', project=current_project) }}">
                             <span class="nav-icon">&#9613;</span>Hierarchy
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'standards' %}active{% endif %}" href="{{ url_for('standards_page', project=current_project) }}">
                             <span class="nav-icon">&#9873;</span>Standards
                         </a>
                     </li>
+                    {% if false %}
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'capabilities' %}active{% endif %}" href="{{ url_for('capabilities_page', project=current_project) }}">
                             <span class="nav-icon">&#9670;</span>Capabilities
@@ -61,6 +65,7 @@
                             <span class="nav-icon">&#9586;</span>Delegation
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'dtcp' %}active{% endif %}" href="{{ url_for('dtcp_monitor', project=current_project) }}">
                             <span class="nav-icon">&#9889;</span>DTCP

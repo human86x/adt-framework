@@ -194,6 +194,75 @@ def _agy_auth_is_ok(force=False, timeout_sec=30):
 # instead of the 15-min default worker timeout.
 
 
+# --- SPEC-105: Worker Namespace Sandbox integration ---
+# Amended 2026-08-14: sandbox is ALWAYS engaged. The "Phase 1 opt-in soak"
+# (ADT_SANDBOX_ENFORCE) that the original implementation shipped inverted the
+# spec's fail-closed mandate and has been removed. The only remaining escape
+# hatch is ADT_SANDBOX_DISABLE=1 (dev-only, Tier-1 logged in spawn.py).
+
+
+def _schedule_reconciler_on_exit(proc, project_root, dtcp_url, *,
+                                  role, agent, spec_id):
+    """SPEC-105: background-wait for a fire-and-forget worker, then reconcile.
+
+    Used for verifier and fix-dispatcher spawns (non-blocking supervisors).
+    No-op when the process was not sandboxed or dtcp_url is absent.
+    """
+    try:
+        _overlay = getattr(proc, "overlay_dir", "") or ""
+        _sbxed = bool(getattr(proc, "sandboxed", False))
+    except Exception:
+        return
+    if not (_sbxed and _overlay and dtcp_url):
+        return
+    import threading
+
+    def _wait_and_reconcile(_proc, _overlay, _wid):
+        try:
+            _proc.wait()
+        except Exception:
+            return
+        try:
+            from adt_core.sandbox import reconcile_overlay as _reconcile
+            _reconcile(
+                overlay_dir=_overlay,
+                project_root=project_root,
+                worker_id=_wid,
+                child_dtcp_url=dtcp_url,
+                agent=agent,
+                role=role,
+                spec_id=spec_id,
+            )
+        except Exception:
+            pass
+
+    _wid = getattr(proc, "worker_id", f"{role}_bg")
+    t = threading.Thread(target=_wait_and_reconcile, args=(proc, _overlay, _wid),
+                         daemon=True, name=f"reconciler-{_wid}")
+    t.start()
+
+
+def _spawn_worker_process(cmd, *, project_root, worker_id, network="full",
+                          env=None, cwd=None, stdin=subprocess.DEVNULL,
+                          stdout=None, stderr=None, role="Backend_Engineer",
+                          agent="SYSTEM", spec_id="SPEC-105"):
+    """SPEC-105: sandbox-mandatory Popen wrapper (fail-closed).
+
+    Routes every worker spawn through adt_core.sandbox.spawn_in_sandbox. If
+    bwrap is missing / userns blocked / workspace init fails, spawn_in_sandbox
+    raises SandboxUnavailableError and this function propagates it -- callers
+    MUST NOT fall back to an unsandboxed spawn (SPEC-105 6f, AI_PROTOCOL 1.3).
+
+    Returns a Popen-compatible object with sandbox metadata attributes
+    (overlay_dir, worker_id, original_cmd, sandboxed, project_root).
+    """
+    from adt_core.sandbox import spawn_in_sandbox
+    return spawn_in_sandbox(
+        list(cmd), project_root, worker_id, network=network,
+        env=env, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr,
+    )
+
+
 # --- SPEC-062-H Fix D: Escalation cascade ---
 # When a worker narrates or silently exits, we retry up the ladder. Each rung
 # is (model_override, ladder_note). Attempts 1-3 stay on default (whatever
@@ -1234,12 +1303,17 @@ def _max_progress_age(project_root, task_ids, now):
         return None
 
 
-def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None, task_model=None):
+def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None, task_model=None,
+                 dtcp_url=None):
     """Spawn a harness worker and supervise its lifecycle (SPEC-062 Amendment E).
 
     Polls every 5s. Probes health every HEALTH_PROBE_INTERVAL_SEC. Escalates SIGTERM
     after STALL_ESCALATION_COUNT consecutive stall windows. Hard timeout at
     WORKER_TIMEOUT_SEC. Emits 8 lifecycle event types per spec section 5.
+
+    SPEC-105: `dtcp_url` is the child project's DTCP endpoint. When set and the
+    worker was spawned inside a namespace sandbox, we reconcile the overlay
+    upperdir against DTCP after the worker exits.
     """
     import time, signal
     from datetime import datetime, timezone
@@ -1516,11 +1590,17 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
             try: open(log_path, "wb").close()
             except Exception: pass
         try:
-            proc = subprocess.Popen(
+            # SPEC-105: route through sandbox-aware spawn helper.
+            _sandbox_worker_id = f"{role}_{build_id}_a{attempt}"
+            proc = _spawn_worker_process(
                 cmd,
+                project_root=project_root,
+                worker_id=_sandbox_worker_id,
+                network="full",
                 env=env, cwd=project_root,
                 stdin=subprocess.DEVNULL,
                 stdout=log_file, stderr=stderr_file,
+                role=role, agent=agent_label, spec_id=spec_id,
             )
         except Exception as e:
             _append_ads_event(
@@ -1822,6 +1902,29 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
     try: log_file.close()
     except Exception: pass
 
+    # SPEC-105: reconcile the worker's overlay upperdir against child DTCP.
+    # Only fires when the worker was sandboxed AND we have a dtcp_url.
+    try:
+        _overlay = getattr(proc, "overlay_dir", "") or ""
+        _sbxed = bool(getattr(proc, "sandboxed", False))
+        if _sbxed and _overlay and dtcp_url:
+            from adt_core.sandbox import reconcile_overlay as _reconcile
+            _reconcile(
+                overlay_dir=_overlay,
+                project_root=project_root,
+                worker_id=getattr(proc, "worker_id", f"{role}_{build_id}"),
+                child_dtcp_url=dtcp_url,
+                agent=agent_label,
+                role=role,
+                spec_id=spec_id,
+            )
+    except Exception as _re:
+        _append_ads_event(
+            role, spec_id, build_id, "reconciler_crash",
+            f"Reconciler crashed for worker {role}: {type(_re).__name__}: {_re}",
+            {"error": str(_re)}, project_root,
+        )
+
     if terminated_reason in ("timeout", "stalled_no_progress", "orphaned"):
         return False
 
@@ -2087,10 +2190,16 @@ def _spawn_verifier(build_id, spec_id, project_root, dtcp_url, iteration=1):
         stderr_file = log_file
 
     try:
-        proc = subprocess.Popen(
-            cmd, env=env, cwd=project_root,
+        # SPEC-105: sandbox-aware spawn for verifier worker.
+        proc = _spawn_worker_process(
+            cmd,
+            project_root=project_root,
+            worker_id=f"verify_{build_id}_i{iteration}",
+            network="full",
+            env=env, cwd=project_root,
             stdin=subprocess.DEVNULL,
             stdout=log_file, stderr=stderr_file,
+            role="Overseer", agent="ANTIGRAVITY", spec_id=spec_id,
         )
     except Exception as e:
         _append_ads_event(
@@ -2112,6 +2221,10 @@ def _spawn_verifier(build_id, spec_id, project_root, dtcp_url, iteration=1):
         builds[build_id]["verifier_log_path"] = log_path
         builds[build_id].setdefault("verification_findings", [])
         _save_builds(project_root, builds)
+
+    # SPEC-105: schedule reconciler for verifier overlay when sandboxed.
+    _schedule_reconciler_on_exit(proc, project_root, dtcp_url,
+                                  role="Overseer", agent="ANTIGRAVITY", spec_id=spec_id)
 
     _append_ads_event(
         "Overseer", spec_id, build_id, "build_verification_started",
@@ -2174,10 +2287,16 @@ def _spawn_fix_dispatcher(build_id, spec_id, project_root, dtcp_url, iteration, 
         stderr_file = log_file
 
     try:
-        proc = subprocess.Popen(
-            cmd, env=env, cwd=project_root,
+        # SPEC-105: sandbox-aware spawn for fix dispatcher worker.
+        proc = _spawn_worker_process(
+            cmd,
+            project_root=project_root,
+            worker_id=f"fix_{build_id}_i{iteration}",
+            network="full",
+            env=env, cwd=project_root,
             stdin=subprocess.DEVNULL,
             stdout=log_file, stderr=stderr_file,
+            role="Systems_Architect", agent="ANTIGRAVITY", spec_id=spec_id,
         )
     except Exception as e:
         _append_ads_event(
@@ -2197,6 +2316,9 @@ def _spawn_fix_dispatcher(build_id, spec_id, project_root, dtcp_url, iteration, 
          "log_path": log_path},
         project_root,
     )
+    # SPEC-105: schedule reconciler for fix-dispatcher overlay when sandboxed.
+    _schedule_reconciler_on_exit(proc, project_root, dtcp_url,
+                                  role="Systems_Architect", agent="ANTIGRAVITY", spec_id=spec_id)
     return [f.get("task_id") for f in failed_findings]
 
 
@@ -2480,7 +2602,7 @@ class BuildExecutor:
                         (t.get("assigned_model") or t.get("model")
                          for t in tasks if t.get("assigned_model") or t.get("model")), None
                     )
-                    success = _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=task_harness, task_model=task_model)
+                    success = _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=task_harness, task_model=task_model, dtcp_url=dtcp_url)
 
                     # SPEC-062 D8: mark tasks completed/failed so the live map updates
                     try:

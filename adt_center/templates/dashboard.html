@@ -57,9 +57,10 @@
     </div>
     <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-card">
-            <div class="stat-label">DTTP Denials</div>
+            <div class="stat-label">DTCP Denials</div>
             <div class="stat-value text-red">{{ denials }}</div>
-            <div class="stat-detail">Unauthorized attempts</div>
+            <!-- SPEC-106: subtitle flips to "partial - see banner" when sandbox enforcement is inactive. -->
+            <div class="stat-detail" id="dash-dttp-denials-detail" data-honesty-detail="dttp-denials">Unauthorized attempts</div>
         </div>
     </div>
     <div class="col-6 col-md-4 col-xl-2">
@@ -361,15 +362,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
     // Load Standards Coverage
+    // API shape: {total_standards, total_clauses, dispositions:{adopted,adapted,dismissed,pending}}
+    // Coverage = (adopted + adapted) / total_clauses. Only "pending" and
+    // "dismissed" don't count as covered.
     const loadStandardsCoverage = async () => {
         try {
             const query = currentProject ? `?project=${currentProject}` : '';
             const res = await fetch(`/api/governance/standards/coverage${query}`);
             const data = await res.json();
+            const disp = data.dispositions || {};
+            const adopted = disp.adopted || 0;
+            const adapted = disp.adapted || 0;
+            const total = data.total_clauses || 0;
+            const pct = total > 0 ? Math.round(((adopted + adapted) * 100) / total) : 0;
             const pctEl = document.getElementById('dash-standards-pct');
             const detailEl = document.getElementById('dash-standards-detail');
-            if (pctEl) pctEl.innerText = (data.covered_pct || 0) + '%';
-            if (detailEl) detailEl.innerText = `${data.adopted || 0} adopted clauses`;
+            if (pctEl) pctEl.innerText = pct + '%';
+            if (detailEl) {
+                const parts = [];
+                if (adopted) parts.push(`${adopted} adopted`);
+                if (adapted) parts.push(`${adapted} adapted`);
+                parts.push(`of ${total} clauses`);
+                detailEl.innerText = parts.join(' ');
+            }
         } catch (e) {
             const detailEl = document.getElementById('dash-standards-detail');
             if (detailEl) detailEl.innerText = 'Coverage N/A';
@@ -387,6 +402,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         window.location.href = newUrl.toString();
     });
+
+    // SPEC-106: DTCP Denials tile honesty subtitle. Same fail-honest rule as
+    // the DTCP Monitor: if the endpoint is unreachable or reports enforcement
+    // inactive, mark the subtitle "partial - see banner".
+    (async function spec106DashboardSubtitle() {
+        const detailEl = document.getElementById('dash-dttp-denials-detail');
+        if (!detailEl) return;
+        let status = null;
+        try {
+            const url = '/api/governance/sandbox/status'
+                + (currentProject ? ('?project=' + encodeURIComponent(currentProject)) : '');
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (res.ok) status = await res.json();
+        } catch (e) { /* fail-honest */ }
+        const enforcementActive = !!(status && status.enforcement_active === true);
+        if (!enforcementActive) {
+            if (!detailEl.dataset.originalDetail) {
+                detailEl.dataset.originalDetail = detailEl.textContent.trim();
+            }
+            detailEl.textContent = 'partial - see banner';
+            detailEl.classList.add('stat-detail-partial');
+            detailEl.title = 'SPEC-106: worker writes bypass DTCP gateway during transition. See DTCP Monitor for details.';
+        }
+    })();
 });
 </script>
 {% endblock %}

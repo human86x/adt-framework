@@ -34,6 +34,16 @@
       <!-- Session tabs injected by JS -->
     </div>
     <div class="topbar-actions">
+      <!-- SPEC-105 sandbox toggle: reflects ~/.adt/console_settings.json::dev_mode.
+           Green pill = sandbox ENFORCED. Red pill = DEV MODE (sandbox off).
+           Human-writable only (Tauri IPC set_dev_mode). Read at every new
+           session spawn, so toggling takes effect on the NEXT session. -->
+      <button id="btn-sandbox-toggle"
+              title="Sandbox enforcement (SPEC-105). Click to toggle Dev Mode."
+              style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#0d5c33;border:1px solid #2f9e6e;border-radius:12px;font-size:11px;color:#c8e6d3;cursor:pointer">
+        <span id="sandbox-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3fb984"></span>
+        <span id="sandbox-label">Sandbox: ON</span>
+      </button>
       <button id="btn-shatterglass" title="Shatterglass (Production Mode)">&#128737;</button>
       <button id="btn-projects" title="Projects (Ctrl+Shift+P)">Projects</button>
       <button id="btn-new-session" title="New Session (Ctrl+N)">+</button>

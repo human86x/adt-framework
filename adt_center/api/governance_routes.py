@@ -5488,7 +5488,30 @@ def api_agy_state():
 
     consecutive_failures = state.get("consecutive_failures", 0)
     age = _t.time() - state.get("last_check_at", 0)
-    if (age > (300 if not state.get("ok") else 300)) or request.args.get("force") == "1":  # REQ-107 hotfix: dont re-probe on every poll; only force=1 triggers immediate
+    # REQ-126 emergency hotfix (2026-08-11): the previous check trusted the age
+    # derived from the JSON file. When the file write silently failed (e.g. wrong
+    # owner) age was always huge, so every poll spawned an `agy models`
+    # subprocess. Combined with force=1 from the recheck modal AND ~1Hz topbar
+    # polling from multiple sources, this DoS'd the whole machine (13+
+    # concurrent agy processes at 15% CPU each, load avg >5). We now enforce
+    # a HARD in-memory floor: no matter what the file says or what the client
+    # sends, we never re-probe more than once every 60s. force=1 still works
+    # after 60s but is no longer an escape hatch to spam the subprocess.
+    if not hasattr(api_agy_state, "_last_probe_ts"):
+        api_agy_state._last_probe_ts = 0.0
+    _min_probe_gap_s = 60.0
+    _since_last_probe = _t.time() - api_agy_state._last_probe_ts
+    _force = request.args.get("force") == "1"
+    # REQ-126 emergency hotfix v2: force=1 (operator-initiated Recheck) always
+    # bypasses the auto-poll throttle. Only the auto-polls (no force) are gated.
+    # Otherwise a stale state file traps the operator behind a banner they can't
+    # dismiss because the Recheck button also gets throttled.
+    _cache_hit = (_since_last_probe < _min_probe_gap_s) and not _force
+    if _cache_hit:
+        # Serve from persisted state; skip subprocess spawn entirely.
+        pass
+    elif (age > 300) or _force:
+        api_agy_state._last_probe_ts = _t.time()
         try:
             from adt_center.api.build_executor import _agy_auth_is_ok
             if _agy_auth_is_ok(force=True):
@@ -8352,3 +8375,88 @@ def api_mrr_library_stats():
         cache["cached_at"] = now
         cache["mtime_key"] = mtime_key
     return jsonify(cache["payload"])
+
+
+# ---------------------------------------------------------------------------
+# SPEC-106 backend: sandbox status endpoint
+# ---------------------------------------------------------------------------
+@governance_bp.route("/governance/sandbox/status", methods=["GET"])
+def api_governance_sandbox_status():
+    """SPEC-106: honesty banner data source.
+
+    Returns whether SPEC-105 worker namespace sandbox enforcement is active
+    for this Center process. Amended 2026-08-14: sandbox is ALWAYS on unless
+    ADT_SANDBOX_DISABLE=1 (dev-only escape hatch). The banner surfaces:
+      * sandbox unsupported on host  -> spawns will fail-closed
+      * ADT_SANDBOX_DISABLE=1 set    -> RED banner: dev bypass active
+      * neither of the above         -> sandbox actively engaged
+
+    Query params:
+        project   (optional) child project name for future per-project logic.
+
+    Response:
+        {
+          enforcement_active: bool,
+          reason: str,
+          worker_writes_routed_through_dtcp: bool,
+          dtcp_url: str | null,
+          spec_ref: "SPEC-105",
+          sandbox_supported: bool,
+          sandbox_disabled_by_env: bool
+        }
+    """
+    project = request.args.get("project", "").strip()
+
+    # Import lazily so this module loads even if sandbox package is missing.
+    try:
+        from adt_core.sandbox import (
+            sandbox_enforcement_active,
+            is_sandbox_supported,
+        )
+        enforcement = bool(sandbox_enforcement_active())
+        supported = bool(is_sandbox_supported())
+    except Exception:
+        enforcement = False
+        supported = False
+
+    disabled_by_env = os.environ.get("ADT_SANDBOX_DISABLE", "").strip() == "1"
+
+    if disabled_by_env:
+        reason = ("ADT_SANDBOX_DISABLE=1 is set (dev-only bypass). Workers are "
+                  "NOT sandboxed and their writes bypass DTCP. Unset the env "
+                  "var and restart to restore enforcement.")
+        routed = False
+    elif not supported:
+        reason = ("bwrap / user namespaces not supported on this host. "
+                  "Sandbox will fail-closed on next spawn (SPEC-105 6f). "
+                  "Fix: sudo chmod u+s /usr/bin/bwrap, or install an "
+                  "AppArmor profile permitting bwrap unpriv userns.")
+        routed = False
+    else:
+        reason = ("SPEC-105 sandbox is ACTIVE. Every worker spawn runs inside "
+                  "bwrap; writes are diffed and gated by DTCP.")
+        routed = True
+
+    # Try to surface a DTCP URL if the child project has one configured.
+    dtcp_url = None
+    try:
+        if project:
+            pr = ProjectRegistry()
+            proj = pr.get_project(project) if hasattr(pr, "get_project") else None
+            if proj and isinstance(proj, dict):
+                port = proj.get("dtcp_port") or proj.get("port")
+                if port:
+                    dtcp_url = f"http://localhost:{int(port)}"
+    except Exception:
+        pass
+
+    return jsonify({
+        "enforcement_active": bool(enforcement),
+        "reason": reason,
+        "worker_writes_routed_through_dtcp": bool(routed),
+        "dtcp_url": dtcp_url,
+        "spec_ref": "SPEC-105",
+        "sandbox_supported": bool(supported),
+        "sandbox_disabled_by_env": bool(disabled_by_env),
+    })
+

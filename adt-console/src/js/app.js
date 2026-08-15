@@ -379,6 +379,69 @@ const GitStatusManager = (() => {
   }
   loadBuildInfo();
 
+  // --- Sandbox toggle (SPEC-105) ---
+  // Reflects ~/.adt/console_settings.json::dev_mode. Toggle takes effect on
+  // the NEXT new session spawn; existing sessions are unaffected.
+  async function refreshSandboxTile() {
+    const btn = document.getElementById('btn-sandbox-toggle');
+    const dot = document.getElementById('sandbox-dot');
+    const lbl = document.getElementById('sandbox-label');
+    if (!btn || !window.__TAURI__) return;
+    try {
+      const s = await window.__TAURI__.core.invoke('get_dev_mode');
+      const off = !!s.effective_disabled;
+      const envOverride = !!s.env_override;
+      if (off) {
+        btn.style.background = '#5c1e1e';
+        btn.style.borderColor = '#c53030';
+        btn.style.color = '#f5c8c8';
+        dot.style.background = '#f56565';
+        lbl.textContent = envOverride ? 'Sandbox: OFF (env)' : 'Sandbox: OFF';
+        btn.title = envOverride
+          ? 'ADT_DEV_MODE=1 in env — unset it and restart shell to clear.'
+          : 'DEV MODE ACTIVE — agents run unsandboxed. Click to re-enable.';
+      } else {
+        btn.style.background = '#0d5c33';
+        btn.style.borderColor = '#2f9e6e';
+        btn.style.color = '#c8e6d3';
+        dot.style.background = '#3fb984';
+        lbl.textContent = 'Sandbox: ON';
+        btn.title = 'SPEC-105 sandbox enforced. Click to enter Dev Mode.';
+      }
+    } catch (e) {
+      console.warn('sandbox status probe failed', e);
+    }
+  }
+  async function toggleSandbox() {
+    if (!window.__TAURI__) return;
+    try {
+      const s = await window.__TAURI__.core.invoke('get_dev_mode');
+      if (s.env_override) {
+        alert(
+          'ADT_DEV_MODE=1 is set in your shell environment. That overrides ' +
+          'the UI toggle. Unset it (edit ~/.bashrc, then start a new shell) ' +
+          'to make the toggle authoritative.'
+        );
+        return;
+      }
+      const nextDev = !s.dev_mode;
+      const msg = nextDev
+        ? 'Turn Dev Mode ON? Next new session will run UNSANDBOXED.'
+        : 'Turn Dev Mode OFF? Next new session will be sandboxed (SPEC-105).';
+      if (!confirm(msg)) return;
+      await window.__TAURI__.core.invoke('set_dev_mode', { request: { devMode: nextDev } });
+      await refreshSandboxTile();
+    } catch (e) {
+      alert('Failed to toggle sandbox: ' + (e && e.message ? e.message : e));
+    }
+  }
+  const sbBtn = document.getElementById('btn-sandbox-toggle');
+  if (sbBtn) sbBtn.addEventListener('click', toggleSandbox);
+  refreshSandboxTile();
+  // Re-probe every 15s in case another Console instance / a shell edit
+  // changes the settings file.
+  setInterval(refreshSandboxTile, 15000);
+
   // --- Clock ---
   function updateClock() {
     const now = new Date();

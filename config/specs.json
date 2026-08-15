@@ -1137,10 +1137,8 @@
     },
     "SPEC-070": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1186,10 +1184,8 @@
     },
     "SPEC-072": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1237,10 +1233,8 @@
     },
     "SPEC-073": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1291,10 +1285,8 @@
     },
     "SPEC-074": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1345,10 +1337,8 @@
     },
     "SPEC-075": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1396,10 +1386,8 @@
     },
     "SPEC-076": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"
@@ -1452,10 +1440,8 @@
     },
     "SPEC-076-A": {
       "roles": [
-        "Architect",
         "Backend_Engineer",
         "DevOps_Engineer",
-        "Developer",
         "Frontend_Engineer",
         "Overseer",
         "Systems_Architect"

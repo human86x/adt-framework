@@ -6,30 +6,30 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0" style="font-size:1rem; font-weight:600;">DTCP Monitor</h5>
-    <span class="text-adt-muted" style="font-size:0.8rem;">Digital Transformation Transfer Protocol</span>
+    <span class="text-adt-muted" style="font-size:0.8rem;">Digital Transformation Control Protocol</span>
 </div>
 
-<!-- DTCP Stats -->
+<!-- DTCP Stats: per-file totals aggregated from SPEC-105 reconciler summaries. -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="stat-card">
             <div class="stat-label">Total Requests</div>
-            <div class="stat-value text-accent">{{ dtcp_events|length }}</div>
-            <div class="stat-detail">All DTCP actions</div>
+            <div class="stat-value text-accent">{{ total_files }}</div>
+            <div class="stat-detail" data-honesty-detail="all-dtcp">All DTCP-gated file writes</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card">
             <div class="stat-label">Allowed</div>
-            <div class="stat-value text-green">{{ dtcp_events|selectattr('authorized')|list|length }}</div>
-            <div class="stat-detail">Authorized actions</div>
+            <div class="stat-value text-green">{{ allowed_files }}</div>
+            <div class="stat-detail" data-honesty-detail="authorized">Authorized writes landed</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card">
             <div class="stat-label">Denied</div>
-            <div class="stat-value text-red">{{ dtcp_denied|length }}</div>
-            <div class="stat-detail">Unauthorized attempts</div>
+            <div class="stat-value text-red">{{ denied_files }}</div>
+            <div class="stat-detail" data-honesty-detail="denied">Rejected writes</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
@@ -125,6 +125,19 @@
 </div>
 
 <script>
+// Auto-refresh so the tiles feel live during a build. Reconciler events fire
+// per-worker post-exit; without this the operator has to hard-refresh to see
+// counters tick.
+(function autoRefresh() {
+    const INTERVAL_MS = 5000;
+    // Skip while the tab is hidden to save cycles.
+    setInterval(() => {
+        if (document.hidden) return;
+        // Preserve any ?project=... query string.
+        window.location.replace(window.location.href);
+    }, INTERVAL_MS);
+})();
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Load standards for filter
     try {
@@ -143,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('std-filter').addEventListener('change', (e) => {
         const selected = e.target.value;
         const items = document.querySelectorAll('.event-item');
-        
+
         items.forEach(item => {
             if (!selected) {
                 item.style.display = '';
@@ -157,6 +170,73 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+
+    // SPEC-106: DTCP Monitor Honesty Banner.
+    // Fetch sandbox status; if enforcement_active is not true, show the banner
+    // and mark counter tiles as partial. If the endpoint is missing or fails,
+    // fail-honest: treat as enforcement_active=false so operators are warned.
+    (async function spec106HonestyBanner() {
+        const params = new URLSearchParams(window.location.search);
+        const project = params.get('project') || '{{ current_project|default("") }}' || '';
+        let status = null;
+        try {
+            const url = '/api/governance/sandbox/status'
+                + (project ? ('?project=' + encodeURIComponent(project)) : '');
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (res.ok) {
+                status = await res.json();
+            }
+        } catch (e) { /* fail-honest below */ }
+
+        const enforcementActive = !!(status && status.enforcement_active === true);
+        const banner = document.getElementById('dtcp-monitor-honesty-banner');
+        const partialLabel = 'partial - see banner';
+        const subtitles = document.querySelectorAll('[data-honesty-detail]');
+
+        if (!enforcementActive) {
+            if (banner) banner.style.display = '';
+            subtitles.forEach((el) => {
+                if (!el.dataset.originalDetail) {
+                    el.dataset.originalDetail = el.textContent.trim();
+                }
+                el.textContent = partialLabel;
+                el.classList.add('stat-detail-partial');
+            });
+
+            // SPEC-069 telemetry: record that operator saw the transitional state.
+            try {
+                const body = {
+                    session_id: (window.__ADT_TELEMETRY_SESSION_ID || null),
+                    project: project || 'adt-framework',
+                    role: 'Overseer',
+                    action: 'dtcp_monitor_viewed_during_transition',
+                    target: 'dtcp_monitor',
+                    target_text: 'DTCP Monitor viewed while enforcement inactive',
+                    metadata: {
+                        spec_ref: 'SPEC-106',
+                        enforcement_active: false,
+                        reason: (status && status.reason) || 'endpoint unreachable or missing',
+                        project: project || 'adt-framework'
+                    },
+                    client_ts_ms: Date.now()
+                };
+                fetch('/api/governance/telemetry/action?project=' + encodeURIComponent(project || 'adt-framework'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                    keepalive: true
+                }).catch(() => {});
+            } catch (e) { /* swallow */ }
+        } else {
+            if (banner) banner.style.display = 'none';
+            subtitles.forEach((el) => {
+                if (el.dataset.originalDetail) {
+                    el.textContent = el.dataset.originalDetail;
+                }
+                el.classList.remove('stat-detail-partial');
+            });
+        }
+    })();
 });
 </script>
 {% endblock %}

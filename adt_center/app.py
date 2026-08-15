@@ -163,7 +163,21 @@ def create_app():
         specs = _enrich_specs(spec_registry.list_specs())
 
         active_sessions = query.get_active_sessions()
-        denials = sum(1 for e in events if not e.get("authorized", True))
+        # DTTP/DTCP denials: primary source is SPEC-105 `worker_write_denied_by_dtcp`
+        # events (which themselves carry authorized=true because they're audit
+        # entries). Also count legacy authorized=false events for tier-2 policy
+        # violations, and dtcp_unreachable which fails writes closed.
+        _denial_types = {
+            "worker_write_denied_by_dtcp",
+            "dtcp_unreachable_during_reconcile",
+            "dtcp_denied",
+            "jurisdiction_violation",
+        }
+        denials = sum(
+            1 for e in events
+            if (not e.get("authorized", True))
+            or (e.get("action_type") in _denial_types)
+        )
 
         return render_template("dashboard.html",
                                events=events,
@@ -323,19 +337,68 @@ def create_app():
         project_name = request.args.get("project")
         paths = get_project_paths(project_name)
         query = ADSQuery(paths["ads"])
-        
+
         events = query.get_all_events()
-        dtcp_actions = ['pending_edit', 'completed_edit', 'denied_edit']
-        dtcp_events = [e for e in events if e.get("action_type") in dtcp_actions]
-        dtcp_denied = [e for e in dtcp_events if not e.get("authorized", True)]
-        
-        # Try to get DTCP service status
+
+        # Legacy hook-based events (pre-SPEC-105) + SPEC-105 reconciler events.
+        # Both flow into the same feed.
+        _legacy_types = {'pending_edit', 'completed_edit', 'denied_edit'}
+        _spec105_types = {
+            'worker_write_denied_by_dtcp',
+            'worker_reconciliation_complete',
+            'dtcp_unreachable_during_reconcile',
+        }
+        _all_types = _legacy_types | _spec105_types
+
+        dtcp_events = [e for e in events if e.get("action_type") in _all_types]
+
+        # Denial count: legacy authorized=false events + explicit SPEC-105 denials.
+        _denial_types = {
+            'denied_edit', 'worker_write_denied_by_dtcp',
+            'dtcp_unreachable_during_reconcile',
+        }
+        dtcp_denied = [
+            e for e in dtcp_events
+            if (not e.get("authorized", True))
+            or (e.get("action_type") in _denial_types)
+        ]
+
+        # Aggregate per-file counts from SPEC-105 reconciler summary events.
+        # Each `worker_reconciliation_complete` payload carries {allowed_count,
+        # denied_count, deleted_count} for a single worker. Sum across all
+        # workers so the tiles show total per-file DTCP decisions, not the
+        # count of summary rows.
+        allowed_files = 0
+        denied_files = 0
+        deleted_files = 0
+        for e in events:
+            if e.get("action_type") == "worker_reconciliation_complete":
+                data = e.get("action_data") or {}
+                allowed_files += int(data.get("allowed_count") or 0)
+                denied_files += int(data.get("denied_count") or 0)
+                deleted_files += int(data.get("deleted_count") or 0)
+        # Also count discrete legacy-hook completed_edit / denied_edit rows.
+        for e in dtcp_events:
+            t = e.get("action_type")
+            if t == "completed_edit" and e.get("authorized", True):
+                allowed_files += 1
+            elif t == "denied_edit":
+                denied_files += 1
+            elif t == "worker_write_denied_by_dtcp":
+                # Already covered by summary denied_count for its worker; do
+                # not double-count.
+                pass
+        total_files = allowed_files + denied_files
+
+        # Try to get DTCP service status.
         dtcp_status = None
         dtcp_url = app.config['DTCP_URL']
         if project_name:
             project = app.project_registry.get_project(project_name)
-            if project and project.get("dttp_port"):
-                dtcp_url = f"http://localhost:{project['dttp_port']}"
+            # Support both new dtcp_port and legacy dttp_port keys.
+            port = (project or {}).get("dtcp_port") or (project or {}).get("dttp_port")
+            if port:
+                dtcp_url = f"http://localhost:{port}"
                 
         try:
             resp = http_client.get(f"{dtcp_url}/status", timeout=2)
@@ -344,10 +407,27 @@ def create_app():
         except http_client.RequestException:
             pass
             
+        # Build spec_id -> spec dict for the event feed's optional standards
+        # badges. Empty dict is fine if no specs registered.
+        specs_map = {}
+        try:
+            spec_registry = SpecRegistry(paths["specs"])
+            for s in spec_registry.list_specs():
+                sid = s.get("id") or s.get("spec_id")
+                if sid:
+                    specs_map[sid] = s
+        except Exception:
+            pass
+
         return render_template("dtcp.html",
                                dtcp_events=dtcp_events,
                                dtcp_denied=dtcp_denied,
                                dtcp_status=dtcp_status,
+                               total_files=total_files,
+                               allowed_files=allowed_files,
+                               denied_files=denied_files,
+                               deleted_files=deleted_files,
+                               specs_map=specs_map,
                                current_project=project_name)
 
     @app.route("/governance")

@@ -1098,6 +1098,80 @@ pub fn launch_project(project_path: String) -> Result<String, String> {
     ))
 }
 
+// ---------------------------------------------------------------------------
+// Console dev-mode / sandbox toggle (operator-writable only via this IPC)
+// ---------------------------------------------------------------------------
+//
+// SPEC-105 companion, 2026-08-15: the operator needs a way to flip the
+// namespace sandbox on/off from the UI without opening a shell. The setting
+// lives at ~/.adt/console_settings.json ({ "dev_mode": bool }). Written by
+// this IPC with 0600 perms so PTY-spawned agents (which typically don't run
+// as the operator's UID once sandboxed) cannot mutate it. Read by pty.rs
+// at every session spawn (see read_ui_dev_mode) so the toggle takes effect
+// on the NEXT new session; existing sessions are unaffected.
+
+fn _console_settings_path() -> Result<std::path::PathBuf, String> {
+    dirs::home_dir()
+        .map(|h| h.join(".adt/console_settings.json"))
+        .ok_or_else(|| "no home directory".to_string())
+}
+
+#[tauri::command]
+pub fn get_dev_mode() -> Result<serde_json::Value, String> {
+    let env_disable = std::env::var("ADT_DEV_MODE")
+        .map(|v| v == "1")
+        .unwrap_or(false);
+    let ui_disable = pty::read_ui_dev_mode();
+    Ok(serde_json::json!({
+        "dev_mode": ui_disable,
+        "env_override": env_disable,
+        "effective_disabled": env_disable || ui_disable,
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct SetDevModeRequest {
+    #[serde(rename = "devMode", alias = "dev_mode")]
+    pub dev_mode: bool,
+}
+
+#[tauri::command]
+pub fn set_dev_mode(request: SetDevModeRequest) -> Result<serde_json::Value, String> {
+    let path = _console_settings_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {}", e))?;
+    }
+    // Merge with existing file (preserve other settings).
+    let mut cur: serde_json::Value = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if !cur.is_object() {
+        cur = serde_json::json!({});
+    }
+    cur["dev_mode"] = serde_json::json!(request.dev_mode);
+    cur["updated_at"] = serde_json::json!(
+        chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%z").to_string()
+    );
+    let out = serde_json::to_string_pretty(&cur).map_err(|e| format!("serialize: {}", e))?;
+    std::fs::write(&path, &out).map_err(|e| format!("write: {}", e))?;
+    // Enforce 0600 so PTY-spawned agents (running as a different UID once
+    // sandboxed) cannot flip this back.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    log::warn!(
+        "[SANDBOX] Console dev_mode set to {} via UI (path={:?})",
+        request.dev_mode, path
+    );
+    Ok(serde_json::json!({
+        "dev_mode": request.dev_mode,
+        "path": path.to_string_lossy(),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

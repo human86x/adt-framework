@@ -217,11 +217,27 @@ async function loadHealthStats() {
     try {
         const response = await fetch(url);
         const data = await response.json();
-        
-        document.getElementById('coverage-pct').innerText = (data.covered_pct || 0) + '%';
-        document.getElementById('count-adopted').innerText = data.adopted || 0;
-        document.getElementById('count-orphan').innerText = data.orphan || 0;
-        document.getElementById('count-pending').innerText = data.pending || 0;
+        // API shape: {total_standards, total_clauses,
+        //   dispositions:{adopted, adapted, dismissed, pending}}
+        // Coverage = (adopted + adapted) / total_clauses. Orphan = adopted
+        // clauses with no spec references; the coverage API doesn't currently
+        // break that out, so we surface `dismissed` here as the closest proxy
+        // (both mean "counted but not driving spec work"). If a future API
+        // returns an explicit `orphan` field, prefer it.
+        const disp = data.dispositions || {};
+        const adopted = disp.adopted || 0;
+        const adapted = disp.adapted || 0;
+        const pending = disp.pending || 0;
+        const dismissed = disp.dismissed || 0;
+        const total = data.total_clauses || 0;
+        const pct = total > 0
+            ? Math.round(((adopted + adapted) * 100) / total)
+            : 0;
+
+        document.getElementById('coverage-pct').innerText = pct + '%';
+        document.getElementById('count-adopted').innerText = adopted + adapted;
+        document.getElementById('count-orphan').innerText = (data.orphan != null) ? data.orphan : dismissed;
+        document.getElementById('count-pending').innerText = pending;
     } catch (error) {
         // coverage API might not be ready yet
     }

@@ -397,19 +397,60 @@ fn apply_keyring_env(cmd: &mut CommandBuilder) {
     cmd.env("DBUS_SESSION_BUS_ADDRESS", &dbus_addr);
 }
 
+/// Human-writable console settings file. Read at every spawn so the UI
+/// toggle takes effect on the next new session (no Console restart needed).
+/// Perms are enforced 0600 on write so PTY child agents (which typically
+/// don't run as the operator UID once sandboxed) cannot mutate it.
+const CONSOLE_SETTINGS_REL: &str = ".adt/console_settings.json";
+
+fn console_settings_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(CONSOLE_SETTINGS_REL))
+}
+
+/// Read the dev_mode field from console_settings.json. Returns false on
+/// missing file / parse error (safe default = sandbox stays ON).
+pub fn read_ui_dev_mode() -> bool {
+    let path = match console_settings_path() {
+        Some(p) => p,
+        None => return false,
+    };
+    let raw = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    // Cheap parse — no serde dep add: look for "dev_mode": true|false.
+    for line in raw.lines() {
+        let t = line.trim();
+        if t.starts_with("\"dev_mode\"") || t.starts_with("dev_mode") {
+            return t.contains("true");
+        }
+    }
+    false
+}
+
 /// Determine if a session should be sandboxed.
-/// Returns true for agent sessions with a project CWD that differs from the framework root,
-/// OR for any agent session when sandbox is explicitly desired.
+/// Returns true for agent sessions with a project CWD.
+///
+/// Amended 2026-08-15: framework sessions ARE now sandboxed too (the previous
+/// `!is_fw` bypass was gap 2 from the operator's audit). Only `agent == shell|human`
+/// bypasses. The dev-mode escape hatch is honored either via env
+/// `ADT_DEV_MODE=1` (legacy shell control) OR via the UI toggle persisted in
+/// `~/.adt/console_settings.json::dev_mode` (operator-writable only).
 fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
     // Only sandbox agent sessions, not human shell sessions
     if agent == "shell" || agent == "human" {
         return false;
     }
 
-    // SPEC-045: Support developer-mode escape hatch.
-    // If ADT_DEV_MODE=1 is set in the environment, disable all sandboxing.
-    if std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false) {
-        log::warn!("[SANDBOX] Sandboxing DISABLED via ADT_DEV_MODE=1 (SPEC-045 escape hatch)");
+    // Dev-mode escape hatch (env OR UI toggle). Loudly logged so the operator
+    // never wonders "why isn't the sandbox firing?".
+    let env_disable = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
+    let ui_disable = read_ui_dev_mode();
+    if env_disable || ui_disable {
+        log::warn!(
+            "[SANDBOX] Sandboxing DISABLED (env ADT_DEV_MODE={}, ui dev_mode={})",
+            env_disable, ui_disable
+        );
         return false;
     }
 
@@ -1140,32 +1181,63 @@ impl PtyManager {
 
         // SPEC-036 Phase B: Determine if namespace isolation applies
         // Must be decided before building CommandBuilder
+        //
+        // Amended 2026-08-15 (operator audit):
+        //   Gap 1 (dev-mode escape): honored via env ADT_DEV_MODE=1 OR UI
+        //     toggle at ~/.adt/console_settings.json::dev_mode. UI toggle
+        //     is human-writable only (Tauri IPC, 0600 file perms).
+        //   Gap 2 (framework bypass): the previous `if !is_fw { ... } else
+        //     { None }` fall-through meant Console sessions targeting the
+        //     framework itself were NEVER sandboxed. Removed -- framework
+        //     sessions are sandboxed the same way as external ones.
+        //   Gap 3 (fail-open): if is_agent_session and sandbox is NOT
+        //     disabled but wrap_with_namespace returned None (no isolation
+        //     backend available on this host), we refuse to spawn. Fail-
+        //     closed like SPEC-105 6f.
         let framework_root = get_framework_root();
-        let sandbox_disabled = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
+        let env_disable = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
+        let ui_disable = read_ui_dev_mode();
+        let sandbox_disabled = env_disable || ui_disable;
 
         let phase_b_wrap: Option<(String, Vec<String>)> = if is_agent_session && !sandbox_disabled {
             if let Some(ref cwd_path) = cwd {
                 let project_root = PathBuf::from(cwd_path);
-                let is_fw = is_framework_project(&project_root, &framework_root);
-                if !is_fw {
-                    wrap_with_namespace(
-                        &command_to_run,
-                        &final_args,
-                        &project_root,
-                        dtcp_port_num,
-                        panel_port_num,
-                        &framework_root,
-                        &session_id,
-                    )
-                } else {
-                    None
-                }
+                wrap_with_namespace(
+                    &command_to_run,
+                    &final_args,
+                    &project_root,
+                    dtcp_port_num,
+                    panel_port_num,
+                    &framework_root,
+                    &session_id,
+                )
             } else {
                 None
             }
         } else {
             None
         };
+
+        // Gap 3 fail-closed. If the caller wants an agent session with a real
+        // project cwd and sandbox is NOT disabled by env/UI, but the isolation
+        // backend picked "none" (bwrap + unshare both unavailable), refuse.
+        // Emit a warn so ops know the host is missing bwrap/userns.
+        if is_agent_session && !sandbox_disabled && cwd.is_some() && phase_b_wrap.is_none() {
+            log::error!(
+                "[SANDBOX] Refusing to spawn agent session {}: no isolation \
+                 backend available (bwrap + unshare both unusable) and \
+                 sandbox is not explicitly disabled. Fix: install bwrap and \
+                 grant userns, OR enable dev mode via the Console toggle.",
+                session_id
+            );
+            return Err(format!(
+                "sandbox_unavailable: agent session {} refused because bwrap \
+                 and unshare are both unusable on this host and sandbox is \
+                 not explicitly disabled. Install bwrap (recommended) or \
+                 toggle Dev Mode in the Console.",
+                session_id
+            ));
+        }
 
         let mut cmd = if let Some((ref ns_cmd, ref ns_args)) = phase_b_wrap {
             // Phase B: Namespace-wrapped command (production + external project)

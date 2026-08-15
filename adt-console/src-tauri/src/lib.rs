@@ -83,6 +83,8 @@ pub fn run() {
             ipc::list_agy_models,
             ipc::detect_project_launch,
             ipc::launch_project,
+            ipc::get_dev_mode,
+            ipc::set_dev_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error running ADT Console");

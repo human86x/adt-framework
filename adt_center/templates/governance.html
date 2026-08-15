@@ -209,12 +209,21 @@
 let currentRoles = {};
 let allSpecs = [];
 
+// Every governance API call must carry ?project= so the page shows the
+// SELECTED project's config, not the framework's default. Falls back to
+// unscoped only when no project is picked.
+function _q() {
+    const p = new URLSearchParams(window.location.search).get('project');
+    return p ? ('?project=' + encodeURIComponent(p)) : '';
+}
+
 async function loadGovernance() {
     try {
+        const q = _q();
         const [rolesRes, specsRes, conflictsRes] = await Promise.all([
-            fetch('/api/governance/roles'),
-            fetch('/api/specs'),
-            fetch('/api/governance/conflicts')
+            fetch('/api/governance/roles' + q),
+            fetch('/api/specs' + q),
+            fetch('/api/governance/conflicts' + q)
         ]);
         
         const rolesData = await rolesRes.json();
@@ -234,7 +243,7 @@ async function loadGovernance() {
 
 async function loadEnforcement() {
     try {
-        const res = await fetch('/api/governance/enforcement');
+        const res = await fetch('/api/governance/enforcement' + _q());
         const data = await res.json();
         
         const badge = document.getElementById('enforcement-mode-badge');
