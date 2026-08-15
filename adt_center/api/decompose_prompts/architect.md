@@ -22,9 +22,30 @@ Call it 2-5 times per task as you complete meaningful steps (e.g. 20% understood
 
 ## Spec Content"
 
-## Required Output: 5-15 tasks via curl POSTs
+## Required Output: 3-8 SUBSTANTIVE tasks via curl POSTs
 
-Read the spec. Identify 5-15 discrete units of work. For each, run ONE curl exactly like this:
+Read the spec. Identify **3-8 substantive units of work** (NOT 10+ tiny ones). Each task
+must be big enough to justify a full agent spawn — a language-server boot plus prompt
+roundtrip costs ~30-60s of wall time and thousands of tokens no matter how small the
+actual work is. A single-line dependency bump wastes an entire spawn. **Bundle related
+trivial work into one task.**
+
+**Sizing heuristics — target 5-30 minutes of agent wall time per task:**
+
+- BAD: "Add http-server devDependency to package.json" (2 lines, 5 sec of work)
+- GOOD: "Configure package.json for HTTPS local dev (add http-server dep, start:https
+  and ssl-setup scripts, generate self-signed cert helper)" — 3-4 related changes bundled
+- BAD: "Log intent_completed to ADS" (one API call)
+- GOOD: "Implement intent-completion audit pipeline (log intent_completed event, write
+  summary artifact under _cortex/, update SPEC status marker)"
+- BAD: "Create test file for X" (empty scaffold)
+- GOOD: "Add regression tests for X covering AC-1 to AC-3, run once, capture output"
+
+**When in doubt, err on the side of FEWER LARGER tasks.** The build orchestrator can
+always retry a failed larger task; it cannot un-waste tokens on tiny ones that fired
+12 spawns for 6 minutes of real work.
+
+For each task, run ONE curl exactly like this:
 
 ```bash
 curl -s -X POST 'http://localhost:5001/api/specs/{spec_id}/tasks?project={project_name}' \
@@ -42,7 +63,9 @@ curl -s -X POST 'http://localhost:5001/api/specs/{spec_id}/tasks?project={projec
 
 1. **No exploration.** Do not ls directories, do not grep code, do not view files. The spec content below is sufficient.
 2. **One curl per task.** Each returns 201 with the assigned `task_id`.
-3. **5 to 15 total.** Stop after the smallest count that covers the spec's success conditions.
+3. **3 to 8 total.** Stop after the smallest count that covers the spec's success conditions.
+   If you find yourself wanting 9+ tasks, MERGE the smallest related ones — a decomposition
+   that produces many tiny tasks is a bad decomposition, not a thorough one.
 4. **No prose responses.** Your output should be only the curl commands and their JSON responses.
 5. **No progress events.** Skip ADS logging - the auto-spawn wrapper handles that.
 6. **Done = silent.** When all curls return 201, exit. Do not summarise.

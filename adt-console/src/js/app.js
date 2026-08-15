@@ -416,18 +416,25 @@ const GitStatusManager = (() => {
     if (!window.__TAURI__) return;
     try {
       const s = await window.__TAURI__.core.invoke('get_dev_mode');
-      if (s.env_override) {
-        alert(
-          'ADT_DEV_MODE=1 is set in your shell environment. That overrides ' +
-          'the UI toggle. Unset it (edit ~/.bashrc, then start a new shell) ' +
-          'to make the toggle authoritative.'
-        );
-        return;
+      // ui_set means the file exists with an explicit dev_mode value.
+      // dev_mode holds the current UI intent (true=off, false=on).
+      // If the operator has never toggled AND env=1, first click PINS
+      // the sandbox ON via the UI file (overriding env).
+      const currentDev = !!s.dev_mode;
+      const nextDev = !currentDev;
+      let msg;
+      if (!s.ui_set && s.env_set) {
+        msg = nextDev
+          ? 'Env ADT_DEV_MODE=1 already has sandbox OFF. Toggle ON in UI too? ' +
+            '(no-op; sandbox stays off)'
+          : 'Env ADT_DEV_MODE=1 has sandbox OFF. Turn sandbox ON now? ' +
+            'The UI setting will OVERRIDE the env var. Sandbox will be ' +
+            'enforced on the next new session.';
+      } else {
+        msg = nextDev
+          ? 'Turn Dev Mode ON? Next new session will run UNSANDBOXED.'
+          : 'Turn Dev Mode OFF? Next new session will be sandboxed (SPEC-105).';
       }
-      const nextDev = !s.dev_mode;
-      const msg = nextDev
-        ? 'Turn Dev Mode ON? Next new session will run UNSANDBOXED.'
-        : 'Turn Dev Mode OFF? Next new session will be sandboxed (SPEC-105).';
       if (!confirm(msg)) return;
       await window.__TAURI__.core.invoke('set_dev_mode', { request: { devMode: nextDev } });
       await refreshSandboxTile();

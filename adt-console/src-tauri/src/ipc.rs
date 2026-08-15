@@ -1118,14 +1118,29 @@ fn _console_settings_path() -> Result<std::path::PathBuf, String> {
 
 #[tauri::command]
 pub fn get_dev_mode() -> Result<serde_json::Value, String> {
-    let env_disable = std::env::var("ADT_DEV_MODE")
+    let env_set = std::env::var("ADT_DEV_MODE")
         .map(|v| v == "1")
         .unwrap_or(false);
-    let ui_disable = pty::read_ui_dev_mode();
+    let ui = pty::read_ui_dev_mode();
+    // Semantic (SPEC-108 amendment 2026-08-15): UI file wins if present.
+    // env is only used when the file has no dev_mode field. This lets the
+    // operator pin sandbox ON via the UI even when systemd --user has
+    // ADT_DEV_MODE=1 baked in from an earlier login.
+    let (effective, reason): (bool, &str) = match ui {
+        Some(true)  => (true,  "ui_toggle_dev_mode_on"),
+        Some(false) => (false, "ui_toggle_pinned_sandbox_on"),
+        None => if env_set { (true, "env_var_ADT_DEV_MODE_1") }
+                else       { (false, "default_sandbox_on") },
+    };
+    // env_override is only meaningful if the UI file hasn't taken control.
+    let env_authoritative = ui.is_none() && env_set;
     Ok(serde_json::json!({
-        "dev_mode": ui_disable,
-        "env_override": env_disable,
-        "effective_disabled": env_disable || ui_disable,
+        "dev_mode": ui.unwrap_or(false),
+        "ui_set": ui.is_some(),
+        "env_set": env_set,
+        "env_override": env_authoritative,
+        "effective_disabled": effective,
+        "reason": reason,
     }))
 }
 

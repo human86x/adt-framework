@@ -143,6 +143,14 @@ const SANDBOX_ENV_DENYLIST: &[&str] = &[
     "NPM_TOKEN", "PYPI_TOKEN",
     "DATABASE_URL", "REDIS_URL",
     "DOCKER_HOST",
+    // Note (SPEC-108 rollback 2026-08-15): ANTIGRAVITY_LS_ADDRESS,
+    // ANTIGRAVITY_CSRF_TOKEN, ANTIGRAVITY_SESSION_TOKEN were briefly added
+    // but AGY needs all three to talk to its own local Language Server
+    // and to remember auth state -- stripping forced re-auth on every
+    // spawn. Left out here; the LS + CSRF + session token vars are AGY's
+    // own attack surface, out of scope for the ADT sandbox. See SPEC-108
+    // §9 for the deferred egress-proxy + per-session credential
+    // scoping story.
 ];
 
 /// Prefixes for environment variables that should be stripped from sandboxed sessions.
@@ -358,18 +366,22 @@ fn apply_sandbox_env(
         }
     }
 
-    // Remove sensitive environment variables
-    // portable_pty's CommandBuilder inherits the parent env by default,
-    // so we override dangerous vars with empty strings to effectively remove them
+    // Remove sensitive environment variables.
+    // Amended 2026-08-15 (SPEC-108): use env_remove instead of env(var, "")
+    // — setting to empty leaves the var *present with empty value*, which
+    // some tools treat as "still set" and follow (e.g. gpg-agent walks
+    // SSH_AUTH_SOCK even when empty; keyring libs re-derive it from
+    // XDG_RUNTIME_DIR). env_remove actually deletes the entry from the
+    // child's inherited env.
     for var in SANDBOX_ENV_DENYLIST {
-        cmd.env(var, "");
+        cmd.env_remove(*var);
     }
 
-    // Also clear prefix-matched vars from the current process env
+    // Also remove prefix-matched vars from the current process env
     for (key, _) in std::env::vars() {
         for prefix in SANDBOX_ENV_PREFIX_DENYLIST {
             if key.starts_with(prefix) && !SANDBOX_ENV_DENYLIST.contains(&key.as_str()) {
-                cmd.env(&key, "");
+                cmd.env_remove(&key);
             }
         }
     }
@@ -407,25 +419,28 @@ fn console_settings_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(CONSOLE_SETTINGS_REL))
 }
 
-/// Read the dev_mode field from console_settings.json. Returns false on
-/// missing file / parse error (safe default = sandbox stays ON).
-pub fn read_ui_dev_mode() -> bool {
-    let path = match console_settings_path() {
-        Some(p) => p,
-        None => return false,
-    };
-    let raw = match fs::read_to_string(&path) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    // Cheap parse — no serde dep add: look for "dev_mode": true|false.
+/// Read the dev_mode field from console_settings.json.
+///
+/// Returns:
+/// - `Some(true)`  → operator explicitly toggled Dev Mode ON.
+/// - `Some(false)` → operator explicitly toggled Dev Mode OFF (sandbox pinned).
+/// - `None`        → no file / no dev_mode field → fall back to env var.
+///
+/// The tri-state matters because the UI toggle must be able to OVERRIDE a
+/// polluted shell env (e.g. `systemd --user` inherited `ADT_DEV_MODE=1` at
+/// login and there's no way to clear it short of a re-login). If the
+/// operator has ever clicked the toggle, that click wins.
+pub fn read_ui_dev_mode() -> Option<bool> {
+    let path = console_settings_path()?;
+    let raw = fs::read_to_string(&path).ok()?;
     for line in raw.lines() {
         let t = line.trim();
         if t.starts_with("\"dev_mode\"") || t.starts_with("dev_mode") {
-            return t.contains("true");
+            if t.contains("true") { return Some(true); }
+            if t.contains("false") { return Some(false); }
         }
     }
-    false
+    None
 }
 
 /// Determine if a session should be sandboxed.
@@ -437,25 +452,33 @@ pub fn read_ui_dev_mode() -> bool {
 /// `ADT_DEV_MODE=1` (legacy shell control) OR via the UI toggle persisted in
 /// `~/.adt/console_settings.json::dev_mode` (operator-writable only).
 fn should_sandbox(agent: &str, cwd: Option<&str>) -> bool {
-    // Only sandbox agent sessions, not human shell sessions
     if agent == "shell" || agent == "human" {
         return false;
     }
+    !effective_sandbox_disabled_with_reason().0 && cwd.is_some()
+}
 
-    // Dev-mode escape hatch (env OR UI toggle). Loudly logged so the operator
-    // never wonders "why isn't the sandbox firing?".
-    let env_disable = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
-    let ui_disable = read_ui_dev_mode();
-    if env_disable || ui_disable {
-        log::warn!(
-            "[SANDBOX] Sandboxing DISABLED (env ADT_DEV_MODE={}, ui dev_mode={})",
-            env_disable, ui_disable
-        );
-        return false;
+/// Compute effective sandbox_disabled state, prioritizing UI file over env.
+/// Returns (disabled, human_readable_reason).
+pub fn effective_sandbox_disabled_with_reason() -> (bool, &'static str) {
+    // UI file always wins if present -- necessary because systemd --user
+    // inherits ADT_DEV_MODE=1 from login and there's no clean way to
+    // clear it without a re-login. The UI toggle must be able to pin the
+    // sandbox ON regardless of a polluted shell env.
+    match read_ui_dev_mode() {
+        Some(true)  => (true,  "ui_toggle_dev_mode_on"),
+        Some(false) => (false, "ui_toggle_pinned_sandbox_on"),
+        None => {
+            let env_disable = std::env::var("ADT_DEV_MODE")
+                .map(|v| v == "1")
+                .unwrap_or(false);
+            if env_disable {
+                (true, "env_var_ADT_DEV_MODE_1")
+            } else {
+                (false, "default_sandbox_on")
+            }
+        }
     }
-
-    // If we have a CWD, sandbox is enabled
-    cwd.is_some()
 }
 
 /// Get the framework root directory (where the ADT Framework is installed).
@@ -537,9 +560,17 @@ fn has_bubblewrap() -> bool {
     if !Path::new("/usr/bin/bwrap").exists() {
         return false;
     }
-    // Smoke-test: run a trivial bwrap command to verify it actually works
+    // Smoke-test bwrap end-to-end. Amended 2026-08-15: the previous
+    // `--ro-bind /usr /usr` was insufficient — on distros where /bin,
+    // /lib64 and friends are separate from /usr the sandbox couldn't
+    // resolve /usr/bin/true. Also missing --unshare-user meant hosts
+    // needing bwrap's setuid path (AppArmor + no unpriv userns) failed
+    // even though bwrap would work correctly for a real spawn. Full
+    // `--ro-bind / /` + explicit `--unshare-user` mirrors what we
+    // actually ask bwrap to do in wrap_with_namespace(), so a passing
+    // probe genuinely means a real spawn will work.
     Command::new("/usr/bin/bwrap")
-        .args(["--ro-bind", "/usr", "/usr", "--", "/usr/bin/true"])
+        .args(["--unshare-user", "--ro-bind", "/", "/", "--", "/usr/bin/true"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -557,9 +588,14 @@ fn has_user_namespaces() -> bool {
 /// Build the command prefix for bubblewrap (bwrap) sandboxing.
 /// This creates a minimal filesystem view containing only the project root
 /// and essential system directories (read-only).
-/// NOTE: --unshare-net is enabled in Phase B (SPEC-036 task_148).
-/// Network communication to host DTCP (localhost:5002) and ADT Panel (localhost:5001)
-/// is bridged via socat.
+/// Amended 2026-08-15: --unshare-net removed. The socat bridge scheme
+/// (SPEC-036 task_148) was still routing agent traffic through host
+/// localhost sockets via a bash-quoted wrapper — that wrapper broke
+/// with parens in agent commands ("Syntax error: `(` unexpected") and
+/// also cut the agents off from external APIs (Anthropic, Google). We
+/// keep filesystem isolation (the primary jurisdictional guarantee)
+/// but let agents reach the network directly, matching SPEC-105
+/// spawn.py's `network="full"` default.
 fn build_bwrap_args(
     project_root: &Path,
     _dtcp_port: u16,
@@ -572,7 +608,6 @@ fn build_bwrap_args(
 
     let mut args = vec![
         "/usr/bin/bwrap".to_string(),
-        "--unshare-net".to_string(), // Enable network isolation
         // Essential system dirs (read-only)
         "--ro-bind".to_string(), "/usr".to_string(), "/usr".to_string(),
         "--ro-bind".to_string(), "/lib".to_string(), "/lib".to_string(),
@@ -657,6 +692,78 @@ fn build_bwrap_args(
             "--ro-bind".to_string(), venv_str, "/adt-framework/.venv".to_string(),
         ]);
     }
+
+    // DNS: /etc/resolv.conf is a symlink to /run/systemd/resolve/... on
+    // systemd-resolved distros. Without /run in the sandbox that symlink
+    // dangles and DNS lookup fails, breaking any agent that has to reach
+    // an external API (2026-08-15: claude api.anthropic.com FailedToOpenSocket).
+    // Bind the resolver stub read-only if it exists.
+    if Path::new("/run/systemd/resolve").exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(),
+            "/run/systemd/resolve".to_string(),
+            "/run/systemd/resolve".to_string(),
+        ]);
+    }
+
+    // Auth state: agents cache OAuth tokens in their per-agent config dirs
+    // (~/.claude for Claude Code, ~/.gemini for AGY/Gemini CLI). These MUST
+    // be read-write, not read-only:
+    //   - agy refreshes its token during use and writes it back to
+    //     ~/.gemini/... — a read-only bind causes the write to fail, agy
+    //     falls back to keyring, and keyring times out after 10s from
+    //     inside the mount namespace (no user session to prompt).
+    //   - claude similarly rotates the ~/.claude/*.json state.
+    // Trade-off (SPEC-108 §5 finding): the sandbox CAN mutate the
+    // operator's real token store. Justified because (a) both agents are
+    // trusted authenticated tools of the operator, (b) blocking these
+    // writes just moves the trust boundary — the agents fail into
+    // interactive re-auth prompts which the operator can't answer from
+    // inside a headless sandbox, (c) the alternative is a per-session
+    // copy-in-copy-out overlay which is essentially SPEC-105 workspace
+    // pattern applied to interactive sessions -- big spec, deferred.
+    for dir_name in &[".claude", ".gemini", ".antigravity"] {
+        let host_path = format!("{}/{}", home, dir_name);
+        if Path::new(&host_path).exists() {
+            args.extend_from_slice(&[
+                "--bind".to_string(), host_path.clone(), host_path,
+            ]);
+        }
+    }
+    // Loose auth files in $HOME (not inside a dir). Claude Code stores its
+    // OAuth session in ~/.claude.json (regular file, sibling of .claude/),
+    // not inside .claude/ itself. Without this bind claude falls back to
+    // interactive login even when .claude/.credentials.json is available.
+    for file_name in &[".claude.json", ".claude.json.backup"] {
+        let host_path = format!("{}/{}", home, file_name);
+        if Path::new(&host_path).exists() {
+            args.extend_from_slice(&[
+                "--bind".to_string(), host_path.clone(), host_path,
+            ]);
+        }
+    }
+    // gcloud/cloud auth stays read-only; AGY doesn't rotate it during use.
+    let gcloud = format!("{}/.config/gcloud", home);
+    if Path::new(&gcloud).exists() {
+        args.extend_from_slice(&[
+            "--ro-bind".to_string(), gcloud.clone(), gcloud,
+        ]);
+    }
+
+    // Keyring + DBUS session sockets (rw — libsecret needs write to talk to
+    // gnome-keyring-daemon over its unix socket). Enables OAuth token
+    // retrieval without prompting.
+    let uid = nix::unistd::getuid().as_raw();
+    let runtime_user = format!("/run/user/{}", uid);
+    if Path::new(&runtime_user).exists() {
+        args.extend_from_slice(&[
+            "--bind".to_string(), runtime_user.clone(), runtime_user,
+        ]);
+    }
+    // Fallback: also expose a bare /run so other symlinks (e.g. NetworkManager)
+    // don't dangle. Empty tmpfs so nothing writable leaks.
+    // (Skipped when /run/systemd/resolve already got covered above; extra
+    // --tmpfs would collide with the bind mount.)
 
     args.extend_from_slice(&[
         // Project directory (read-write)
@@ -837,11 +944,14 @@ fn wrap_with_namespace(
     match method {
         "bwrap" => {
             let mut bwrap_args = build_bwrap_args(project_root, dtcp_port, command, framework_root);
-            
-            // Wrap the agent command with the network bridge script
-            let (bridge_cmd, bridge_args) = build_bridge_wrapper(command, args, session_id, dtcp_port, panel_port);
-            bwrap_args.push(bridge_cmd);
-            bwrap_args.extend(bridge_args);
+
+            // Amended 2026-08-15: no bridge wrapper now that --unshare-net is
+            // gone. build_bridge_wrapper generated a bash-quoted script that
+            // failed on any command containing shell-special chars (parens,
+            // etc). Pass the agent command + args directly.
+            let _ = (panel_port, session_id); // silence unused warnings
+            bwrap_args.push(command.to_string());
+            bwrap_args.extend(args.iter().cloned());
 
             // bwrap is the command, everything else is args
             let bwrap_cmd = bwrap_args.remove(0);
@@ -1195,9 +1305,12 @@ impl PtyManager {
         //     backend available on this host), we refuse to spawn. Fail-
         //     closed like SPEC-105 6f.
         let framework_root = get_framework_root();
-        let env_disable = std::env::var("ADT_DEV_MODE").map(|v| v == "1").unwrap_or(false);
-        let ui_disable = read_ui_dev_mode();
-        let sandbox_disabled = env_disable || ui_disable;
+        // UI file wins over env; see effective_sandbox_disabled_with_reason.
+        let (sandbox_disabled, sandbox_disabled_reason) =
+            effective_sandbox_disabled_with_reason();
+        if sandbox_disabled {
+            log::warn!("[SANDBOX] DISABLED for new session (reason={})", sandbox_disabled_reason);
+        }
 
         let phase_b_wrap: Option<(String, Vec<String>)> = if is_agent_session && !sandbox_disabled {
             if let Some(ref cwd_path) = cwd {
@@ -2126,14 +2239,16 @@ mod tests {
     }
 
     #[test]
-    fn test_bwrap_args_has_unshare_net() {
-        // Phase B bwrap args must include --unshare-net
+    fn test_bwrap_args_no_longer_unshares_net() {
+        // Amended 2026-08-15: --unshare-net removed so agents can reach
+        // external APIs (Anthropic, Google). FS isolation retained via
+        // --ro-bind + --bind. See build_bwrap_args() header comment.
         let project = PathBuf::from("/tmp/test-project");
         let framework = PathBuf::from("/home/test/adt-framework");
         let args = build_bwrap_args(&project, 5002, "/usr/bin/claude", &framework);
 
-        assert!(args.contains(&"--unshare-net".to_string()),
-            "bwrap args must include --unshare-net for Phase B isolation");
+        assert!(!args.contains(&"--unshare-net".to_string()),
+            "bwrap args must NOT include --unshare-net after 2026-08-15 amendment");
         assert!(args.contains(&"--die-with-parent".to_string()));
         assert!(args.contains(&"--chdir".to_string()));
     }

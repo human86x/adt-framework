@@ -48,12 +48,21 @@ _HOME = os.path.expanduser("~")
 _EXTRA_RO_BINDS: List[str] = [
     os.path.join(_HOME, ".local", "bin", "agy"),
     os.path.join(_HOME, ".local", "bin"),
-    os.path.join(_HOME, ".gemini"),
-    os.path.join(_HOME, ".claude"),
     os.path.join(_HOME, ".config", "gcloud"),
     os.path.join(_HOME, ".npm-global"),
     os.path.join(_HOME, ".nvm"),
     os.path.join(_HOME, ".cache", "gemini"),
+]
+# Auth/state dirs the agent MUST be able to WRITE to. Read-only causes
+# agy to fail at log/crash writes AND fall into a token-refresh loop that
+# reports "not logged into Antigravity" (2026-08-15 diagnosis). Same
+# pattern the Console sandbox in adt-console/src-tauri/src/pty.rs uses.
+_EXTRA_RW_BINDS: List[str] = [
+    os.path.join(_HOME, ".gemini"),
+    os.path.join(_HOME, ".claude"),
+    os.path.join(_HOME, ".claude.json"),
+    os.path.join(_HOME, ".claude.json.backup"),
+    os.path.join(_HOME, ".antigravity"),
 ]
 
 _SPEC_REF = "SPEC-105"
@@ -233,6 +242,20 @@ def _build_bwrap_cmd(
     for src in _EXTRA_RO_BINDS:
         if os.path.exists(src):
             bwrap += ["--ro-bind-try", src, src]
+
+    for src in _EXTRA_RW_BINDS:
+        if os.path.exists(src):
+            bwrap += ["--bind-try", src, src]
+
+    # DNS: resolv.conf is a symlink to /run/systemd/resolve on modern Ubuntu.
+    if os.path.isdir("/run/systemd/resolve"):
+        bwrap += ["--ro-bind", "/run/systemd/resolve", "/run/systemd/resolve"]
+
+    # Keyring socket dir for OAuth token retrieval (agy libsecret).
+    uid = os.getuid()
+    keyring_dir = f"/run/user/{uid}"
+    if os.path.isdir(keyring_dir):
+        bwrap += ["--bind", keyring_dir, keyring_dir]
 
     bwrap += ["--dev", "/dev", "--proc", "/proc"]
     bwrap += ["--chdir", project_root_abs]

@@ -1904,12 +1904,13 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
 
     # SPEC-105: reconcile the worker's overlay upperdir against child DTCP.
     # Only fires when the worker was sandboxed AND we have a dtcp_url.
+    reconciler_landed_project_files = 0  # amendment 2026-08-16
     try:
         _overlay = getattr(proc, "overlay_dir", "") or ""
         _sbxed = bool(getattr(proc, "sandboxed", False))
         if _sbxed and _overlay and dtcp_url:
             from adt_core.sandbox import reconcile_overlay as _reconcile
-            _reconcile(
+            _rec_summary = _reconcile(
                 overlay_dir=_overlay,
                 project_root=project_root,
                 worker_id=getattr(proc, "worker_id", f"{role}_{build_id}"),
@@ -1918,6 +1919,19 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
                 role=role,
                 spec_id=spec_id,
             )
+            # SPEC-105 amendment (2026-08-16, operator diagnosis of SPEC-100
+            # task_031/033 failures): agy -p mode routinely exits non-zero
+            # even after writing real work — its language-server shutdown
+            # races the CLI exit path. Left uncorrected, EVERY sandboxed
+            # agy task registers as "failed" the moment agy exits 1, even
+            # when the reconciler has already landed the task's real
+            # changes. We treat allowed-files-landed as authoritative
+            # evidence of work; exit-code alone is not sufficient to
+            # declare a task failed after the fact.
+            if isinstance(_rec_summary, dict):
+                reconciler_landed_project_files = int(
+                    _rec_summary.get("allowed_count") or 0
+                )
     except Exception as _re:
         _append_ads_event(
             role, spec_id, build_id, "reconciler_crash",
@@ -1943,6 +1957,36 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         pass
 
     if rc != 0:
+        # SPEC-105 amendment: if the sandboxed worker exited nonzero BUT the
+        # reconciler landed real project files (via DTCP-authorised writes),
+        # trust the reconciler. Agy -p mode routinely exits 1 after
+        # successful work due to LS shutdown race. Only mark this as a
+        # failure when there's ALSO no evidence of landed work.
+        if reconciler_landed_project_files > 0:
+            _set_task_status_bulk(
+                project_root, task_ids, "completed",
+                {
+                    "reconciled_from_failed": True,
+                    "reconciliation_evidence": [{
+                        "source": "spec105_reconciler",
+                        "allowed_count": reconciler_landed_project_files,
+                        "worker_exit_code": rc,
+                        "log_path": log_path,
+                    }],
+                },
+            )
+            _append_ads_event(
+                role, spec_id, build_id, "build_worker_completed_via_reconciler",
+                (f"Worker {role} PID {pid} exit {rc} but reconciler landed "
+                 f"{reconciler_landed_project_files} DTCP-authorised file writes. "
+                 "Tasks marked complete (SPEC-105 amendment 2026-08-16)."),
+                {"pid": pid, "role": role, "returncode": rc, "harness": harness,
+                 "reconciler_allowed_count": reconciler_landed_project_files,
+                 "log_path": log_path, "task_ids": task_ids},
+                project_root,
+            )
+            return True
+
         _append_ads_event(
             role, spec_id, build_id, "build_worker_failed",
             f"Worker {role} PID {pid} exited {rc}.",
