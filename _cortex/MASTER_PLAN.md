@@ -55,6 +55,8 @@ Build the ADT Framework as a standalone, open-source governance system for AI ag
 | SPEC-061 | Antigravity Multi-Model Worker Plane | APPROVED — CRITICAL, unblocks Hivemind |
 | SPEC-061-A | Harness-Agnostic Role Sessions | APPROVED |
 | SPEC-071 | RPi UI Responsiveness & Auth State Hysteresis | APPROVED |
+| SPEC-102 | Task Preflight & No-Op Detection | DRAFT |
+| SPEC-109 | adt-agy-probe PreToolUse Hook Deprecation | APPROVED |
 
 
 ## 6. Roadmap
