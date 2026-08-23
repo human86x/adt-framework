@@ -9,7 +9,13 @@ use std::sync::Arc;
 use tauri::Manager;
 
 pub fn run() {
-    env_logger::init();
+    // Default to `info` level when RUST_LOG is unset so PTY spawn diagnostics
+    // land in ~/console.log without the operator having to set an env var.
+    // RUST_LOG (if present) still wins — parse_default_env respects it.
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info"),
+    )
+    .init();
 
     // Initialize PTY manager
     let pty_manager = Arc::new(pty::PtyManager::new());

@@ -1248,6 +1248,10 @@ impl PtyManager {
         let command_to_run = canonical_command.to_string_lossy().to_string();
         log::info!("[PTY PATH] Resolved '{}' -> '{}' (canonical: '{}')",
                   final_command, resolved_command, command_to_run);
+        log::info!(
+            "[PTY SPAWN INPUT] agent={} role={} raw_cmd='{}' final_args={:?} cwd={:?} parent={:?}",
+            agent, role, final_command, final_args, cwd, parent_session_id
+        );
 
         // SPEC-027: In production mode, wrap agent commands with sudo -u agent.
         // Shell sessions requested by the human remain as the human user.
@@ -1350,6 +1354,22 @@ impl PtyManager {
                  toggle Dev Mode in the Console.",
                 session_id
             ));
+        }
+
+        log::info!(
+            "[PTY WRAP DECISION] is_agent_session={} sandbox_disabled={} ({}) cwd_is_some={} phase_b_wrap_is_some={}",
+            is_agent_session,
+            sandbox_disabled,
+            sandbox_disabled_reason,
+            cwd.is_some(),
+            phase_b_wrap.is_some()
+        );
+        if let Some((ref ns_cmd, ref ns_args)) = phase_b_wrap {
+            log::info!(
+                "[PTY WRAP NS] ns_cmd='{}' ns_args_len={} first10={:?}",
+                ns_cmd, ns_args.len(),
+                ns_args.iter().take(10).cloned().collect::<Vec<_>>()
+            );
         }
 
         let mut cmd = if let Some((ref ns_cmd, ref ns_args)) = phase_b_wrap {
@@ -1719,6 +1739,38 @@ impl PtyManager {
             };
             cmd.env("CLAUDE_PROJECT_DIR", &project_dir_val);
             cmd.env("GEMINI_PROJECT_DIR", &project_dir_val);
+        }
+
+        // Diagnostic: capture the CommandBuilder argv + cwd before spawn.
+        // portable_pty stores argv[0] as the program to exec, so we log the
+        // full argv and check argv[0] existence to catch "os error 2" cases.
+        {
+            let argv: Vec<String> = cmd
+                .get_argv()
+                .iter()
+                .map(|s| s.to_string_lossy().to_string())
+                .collect();
+            let cwd_dbg = cmd
+                .get_cwd()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "<inherit>".to_string());
+            let prog = argv.first().cloned().unwrap_or_default();
+            log::info!(
+                "[PTY SPAWN PRE] program='{}' cwd='{}' argc={} argv={:?}",
+                prog, cwd_dbg, argv.len(), argv
+            );
+            if prog.starts_with('/') && !Path::new(&prog).exists() {
+                log::error!(
+                    "[PTY SPAWN PRE] program path does not exist on host: '{}'",
+                    prog
+                );
+            }
+            if cwd_dbg != "<inherit>" && !Path::new(&cwd_dbg).exists() {
+                log::error!(
+                    "[PTY SPAWN PRE] cwd path does not exist on host: '{}'",
+                    cwd_dbg
+                );
+            }
         }
 
         let child = pair
