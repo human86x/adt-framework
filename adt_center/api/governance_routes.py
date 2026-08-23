@@ -3442,8 +3442,35 @@ def api_forge_report_ready():
 
 @governance_bp.route("/governance/sovereign-requests/approve-all", methods=["POST"])
 def approve_all_sovereign_requests():
-    """SPEC-033-A: Bulk approve all pending SCRs (human-only)."""
+    """SPEC-033-A: Bulk approve all pending SCRs (human-only).
+
+    REQ-128: Aligned with SPEC-045 individual PUT hardening. Previously this
+    endpoint only rejected requests carrying an ``X-Agent`` header, which meant
+    any non-browser client could bulk-authorize SCRs simply by omitting that
+    header. It must now match the same proof-of-human gate the per-SCR PUT
+    uses (``session["is_human"]``), otherwise the SPEC-045 hardening is
+    de-facto disabled via the bulk route.
+
+    TODO(REQ-128): follow-up spec should also require a fresh per-batch or
+    per-SCR nonce here, mirroring SPEC-045 Phase 1 nonce semantics. For this
+    REQ we require ``is_human`` only, which closes the immediate hole.
+    """
+    # SPEC-045 alignment: session-bound proof of human required.
+    if not session.get("is_human"):
+        _log_spoofing_attempt(
+            "bulk",
+            "Unauthorized bulk-approve: missing session-bound proof of human",
+        )
+        return jsonify({
+            "error": "Unauthorized: Positive proof of human required via Panel"
+        }), 401
+
+    # Defence in depth: any explicit agent header is a hard reject.
     if request.headers.get("X-Agent"):
+        _log_spoofing_attempt(
+            "bulk",
+            "Agent attempted bulk-approve with X-Agent header",
+        )
         return jsonify({"error": "Only humans can bulk-approve SCRs"}), 403
 
     project_name = request.args.get("project")

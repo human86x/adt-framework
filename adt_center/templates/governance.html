@@ -663,45 +663,109 @@ function renderSCRCards(scrs) {
     });
 }
 
+// REQ-128 / SPEC-045: Establish session-bound proof of human before any SCR
+// mutation. Previously the panel jumped straight to the nonce fetch, which
+// returns 401 whenever the session cookie has never seen a successful
+// handshake. That in turn caused operators to route around the individual
+// Authorize button via "Authorize All", which used to skip the hardening
+// entirely. Always run the handshake first; browsers already send the
+// Mozilla UA + text/html Accept the backend fingerprints on.
+let __scrHandshakeDone = false;
+async function ensureScrHandshake() {
+    if (__scrHandshakeDone) return true;
+    try {
+        const res = await fetch('/api/governance/auth/handshake', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        });
+        if (res.ok) {
+            __scrHandshakeDone = true;
+            return true;
+        }
+        const err = await res.json().catch(() => ({}));
+        alert(`Panel authentication failed (${res.status}): ${err.error || res.statusText}`);
+        return false;
+    } catch (e) {
+        alert(`Panel authentication failed: ${e && e.message ? e.message : e}`);
+        return false;
+    }
+}
+
 async function handleSCR(id, action) {
+    if (action === 'edit') {
+        alert('Edit functionality coming soon.');
+        return;
+    }
+
     if (action === 'reject') {
         const reason = prompt('Reason for rejection:');
         if (reason === null) return;
 
-        // SPEC-045: Fetch nonce
-        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`);
+        // SPEC-045: Handshake -> Nonce -> PUT
+        if (!(await ensureScrHandshake())) return;
+        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`, {
+            credentials: 'same-origin'
+        });
+        if (!nonceRes.ok) {
+            const err = await nonceRes.json().catch(() => ({}));
+            alert(`Reject failed (nonce ${nonceRes.status}): ${err.error || nonceRes.statusText}`);
+            return;
+        }
         const { nonce } = await nonceRes.json();
 
         const res = await fetch(`/api/governance/sovereign-requests/${id}`, {
             method: 'PUT',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'reject', reason, nonce })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(`Reject failed: ${err.error || res.statusText}`);
+            const msg = err.error || res.statusText;
+            if (res.status === 401) {
+                alert(`Reject failed: ${msg}. The panel session may have expired -- reload and try again.`);
+                __scrHandshakeDone = false;
+            } else {
+                alert(`Reject failed (${res.status}): ${msg}`);
+            }
             return;
         }
     } else if (action === 'authorize') {
         if (!confirm('Authorize this sovereign change?')) return;
 
-        // SPEC-045: Fetch nonce
-        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`);
+        // SPEC-045: Handshake -> Nonce -> PUT
+        if (!(await ensureScrHandshake())) return;
+        const nonceRes = await fetch(`/api/governance/sovereign-requests/${id}/nonce`, {
+            credentials: 'same-origin'
+        });
+        if (!nonceRes.ok) {
+            const err = await nonceRes.json().catch(() => ({}));
+            alert(`Authorization failed (nonce ${nonceRes.status}): ${err.error || nonceRes.statusText}`);
+            return;
+        }
         const { nonce } = await nonceRes.json();
 
         const res = await fetch(`/api/governance/sovereign-requests/${id}`, {
             method: 'PUT',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'authorize', nonce })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(`Authorization failed: ${err.error || res.statusText}`);
+            const msg = err.error || res.statusText;
+            if (res.status === 401) {
+                alert(`Authorization failed: ${msg}. The panel session may have expired -- reload and try again.`);
+                __scrHandshakeDone = false;
+            } else if (res.status === 403) {
+                alert(`Authorization failed (${res.status}): ${msg}. Nonce may have expired -- try again.`);
+            } else {
+                alert(`Authorization failed (${res.status}): ${msg}`);
+            }
             return;
         }
-    } else if (action === 'edit') {
-        alert('Edit functionality coming soon.');
-        return;
     }
     loadSCRs();
 }
@@ -710,8 +774,11 @@ async function approveAllSCRs() {
     if (!confirm('Apply all pending SCRs?\nStale patches that no longer match the file will be auto-dismissed.')) return;
     const badge = document.getElementById('scr-count-badge');
     if (badge) badge.innerText = '...';
+    // REQ-128: bulk endpoint now enforces SPEC-045 proof-of-human; run handshake first.
+    if (!(await ensureScrHandshake())) return;
     const res = await fetch('/api/governance/sovereign-requests/approve-all', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' }
     });
     const data = await res.json();

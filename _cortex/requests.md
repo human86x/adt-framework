@@ -3839,3 +3839,260 @@ Testing status update.
 ### Status
 
 **COMPLETED**
+
+
+---
+
+## REQ-126: Forge Wizard MRR row is visually broken + LLM classifier re-runs redundantly during forge
+
+**From:** Systems_Architect (CLAUDE)
+**To:** @Frontend_Engineer, @Backend_Engineer
+**Date:** 2026-08-11
+**Type:** BUG (multi-part)
+**Priority:** HIGH
+**Spec-refs:** SPEC-067 (Forge Wizard), SPEC-081 (Project Knowledge Reuse & Warm-up), SPEC-080 (Standards Catalog)
+
+### Problem
+
+Operator screenshot of Forge Wizard Screen 1 (2026-08-11) shows three defects:
+
+**1. MRR classifier row renders as giant uppercase text with the radio button falling into the label.**
+
+Root cause: `adt-console/src/css/launcher.css:290-298` applies
+
+```css
+.wizard-field label {
+  display: block;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+```
+
+to every `<label>` inside `.wizard-field`. The MRR row (`adt-console/src/js/launcher.js:1040-1048`) nests
+per-option `<label style="display:inline-flex">` INSIDE `.wizard-field`. The inline style overrides
+`display` but inherits `text-transform: uppercase`, `letter-spacing: 1px`, and font-size, so
+`⚡ Quick (instant)` renders as `⚡ QUICK (INSTANT)` in field-label size. The `(~30-60s)` span wraps
+because the oversized flex row runs out of horizontal room.
+
+**2. Time-estimate copy is disallowed.** The `(instant)` and `(~30-60s)` annotations on the two radio
+options must be removed. Operator rule (2026-08-11, saved to persistent memory
+`feedback_no_time_estimates.md`): never insert speculative durations in Console UI. Elapsed counters
+that report observed reality are fine; pre-flight ETAs are not.
+
+**3. "Framework Standards Catalog: (unavailable)"** — `adt-console/src/js/launcher.js:617-636` catches
+any `fetchForgeCatalog` error and swallows the reason. Operator sees only "(unavailable)" with no
+indication whether adt-center is down, the endpoint 500'd, or the network failed. Surface the reason.
+
+**4. (Additional bug caught during triage) LLM MRR classifier re-runs during forge, ignoring operator-confirmed standards.**
+
+Operator flow: Screen 1 picks Quick mode → keyword scan returns suggested RRs → Screen 2 operator
+confirms subset → POSTs to `/api/governance/forge/<id>/confirm_standards`. Then the forge kicks off
+and the progress screen (`showForgeProgress`, launcher.js:1747-1819) polls ADS for
+`intent_match_started`/`intent_classification_started` events, showing "🔍 Analyzing your wish…"
+again. Backend `adt_center/api/governance_routes.py:340-419` unconditionally fires:
+- `intent_match_started` → keyword classifier
+- `intent_classification_started` → **LLM classifier** (`classify_intent`, SPEC-075)
+
+regardless of whether the operator already ran Quick classification and already confirmed a set. This
+burns LLM tokens (30-60s on Gemini Flash) for no operator-visible gain, since the confirmed set from
+Screen 2 is the ground truth. It also risks polluting the confirmed set: `renderStandardsResult`
+(launcher.js:1878) merges new results into `forgeData.matchedDomains` / `suggestedRRs` after the
+operator confirmed.
+
+### Fix
+
+**Frontend (`adt-console/src/css/launcher.css` + `adt-console/src/js/launcher.js`):**
+
+- (a) Add a new class `.wiz-inline-choice` scoped to the MRR row's outer div. On its child `<label>`
+  elements, reset: `text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: normal;
+  display: inline-flex;`. Apply the class in the wizard template at `launcher.js:1040`.
+- (b) In `launcher.js:1043` and `:1046`, remove the `(instant)` and `(~30-60s)` spans entirely. Keep
+  `⚡ Quick` and `🔬 Deep` as the option text. Do NOT invent a replacement time descriptor.
+- (c) In `fetchForgeCatalog` (launcher.js:617-636), replace `catch (_)` with `catch (err)` and store
+  `_forgeCatalogErrorMsg = err && (err.message || String(err))`. In `renderForgeCatalogStrip` (~L651),
+  when `_forgeCatalogError` is true, render the message inline in the header (e.g.,
+  `"(unavailable — <reason truncated to 80 chars>)"`). Fallback to "(unavailable)" only when no
+  message is captured.
+- (d) In `showForgeProgress` (launcher.js:1747), if `forgeData.mrr_mode === "quick"` AND
+  `(forgeData.suggestedRRs || forgeData.mrr_suggested || []).length > 0`, do NOT call
+  `pollStandardsStream()`. Instead render the confirmed chip set immediately and set the status line
+  to "✓ Using operator-confirmed standards from Screen 2 (skipping re-classification)."
+- (e) In the forge submit POST (find `/api/governance/forge` call, currently in
+  showForgeGenesis/submit path), include `{ mrr_mode: forgeData.mrr_mode, confirmed_rr_ids:
+  forgeData.suggestedRRs || forgeData.mrr_suggested || [] }` in the request body so backend can honor
+  it.
+
+**Backend (`adt_center/api/governance_routes.py:340-419`):**
+
+- (f) Read `mrr_mode` and `confirmed_rr_ids` from the forge request payload. If
+  `mrr_mode == "quick"` and `confirmed_rr_ids` is non-empty:
+  - SKIP the LLM `classify_intent` call at line 393-419 entirely.
+  - Still emit `intent_match_started`/`_completed` (keyword scan is fast and provides audit trail),
+    but use the operator-confirmed set to seed `selected_rr_ids` before falling into the standards
+    coverage loop.
+  - Emit a new ADS event `intent_classification_skipped` with reason `"operator_confirmed_quick"` so
+    the audit trail records the deliberate skip.
+- (g) If `mrr_mode == "deep"` (operator explicitly opted into the LLM path on Screen 1), keep
+  current behavior.
+- (h) Update `_cortex/specs/SPEC-081_PROJECT_KNOWLEDGE_REUSE_AND_WARMUP.md` §Acceptance Criteria to
+  add: "When operator confirms standards under Quick mode on Screen 2, the forge pipeline MUST NOT
+  re-invoke the LLM classifier; the confirmed set is authoritative."
+
+### Acceptance criteria
+
+1. On Forge Wizard Screen 1, MRR row renders as normal-case, single-line, 12px labels with the
+   radio buttons visually adjacent to their text.
+2. No `(instant)`, `(~30-60s)`, or similar time estimates appear on any wizard screen.
+3. When adt-center is unreachable, catalog strip shows the actual error reason (truncated).
+4. When operator uses Quick mode and confirms standards, the forge progress screen shows a green
+   "Using operator-confirmed standards" line INSTEAD of a spinner + "Analyzing your wish…".
+5. `_cortex/ads/events.jsonl` for a Quick + confirmed forge shows exactly one
+   `intent_match_completed` event and one `intent_classification_skipped` event, no
+   `intent_classification_started` or `_completed`.
+6. Deep mode still fires the LLM classifier (regression check).
+
+### Status
+**OPEN**
+
+
+---
+
+## REQ-127: Backend must honor operator-confirmed standards under Quick mode (skip LLM classifier)
+
+**From:** Frontend_Engineer (CLAUDE)
+**To:** @Backend_Engineer
+**Date:** 2026-08-11
+**Type:** BUG
+**Priority:** HIGH
+**Spec-refs:** SPEC-081, SPEC-075, SPEC-072
+**Parent:** REQ-126 (frontend parts a-e now complete; this REQ carries the backend items f-g that were out of Frontend jurisdiction)
+
+### Problem
+
+`adt_center/api/governance_routes.py:340-419` unconditionally runs the SPEC-075 LLM
+`classify_intent` call during every forge, regardless of whether the operator already
+picked Quick mode on the Forge Wizard and already confirmed a standards set on Screen 2.
+This burns ~30-60s of LLM time (Gemini Flash) and, more importantly, produces `intent_classification_*`
+ADS events that the frontend polls and merges into the operator's confirmed set, silently
+enlarging it after the operator was told "these are the standards you picked".
+
+### Frontend has been updated (REQ-126 parts d + e)
+
+The forge POST body now includes:
+- `mrr_mode`: `"quick"` | `"deep"` | `"quick_fallback"`
+- `confirmed_rr_ids`: array of RR ids from the operator's Screen-2 confirmation
+
+The frontend progress screen also stops polling for classifier ADS events when
+`mrr_mode === "quick"` and `confirmed_rr_ids` is non-empty, so backend can safely skip
+the classifier without leaving a spinner on-screen.
+
+### Fix
+
+In `adt_center/api/governance_routes.py` around lines 340-419 (inside the
+`api_forge_project` / equivalent handler that ingests the forge POST):
+
+1. Read `mrr_mode` and `confirmed_rr_ids` from the request payload with safe defaults
+   (`"quick"` and `[]`).
+2. If `mrr_mode == "quick"` AND `confirmed_rr_ids` is non-empty:
+   - SKIP the `classify_intent` LLM call at line ~393-419 (the whole
+     `try: from adt_core.standards.intent_classifier_llm import classify_intent` block).
+   - Still run `match_intent_domain_detailed` (keyword scan is fast and provides audit).
+   - Seed `selected_rr_ids` from `confirmed_rr_ids` (union with keyword baselines).
+   - Emit a new ADS event `intent_classification_skipped` with payload
+     `{ "reason": "operator_confirmed_quick", "confirmed_count": len(confirmed_rr_ids),
+        "project": project_name }` so the audit trail records the deliberate skip.
+3. If `mrr_mode == "deep"` (operator explicitly opted into the LLM path on Screen 1),
+   keep current behavior. Same for `"quick_fallback"` (Deep failed and fell back) —
+   treat as Quick and skip the second LLM run.
+
+### Acceptance criteria
+
+- A Quick + confirmed forge produces exactly one `intent_match_completed` event and one
+  `intent_classification_skipped` event in `_cortex/ads/events.jsonl`. No
+  `intent_classification_started` or `_completed` events for that forge.
+- A Deep-mode forge still produces `intent_classification_started` + `_completed`
+  (regression check).
+- `selected_rr_ids` used downstream by the forge equals `confirmed_rr_ids UNION
+  keyword_baselines` (order-insensitive), so operator can still see keyword baseline
+  additions but never has the LLM adding new ones behind their back.
+- No timing regression on the forge critical path when Quick+confirmed (should be
+  ~30-60s faster than before since the LLM call is elided).
+
+### Not in scope for this REQ
+
+- SPEC-081 acceptance-criteria amendment adding this rule as a formal governance
+  constraint. Systems_Architect (CLAUDE) will handle that next session.
+- Any UI/UX changes on the frontend — those shipped under REQ-126.
+
+### Status
+**OPEN**
+
+## REQ-128: SPEC-045 hardening bypassed via Console "Authorize All"; individual SCR authorize button broken
+
+**Filed:** 2026-08-23 by Systems_Architect (CLAUDE)
+**Origin:** Operator observation during authorization of `scr_20260823_220732_167` (SPEC-109 MASTER_PLAN patch).
+**Relates to:** SPEC-033 (SCR), SPEC-033-A (bulk approve), SPEC-045 (SCR Authorization Hardening)
+**Jurisdictions:** Frontend_Engineer + Backend_Engineer
+
+### Symptom (Reported 2026-08-23 22:09 UTC)
+
+> "src is authorized, but it only worked when I pressed Authorize All. If I pressed
+> the authorise button under the src it would say 'failed to authorize, human
+> confirmation needed via panel'."
+
+### Root Cause
+
+Two endpoints reach the same operation with asymmetric hardening:
+
+| Endpoint | Method | Gate |
+|---|---|---|
+| `/governance/sovereign-requests/<id>` | PUT | SPEC-045: session-bound `is_human`, browser-fingerprint handshake, single-use 60s nonce, `X-Agent` header rejection |
+| `/governance/sovereign-requests/approve-all` | POST | Only `X-Agent` header rejection |
+
+The Console panel's per-SCR **Authorize** button calls the PUT endpoint without
+first calling `POST /governance/auth/handshake` — so `session["is_human"]` is
+never set → the endpoint returns 401 `"Positive proof of human required via
+Panel"` (governance_routes.py line 3534). The error message misleadingly implies
+the operator is not using the panel; they are.
+
+The **Authorize All** button hits the bulk endpoint which skips the entire
+SPEC-045 dance. Operators route around the broken individual button by clicking
+Authorize All, which is exactly the un-hardened path SPEC-045 was written to
+close off.
+
+### Impact
+
+**SPEC-045 hardening is de-facto disabled.** Every SCR authorization currently
+flowing through the Console leaves `authorized_by: HUMAN_BULK` in the ADS —
+including SCRs targeting Tier-1 sovereign paths (`_cortex/MASTER_PLAN.md`,
+`_cortex/AI_PROTOCOL.md`, `config/*.json`). Any agent that can reach
+`/governance/sovereign-requests/approve-all` from a non-browser context and
+strip the `X-Agent` header can authorize its own SCRs.
+
+### Fix (recommended, both fronts)
+
+**Frontend (Console):** the per-SCR Authorize button handler must:
+1. Call `POST /governance/auth/handshake` and confirm 200 before touching the SCR.
+2. Call `GET /governance/sovereign-requests/<id>/nonce` and get the nonce.
+3. Call `PUT /governance/sovereign-requests/<id>` with `{ action: "authorize", nonce }`.
+See `_cortex/ops/authorize_scr.py` for the working reference implementation.
+
+**Backend:** the bulk endpoint must require the same SPEC-045 gate as the
+individual PUT — session-bound `is_human` plus one nonce per SCR being bulk-
+approved (or a single per-batch nonce that expires immediately). Bulk approve
+without the handshake is the SPEC-045 hole.
+
+### Acceptance criteria
+
+1. Per-SCR Authorize button in the Console successfully authorizes a pending
+   SCR without any manual intervention, stamping `authorized_by: HUMAN`.
+2. `authorize_all` requires the same session-bound proof-of-human as the
+   individual PUT; calling it without prior handshake returns 401.
+3. ADS shows zero `HUMAN_BULK` authorizations after the fix ships, unless the
+   operator explicitly chose bulk mode from a hardened panel.
+4. A regression test confirms: calling `approve-all` from a plain `curl`
+   without cookies returns 401 (currently returns 200 with `X-Agent` unset).
+
+### Status
+**OPEN**
