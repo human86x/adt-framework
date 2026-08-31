@@ -1,0 +1,57 @@
+# ADT Device Type Template -- HTTP/HTTPS Endpoint
+# SPEC-113 ss3.4 -- starter library
+# Used for webhooks, REST APIs, health-check targets, etc.
+id: http_endpoint
+name: HTTP/HTTPS Endpoint
+capabilities:
+  - http_get
+  - http_post
+  - http_put
+  - http_delete
+  - network
+
+identification:
+  discovery_hint: "curl -sf --max-time 5 {base_url}/health 2>&1 | head -1"
+
+procedures:
+  health:
+    protocol: http
+    method: GET
+    path: "/health"
+    expect_status: [200, 204]
+    timeout_ms: 5000
+    note: "Override path per instance if health endpoint differs (e.g. /ping, /status)."
+
+  post:
+    protocol: http
+    method: POST
+    path: "{path}"
+    body: "{artifact}"
+    content_type: "application/json"
+    timeout_ms: 30000
+
+  get:
+    protocol: http
+    method: GET
+    path: "{path}"
+    timeout_ms: 10000
+
+  put:
+    protocol: http
+    method: PUT
+    path: "{path}"
+    body: "{artifact}"
+    content_type: "application/json"
+    timeout_ms: 30000
+
+  delete:
+    protocol: http
+    method: DELETE
+    path: "{path}"
+    timeout_ms: 10000
+
+safety_notes:
+  - "No flash procedure -- http_endpoint does not support firmware operations."
+  - "TLS verification is enabled by default; disable only for internal test endpoints."
+  - "Auth headers are sourced from vault ref; never hardcode tokens in instance config."
+  - "Rate limiting: configure per-instance delay_between_requests_ms if target enforces rate limits."

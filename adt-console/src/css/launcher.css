@@ -297,6 +297,50 @@
   letter-spacing: 1px;
 }
 
+/* REQ-126: inline radio/choice rows inside .wizard-field must NOT inherit
+   the uppercase label styling (which rendered "Quick" as "QUICK" in field-
+   label size and broke the MRR classifier row layout). */
+.wizard-field.wiz-inline-choice label {
+  display: inline-flex;
+  margin-bottom: 0;
+  color: #c9d1d9;
+  font-weight: normal;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* REQ-126 follow-up: div-based segmented toggle for the MRR classifier row.
+   Native <input type="radio"> renders unreadably in dark theme on Tauri/WebKit
+   (same class of issue as the native <select> bug documented in MEMORY). */
+.wiz-seg {
+  display: inline-flex;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #161b22;
+}
+.wiz-seg-btn {
+  background: transparent;
+  border: 0;
+  color: #8b949e;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.wiz-seg-btn + .wiz-seg-btn {
+  border-left: 1px solid #30363d;
+}
+.wiz-seg-btn:hover {
+  color: #e6edf3;
+  background: #21262d;
+}
+.wiz-seg-btn.active {
+  background: #1f6feb;
+  color: #ffffff;
+}
+
 .wizard-field input, .wizard-field select, .wizard-field textarea {
   width: 100%;
   padding: 14px 18px;

@@ -10,12 +10,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 20,
+      "progress_message": "Analyzing schema requirements and setting up database directory",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-08-06T20:38:54.707869Z",
+      "progress_updated_at": "2026-08-29T12:53:01.387406Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T20:38:54.707854Z"
+      "completed_at": "2026-08-23T21:17:51.228524Z"
     },
     {
       "id": "task_002",
@@ -26,12 +26,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 50,
+      "progress_message": "Core app + auth + routes written. Now writing tests and ops configs.",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-08-01T15:46:34.631745Z",
+      "progress_updated_at": "2026-08-29T13:31:50.978268Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-01T15:46:34.631693Z"
+      "completed_at": "2026-08-29T13:03:27.558661Z"
     },
     {
       "id": "task_003",
@@ -45,12 +45,12 @@
         "task_001",
         "task_002"
       ],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 50,
+      "progress_message": "Ingest endpoint written with HMAC auth + rate limiting + async persistence. Building router wiring, app factory, and tests.",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-08-06T20:42:41.248513Z",
+      "progress_updated_at": "2026-08-29T13:13:33.383437Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T20:42:41.248467Z"
+      "completed_at": "2026-08-29T13:03:27.647068Z"
     },
     {
       "id": "task_004",
@@ -67,9 +67,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-08-06T20:48:19.319004Z",
+      "progress_updated_at": "2026-08-23T20:12:38.704461Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T20:48:19.318987Z"
+      "completed_at": "2026-08-23T20:12:38.704443Z"
     },
     {
       "id": "task_005",
@@ -93,12 +93,12 @@
         },
         "delegated_at": "2026-02-09T10:00:00Z"
       },
-      "progress_percent": 50,
-      "progress_message": "Optimizing updatePhysics signature to safely handle default arguments",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-08-06T21:03:26.436829Z",
+      "progress_updated_at": "2026-08-29T13:15:37.634025Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T20:58:50.981863Z"
+      "completed_at": "2026-08-29T13:15:37.634007Z"
     },
     {
       "id": "task_006",
@@ -112,11 +112,11 @@
         "task_003"
       ],
       "progress_percent": 100,
-      "progress_message": "done",
+      "progress_message": "Task completed successfully",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-08-06T21:24:03.319171Z",
+      "progress_updated_at": "2026-08-29T14:08:15.010614Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:24:03.319148Z"
+      "completed_at": "2026-08-29T14:08:15.010602Z"
     },
     {
       "id": "task_007",
@@ -131,12 +131,12 @@
         "task_002",
         "task_003"
       ],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 50,
+      "progress_message": "Created database schema and implemented all backend admin/audit routes",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-08-06T20:55:47.271988Z",
+      "progress_updated_at": "2026-08-29T14:05:48.011789Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T20:55:47.271975Z"
+      "completed_at": "2026-08-23T20:13:07.698612Z"
     },
     {
       "id": "task_008",
@@ -147,12 +147,12 @@
       "status": "completed",
       "priority": "critical",
       "depends_on": [],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 20,
+      "progress_message": "Analyzing codebase and mapping out God-mode console views",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-08-06T21:31:35.447309Z",
+      "progress_updated_at": "2026-08-29T14:10:36.217633Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:31:35.447282Z"
+      "completed_at": "2026-08-23T20:16:25.706907Z"
     },
     {
       "id": "task_009",
@@ -165,12 +165,12 @@
       "depends_on": [
         "task_008"
       ],
-      "progress_percent": 80,
-      "progress_message": "MediaPipe init complete",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-08-07T20:27:45.383204Z",
+      "progress_updated_at": "2026-08-23T20:20:38.586079Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:35:52.591241Z"
+      "completed_at": "2026-08-23T20:20:38.586059Z"
     },
     {
       "id": "task_010",
@@ -186,9 +186,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "DevOps_Engineer",
-      "progress_updated_at": "2026-08-06T21:42:20.065373Z",
+      "progress_updated_at": "2026-08-23T21:17:12.196631Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:42:20.065355Z"
+      "completed_at": "2026-08-23T21:17:12.196609Z"
     },
     {
       "id": "task_011",
@@ -201,12 +201,12 @@
       "depends_on": [
         "task_010"
       ],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 50,
+      "progress_message": "Preferences, rate limiter, templates, and all provider wrappers done. Writing engine and worker.",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-08-06T21:42:20.152899Z",
+      "progress_updated_at": "2026-08-29T14:54:25.750273Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:42:20.152881Z"
+      "completed_at": "2026-08-23T21:21:55.216654Z"
     },
     {
       "id": "task_012",
@@ -222,9 +222,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "Overseer",
-      "progress_updated_at": "2026-08-06T21:42:20.261148Z",
+      "progress_updated_at": "2026-08-23T21:21:17.171029Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:42:20.261135Z"
+      "completed_at": "2026-08-23T21:21:17.170941Z"
     },
     {
       "id": "task_013",
@@ -240,9 +240,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "Systems_Architect",
-      "progress_updated_at": "2026-08-06T21:46:17.871528Z",
+      "progress_updated_at": "2026-08-30T20:20:13.410712Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:46:17.871515Z"
+      "completed_at": "2026-08-30T20:20:13.410701Z"
     },
     {
       "id": "task_014",
@@ -256,11 +256,11 @@
         "task_008"
       ],
       "progress_percent": 50,
-      "progress_message": "Verifying the structure and validity of src/planet_facts.json...",
+      "progress_message": "created endpoints and served static files, tests passing",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-08-06T22:38:04.088294Z",
+      "progress_updated_at": "2026-08-29T19:10:23.372003Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T21:48:02.968787Z"
+      "completed_at": "2026-08-23T21:24:34.173417Z"
     },
     {
       "id": "task_015",
@@ -274,9 +274,11 @@
         "task_014"
       ],
       "progress_percent": 20,
-      "progress_message": "Starting Camera Viewport",
+      "progress_message": "Initialized rules engine analysis",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-03T13:20:45.226162Z"
+      "progress_updated_at": "2026-08-29T19:01:46.175571Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-23T21:26:25.002903Z"
     },
     {
       "id": "task_016",
@@ -289,10 +291,12 @@
       "depends_on": [
         "task_014"
       ],
-      "progress_percent": 10,
-      "progress_message": "Planning error handling",
+      "progress_percent": 20,
+      "progress_message": "Initialized analyst agent analysis",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-03T13:24:55.030794Z"
+      "progress_updated_at": "2026-08-29T19:01:46.260330Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-13T14:28:48.656189Z"
     },
     {
       "id": "task_017",
@@ -308,9 +312,11 @@
         "task_016"
       ],
       "progress_percent": 20,
-      "progress_message": "Initial planning",
+      "progress_message": "Started analyzing requirements and codebase",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-03T13:29:37.125591Z"
+      "progress_updated_at": "2026-08-29T19:08:11.564371Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-13T14:31:12.523255Z"
     },
     {
       "id": "task_018",
@@ -326,9 +332,9 @@
       "progress_percent": 100,
       "progress_message": "done",
       "progress_agent": "DevOps_Engineer",
-      "progress_updated_at": "2026-08-06T23:14:05.648408Z",
+      "progress_updated_at": "2026-08-13T14:31:20.095165Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T23:14:05.648387Z"
+      "completed_at": "2026-08-13T14:31:20.095125Z"
     },
     {
       "id": "task_019",
@@ -338,7 +344,12 @@
       "assigned_to": "DevOps_Engineer",
       "status": "completed",
       "priority": "critical",
-      "depends_on": []
+      "depends_on": [],
+      "progress_percent": 80,
+      "progress_message": "Deployment to FTP succeeded, running verification checks",
+      "progress_updated_at": "2026-08-29T19:24:34.083622Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-13T14:34:40.170312Z"
     },
     {
       "id": "task_020",
@@ -353,9 +364,9 @@
       ],
       "progress_percent": 100,
       "progress_message": "done",
-      "progress_updated_at": "2026-08-06T23:17:57.258096Z",
+      "progress_updated_at": "2026-08-29T19:43:34.404067Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-06T23:17:57.258060Z"
+      "completed_at": "2026-08-29T19:43:34.404050Z"
     },
     {
       "id": "task_021",
@@ -369,10 +380,10 @@
         "task_019"
       ],
       "progress_percent": 100,
-      "progress_message": "Task completed successfully",
-      "progress_updated_at": "2026-08-07T09:01:00.806983Z",
+      "progress_message": "done",
+      "progress_updated_at": "2026-08-29T19:44:29.559059Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-07T09:01:00.806964Z"
+      "completed_at": "2026-08-29T19:44:29.559047Z"
     },
     {
       "id": "task_022",
@@ -387,10 +398,10 @@
         "task_021"
       ],
       "progress_percent": 100,
-      "progress_message": "done",
-      "progress_updated_at": "2026-08-07T09:02:37.626099Z",
+      "progress_message": "checking",
+      "progress_updated_at": "2026-08-13T14:56:28.493569Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-07T09:02:37.626077Z"
+      "completed_at": "2026-08-13T14:56:28.493520Z"
     },
     {
       "id": "task_023",
@@ -403,10 +414,11 @@
       "depends_on": [
         "task_020"
       ],
-      "progress_percent": 20,
-      "progress_message": "Analyzing existing ThreeJS rendering logic",
-      "progress_updated_at": "2026-08-07T09:01:36.435672Z",
-      "progress_source": "worker_report"
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-08-13T15:13:04.068884Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-13T15:13:04.068831Z"
     },
     {
       "id": "task_024",
@@ -421,8 +433,8 @@
         "task_023"
       ],
       "progress_percent": 50,
-      "progress_message": "checking hand_tracker and model loaders",
-      "progress_updated_at": "2026-08-07T19:23:02.721198Z",
+      "progress_message": "setup-ssl.sh script written, preparing to run and test it",
+      "progress_updated_at": "2026-08-13T15:15:00.755677Z",
       "progress_source": "worker_report"
     },
     {
@@ -435,7 +447,12 @@
       "priority": "medium",
       "depends_on": [
         "task_024"
-      ]
+      ],
+      "progress_percent": 100,
+      "progress_message": "done",
+      "progress_updated_at": "2026-08-13T15:33:14.172072Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-13T15:33:14.172002Z"
     },
     {
       "id": "task_026",
@@ -448,10 +465,11 @@
       "depends_on": [
         "task_024"
       ],
-      "progress_percent": 50,
-      "progress_message": "Inspecting Vite configuration and index.html",
-      "progress_updated_at": "2026-08-07T20:10:37.982656Z",
-      "progress_source": "worker_report"
+      "progress_percent": 100,
+      "progress_message": "Task completed successfully",
+      "progress_updated_at": "2026-08-29T14:03:38.396313Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-29T14:03:38.396301Z"
     },
     {
       "id": "task_027",
@@ -462,12 +480,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 100,
-      "progress_message": "done",
+      "progress_percent": 50,
+      "progress_message": "Dashboard UI and SSE integration complete, verifying live data update",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-08-07T20:25:57.276945Z",
+      "progress_updated_at": "2026-08-29T13:46:21.180982Z",
       "progress_source": "worker_report",
-      "completed_at": "2026-08-07T20:25:57.276923Z"
+      "completed_at": "2026-08-13T15:41:33.789229Z"
     },
     {
       "id": "task_028",
@@ -478,10 +496,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 50,
-      "progress_message": "Collision checking design done",
+      "progress_percent": 100,
+      "progress_message": "done",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-04T11:58:24.612614Z"
+      "progress_updated_at": "2026-08-29T13:53:00.088910Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-29T13:53:00.088899Z"
     },
     {
       "id": "task_029",
@@ -492,10 +512,12 @@
       "status": "completed",
       "priority": "high",
       "depends_on": [],
-      "progress_percent": 20,
-      "progress_message": "Analyzing codebase",
+      "progress_percent": 50,
+      "progress_message": "Alert rules forms, CRUD methods, and preview logic implemented in JS",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-04T12:55:31.305135Z"
+      "progress_updated_at": "2026-08-29T13:46:21.709025Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-14T09:56:26.633443Z"
     },
     {
       "id": "task_030",
@@ -510,9 +532,10 @@
         "task_029"
       ],
       "progress_percent": 50,
-      "progress_message": "generateWallConfig+refillWallQueue+spawnNextWall fully implemented with 8 patterns, pre-generation queue, and infinite difficulty scaling",
+      "progress_message": "Push manager, SW registration, and preference toggles implemented",
       "progress_agent": "Frontend_Engineer",
-      "progress_updated_at": "2026-07-04T20:40:22.521660Z"
+      "progress_updated_at": "2026-08-29T13:46:21.836162Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_031",
@@ -525,10 +548,12 @@
       "depends_on": [
         "task_028"
       ],
-      "progress_percent": 20,
-      "progress_message": "analysing tasks",
+      "progress_percent": 50,
+      "progress_message": "Created client_app directory, design tokens, README, systemd service configuration, nginx configs, and deployment scripts",
       "progress_agent": "Backend_Engineer",
-      "progress_updated_at": "2026-07-04T20:49:31.029484Z"
+      "progress_updated_at": "2026-08-29T13:56:50.742326Z",
+      "completed_at": "2026-08-15T22:52:28.859764Z",
+      "progress_source": "worker_report"
     },
     {
       "id": "task_032",
@@ -558,10 +583,11 @@
       "depends_on": [
         "task_032"
       ],
-      "progress_percent": 20,
-      "progress_message": "Analyzing server configuration and secure context requirements",
-      "progress_updated_at": "2026-07-04T22:46:29.885012Z",
-      "progress_source": "worker_report"
+      "progress_percent": 100,
+      "progress_message": "ADS intent_completed event logged to _cortex/ads/events.jsonl for INT-20260814_094917 / SPEC-100",
+      "progress_updated_at": "2026-08-15T22:52:46.373267Z",
+      "progress_source": "worker_report",
+      "completed_at": "2026-08-15T22:52:46.373228Z"
     },
     {
       "id": "task_034",
@@ -2865,8 +2891,12 @@
       "description": "Backend logic to create project directory, adt init, and spawn Architect.",
       "spec_ref": "SPEC-043",
       "assigned_to": "Backend_Engineer",
-      "status": "pending",
-      "priority": "high"
+      "status": "completed",
+      "priority": "high",
+      "evidence": "",
+      "last_updated_by": "GEMINI (Backend_Engineer)",
+      "last_updated_at": "2026-08-14T17:50:26.324574Z",
+      "review_status": "pending"
     },
     {
       "id": "task_227",

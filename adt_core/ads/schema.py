@@ -182,6 +182,56 @@ class ADSEventSchema:
         "project_scaffold_extended"
     ]
 
+    # SPEC-113: DTGP -- Digital Transformation Gateway Protocol
+    DTGP_EVENTS = [
+        "device_type_registered",   # {type_id, source: starter|project|import}
+        "device_registered",        # {target_id, type, jurisdiction, tier, environment}
+        "device_updated",           # {target_id, changed_keys[]}
+        "device_removed",           # {target_id}
+        "device_discovered",        # {target_id, match: true, serial_matched, protocol}
+        "device_missing",           # {target_id, last_seen_at, reason}
+        "device_serial_mismatch",   # {target_id, expected, actual, severity}
+        "credential_stored",        # {ref, project_id, target_hint} -- NEVER material
+        "credential_rotated",       # {ref, previous_hash, rotated_at}
+        "credential_revoked",       # {ref, revoked_at}
+        "dtgp_action_requested",    # {target_id, action, artifact_ref, requester_role, requester_session}
+        "dtgp_action_denied",       # {target_id, action, reason} -- jurisdiction, lock timeout, target missing
+        "dtgp_action_started",      # {target_id, action, expanded_chain, locks_acquired}
+        "dtgp_action_completed",    # {target_id, action, outcome, duration_ms}
+        "dtgp_action_failed",       # {target_id, action, reason, hop_that_failed}
+        "dtgp_lock_acquired",       # {target_id, holder, wait_ms}
+        "dtgp_lock_released",       # {target_id, holder, held_ms}
+        "dtgp_lock_timeout",        # {target_id, requester, waited_ms}
+    ]
+
+    # SPEC-117: Reconciler Completion Verification Hardening (TRUST-CRITICAL)
+    # Closes the false-positive completion loophole introduced by
+    # commit 99b71f0 (rc88, "reconciler-authoritative task completion").
+    # Reconciler must never mark a task complete without positive evidence.
+    RECONCILIATION_HARDENING_EVENTS = [
+        "task_reconciliation_refused",       # {task_id, reason, worker_session_id, window_start, window_end, evidence_scan_summary}
+        "task_completion_reaudit_pass",      # {task_id, artifacts_verified[], denies_in_window: 0}
+        "task_completion_reaudit_fail",      # {task_id, reason, missing_artifacts[], denies_in_window[]}
+        "task_completion_reaudit_reverted",  # {task_id, previous_status, new_status: "failed", authority_event_id}
+        "reconciler_evidence_check_passed",  # {task_id, evidence_source: artifact|preflight|reconciler|jurisdiction_scan}
+    ]
+
+    # SPEC-118: Task-Artifact Binding and In-Console File Viewer/Editor
+    TASK_BINDING_EVENTS = [
+        "task_bound_files_computed",      # {task_id, count, sources_breakdown}
+        "operator_file_read",             # {path, size, session_id, task_ref} - throttled per session
+        "operator_file_edit",             # {path, size_before, size_after, sha256_before, sha256_after, task_ref}
+        "operator_file_edit_conflict",    # {path, current_sha256, operator_previous_sha256, resolution}
+        "operator_annotation_added",      # {annotation_id, path, line_start, line_end, note_length, task_ref}
+        "annotation_delivered_to_agent",  # {annotation_id, agent_session_id, delivery_channel}
+    ]
+
+    # SPEC-111: Spec Map Filtering and Focus Set
+    SPEC_MAP_EVENTS = [
+        "spec_map_bootstrap_completed",   # {project_path, roles_configured[], categories_seen[]}
+        "spec_map_updated",               # {project_path, changed_keys[], prev_hash, next_hash}
+    ]
+
     # SPEC-067: Forge Wizard lifecycle event types
     # SPEC-074: Forge Live Genesis Stream events
     FORGE_EVENTS = [

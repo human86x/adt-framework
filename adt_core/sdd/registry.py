@@ -43,7 +43,8 @@ class SpecRegistry:
                     "status": status or "UNKNOWN",
                     "title": self._parse_title(path),
                     "intent": self._parse_intent(path) or "—",
-                    "task_count": self._count_tasks(path)
+                    "task_count": self._count_tasks(path),
+                    "category": self._parse_category(path)
                 })
         return sorted(specs, key=lambda x: x["id"])
 
@@ -64,6 +65,7 @@ class SpecRegistry:
                     "path": path,
                     "status": self._parse_status(path),
                     "title": self._parse_title(path),
+                    "category": self._parse_category(path),
                     "content": self._read_content(path)
                 }
         return None
@@ -101,6 +103,18 @@ class SpecRegistry:
                     return match.group(1).strip()
         except OSError as e:
             logger.error(f"Error parsing intent from {path}: {e}")
+        return None
+
+    def _parse_category(self, path: str) -> Optional[str]:
+        """Parses the category from the spec markdown (first ~2000 chars)."""
+        try:
+            with open(path, "r") as f:
+                content = f.read(2000)
+                match = re.search(r"\*\*Category:\*\*\s*(.*)", content)
+                if match:
+                    return match.group(1).strip()
+        except OSError as e:
+            logger.error(f"Error parsing category from {path}: {e}")
         return None
 
     def _count_tasks(self, path: str) -> int:

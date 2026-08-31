@@ -1,0 +1,50 @@
+# ADT Device Type Template -- ESP32 DevKit (generic)
+# SPEC-113 ss3.4 -- starter library
+id: esp32_devkit
+name: ESP32 DevKit (generic)
+capabilities:
+  - usb_serial
+  - flash
+  - wifi
+  - bluetooth
+  - gpio
+
+identification:
+  # Two common USB-to-serial chips used on ESP32 DevKit boards:
+  #   CP2102 (Silicon Labs): 10c4:ea60 -- documented, common on Espressif DevKitC
+  #   CH340 (WinChipHead):   1a86:7523 -- documented, common on cheaper clones
+  # VERIFY: check your specific board with `lsusb` before writing udev rules.
+  usb_vid: "10c4"
+  usb_pid: "ea60"
+  usb_vid_alt: "1a86"
+  usb_pid_alt: "7523"
+  discovery_hint: "esptool.py --port {port} chip_id 2>&1 | grep 'Chip is ESP32'"
+  udev_rule: 'SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="{serial}", SYMLINK+="ttyUSB_{alias}"'
+
+procedures:
+  health:
+    protocol: serial
+    baudrate: 115200
+    probe: ""
+    expect: ""
+    timeout_ms: 3000
+    note: "ESP32 health check typically runs a chip_id query via esptool.py or custom firmware ping."
+
+  flash:
+    tool: esptool.py
+    args: "--port {port} --baud 921600 write_flash -z 0x1000 {artifact}"
+    verify: "--port {port} verify_flash 0x1000 {artifact}"
+    note: "Adjust flash offset (0x1000) per partition table. OTA builds use different offsets."
+
+  backup:
+    tool: esptool.py
+    args: "--port {port} read_flash 0x0 0x400000 {out_path}"
+    default_out_path: "_cortex/firmware_snapshots/{target_id}_{ts}.bin"
+
+safety_notes:
+  - "Boot mode: hold BOOT/IO0 button during esptool connect or use auto-reset circuit."
+  - "Flash size varies: 4MB (most DevKitC), 8MB, 16MB -- check before full erase."
+  - "esptool.py must be installed: pip install esptool."
+  - "CH340 boards may need driver on non-Linux hosts. Linux supports natively."
+  - "Use port_symlink (udev symlink), never bare /dev/ttyUSB<N>."
+  - "VID/PID depends on UART chip; verify with lsusb on your specific board."

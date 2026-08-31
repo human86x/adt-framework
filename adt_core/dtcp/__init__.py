@@ -1,1 +1,1 @@
-"""Digital Transformation Transfer Protocol (DTCP) -- Structural enforcement gateway."""
+"""Digital Transformation Control Protocol (DTCP) -- Structural enforcement gateway."""

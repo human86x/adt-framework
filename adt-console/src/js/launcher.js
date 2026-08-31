@@ -30,6 +30,7 @@ const ProjectLauncher = (() => {
   let _forgeCatalog = null;              // parsed payload once loaded
   let _forgeCatalogLoading = false;      // dedupes concurrent fetches
   let _forgeCatalogError = false;        // sticky failure flag for this session
+  let _forgeCatalogErrorMsg = "";        // REQ-126: real error reason surfaced on strip
   let _forgeCatalogExpanded = false;     // strip UI state (Screen-1 + progress)
   let _forgeCatalogFetchedAt = 0;        // epoch ms of last successful fetch
 
@@ -83,6 +84,7 @@ const ProjectLauncher = (() => {
       _forgeCatalog = null;
       _forgeCatalogFetchedAt = 0;
       _forgeCatalogError = false;
+      _forgeCatalogErrorMsg = "";
       console.debug(`[SPEC-081 cache INVALIDATE ALL] cleared ${n} entries + catalog`);
       return;
     }
@@ -624,9 +626,11 @@ const ProjectLauncher = (() => {
       _forgeCatalog = await cachedRegistryFetch(`${base}/api/mrr/library_stats`);
       _forgeCatalogFetchedAt = Date.now();
       _forgeCatalogError = false;
-    } catch (_) {
+      _forgeCatalogErrorMsg = "";
+    } catch (err) {
       _forgeCatalogError = true;
       _forgeCatalog = null;
+      _forgeCatalogErrorMsg = (err && (err.message || String(err))) || "";
     } finally {
       _forgeCatalogLoading = false;
       // Re-render whichever strip container is currently on-screen (Screen-1
@@ -649,7 +653,11 @@ const ProjectLauncher = (() => {
     // Header line variants
     let header = "";
     if (_forgeCatalogError) {
-      header = `<span style="color:#8b949e">📚 Framework Standards Catalog: <em>(unavailable)</em></span>`;
+      const _reason = (_forgeCatalogErrorMsg || "").slice(0, 80);
+      const _reasonHtml = _reason
+        ? ` <span style="color:#f85149;font-size:11px">(${_reason.replace(/</g,'&lt;')})</span>`
+        : ` <em>(unavailable)</em>`;
+      header = `<span style="color:#8b949e">📚 Framework Standards Catalog:${_reasonHtml}</span>`;
     } else if (!_forgeCatalog) {
       header = `<span style="color:#8b949e">📚 Loading catalog…</span>`;
     } else if (phase === "analyzing") {
@@ -1037,14 +1045,12 @@ Art is represented either as a textured plane derived from a single photo (paint
         <label>Project name <span class="wiz-optional">(auto-detected from path)</span></label>
         <input type="text" id="wiz-forge-name" placeholder="my-new-app" value="` + (forgeData.name || "") + `">
       </div>
-      <div class="wizard-field" style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:12px;color:#8b949e;margin-top:12px">
+      <div class="wizard-field wiz-inline-choice" style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:12px;color:#8b949e;margin-top:12px">
         <span style="color:#c9d1d9;font-weight:bold">MRR classifier:</span>
-        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Instant keyword scan against 27 domains. Best for demos.">
-          <input type="radio" name="wiz-mrr-mode" value="quick" checked>⚡ Quick <span style="color:#7ee787;font-size:11px">(instant)</span>
-        </label>
-        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Deep LLM analysis: 30-60s, more nuanced. Falls back to Quick on failure.">
-          <input type="radio" name="wiz-mrr-mode" value="deep">🔬 Deep <span style="color:#d29922;font-size:11px">(~30-60s)</span>
-        </label>
+        <div class="wiz-seg" role="radiogroup" aria-label="MRR classifier mode" data-name="wiz-mrr-mode">
+          <button type="button" class="wiz-seg-btn active" data-value="quick" title="Keyword scan against the standards catalog.">⚡ Quick</button>
+          <button type="button" class="wiz-seg-btn" data-value="deep" title="LLM analysis. Falls back to Quick on failure.">🔬 Deep</button>
+        </div>
       </div>
       <div class="wizard-actions">
         <button class="btn-prev" id="btn-wiz-cancel">Cancel</button>
@@ -1064,6 +1070,15 @@ Art is represented either as a textured plane derived from a single photo (paint
     // Re-fetch defensively — openForgeWizard already fired one, but a rapid
     // re-render (e.g., wizard reopened after a stop) needs the retry.
     if (!_forgeCatalog && !_forgeCatalogLoading) fetchForgeCatalog();
+    // REQ-126 follow-up: wire the div-based segmented toggle for MRR mode.
+    // Native <input type="radio"> is invisible-in-dark-theme in Tauri/WebKit
+    // (same class of bug as native <select>, see MEMORY feedback_tauri_native_select).
+    document.querySelectorAll('.wiz-seg[data-name="wiz-mrr-mode"] .wiz-seg-btn').forEach(btn => {
+      btn.onclick = () => {
+        btn.parentElement.querySelectorAll('.wiz-seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+    });
     document.getElementById("btn-wiz-cancel").onclick = closeWizard;
     document.getElementById("btn-wiz-next").onclick = async () => {
       forgeData.wish = (document.getElementById("wiz-forge-wish").value || "").trim();
@@ -1072,7 +1087,8 @@ Art is represented either as a textured plane derived from a single photo (paint
       if (!forgeData.wish) { alert("Please describe your wish."); return; }
       if (!forgeData.path) { alert("Project path is required."); return; }
       // SCR-164 / SPEC-081: MRR classifier — mode selected by operator (Quick/Deep).
-      const _mrrMode = (document.querySelector("input[name='wiz-mrr-mode']:checked") || {}).value || "quick";
+      // REQ-126 follow-up: read from div-based segmented toggle instead of native radio.
+      const _mrrMode = (document.querySelector('.wiz-seg[data-name="wiz-mrr-mode"] .wiz-seg-btn.active')?.dataset?.value) || "quick";
       forgeData.mrr_mode = _mrrMode;
       if (_mrrMode === "deep") {
         // Deep LLM analysis: show progress modal, fetch with generous 120s timeout,
@@ -1465,7 +1481,11 @@ Art is represented either as a textured plane derived from a single photo (paint
       out_of_scope: forgeData.out || null,
       constraints: forgeData.constraints || null,
       selected_rr_ids: forgeData.selected_rr_ids || [],
-      auto_standards_enabled: forgeData.auto_standards_enabled
+      auto_standards_enabled: forgeData.auto_standards_enabled,
+      // REQ-126: let backend skip its own LLM classifier when operator already
+      // picked Quick mode and confirmed a standards set on Screen 2.
+      mrr_mode: forgeData.mrr_mode || "quick",
+      confirmed_rr_ids: forgeData.selected_rr_ids || []
     };
 
     const initialUrl = `${getCenterUrl()}/api/governance/forge/stream?_body=${encodeURIComponent(JSON.stringify(body))}`;
@@ -1790,21 +1810,48 @@ Art is represented either as a textured plane derived from a single photo (paint
       </div>
     `);
     forgeData.startedAt = Date.now();
-    // REQ-111: reset per-forge classifier state and start the ADS event poller.
-    forgeData.suggestedRRs = [];
-    forgeData.matchedDomains = [];
+    // REQ-126: when operator picked Quick mode on Screen 1 and confirmed a
+    // non-empty standards set on Screen 2, seed the progress-screen state
+    // from the confirmed set and DO NOT re-poll the backend classifier ADS
+    // stream. The confirmed set is authoritative; running the LLM again
+    // burns tokens and risks polluting the confirmed selection.
+    const _confirmedRRs = forgeData.selected_rr_ids || [];
+    const _skipReclassify = (forgeData.mrr_mode === "quick" || forgeData.mrr_mode === "quick_fallback")
+                             && _confirmedRRs.length > 0;
+    if (_skipReclassify) {
+      forgeData.suggestedRRs = [..._confirmedRRs];
+      forgeData.matchedDomains = [...(forgeData.mrr_domains || [])];
+    } else {
+      // REQ-111: reset per-forge classifier state and start the ADS event poller.
+      forgeData.suggestedRRs = [];
+      forgeData.matchedDomains = [];
+    }
+    // REQ-126 hotfix: renderStandardsChips reads .domainConfidence/.rrConfidence/
+    // .rrTitles unconditionally; the skip-reclassify branch above previously left
+    // them undefined, which threw and prevented downstream handlers (notably
+    // btn-forge-start.onclick in showForgeComplete) from ever being attached.
     forgeData.rrConfidence = {};
+    forgeData.domainConfidence = {};
+    forgeData.rrTitles = {};
     forgeData.classifierStartedTs = null;
     forgeData.classifierCompletedTs = null;
     standardsSeenEventIds = new Set();
-    // SPEC-080 / REQ-123: paint the strip in "analyzing" mode using the
-    // catalog counts fetched in Screen 1. If the catalog is still loading
-    // (edge case: operator flew through Screen 1 in <1s), the strip shows
-    // "Loading catalog…" until the fetch resolves.
+    // SPEC-080 / REQ-123: paint the strip using the catalog counts fetched in
+    // Screen 1. If the operator already confirmed standards, jump straight to
+    // "matched" phase; otherwise show "analyzing" while the poller runs.
     _forgeCatalogExpanded = false;
-    renderForgeCatalogStrip("analyzing");
+    renderForgeCatalogStrip(_skipReclassify ? "matched" : "analyzing");
     if (!_forgeCatalog && !_forgeCatalogLoading && !_forgeCatalogError) fetchForgeCatalog();
-    pollStandardsStream();
+    if (_skipReclassify) {
+      // REQ-126: render the confirmed chips inline and swap the status line.
+      const statusEl = document.getElementById("forge-standards-status");
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:#3fb950">&#10003;</span> <span>Using operator-confirmed standards (skipping re-classification).</span>`;
+      }
+      if (typeof renderStandardsChips === "function") { try { renderStandardsChips(); } catch(_) {} }
+    } else {
+      pollStandardsStream();
+    }
     setTimeout(() => {
       const stop = document.getElementById("btn-forge-stop");
       if (stop) stop.onclick = async () => {
@@ -1921,11 +1968,17 @@ Art is represented either as a textured plane derived from a single photo (paint
     const rrsEl = document.getElementById("forge-standards-rrs");
     if (!domainsEl || !rrsEl) return;
 
+    // REQ-126 hotfix: never assume these state objects exist; a missing one
+    // used to throw and halt the caller (showForgeComplete), which broke the
+    // Start Building button.
+    const _dConf = forgeData.domainConfidence || {};
+    const _rConf = forgeData.rrConfidence || {};
+    forgeData.rrTitles = forgeData.rrTitles || {};
     const sortedDomains = [...(forgeData.matchedDomains || [])].sort((a, b) =>
-      (forgeData.domainConfidence[b] || 0) - (forgeData.domainConfidence[a] || 0)
+      (_dConf[b] || 0) - (_dConf[a] || 0)
     );
     const sortedRRs = [...(forgeData.suggestedRRs || [])].sort((a, b) =>
-      (forgeData.rrConfidence[b] || 0) - (forgeData.rrConfidence[a] || 0)
+      (_rConf[b] || 0) - (_rConf[a] || 0)
     );
 
     // Accepted-set: chips are marked "accepted" when their RR id ended up in

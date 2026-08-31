@@ -3785,6 +3785,24 @@
         "old_string": "| SPEC-102 | Task Preflight & No-Op Detection | DRAFT |",
         "new_string": "| SPEC-102 | Task Preflight & No-Op Detection | DRAFT |\n| SPEC-109 | adt-agy-probe PreToolUse Hook Deprecation | APPROVED |"
       }
+    },
+    {
+      "id": "scr_20260829_123126_168",
+      "ts": "2026-08-29T12:31:26.723657Z",
+      "agent": "CLAUDE",
+      "role": "Systems_Architect",
+      "spec_ref": "SPEC-076",
+      "intent_id": null,
+      "target_path": "_cortex/MASTER_PLAN.md",
+      "change_type": "patch",
+      "description": "Agent proposed patch on sovereign path _cortex/MASTER_PLAN.md",
+      "status": "pending",
+      "authorized_by": null,
+      "authorized_at": null,
+      "patch": {
+        "old_string": "| SPEC-102 | Task Preflight & No-Op Detection | DRAFT |\n| SPEC-109 | adt-agy-probe PreToolUse Hook Deprecation | APPROVED |",
+        "new_string": "| SPEC-102 | Task Preflight & No-Op Detection | DRAFT |\n| SPEC-109 | adt-agy-probe PreToolUse Hook Deprecation | APPROVED |\n| SPEC-110 | Governed Project Standards Propagation | DRAFT |"
+      }
     }
   ]
 }

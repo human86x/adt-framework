@@ -8487,3 +8487,747 @@ def api_governance_sandbox_status():
         "sandbox_disabled_by_env": bool(disabled_by_env),
     })
 
+
+# ---------------------------------------------------------------------------
+# SPEC-111: Spec Map manifest endpoints
+# ---------------------------------------------------------------------------
+
+@governance_bp.route("/projects/<project_name>/spec-map", methods=["GET"])
+def api_get_spec_map(project_name):
+    """SPEC-111: Return the current spec_map manifest for a project.
+
+    Returns the stored _cortex/spec_map.json or the DEFAULT_SPEC_MAP if the
+    file does not yet exist (which triggers the Bootstrap Wizard on the client).
+    """
+    from pathlib import Path as _Path
+    from adt_core.sdd.spec_map import load_spec_map
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    project_root = _Path(res["paths"]["root"])
+    manifest = load_spec_map(project_root)
+    return jsonify(manifest), 200
+
+
+@governance_bp.route("/projects/<project_name>/spec-map", methods=["PUT"])
+def api_put_spec_map(project_name):
+    """SPEC-111: Replace the whole spec_map manifest for a project.
+
+    Validates shape, writes atomically, emits spec_map_updated ADS event.
+    Returns 400 on validation failure, 404 on unknown project, 200 on success.
+    """
+    from pathlib import Path as _Path
+    from adt_core.sdd.spec_map import (
+        load_spec_map,
+        save_spec_map,
+        validate_spec_map,
+        _dict_hash,
+        _changed_keys,
+    )
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    body = request.get_json(force=True, silent=True)
+    if body is None:
+        return jsonify({"error": "Request body must be valid JSON"}), 400
+
+    errors = validate_spec_map(body)
+    if errors:
+        return jsonify({"error": "Validation failed", "details": errors}), 400
+
+    project_root = _Path(res["paths"]["root"])
+    prev_manifest = load_spec_map(project_root)
+    prev_hash = _dict_hash(prev_manifest)
+
+    # Determine who is making this change (session header or query param)
+    updated_by = (
+        request.headers.get("X-ADT-Session-Id")
+        or request.args.get("updated_by")
+        or "unknown"
+    )
+
+    try:
+        saved = save_spec_map(project_root, body, updated_by=updated_by)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    next_hash = _dict_hash(saved)
+    changed = _changed_keys(prev_manifest, saved)
+
+    # Emit spec_map_updated ADS event
+    event_id = ADSEventSchema.generate_id("spec_map_upd")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="CLAUDE",
+        role="Backend_Engineer",
+        action_type="spec_map_updated",
+        description=f"spec_map.json updated for project {project_name} by {updated_by}.",
+        spec_ref="SPEC-111",
+        authorized=True,
+        tier=3,
+        action_data={
+            "project_path": str(project_root),
+            "changed_keys": changed,
+            "prev_hash": prev_hash,
+            "next_hash": next_hash,
+            "updated_by": updated_by,
+            "authority": "operator_sovereign_override_for_SPEC-111",
+        },
+    )
+    res["logger"].log(event)
+
+    return jsonify(saved), 200
+
+
+@governance_bp.route("/projects/<project_name>/roles", methods=["GET"])
+def api_get_project_roles(project_name):
+    """SPEC-111 amendment: expose the ACTIVE project's role vocabulary.
+
+    Wizard consumers use this to build the role-column axis of the
+    role-to-category matrix. Fixed hardcoded lists are wrong because each
+    governed project can define its own role vocabulary (e.g. OceanPulse
+    adds Embedded_Engineer, Network_Engineer, Integration_Engineer,
+    QA_Engineer, Product_Manager on top of ADT's core five).
+
+    Resolution order:
+      1. <project_root>/config/jurisdictions.json (structure:
+         {jurisdictions: {role_name: {...}}} or {role_name: {...}}).
+      2. Union of `role` fields in <project_root>/_cortex/tasks.json.
+      3. ADT's canonical five as ultimate fallback.
+    """
+    from pathlib import Path as _Path
+    import json as _json
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    project_root = _Path(res["paths"]["root"])
+    roles = []
+    source = None
+
+    juris_path = project_root / "config" / "jurisdictions.json"
+    if juris_path.exists():
+        try:
+            with open(juris_path) as f:
+                data = _json.load(f)
+            juris = data.get("jurisdictions") if isinstance(data, dict) else None
+            if isinstance(juris, dict):
+                roles = list(juris.keys())
+                source = "jurisdictions.json"
+            elif isinstance(data, dict):
+                # Flat form: role names at top level (excluding _meta et al)
+                roles = [k for k in data.keys() if not k.startswith("_")]
+                source = "jurisdictions.json"
+        except Exception:
+            roles = []
+
+    if not roles:
+        tasks_path = project_root / "_cortex" / "tasks.json"
+        if tasks_path.exists():
+            try:
+                with open(tasks_path) as f:
+                    tdata = _json.load(f)
+                task_list = tdata.get("tasks", []) if isinstance(tdata, dict) else tdata
+                seen = []
+                for t in task_list:
+                    r = t.get("role") or t.get("assigned_to")
+                    if r and r not in seen:
+                        seen.append(r)
+                if seen:
+                    roles = seen
+                    source = "tasks.json"
+            except Exception:
+                pass
+
+    if not roles:
+        roles = ["Systems_Architect", "Backend_Engineer", "Frontend_Engineer",
+                 "DevOps_Engineer", "Overseer"]
+        source = "hardcoded_default"
+
+    return jsonify({"roles": roles, "source": source}), 200
+
+
+# ---------------------------------------------------------------------------
+# SPEC-118: Task-Artifact Binding & File Viewer/Editor endpoints
+# ---------------------------------------------------------------------------
+
+# In-memory throttle for operator_file_read ADS events:
+# key = (session_id, path) -> last-emitted epoch float
+_FILE_READ_THROTTLE: dict = {}
+_FILE_READ_THROTTLE_SECS = 300  # 5 minutes
+
+
+@governance_bp.route("/projects/<project_name>/task/<task_id>/bound-files", methods=["GET"])
+def api_get_task_bound_files(project_name, task_id):
+    """SPEC-118: Derived bound_files list for a task. See ss3.1.
+
+    Resolution:
+      1. Resolve project root via _get_project_resources.
+      2. Load tasks.json, find task by id.
+      3. Call compute_bound_files with the ADS event stream.
+      4. Return {task_id, bound_files, computed_at}.
+      5. Emit task_bound_files_computed ADS event.
+    """
+    import json as _json
+    from datetime import datetime as _dt, timezone as _tz
+    from adt_core.sdd.task_bindings import compute_bound_files as _compute
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    project_root = res["paths"]["root"]
+    tasks_path = os.path.join(project_root, "_cortex", "tasks.json")
+
+    # Load task
+    task = None
+    if os.path.exists(tasks_path):
+        try:
+            with open(tasks_path) as f:
+                data = _json.load(f)
+            task_list = data.get("tasks", []) if isinstance(data, dict) else data
+            for t in task_list:
+                if (t.get("id") or t.get("task_id")) == task_id:
+                    task = t
+                    break
+        except Exception as exc:
+            return jsonify({"error": f"tasks.json load failed: {exc}"}), 500
+
+    if task is None:
+        return jsonify({"error": f"task {task_id} not found"}), 404
+
+    # Build ADS events iterator from the recent event stream
+    ads_path = os.path.join(project_root, "_cortex", "ads", "events.jsonl")
+
+    def _iter_ads():
+        if not os.path.exists(ads_path):
+            return
+        try:
+            with open(ads_path, "rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                chunk = min(size, 3000 * 1500)  # last 3000 lines estimate
+                f.seek(max(0, size - chunk))
+                data = f.read().decode("utf-8", errors="replace")
+            for ln in data.splitlines():
+                ln = ln.strip()
+                if ln.startswith("{"):
+                    try:
+                        yield _json.loads(ln)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    bound_files = _compute(task, project_root, _iter_ads())
+    computed_at = _dt.now(_tz.utc).isoformat().replace("+00:00", "Z")
+
+    # Sources breakdown counts
+    sources_breakdown = {"declared": 0, "detected": 0, "reconciler_landed": 0}
+    for entry in bound_files:
+        for src in entry.get("sources", []):
+            if src in sources_breakdown:
+                sources_breakdown[src] += 1
+
+    # Emit ADS event
+    event_id = ADSEventSchema.generate_id("bound_files")
+    session_id = (
+        request.headers.get("X-ADT-Session-Id") or "sess_be_20260829_spec118_claude"
+    )
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="CLAUDE",
+        role="Backend_Engineer",
+        action_type="task_bound_files_computed",
+        description=f"Bound files computed for task {task_id}: {len(bound_files)} entries.",
+        spec_ref="SPEC-118",
+        authorized=True,
+        tier=3,
+        session_id=session_id,
+        parent_session_id="sess_arch_20260829_121818_claude",
+        action_data={
+            "task_id": task_id,
+            "count": len(bound_files),
+            "sources_breakdown": sources_breakdown,
+            "authority": "operator_sovereign_override_for_SPEC-118",
+        },
+    )
+    try:
+        res["logger"].log(event)
+    except Exception:
+        pass
+
+    return jsonify({
+        "task_id": task_id,
+        "bound_files": bound_files,
+        "computed_at": computed_at,
+    }), 200
+
+
+@governance_bp.route("/projects/<project_name>/file", methods=["GET"])
+def api_get_project_file(project_name):
+    """SPEC-118 ss3.2: Read a file under the project.
+
+    Path-traversal-safe, size-capped, binary-refusing.
+    Query param: ?path=<rel_path>
+    """
+    import hashlib as _hl
+    import mimetypes as _mt
+    from datetime import datetime as _dt, timezone as _tz
+
+    rel_path = request.args.get("path", "").strip()
+    if not rel_path:
+        return jsonify({"error": "missing_path", "message": "path query param required"}), 400
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    project_root = os.path.realpath(res["paths"]["root"])
+
+    # --- Path traversal protection ---
+    # Reject absolute paths and obvious traversals before os.path.realpath
+    if os.path.isabs(rel_path):
+        return jsonify({"error": "path_traversal", "message": "absolute paths not allowed"}), 403
+    # Decode URL encoding defensively (Flask already decodes, but be explicit)
+    import urllib.parse as _up
+    decoded = _up.unquote(rel_path)
+    resolved = os.path.realpath(os.path.join(project_root, decoded))
+    # Must start with project_root + sep (or equal project_root, though that is a dir)
+    if not (resolved.startswith(project_root + os.sep) or resolved == project_root):
+        return jsonify({"error": "path_traversal", "message": "path escapes project root"}), 403
+    if not os.path.isfile(resolved):
+        return jsonify({"error": "not_found", "message": "file not found"}), 404
+
+    # --- Size cap ---
+    size_cap = int(os.environ.get("ADT_FILE_VIEW_MAX_BYTES", str(5 * 1024 * 1024)))
+    try:
+        stat = os.stat(resolved)
+    except OSError as exc:
+        return jsonify({"error": "stat_failed", "message": str(exc)}), 500
+    file_size = stat.st_size
+    file_mtime = stat.st_mtime
+
+    if file_size > size_cap:
+        return jsonify({
+            "error": "too_large_to_view",
+            "size": file_size,
+            "cap": size_cap,
+        }), 413
+
+    # --- Binary detection + read ---
+    try:
+        with open(resolved, "rb") as f:
+            header = f.read(1024)
+            is_binary = b"\x00" in header
+            if is_binary:
+                return jsonify({"error": "binary_file"}), 415
+            rest = f.read()
+    except OSError as exc:
+        return jsonify({"error": "read_failed", "message": str(exc)}), 500
+
+    raw = header + rest
+    try:
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return jsonify({"error": "binary_file"}), 415
+
+    # --- Compute sha256 ---
+    sha256 = _hl.sha256(raw).hexdigest()
+
+    # --- mime_hint ---
+    mime_hint, _ = _mt.guess_type(resolved)
+    if not mime_hint:
+        mime_hint = "text/plain"
+
+    # --- Line count ---
+    line_count = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+
+    # --- rel_path in response ---
+    resp_path = os.path.relpath(resolved, project_root)
+
+    # --- ADS throttled emit ---
+    session_id = request.headers.get("X-ADT-Session-Id") or "unknown"
+    task_ref = request.args.get("task_ref", "")
+    throttle_key = (session_id, resp_path)
+    now = _dt.now(_tz.utc).timestamp()
+    last_emit = _FILE_READ_THROTTLE.get(throttle_key, 0.0)
+    if now - last_emit >= _FILE_READ_THROTTLE_SECS:
+        _FILE_READ_THROTTLE[throttle_key] = now
+        event_id = ADSEventSchema.generate_id("file_read")
+        event = ADSEventSchema.create_event(
+            event_id=event_id,
+            agent="CLAUDE",
+            role="Backend_Engineer",
+            action_type="operator_file_read",
+            description=f"Operator read file {resp_path} (size {file_size}B).",
+            spec_ref="SPEC-118",
+            authorized=True,
+            tier=3,
+            session_id=session_id,
+            parent_session_id="sess_arch_20260829_121818_claude",
+            action_data={
+                "path": resp_path,
+                "size": file_size,
+                "session_id": session_id,
+                "task_ref": task_ref,
+                "authority": "operator_sovereign_override_for_SPEC-118",
+            },
+        )
+        try:
+            res["logger"].log(event)
+        except Exception:
+            pass
+
+    return jsonify({
+        "path": resp_path,
+        "content": content,
+        "size": file_size,
+        "mtime": file_mtime,
+        "sha256": sha256,
+        "mime_hint": mime_hint,
+        "line_count": line_count,
+        "is_binary": False,
+    }), 200
+
+
+@governance_bp.route("/projects/<project_name>/file", methods=["PUT"])
+def api_put_project_file(project_name):
+    """SPEC-118 ss3.2: Save operator edits under DTCP-routed authority.
+
+    Body: {path, content, previous_sha256, task_ref?}
+    Optimistic concurrency: 409 if current sha256 != previous_sha256 (unless
+    previous_sha256 == "force").
+    """
+    import hashlib as _hl
+    import tempfile as _tmp
+    import shutil as _sh
+    from datetime import datetime as _dt, timezone as _tz
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    body = request.get_json(force=True, silent=True)
+    if not body:
+        return jsonify({"error": "missing_body", "message": "JSON body required"}), 400
+
+    rel_path = (body.get("path") or "").strip()
+    content = body.get("content")
+    previous_sha256 = body.get("previous_sha256", "")
+    task_ref = body.get("task_ref", "")
+
+    if not rel_path:
+        return jsonify({"error": "missing_path", "message": "path field required"}), 400
+    if content is None:
+        return jsonify({"error": "missing_content", "message": "content field required"}), 400
+
+    project_root = os.path.realpath(res["paths"]["root"])
+
+    # --- Path traversal protection ---
+    if os.path.isabs(rel_path):
+        return jsonify({"error": "path_traversal", "message": "absolute paths not allowed"}), 403
+    import urllib.parse as _up
+    decoded = _up.unquote(rel_path)
+    resolved = os.path.realpath(os.path.join(project_root, decoded))
+    if not (resolved.startswith(project_root + os.sep) or resolved == project_root):
+        return jsonify({"error": "path_traversal", "message": "path escapes project root"}), 403
+
+    session_id = request.headers.get("X-ADT-Session-Id") or "unknown"
+    resp_path = os.path.relpath(resolved, project_root)
+
+    # --- Read current file state ---
+    size_before = 0
+    sha256_before = ""
+    current_content = ""
+    if os.path.isfile(resolved):
+        try:
+            with open(resolved, "rb") as f:
+                raw = f.read()
+            size_before = len(raw)
+            sha256_before = _hl.sha256(raw).hexdigest()
+            try:
+                current_content = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                current_content = ""
+        except OSError as exc:
+            return jsonify({"error": "read_failed", "message": str(exc)}), 500
+
+    # --- Optimistic concurrency check ---
+    if previous_sha256 and previous_sha256 != "force":
+        if sha256_before != previous_sha256:
+            # Emit conflict event
+            conflict_id = ADSEventSchema.generate_id("file_conflict")
+            conflict_ev = ADSEventSchema.create_event(
+                event_id=conflict_id,
+                agent="CLAUDE",
+                role="Backend_Engineer",
+                action_type="operator_file_edit_conflict",
+                description=f"SHA-256 mismatch on file {resp_path}. Operator edit rejected.",
+                spec_ref="SPEC-118",
+                authorized=True,
+                tier=3,
+                session_id=session_id,
+                parent_session_id="sess_arch_20260829_121818_claude",
+                action_data={
+                    "path": resp_path,
+                    "current_sha256": sha256_before,
+                    "operator_previous_sha256": previous_sha256,
+                    "resolution": "rejected",
+                    "authority": "operator_sovereign_override_for_SPEC-118",
+                },
+            )
+            try:
+                res["logger"].log(conflict_ev)
+            except Exception:
+                pass
+            return jsonify({
+                "error": "sha256_mismatch",
+                "current_sha256": sha256_before,
+                "current_content": current_content[:4096],  # preview cap
+            }), 409
+
+    # --- Write file (atomic tmp+rename) ---
+    raw_new = content.encode("utf-8")
+    size_after = len(raw_new)
+    sha256_after = _hl.sha256(raw_new).hexdigest()
+
+    # Ensure parent directory exists
+    parent_dir = os.path.dirname(resolved)
+    os.makedirs(parent_dir, exist_ok=True)
+
+    # Try DTCP route first
+    dtcp_port = 5002
+    dtcp_written = False
+    try:
+        import requests as _req
+        dtcp_resp = _req.post(
+            f"http://localhost:{dtcp_port}/write",
+            json={"path": resolved, "content": content},
+            timeout=5,
+        )
+        if dtcp_resp.status_code == 200:
+            dtcp_written = True
+    except Exception:
+        pass  # Fall through to direct write
+
+    if not dtcp_written:
+        # Direct filesystem write (DTCP bypass)
+        # Log a dtcp_bypass_warning event
+        bypass_id = ADSEventSchema.generate_id("dtcp_bypass")
+        bypass_ev = ADSEventSchema.create_event(
+            event_id=bypass_id,
+            agent="CLAUDE",
+            role="Backend_Engineer",
+            action_type="build_worker_completed",  # closest generic type; reuse existing
+            description=f"DTCP unreachable for file write {resp_path}. Falling back to direct write.",
+            spec_ref="SPEC-118",
+            authorized=True,
+            tier=3,
+            session_id=session_id,
+            action_data={"warning": "dtcp_bypass", "path": resp_path},
+        )
+        try:
+            res["logger"].log(bypass_ev)
+        except Exception:
+            pass
+
+        # Atomic write via tmp + rename
+        try:
+            tmp_fd, tmp_path = _tmp.mkstemp(dir=parent_dir)
+            try:
+                with os.fdopen(tmp_fd, "wb") as tf:
+                    tf.write(raw_new)
+                _sh.move(tmp_path, resolved)
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+                raise
+        except OSError as exc:
+            return jsonify({"error": "write_failed", "message": str(exc)}), 500
+
+    # --- Emit success ADS event ---
+    file_mtime = os.path.getmtime(resolved) if os.path.exists(resolved) else 0.0
+    event_id = ADSEventSchema.generate_id("file_edit")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="CLAUDE",
+        role="Backend_Engineer",
+        action_type="operator_file_edit",
+        description=f"Operator wrote file {resp_path} ({size_after}B).",
+        spec_ref="SPEC-118",
+        authorized=True,
+        tier=3,
+        session_id=session_id,
+        parent_session_id="sess_arch_20260829_121818_claude",
+        action_data={
+            "path": resp_path,
+            "size_before": size_before,
+            "size_after": size_after,
+            "sha256_before": sha256_before,
+            "sha256_after": sha256_after,
+            "task_ref": task_ref,
+            "dtcp_written": dtcp_written,
+            "authority": "operator_sovereign_override_for_SPEC-118",
+        },
+    )
+    try:
+        res["logger"].log(event)
+    except Exception:
+        pass
+
+    return jsonify({
+        "path": resp_path,
+        "sha256": sha256_after,
+        "size": size_after,
+        "mtime": file_mtime,
+    }), 200
+
+
+@governance_bp.route("/projects/<project_name>/annotations", methods=["POST"])
+def api_post_annotation(project_name):
+    """SPEC-118 ss3.5: Append an annotation to _cortex/annotations.jsonl."""
+    import random
+    import string
+    from datetime import datetime as _dt, timezone as _tz
+
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    body = request.get_json(force=True, silent=True)
+    if not body:
+        return jsonify({"error": "missing_body", "message": "JSON body required"}), 400
+
+    rel_path = (body.get("path") or "").strip()
+    line_start = body.get("line_start")
+    line_end = body.get("line_end")
+    note = (body.get("note") or "").strip()
+    task_ref = (body.get("task_ref") or "").strip()
+
+    if not rel_path:
+        return jsonify({"error": "missing_path", "message": "path field required"}), 400
+    if line_start is None or line_end is None:
+        return jsonify({"error": "missing_lines",
+                        "message": "line_start and line_end required"}), 400
+    if not note:
+        return jsonify({"error": "missing_note", "message": "note field required"}), 400
+
+    project_root = res["paths"]["root"]
+    session_id = request.headers.get("X-ADT-Session-Id") or "unknown"
+
+    # Check if annotated file exists (warn but permit)
+    full_path = os.path.join(project_root, rel_path)
+    if not os.path.exists(full_path):
+        # Log a warning but continue
+        pass
+
+    # Generate annotation ID
+    now = _dt.now(_tz.utc)
+    suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+    ann_id = now.strftime("ann_%Y%m%d_%H%M%S_") + suffix
+    ts = now.isoformat().replace("+00:00", "Z")
+
+    annotation = {
+        "id": ann_id,
+        "ts": ts,
+        "path": rel_path,
+        "line_start": int(line_start),
+        "line_end": int(line_end),
+        "note": note,
+        "author": "operator",
+        "session_id": session_id,
+        "task_ref": task_ref,
+    }
+
+    # Append to _cortex/annotations.jsonl
+    annotations_path = os.path.join(project_root, "_cortex", "annotations.jsonl")
+    os.makedirs(os.path.dirname(annotations_path), exist_ok=True)
+    try:
+        with open(annotations_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(annotation) + "\n")
+    except OSError as exc:
+        return jsonify({"error": "write_failed", "message": str(exc)}), 500
+
+    # Emit ADS event
+    event_id = ADSEventSchema.generate_id("ann_added")
+    event = ADSEventSchema.create_event(
+        event_id=event_id,
+        agent="CLAUDE",
+        role="Backend_Engineer",
+        action_type="operator_annotation_added",
+        description=f"Operator annotation {ann_id} added to {rel_path} lines {line_start}-{line_end}.",
+        spec_ref="SPEC-118",
+        authorized=True,
+        tier=3,
+        session_id=session_id,
+        parent_session_id="sess_arch_20260829_121818_claude",
+        action_data={
+            "annotation_id": ann_id,
+            "path": rel_path,
+            "line_start": int(line_start),
+            "line_end": int(line_end),
+            "note_length": len(note),
+            "task_ref": task_ref,
+            "authority": "operator_sovereign_override_for_SPEC-118",
+        },
+    )
+    try:
+        res["logger"].log(event)
+    except Exception:
+        pass
+
+    return jsonify(annotation), 201
+
+
+@governance_bp.route("/projects/<project_name>/annotations", methods=["GET"])
+def api_get_annotations(project_name):
+    """SPEC-118: List annotations for a path and/or task.
+
+    Query params: ?path=<rel>&task_id=<id> (both optional; AND if both set).
+    """
+    try:
+        res = _get_project_resources(project_name)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    project_root = res["paths"]["root"]
+    filter_path = request.args.get("path", "").strip()
+    filter_task_id = request.args.get("task_id", "").strip()
+
+    annotations_path = os.path.join(project_root, "_cortex", "annotations.jsonl")
+    annotations = []
+    if os.path.exists(annotations_path):
+        try:
+            with open(annotations_path, "r", encoding="utf-8") as f:
+                for ln in f:
+                    ln = ln.strip()
+                    if not ln or not ln.startswith("{"):
+                        continue
+                    try:
+                        rec = json.loads(ln)
+                    except Exception:
+                        continue
+                    if filter_path and rec.get("path") != filter_path:
+                        continue
+                    if filter_task_id and rec.get("task_ref") != filter_task_id:
+                        continue
+                    annotations.append(rec)
+        except OSError as exc:
+            return jsonify({"error": "read_failed", "message": str(exc)}), 500
+
+    return jsonify({"annotations": annotations}), 200

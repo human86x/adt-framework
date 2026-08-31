@@ -1,5 +1,37 @@
 window.SpecMap = window.SpecMap || {};
 
+// SPEC-117: Helper to determine failure tone for a task record.
+// Returns {label, tone, toneClass, tooltip} when task.status === 'failed', else null.
+// tone: 'warning' (amber) for reconciliation_refused, 'error' (red) for reaudit-reverted,
+//       'neutral' (grey) for generic failures.
+window.SpecMap.getTaskFailureTone = function(task) {
+  if (!task || task.status !== 'failed') return null;
+  if (task.reconciliation_refused === true) {
+    var reason = task.refusal_reason || '';
+    return {
+      label: 'REFUSED',
+      tone: 'warning',
+      toneClass: 'tone-refused',
+      tooltip: reason ? 'Reconciliation refused: ' + reason : 'Reconciliation refused'
+    };
+  }
+  if (task.reaudit_verdict === 'reverted') {
+    var auditReason = task.reaudit_reason || '';
+    return {
+      label: 'REAUDIT FAILED',
+      tone: 'error',
+      toneClass: 'tone-reaudit-failed',
+      tooltip: auditReason ? 'Reaudit failed: ' + auditReason : 'Reaudit failed (previously wrongly completed)'
+    };
+  }
+  return {
+    label: 'FAILED',
+    tone: 'neutral',
+    toneClass: 'tone-failed-generic',
+    tooltip: 'Task failed'
+  };
+};
+
 window.SpecMap.getCenterUrl = function() {
   return localStorage.getItem('adt_center_url') || 'http://localhost:5001';
 };
@@ -597,7 +629,17 @@ window.SpecMap.showDetailPanel = async function(data) {
     <div style="margin-bottom: 12px;">
       <span class="ctx-badge">${data.task_id || ''}</span>
       <span class="ctx-badge badge-blue">${data.role || 'Unknown Role'}</span>
-      <span class="ctx-badge" style="background:${data.status === 'failed' ? '#c62828' : data.status === 'completed' ? '#2e7d32' : '#6e7681'};color:#fff">${data.status || 'unknown'}</span>
+      ${(() => {
+        // SPEC-117: Distinguish reconciliation_refused (amber), reaudit-reverted (red), generic failed (grey)
+        var ft = window.SpecMap.getTaskFailureTone(data);
+        if (ft) {
+          var statusBg = ft.tone === 'warning' ? '#7c4e00' : ft.tone === 'error' ? '#c62828' : '#6e7681';
+          var statusColor = ft.tone === 'warning' ? '#ffd60a' : '#fff';
+          return '<span class="ctx-badge" style="background:' + statusBg + ';color:' + statusColor + '" title="' + ft.tooltip.replace(/"/g, '&quot;') + '">' + ft.label + '</span>';
+        }
+        var bg = data.status === 'completed' ? '#2e7d32' : '#6e7681';
+        return '<span class="ctx-badge" style="background:' + bg + ';color:#fff">' + (data.status || 'unknown') + '</span>';
+      })()}
       ${runtimeHarness || runtimeModel ? `<span class="ctx-badge" style="background:#21262d;color:#58a6ff;font-size:10px;margin-left:4px" title="Actual harness/model used in last run">${(runtimeHarness||'?')}${runtimeModel ? ' / '+runtimeModel : ''}${runtimeChosenVia ? ' (via '+runtimeChosenVia+(runtimeRiskScore != null ? ', risk='+runtimeRiskScore : '')+')' : ''}</span>` : ''}
     </div>
     <div style="font-weight:700; font-size:15px; color:#e6edf3; margin-bottom:10px; line-height:1.35">${data.title || 'Untitled Task'}</div>
@@ -2986,3 +3028,37 @@ window.SpecMap.bindHeaderProjectDropdown = function() {
   window.SpecMap._liveLogAutoStart = true;
 })();
 
+
+
+// SPEC-100 / demo-take fix (2026-08-09): the Cytoscape canvas didn't listen for
+// container resize (e.g. when forge-split-mode toggled the 60/40 layout). Result:
+// spec map rendered at the OLD width, appearing as "a square in half the area".
+// Fix: attach a ResizeObserver on #spec-map-canvas that calls cy.resize() + fit()
+// whenever the container box changes size. One observer per page load.
+(function attachSpecMapResizeObserver(){
+  if (window.__specMapResizeObserver) return;
+  const _boot = () => {
+    const el = document.getElementById('spec-map-canvas');
+    if (!el || typeof ResizeObserver === 'undefined') return false;
+    let _last = { w: 0, h: 0 };
+    const _ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const w = Math.round(e.contentRect.width), h = Math.round(e.contentRect.height);
+        if (w === _last.w && h === _last.h) continue;
+        _last = { w, h };
+        try {
+          const cy = window.SpecMap && window.SpecMap.state && window.SpecMap.state.cy;
+          if (cy && typeof cy.resize === 'function') {
+            cy.resize();
+            if (typeof cy.fit === 'function') cy.fit(undefined, 40);
+          }
+        } catch(_) {}
+      }
+    });
+    _ro.observe(el);
+    window.__specMapResizeObserver = _ro;
+    return true;
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') { _boot(); }
+  else { window.addEventListener('DOMContentLoaded', _boot); }
+})();

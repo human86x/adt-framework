@@ -208,8 +208,14 @@ const GovernancePanel = (() => {
       : '';
 
     // SPEC-035: Add Mark Complete button if not completed
-    const completeBtn = task.status !== 'completed' 
-      ? `<button class="btn-complete-tracker" style="margin-top: 8px; width: 100%;" onclick="event.stopPropagation(); GovernancePanel._markComplete('${task.id}', this)">✓ Mark Complete</button>`
+    const completeBtn = task.status !== 'completed'
+      ? `<button class="btn-complete-tracker" style="margin-top: 8px; width: 100%;" onclick="event.stopPropagation(); GovernancePanel._markComplete('${task.id}', this)">&#10003; Mark Complete</button>`
+      : '';
+
+    // SPEC-117: Show distinct failure tone badge for governance refusals vs reaudit failures
+    const failTone = getTaskFailureTone(task);
+    const failToneBadge = failTone
+      ? `<span class="task-failure-tone-badge ${failTone.toneClass}" title="${failTone.tooltip.replace(/"/g, '&quot;')}">${failTone.label}</span>`
       : '';
 
     return `
@@ -217,6 +223,7 @@ const GovernancePanel = (() => {
         <div class="task-card-header">
           <span class="task-card-id">${task.id}</span>
           ${specBadge}
+          ${failToneBadge}
         </div>
         <div class="task-card-title">${task.title}</div>
         <div class="task-card-meta">
@@ -304,11 +311,18 @@ const GovernancePanel = (() => {
               ? '<span class="task-status-icon blocked">!</span>'
               : '<span class="task-status-icon pending">&#9711;</span>';
 
+          // SPEC-117: failure tone badge for hier-task rows
+          const hierFt = getTaskFailureTone(task);
+          const hierFtBadge = hierFt
+            ? ' <span class="task-failure-tone-badge ' + hierFt.toneClass + '" title="' + hierFt.tooltip.replace(/"/g, '&quot;') + '">' + hierFt.label + '</span>'
+            : '';
+
           html += `
             <div class="hier-task ${task.status}" onclick="GovernancePanel._showTaskDetail('${task.id}')">
               ${statusIcon}
               <span class="hier-task-id">${task.id}</span>
               <span class="hier-task-title">${task.title}</span>
+              ${hierFtBadge}
               <span class="hier-task-role ${getRoleClass(task.assigned_to || '')}">${formatRole(task.assigned_to || '')}</span>
             </div>
           `;
@@ -422,13 +436,19 @@ const GovernancePanel = (() => {
           const agentTag = task.delegation?.delegated_to?.agent
             ? '<span class="deleg-agent-tag">' + task.delegation.delegated_to.agent + '</span>' : '';
 
+          // SPEC-117: failure tone badge in delegation tree
+          const delegFt = getTaskFailureTone(task);
+          const delegFtBadge = delegFt
+            ? '<span class="task-failure-tone-badge ' + delegFt.toneClass + '" title="' + delegFt.tooltip.replace(/"/g, '&quot;') + '">' + delegFt.label + '</span>'
+            : '<span class="deleg-task-status-label">' + task.status.toUpperCase() + '</span>';
+
           html += `
             <div class="deleg-task-node ${statusClass}" onclick="GovernancePanel._showTaskDetail('${task.id}')" title="${(task.description || task.title || '').replace(/"/g, '&quot;')}">
               <span class="deleg-status">${statusIcon}</span>
               <span class="deleg-task-id">${task.id}:</span>
               <span class="deleg-task-title">${task.title}</span>
               ${agentTag}
-              <span class="deleg-task-status-label">${task.status.toUpperCase()}</span>
+              ${delegFtBadge}
             </div>
           `;
 
@@ -542,7 +562,10 @@ const GovernancePanel = (() => {
     modalHtml += '<button onclick="this.closest(\'.task-detail-overlay\').remove()" class="shortcuts-close">&times;</button>';
     modalHtml += '</div>';
     modalHtml += '<div class="task-detail-body">';
-    modalHtml += '<div class="task-detail-row"><strong>Status:</strong> <span class="task-status-badge ' + task.status + '">' + task.status.toUpperCase() + '</span></div>';
+    // SPEC-117: Distinguish reconciliation_refused (amber) / reaudit-reverted (red) / generic failed (grey)
+    var _ft = getTaskFailureTone(task);
+    var _ftBadge = _ft ? ' <span class="task-failure-tone-badge ' + _ft.toneClass + '" title="' + _ft.tooltip.replace(/"/g, '&quot;') + '">' + _ft.label + '</span>' : '';
+    modalHtml += '<div class="task-detail-row"><strong>Status:</strong> <span class="task-status-badge ' + task.status + '">' + task.status.toUpperCase() + '</span>' + _ftBadge + '</div>';
     modalHtml += '<div class="task-detail-row"><strong>Priority:</strong> ' + (task.priority || '--') + '</div>';
     modalHtml += '<div class="task-detail-row"><strong>Spec:</strong> ' + (task.spec_ref || '--') + '</div>';
     modalHtml += '<div class="task-detail-row"><strong>Assigned to:</strong> ' + (task.assigned_to || '--') + '</div>';
@@ -589,6 +612,37 @@ const GovernancePanel = (() => {
     return (role || 'Unassigned')
       .replace('_Engineer', '')
       .replace('Systems_', 'Sys_');
+  }
+
+  // SPEC-117: Return {label, tone, toneClass, tooltip} for a task record so callers
+  // can distinguish reconciliation_refused (amber/warning) from reaudit-reverted
+  // (red/error) from generic failed (grey/neutral).
+  function getTaskFailureTone(task) {
+    if (!task || task.status !== 'failed') return null;
+    if (task.reconciliation_refused === true) {
+      var reason = task.refusal_reason || '';
+      return {
+        label: 'REFUSED',
+        tone: 'warning',
+        toneClass: 'tone-refused',
+        tooltip: reason ? 'Reconciliation refused: ' + reason : 'Reconciliation refused'
+      };
+    }
+    if (task.reaudit_verdict === 'reverted') {
+      var auditReason = task.reaudit_reason || '';
+      return {
+        label: 'REAUDIT FAILED',
+        tone: 'error',
+        toneClass: 'tone-reaudit-failed',
+        tooltip: auditReason ? 'Reaudit failed: ' + auditReason : 'Reaudit failed (previously wrongly completed)'
+      };
+    }
+    return {
+      label: 'FAILED',
+      tone: 'neutral',
+      toneClass: 'tone-failed-generic',
+      tooltip: 'Task failed'
+    };
   }
 
   function getEventTypeClass(actionType) {

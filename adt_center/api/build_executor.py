@@ -201,6 +201,240 @@ def _agy_auth_is_ok(force=False, timeout_sec=30):
 # hatch is ADT_SANDBOX_DISABLE=1 (dev-only, Tier-1 logged in spawn.py).
 
 
+# --- SPEC-117: Reconciler Completion Verification Hardening (TRUST-CRITICAL) ---
+# Closes the false-positive completion loophole introduced by rc88's
+# reconciler-authoritative model. See _cortex/specs/SPEC-117_*.md.
+# Governed by env ADT_RECONCILER_EVIDENCE_REQUIRED (default "true"). Disabling
+# should be an SCR-authorised operational decision, not a casual flip.
+
+_SPEC117_DENY_ACTION_TYPES = {
+    "dtcp_write_denied", "path_denied",
+    "jurisdiction_violation", "sovereign_path_violation",
+}
+_SPEC117_TAIL_LINES = 4000  # events.jsonl tail window for the query
+
+
+def _spec117_evidence_enabled():
+    v = os.environ.get("ADT_RECONCILER_EVIDENCE_REQUIRED", "true").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+def _spec117_read_recent_events(project_root, max_lines=_SPEC117_TAIL_LINES):
+    """Best-effort tail of _cortex/ads/events.jsonl. Returns list of dicts."""
+    events_path = os.path.join(project_root, "_cortex", "ads", "events.jsonl")
+    if not os.path.exists(events_path):
+        return []
+    try:
+        # Read last max_lines lines efficiently; ADS events are one per line.
+        with open(events_path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            # Read a generous chunk to cover max_lines * ~1KB/line
+            chunk = min(size, max_lines * 1500)
+            f.seek(size - chunk)
+            data = f.read().decode("utf-8", errors="replace")
+        lines = data.splitlines()[-max_lines:]
+        out = []
+        for ln in lines:
+            ln = ln.strip()
+            if not ln or not ln.startswith("{"):
+                continue
+            try:
+                out.append(json.loads(ln))
+            except Exception:
+                continue
+        return out
+    except Exception:
+        return []
+
+
+def _spec117_ts_epoch(ev):
+    """Parse an ADS event's ts to epoch seconds. Returns None on failure."""
+    ts = ev.get("ts")
+    if not ts:
+        return None
+    try:
+        from datetime import datetime as _dt
+        # Handles both "2026-08-29T20:00:00Z" and "...+00:00"
+        s = ts.replace("Z", "+00:00")
+        return _dt.fromisoformat(s).timestamp()
+    except Exception:
+        return None
+
+
+def _spec117_find_denies_in_window(project_root, window_start, window_end):
+    """Return list of jurisdiction-deny events with ts in the window."""
+    events = _spec117_read_recent_events(project_root)
+    hits = []
+    for ev in events:
+        if ev.get("action_type") not in _SPEC117_DENY_ACTION_TYPES:
+            continue
+        ts = _spec117_ts_epoch(ev)
+        if ts is None:
+            continue
+        if window_start <= ts <= window_end:
+            hits.append(ev)
+    return hits
+
+
+def _spec117_find_preflight_passes(project_root, task_ids, window_start, window_end):
+    """Return list of task_completed_by_preflight events matching any task_id in window."""
+    if not task_ids:
+        return []
+    task_id_set = set(task_ids)
+    events = _spec117_read_recent_events(project_root)
+    hits = []
+    for ev in events:
+        if ev.get("action_type") != "task_completed_by_preflight":
+            continue
+        ts = _spec117_ts_epoch(ev)
+        if ts is None or not (window_start <= ts <= window_end):
+            continue
+        ad = ev.get("action_data") or {}
+        ev_tid = ad.get("task_id") or ad.get("id")
+        if ev_tid in task_id_set:
+            hits.append(ev)
+    return hits
+
+
+def _spec117_load_tasks_by_ids(project_root, task_ids):
+    """Return matching task dicts from tasks.json, or []."""
+    tasks_path = os.path.join(project_root, "_cortex", "tasks.json")
+    if not os.path.exists(tasks_path):
+        return []
+    try:
+        with open(tasks_path) as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    all_tasks = data.get("tasks", []) if isinstance(data, dict) else data
+    tid_set = set(task_ids or [])
+    return [t for t in all_tasks
+            if (t.get("id") or t.get("task_id")) in tid_set]
+
+
+def _spec117_extract_artifact_paths(acceptance_criteria):
+    """Best-effort extraction of file-path artifacts from acceptance_criteria.
+    Accepts several schemas: list of strings, list of dicts with 'path' or
+    'artifact' keys, or a dict with 'artifacts' list."""
+    if not acceptance_criteria:
+        return []
+    out = []
+    if isinstance(acceptance_criteria, dict):
+        arts = acceptance_criteria.get("artifacts") or []
+        for a in arts:
+            if isinstance(a, str):
+                out.append(a)
+            elif isinstance(a, dict):
+                p = a.get("path") or a.get("artifact") or a.get("file")
+                if p:
+                    out.append(p)
+    elif isinstance(acceptance_criteria, list):
+        for entry in acceptance_criteria:
+            if isinstance(entry, str):
+                # Heuristic: if it looks like a path (contains / or .), include.
+                if "/" in entry or ("." in entry and " " not in entry[:60]):
+                    out.append(entry)
+            elif isinstance(entry, dict):
+                p = entry.get("path") or entry.get("artifact") or entry.get("file")
+                if p:
+                    out.append(p)
+                arts = entry.get("artifacts") or []
+                for a in arts:
+                    if isinstance(a, str):
+                        out.append(a)
+                    elif isinstance(a, dict) and (a.get("path") or a.get("file")):
+                        out.append(a.get("path") or a.get("file"))
+    return out
+
+
+def _verify_completion_evidence(project_root, task_ids, spawned_at, exited_at,
+                                reconciler_summary=None, grace_seconds=30):
+    """SPEC-117: verify a worker produced evidence before marking tasks complete.
+
+    Returns dict:
+      {decision: 'accept'|'refuse',
+       reason: str,           # structured reason code
+       source: str|None,      # 'artifact'|'preflight'|'reconciler'|'feature_flag_off'|None
+       evidence: dict}        # supporting data for the ADS event
+    """
+    # Feature flag
+    if not _spec117_evidence_enabled():
+        return {"decision": "accept", "reason": "evidence_check_disabled",
+                "source": "feature_flag_off",
+                "evidence": {"flag": "ADT_RECONCILER_EVIDENCE_REQUIRED", "value": "false"}}
+
+    window_end = exited_at + grace_seconds
+
+    # Layer 1 (SPEC-117 sec 3.2): jurisdiction-deny hard fail — takes precedence
+    denies = _spec117_find_denies_in_window(project_root, spawned_at, window_end)
+    if denies:
+        return {"decision": "refuse", "reason": "jurisdiction_blocked",
+                "source": None,
+                "evidence": {
+                    "denied_events": [d.get("event_id") for d in denies[:10]],
+                    "denied_count": len(denies),
+                    "window_start": spawned_at, "window_end": window_end,
+                }}
+
+    # Layer 2 (SPEC-117 sec 3.1): explicit artifact evidence
+    tasks = _spec117_load_tasks_by_ids(project_root, task_ids)
+    for task in tasks:
+        artifacts = _spec117_extract_artifact_paths(task.get("acceptance_criteria"))
+        if not artifacts:
+            continue
+        missing = []
+        for artifact_path in artifacts:
+            full = os.path.join(project_root, artifact_path)
+            if not os.path.exists(full):
+                missing.append(artifact_path)
+                continue
+            try:
+                mtime = os.path.getmtime(full)
+            except Exception:
+                mtime = 0
+            if mtime < spawned_at - 5:  # 5s tolerance for clock skew
+                missing.append(f"{artifact_path}(stale_mtime)")
+        if missing:
+            return {"decision": "refuse", "reason": "no_artifact_evidence",
+                    "source": None,
+                    "evidence": {"task_id": task.get("id") or task.get("task_id"),
+                                 "missing_artifacts": missing,
+                                 "required_count": len(artifacts)}}
+        # Task's artifacts all present and fresh — accept immediately
+        return {"decision": "accept", "reason": "artifacts_verified",
+                "source": "artifact",
+                "evidence": {"task_id": task.get("id") or task.get("task_id"),
+                             "artifact_count": len(artifacts)}}
+
+    # Layer 3 (SPEC-117 sec 3.1 fallback): preflight pass
+    preflight_hits = _spec117_find_preflight_passes(
+        project_root, task_ids, spawned_at, window_end)
+    if preflight_hits:
+        return {"decision": "accept", "reason": "preflight_passed",
+                "source": "preflight",
+                "evidence": {"preflight_events": [p.get("event_id") for p in preflight_hits]}}
+
+    # Layer 4 (SPEC-117 sec 3.1 final fallback): SPEC-105 reconciler count
+    if isinstance(reconciler_summary, dict):
+        allowed_count = int(reconciler_summary.get("allowed_count") or 0)
+        denied_count = int(reconciler_summary.get("denied_count") or 0)
+        if denied_count > 0:
+            return {"decision": "refuse", "reason": "jurisdiction_partial_block",
+                    "source": None,
+                    "evidence": {"allowed_count": allowed_count, "denied_count": denied_count}}
+        if allowed_count > 0:
+            return {"decision": "accept", "reason": "reconciler_landed_files",
+                    "source": "reconciler",
+                    "evidence": {"allowed_count": allowed_count}}
+
+    # Layer 5 (SPEC-117 sec 3.3): empty-delta refusal
+    return {"decision": "refuse", "reason": "no_artifact_produced_no_preflight",
+            "source": None,
+            "evidence": {"tasks_checked": len(tasks),
+                         "reconciler_summary": reconciler_summary if isinstance(reconciler_summary, dict) else None}}
+
+
 def _schedule_reconciler_on_exit(proc, project_root, dtcp_url, *,
                                   role, agent, spec_id):
     """SPEC-105: background-wait for a fire-and-forget worker, then reconcile.
@@ -1694,12 +1928,25 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
 
     pid = proc.pid
     proc._spawn_ts = time.time()  # for mtime-based narrating-not-executing probe
+    # SPEC-117 task_5: capture HEAD sha at spawn for evidence baseline
+    _head_sha_at_spawn = ""
+    try:
+        import subprocess as _sp
+        _rev = _sp.run(["git", "-C", project_root, "rev-parse", "HEAD"],
+                       capture_output=True, text=True, timeout=5)
+        if _rev.returncode == 0:
+            _head_sha_at_spawn = _rev.stdout.strip()[:12]
+    except Exception:
+        pass
+
     _append_ads_event(
         role, spec_id, build_id, "build_worker_spawned",
         f"Worker {role} ({agent_label}) spawned PID {pid} for {len(task_ids)} task(s).",
         {"pid": pid, "role": role, "harness": harness, "model": actual_model,
          "task_ids": task_ids, "log_path": log_path,
-         "cmd_preview": " ".join(cmd[:3]) + " ..."},
+         "cmd_preview": " ".join(cmd[:3]) + " ...",
+         "spawned_at": proc._spawn_ts,
+         "head_sha_at_spawn": _head_sha_at_spawn},
         project_root,
     )
 
@@ -1963,6 +2210,54 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         # successful work due to LS shutdown race. Only mark this as a
         # failure when there's ALSO no evidence of landed work.
         if reconciler_landed_project_files > 0:
+            # SPEC-117: evidence gate before trusting the reconciler.
+            _spawned_at = getattr(proc, "_spawn_ts", None) or (time.time() - 60)
+            _exited_at = time.time()
+            _evidence = _verify_completion_evidence(
+                project_root, task_ids, _spawned_at, _exited_at,
+                reconciler_summary=(_rec_summary if isinstance(_rec_summary, dict) else None),
+            )
+            if _evidence["decision"] == "refuse":
+                _append_ads_event(
+                    role, spec_id, build_id, "task_reconciliation_refused",
+                    (f"Reconciler refused to mark {len(task_ids)} task(s) completed for worker "
+                     f"{role} PID {pid}: reason={_evidence['reason']}. "
+                     f"Worker exit {rc}, reconciler landed {reconciler_landed_project_files} files, "
+                     "but evidence gate rejected. SPEC-117."),
+                    {"pid": pid, "role": role, "returncode": rc, "harness": harness,
+                     "task_ids": task_ids,
+                     "refusal_reason": _evidence["reason"],
+                     "refusal_evidence": _evidence["evidence"],
+                     "reconciler_allowed_count": reconciler_landed_project_files,
+                     "spec_ref_gate": "SPEC-117",
+                     "log_path": log_path},
+                    project_root,
+                )
+                _set_task_status_bulk(
+                    project_root, task_ids, "failed",
+                    {"reconciliation_refused": True,
+                     "refusal_reason": _evidence["reason"],
+                     "refusal_evidence": _evidence["evidence"]},
+                )
+                try:
+                    _maybe_offer_harness_escalation(
+                        project_root, tasks, harness,
+                        f"reconciliation_refused_{_evidence['reason']}",
+                        build_id, spec_id, role)
+                except Exception:
+                    pass
+                return False
+
+            _append_ads_event(
+                role, spec_id, build_id, "reconciler_evidence_check_passed",
+                (f"Evidence check passed for {len(task_ids)} task(s): "
+                 f"source={_evidence['source']} reason={_evidence['reason']}. SPEC-117."),
+                {"pid": pid, "role": role, "task_ids": task_ids,
+                 "evidence_source": _evidence["source"],
+                 "evidence_reason": _evidence["reason"],
+                 "evidence": _evidence["evidence"]},
+                project_root,
+            )
             _set_task_status_bulk(
                 project_root, task_ids, "completed",
                 {
@@ -1972,6 +2267,8 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
                         "allowed_count": reconciler_landed_project_files,
                         "worker_exit_code": rc,
                         "log_path": log_path,
+                        "spec117_evidence_source": _evidence["source"],
+                        "spec117_evidence_reason": _evidence["reason"],
                     }],
                 },
             )
@@ -1979,10 +2276,12 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
                 role, spec_id, build_id, "build_worker_completed_via_reconciler",
                 (f"Worker {role} PID {pid} exit {rc} but reconciler landed "
                  f"{reconciler_landed_project_files} DTCP-authorised file writes. "
-                 "Tasks marked complete (SPEC-105 amendment 2026-08-16)."),
+                 "Tasks marked complete (SPEC-105 amendment 2026-08-16, "
+                 "SPEC-117 evidence gate passed)."),
                 {"pid": pid, "role": role, "returncode": rc, "harness": harness,
                  "reconciler_allowed_count": reconciler_landed_project_files,
-                 "log_path": log_path, "task_ids": task_ids},
+                 "log_path": log_path, "task_ids": task_ids,
+                 "spec117_evidence_source": _evidence["source"]},
                 project_root,
             )
             return True
@@ -2016,14 +2315,49 @@ def _run_worker(role, tasks, build_id, spec_id, project_root, task_harness=None,
         except Exception:
             pass
         if log_done_signal:
+            # SPEC-117: evidence gate on the "log said already done" path.
+            _spawned_at2 = getattr(proc, "_spawn_ts", None) or (time.time() - 60)
+            _evidence2 = _verify_completion_evidence(
+                project_root, task_ids, _spawned_at2, time.time(),
+                reconciler_summary=None,
+            )
+            if _evidence2["decision"] == "refuse":
+                _append_ads_event(
+                    role, spec_id, build_id, "task_reconciliation_refused",
+                    (f"Refused 'already done' log-signal completion for {len(task_ids)} task(s) "
+                     f"of worker {role} PID {pid}: reason={_evidence2['reason']}. SPEC-117."),
+                    {"pid": pid, "role": role, "task_ids": task_ids,
+                     "refusal_reason": _evidence2["reason"],
+                     "refusal_evidence": _evidence2["evidence"],
+                     "signal": "log_done_signal_rejected",
+                     "spec_ref_gate": "SPEC-117",
+                     "log_path": log_path},
+                    project_root,
+                )
+                _set_task_status_bulk(project_root, task_ids, "failed",
+                                      {"reconciliation_refused": True,
+                                       "refusal_reason": _evidence2["reason"],
+                                       "refusal_evidence": _evidence2["evidence"]})
+                return False
+            _append_ads_event(
+                role, spec_id, build_id, "reconciler_evidence_check_passed",
+                (f"Evidence check passed for 'already done' signal on {len(task_ids)} task(s): "
+                 f"source={_evidence2['source']}. SPEC-117."),
+                {"pid": pid, "role": role, "task_ids": task_ids,
+                 "evidence_source": _evidence2["source"],
+                 "evidence_reason": _evidence2["reason"]},
+                project_root,
+            )
             # Worker confirmed tasks were already done — mark them complete
             _set_task_status_bulk(project_root, task_ids, "completed",
                                   {"reconciled_from_failed": True,
-                                   "reconciliation_evidence": [{"path": log_path, "signal": "log_done_signal"}]})
+                                   "reconciliation_evidence": [{"path": log_path, "signal": "log_done_signal",
+                                                                 "spec117_evidence_source": _evidence2["source"]}]})
             _append_ads_event(
                 role, spec_id, build_id, "build_worker_already_done",
-                f"Worker {role} PID {pid} exit 0: tasks already implemented, marked complete.",
-                {"pid": pid, "role": role, "task_ids": task_ids, "log_path": log_path},
+                f"Worker {role} PID {pid} exit 0: tasks already implemented, marked complete (SPEC-117 gate passed).",
+                {"pid": pid, "role": role, "task_ids": task_ids, "log_path": log_path,
+                 "spec117_evidence_source": _evidence2["source"]},
                 project_root,
             )
             return True

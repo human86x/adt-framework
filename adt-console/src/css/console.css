@@ -2187,6 +2187,34 @@ input:checked + .slider:before {
 .task-status-badge.in_progress { background: rgba(107, 127, 215, 0.15); color: var(--accent-blue); }
 .task-status-badge.pending { background: rgba(72, 79, 88, 0.15); color: var(--text-secondary); }
 
+/* SPEC-117: Failure tone badges — reconciliation_refused (amber/warning),
+   reaudit-reverted (red/error), generic failed (grey/neutral) */
+.task-failure-tone-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: default;
+  margin-left: 4px;
+}
+.task-failure-tone-badge.tone-refused {
+  background: rgba(210, 153, 34, 0.18);
+  color: #ffd60a;
+  border: 1px solid rgba(210, 153, 34, 0.4);
+}
+.task-failure-tone-badge.tone-reaudit-failed {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff5252;
+  border: 1px solid rgba(248, 81, 73, 0.35);
+}
+.task-failure-tone-badge.tone-failed-generic {
+  background: rgba(110, 118, 129, 0.18);
+  color: #8b949e;
+  border: 1px solid rgba(110, 118, 129, 0.3);
+}
+
 .task-detail-desc {
   margin-top: 12px;
   padding: 12px;

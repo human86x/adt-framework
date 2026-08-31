@@ -1,0 +1,44 @@
+# ADT Device Type Template -- Raspberry Pi 3B / 3B+
+# SPEC-113 ss3.4 -- starter library
+id: raspberry_pi_3b
+name: Raspberry Pi 3B / 3B+
+capabilities:
+  - ssh
+  - sftp
+  - gpio
+  - usb_host
+  - network
+
+identification:
+  discovery_hint: "ssh {hostname} 'cat /proc/device-tree/model' 2>/dev/null | grep 'Raspberry Pi 3'"
+  model_string: "Raspberry Pi 3 Model B"
+
+procedures:
+  health:
+    protocol: ssh
+    command: "echo OK"
+    expect: "OK"
+    timeout_ms: 8000
+    note: "Pi 3B is slower than Pi 5; allow longer SSH connect timeout."
+
+  deploy:
+    protocol: sftp
+    description: "Upload a file to the Pi via SFTP."
+    args: "sftp {credentials_ref}@{hostname}:{remote_path} <<< $'put {artifact}'"
+
+  reboot:
+    protocol: ssh
+    command: "sudo reboot"
+    confirm: true
+
+  shell_exec:
+    protocol: ssh
+    command: "{command}"
+    timeout_ms: 60000
+    note: "Longer timeout; Pi 3B CPU is slower for compilation tasks."
+
+safety_notes:
+  - "Pi 3B uses microSD; heavy I/O can cause card wear. Avoid unnecessary flushes."
+  - "USB ports are shared with the Ethernet adapter on Pi 3B (single USB hub)."
+  - "Always use SSH key auth."
+  - "If used as a USB transit host for Arduino/ESP32, ensure pyserial is installed on the Pi."

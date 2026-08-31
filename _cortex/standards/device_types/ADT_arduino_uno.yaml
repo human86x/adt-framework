@@ -1,0 +1,43 @@
+# ADT Device Type Template -- Arduino Uno R3
+# SPEC-113 ss3.4 -- starter library
+id: arduino_uno
+name: Arduino Uno R3
+capabilities:
+  - usb_serial
+  - flash
+  - gpio
+
+identification:
+  # VID/PID documented: 2341:0043 (genuine Arduino Uno R3), 2341:0001 (older variant)
+  usb_vid: "2341"
+  usb_pid: "0043"
+  usb_pid_alt: "0001"
+  discovery_hint: "avrdude -c arduino -p atmega328p -P {port} -v 2>&1 | grep 'Device signature'"
+  udev_rule: 'SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", ATTRS{serial}=="{serial}", SYMLINK+="ttyUSB_{alias}"'
+
+procedures:
+  health:
+    protocol: serial
+    baudrate: 9600
+    probe: "PING\n"
+    expect: "PONG\n"
+    timeout_ms: 2000
+
+  flash:
+    tool: avrdude
+    args: "-c arduino -p atmega328p -P {port} -b 115200 -U flash:w:{artifact}:i"
+    verify: "avrdude -c arduino -p atmega328p -P {port} -U flash:v:{artifact}:i"
+
+  backup:
+    tool: avrdude
+    args: "-c arduino -p atmega328p -P {port} -U flash:r:{out_path}:i"
+    default_out_path: "_cortex/firmware_snapshots/{target_id}_{ts}.hex"
+
+  reset:
+    tool: stty
+    args: "-F {port} hupcl"
+
+safety_notes:
+  - "Programmer type must be 'arduino' (not 'wiring') for Uno."
+  - "Sketch upload baud rate is 115200 for Uno R3; older boards may need 57600."
+  - "Use port_symlink (udev symlink), never bare /dev/ttyUSB<N>."
